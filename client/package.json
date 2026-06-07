@@ -30,7 +30,6 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
-    "@next/swc-win32-x64-msvc": "^16.2.7",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -46,5 +45,8 @@
     "tailwindcss": "^3.4.3",
     "ts-jest": "^29.4.11",
     "typescript": "^5.2.2"
+  },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "^16.2.7"
   }
 }
