@@ -176,9 +176,9 @@ export default function MaintenancePage() {
           </p>
         </header>
 
-        {/* Dynamic ASCII Logo blowing a kiss */}
+        {/* Dynamic ASCII Logo blowing a kiss (Auto-height to prevent head cropping) */}
         <div className="flex flex-col items-center justify-center py-2 mb-6 relative">
-          <div className="relative w-full max-w-lg flex items-center justify-center overflow-hidden h-[180px] sm:h-[240px]">
+          <div className="relative w-full max-w-lg flex items-center justify-center overflow-visible">
             <pre className="text-[3.8px] xs:text-[4.8px] sm:text-[6.2px] md:text-[7.2px] leading-[1.0] text-[#ff007f] filter drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] font-mono font-bold select-none whitespace-pre text-center">
               {getGhostFrame(frame)}
             </pre>
@@ -200,14 +200,19 @@ export default function MaintenancePage() {
           </div>
         </div>
 
-        {/* Maintenance Message */}
-        <div className="text-center space-y-4">
+        {/* Maintenance Message with Poetic Quote */}
+        <div className="text-center space-y-6">
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white leading-snug">
             Othrhalff is under renovation...
           </h2>
-          <p className="text-base sm:text-lg text-neutral-400 font-medium italic tracking-wide">
-            a chapter of love begins soon
-          </p>
+          <div className="space-y-2 max-w-md mx-auto">
+            <p className="text-sm sm:text-base text-neutral-400 font-medium italic tracking-wide leading-relaxed">
+              "In a sea of anonymous faces, searching for the spark; two wandering halves will find their light in the dark."
+            </p>
+            <p className="text-[10px] text-neutral-500 font-black tracking-[0.3em] uppercase">
+              — OthrHalff
+            </p>
+          </div>
         </div>
       </main>
 
