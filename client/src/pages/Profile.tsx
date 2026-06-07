@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase'; // Changed: Import Supabase
 import { UserProfile } from '../types';
@@ -132,7 +132,7 @@ export const Profile: React.FC = () => {
         <div className="h-full flex flex-col items-center justify-center bg-black text-white">
             <Ghost className="w-12 h-12 text-gray-700 mb-4" />
             <p className="text-gray-500">User not found.</p>
-            <button onClick={() => navigate(-1)} className="mt-4 text-neon hover:underline">Go Back</button>
+            <button onClick={() => navigate.back()} className="mt-4 text-neon hover:underline">Go Back</button>
         </div>
     );
 
@@ -210,7 +210,7 @@ export const Profile: React.FC = () => {
 
                 {/* Mobile Nav */}
                 <div className="flex md:hidden justify-between items-center mb-6">
-                    <button onClick={() => navigate(-1)} className="p-2 bg-gray-900/80 backdrop-blur rounded-full text-white border border-gray-800">
+                    <button onClick={() => navigate.back()} className="p-2 bg-gray-900/80 backdrop-blur rounded-full text-white border border-gray-800">
                         <ChevronDown className="w-5 h-5 rotate-90" />
                     </button>
                     <span className="font-bold text-sm tracking-widest uppercase text-gray-400">{isSelf ? 'My Profile' : 'Student Profile'}</span>
@@ -301,7 +301,7 @@ export const Profile: React.FC = () => {
                                     )
                                 ) : (
                                     <div className="flex gap-4 justify-center md:justify-start">
-                                        <button onClick={() => navigate(`/chat/${profileUser.id}`)} className="px-8 py-3 rounded-xl bg-neon text-white shadow-[0_0_20px_rgba(255,0,127,0.4)] hover:bg-neon/90 hover:scale-105 transition-all font-bold text-sm flex items-center gap-2">
+                                        <button onClick={() => navigate.push(`/chat/${profileUser.id}`)} className="px-8 py-3 rounded-xl bg-neon text-white shadow-[0_0_20px_rgba(255,0,127,0.4)] hover:bg-neon/90 hover:scale-105 transition-all font-bold text-sm flex items-center gap-2">
                                             <MessageCircle className="w-5 h-5" /> Message
                                         </button>
                                         <button className="px-6 py-3 rounded-xl bg-gray-800 text-white border border-gray-700 hover:bg-gray-700 transition-all font-bold text-sm">
@@ -515,7 +515,7 @@ export const Profile: React.FC = () => {
                                     <div className={`transition-all duration-300 ease-in-out ${showAccount ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                                         <div className="px-6 pb-6 space-y-3">
                                             <button
-                                                onClick={() => navigate('/contact')}
+                                                onClick={() => navigate.push('/contact')}
                                                 className="w-full p-4 rounded-xl bg-gray-800/50 border border-gray-700 hover:bg-gray-800 hover:border-gray-500 group text-left transition-all flex items-center gap-3"
                                             >
                                                 <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 group-hover:text-white transition-colors">
@@ -573,7 +573,7 @@ export const Profile: React.FC = () => {
                                         <div className="px-6 pb-6 space-y-3">
                                             {/* Blog Link */}
                                             <button
-                                                onClick={() => navigate('/blog')}
+                                                onClick={() => navigate.push('/blog')}
                                                 className="w-full p-4 rounded-xl bg-gradient-to-r from-neon/10 to-transparent border border-neon/20 hover:border-neon/50 group text-left transition-all flex items-center gap-3"
                                             >
                                                 <div className="p-2.5 bg-neon/10 rounded-xl text-neon group-hover:scale-110 transition-transform">
@@ -587,7 +587,7 @@ export const Profile: React.FC = () => {
 
                                             {/* Developers Link */}
                                             <button
-                                                onClick={() => navigate('/developers')}
+                                                onClick={() => navigate.push('/developers')}
                                                 className="w-full p-4 rounded-xl bg-gradient-to-r from-blue-600/10 to-purple-600/10 border border-blue-500/20 hover:border-blue-500/40 group text-left transition-all flex items-center gap-3"
                                             >
                                                 <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-400 group-hover:scale-110 transition-transform">

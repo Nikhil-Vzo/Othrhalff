@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 import { ArrowLeft, Link as LinkIcon, AlertCircle, Monitor, FolderOpen, Youtube, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MonitorPlay, Home, Gamepad, Settings as SettingsIcon, Mic, MicOff, Video, VideoOff, MonitorUp, Send, MessageSquare, Maximize, Minimize, Sparkles } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
@@ -68,7 +68,7 @@ const StreamVideo = ({ stream, muted = false, mirrored }: { stream: MediaStream,
 
 export const CinemaDate: React.FC = () => {
     const navigate = useNavigate();
-    const location = useLocation();
+    const location = useLocation() as any;
     const [mode, setMode] = useState<DateMode>('landing');
     const [url, setUrl] = useState<string>('');
     const [inputUrl, setInputUrl] = useState(''); // Separate state for input tracking
@@ -1150,7 +1150,7 @@ export const CinemaDate: React.FC = () => {
             <div className="absolute top-[20%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-[radial-gradient(circle_at_center,_rgba(79,70,229,0.15)_0%,_transparent_70%)] pointer-events-none -z-0 will-change-transform animate-blob animation-delay-2000" />
 
             <button
-                onClick={() => navigate('/virtual-date')}
+                onClick={() => navigate.push('/virtual-date')}
                 className="absolute top-4 md:top-6 left-4 md:left-6 p-2 md:p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors z-20 group border border-white/10 backdrop-blur-md"
             >
                 <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-white/70 group-hover:text-white" />
@@ -1715,7 +1715,7 @@ export const CinemaDate: React.FC = () => {
                                 onClick={() => {
                                     setShowLeaveModal(false);
                                     setMode('landing');
-                                    navigate('/virtual-date');
+                                    navigate.push('/virtual-date');
                                 }}
                                 className="flex-1 py-3 px-4 rounded-xl bg-red-500/90 hover:bg-red-500 text-white font-semibold transition-colors"
                             >

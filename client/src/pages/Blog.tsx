@@ -1,5 +1,6 @@
+"use client";
 import React, { useEffect, useRef, useLayoutEffect } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Ghost, ArrowLeft, TrendingUp, Users, Eye, Zap, Quote, Rocket, Sparkles, ArrowRight, Instagram, Linkedin, Github } from 'lucide-react';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
@@ -260,7 +261,7 @@ export const Blog: React.FC = () => {
 
       {/* Global Nav - Fixed top */}
       <nav className="global-nav fixed top-0 w-full z-40 bg-transparent mix-blend-difference pointer-events-none p-6 md:p-10 flex items-start justify-between">
-        <Link to="/" className="pointer-events-auto flex items-center gap-3 group hover:opacity-80 transition-opacity">
+        <Link href="/" className="pointer-events-auto flex items-center gap-3 group hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 rounded-full border border-white/20 flex flex-col items-center justify-center group-hover:scale-110 transition-transform">
             <ArrowLeft className="w-4 h-4 text-white" />
           </div>
@@ -586,7 +587,7 @@ export const Blog: React.FC = () => {
                 <span className="text-white italic" style={fontInstrument}>And it started breathing on its own.</span>
               </h2>
               
-              <Link to="/" className="inline-flex items-center gap-3 text-xs uppercase tracking-[0.2em] font-bold text-gray-400 hover:text-white transition-colors duration-300 mb-24 pb-2 border-b border-transparent hover:border-white relative z-10">
+              <Link href="/" className="inline-flex items-center gap-3 text-xs uppercase tracking-[0.2em] font-bold text-gray-400 hover:text-white transition-colors duration-300 mb-24 pb-2 border-b border-transparent hover:border-white relative z-10">
                 Find Your Other Half <ArrowRight className="w-3 h-3" />
               </Link>
               

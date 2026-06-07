@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Bell, Heart, MessageCircle, Zap, Check, X, Ghost, Loader2, Eye } from 'lucide-react';
@@ -60,7 +60,7 @@ export const Notifications: React.FC = () => {
         .maybeSingle();
 
       if (match) {
-        navigate(`/chat/${match.id}`);
+        navigate.push(`/chat/${match.id}`);
       } else {
         console.error('Match not found for message notification');
       }
@@ -87,7 +87,7 @@ export const Notifications: React.FC = () => {
       if (existingMatch) {
         // Match exists, just delete notification and navigate
         await deleteNotification(notif.id);
-        navigate(`/chat/${existingMatch.id}`);
+        navigate.push(`/chat/${existingMatch.id}`);
         setProcessingId(null);
         return;
       }
@@ -142,12 +142,12 @@ export const Notifications: React.FC = () => {
         // TIMEOUT FALLBACK: Navigate to matches anyway so user isn't stuck
         console.warn('Match creation timed out, redirecting to matches tab.');
         alert('Match is being created in the background. Check your Matches tab momentarily.');
-        navigate('/matches');
+        navigate.push('/matches');
         return;
       }
 
       // 4. Navigate to chat if match found
-      navigate(`/chat/${matchData.id}`);
+      navigate.push(`/chat/${matchData.id}`);
 
     } catch (err: any) {
       console.error('Accept error:', err);
@@ -262,12 +262,12 @@ export const Notifications: React.FC = () => {
         // Timeout Fallback
         console.warn('Match creation timed out, redirecting to matches tab.');
         alert('Match is being created. Check your Matches tab.');
-        navigate('/matches');
+        navigate.push('/matches');
         return;
       }
 
       // 4. Navigate to chat
-      navigate(`/chat/${matchData.id}`);
+      navigate.push(`/chat/${matchData.id}`);
 
     } catch (err: any) {
       console.error('Like back error:', err);

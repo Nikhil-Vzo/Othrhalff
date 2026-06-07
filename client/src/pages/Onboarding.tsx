@@ -5,7 +5,7 @@ import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X
 import { AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, LOOKING_FOR_OPTIONS, BRANCH_CATEGORIES, YEAR_OPTIONS } from '../constants';
 import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 
 // Generate arrays for DOB dropdowns
@@ -16,7 +16,7 @@ const YEARS = Array.from({ length: 30 }, (_, i) => (new Date().getFullYear() - 1
 export const Onboarding: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation() as any;
 
   // Loading state to prevent flash of form while checking for existing profile
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
@@ -87,7 +87,7 @@ export const Onboarding: React.FC = () => {
 
           // Log them in and redirect to home
           await login(appUser);
-          navigate('/home');
+          navigate.push('/home');
           return; // Exit early, no need to show onboarding
         }
 
@@ -228,7 +228,7 @@ export const Onboarding: React.FC = () => {
 
       // Small delay for user to see success message
       setTimeout(() => {
-        navigate('/home');
+        navigate.push('/home');
       }, 500);
     } catch (err: any) {
       setError(err.message || "Failed to create profile. Please try again.");

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Confession } from '../types';
 import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost } from 'lucide-react';
 import { EmojiClickData } from 'emoji-picker-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 
@@ -513,7 +513,7 @@ export const Confessions: React.FC = () => {
         return (
             <div className="h-full bg-transparent text-white flex flex-col relative overflow-hidden">
                 <div className="p-4 border-b border-gray-900 flex items-center justify-between bg-black z-20 shrink-0">
-                    <button onClick={() => navigate('/home')} className="p-2 hover:bg-gray-800 rounded-full transition-colors hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" /></button>
+                    <button onClick={() => navigate.push('/home')} className="p-2 hover:bg-gray-800 rounded-full transition-colors hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" /></button>
                     <div><h1 className="text-xl font-black uppercase">Campus Confessions</h1></div>
                 </div>
                 <div className="flex-1 flex items-center justify-center"><p className="text-white">Amity Only</p></div>
@@ -526,7 +526,7 @@ export const Confessions: React.FC = () => {
             {/* Header */}
             <div className="flex-none p-4 border-b border-gray-800/50 bg-black/20 backdrop-blur-md z-40 sticky top-0 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/home')} className="p-2 hover:bg-gray-800 rounded-full hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" /></button>
+                    <button onClick={() => navigate.push('/home')} className="p-2 hover:bg-gray-800 rounded-full hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" /></button>
                     <div><h1 className="text-xl font-bold uppercase tracking-tight">Campus Confessions</h1><p className="text-xs text-gray-500 font-mono">Amity University</p></div>
                 </div>
                 {/* Sort Menu */}
