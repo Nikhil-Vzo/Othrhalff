@@ -1,4 +1,4 @@
-## 🚀 Overview
+##  Overview
 
 OTHRHALFF is a modern campus-based social platform designed to help students connect, interact, and express themselves freely.
 
@@ -10,7 +10,7 @@ Just people, thoughts, and connections.
 
 ---
 
-## ✨ Core Idea
+##  Core Idea
 
 Most platforms are built on *profiles*.  
 OTHRHALFF is built on *conversations*.
@@ -34,14 +34,14 @@ Instead of curating a perfect identity, users can:
 - 👤 Profile customization & onboarding
 ---
 
-### 💬 Live Chat-Based Interface
+###  Live Chat-Based Interface
 - Real-time message flow (like a chatroom)
 - No traditional forms
 - Instant posting & interaction
 
 ---
 
-### 🏫 Campus-Focused Network
+###  Campus-Focused Network
 - Built specifically for college students
 - Hyper-local conversations
 - Stronger, more relevant connections
@@ -49,7 +49,7 @@ Instead of curating a perfect identity, users can:
 ---
 
 
-### ⚡ Real-Time Experience
+###  Real-Time Experience
 - Smooth, instant updates
 - Chat-like UX
 - No reloads, no friction
@@ -57,7 +57,7 @@ Instead of curating a perfect identity, users can:
 ---
 
 
-## 🎯 Vision
+##  Vision
 
 To create a **safe, expressive digital space** where students can:
 - Share thoughts without fear
@@ -78,7 +78,7 @@ No friction. Just flow.
 
 ---
 
-## 🧩 Future Scope
+##  Future Scope
 
 - AI-based moderation
 - Sentiment analysis for campus mood
@@ -95,4 +95,4 @@ No friction. Just flow.
 
 ## License
 
-All rights reserved.
+All rights reserved...
