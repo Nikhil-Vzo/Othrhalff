@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
@@ -50,7 +50,7 @@ const ChatSkeleton = () => {
 export const Chat: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const matchId = id!; // Guaranteed by route
-  const location = useLocation(); // Add this hook
+  const location = useLocation() as any; // Add this hook
   const cacheKey = `otherhalf_chat_${matchId}_v3`;
 
   const [partner, setPartner] = useState<MatchProfile | null>(() => {
@@ -126,7 +126,7 @@ export const Chat: React.FC = () => {
         // Fetch partner ID if totally missing (direct link load)
         if (!partnerId) {
           const { data: matchData, error: matchError } = await supabase.from('matches').select('user_a, user_b').eq('id', matchId).single();
-          if (matchError || !matchData) { navigate('/matches'); return; }
+          if (matchError || !matchData) { navigate.push('/matches'); return; }
           partnerId = matchData.user_a === currentUser.id ? matchData.user_b : matchData.user_a;
 
           // If we had to fetch ID, we must fetch profile to show anything
@@ -314,13 +314,7 @@ export const Chat: React.FC = () => {
         <div className="flex items-center gap-3"><button onClick={() => {
           // Pass back the latest message to update the list instantly
           const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-          navigate('/matches', {
-            state: {
-              updatedMatchId: matchId,
-              lastMessage: lastMsg?.text,
-              lastMessageTime: lastMsg?.timestamp
-            }
-          });
+          navigate.push('/matches');
         }} className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
         <div className="flex items-center gap-1"><button onClick={() => startVideoCall('video')} disabled={isStartingCall || isBlocked || isBlockedByThem} className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-neon'}`}><Video className="w-5 h-5" /></button><button onClick={() => startVideoCall('audio')} disabled={isStartingCall || isBlocked || isBlockedByThem} className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-green-400'}`}><Phone className="w-5 h-5" /></button>
           <div className="relative">
@@ -329,9 +323,9 @@ export const Chat: React.FC = () => {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
                 <div className="absolute right-0 top-12 z-50 w-48 bg-gray-900 border border-gray-700 rounded-xl shadow-xl overflow-hidden">
-                  <button onClick={() => { navigate(`/profile/${partner.id}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><User className="w-4 h-4" /> View Profile</button>
+                  <button onClick={() => { navigate.push(`/profile/${partner.id}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><User className="w-4 h-4" /> View Profile</button>
                   <button onClick={() => { setShowMenu(false); handleBlockUser(); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><Ban className="w-4 h-4" /> {isBlocked ? 'Unblock' : 'Block'}</button>
-                  <button onClick={() => { navigate('/contact', { state: { reportUserId: partner.id } }); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800"><AlertTriangle className="w-4 h-4" /> Report</button>
+                  <button onClick={() => { navigate.push('/contact'); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800"><AlertTriangle className="w-4 h-4" /> Report</button>
                 </div>
               </>
             )}

@@ -1,8 +1,10 @@
+"use client";
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Ghost, Heart, Shield, ArrowRight, Instagram, Twitter, Sparkles, MessageSquarePlus, Zap, MapPin, Users, PlaySquare, Music } from 'lucide-react';
 import { NeonButton } from '../components/Common';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
+import Link from 'next/link';
 import { LiquidBackground } from '../components/LiquidBackground';
 import { ChromaKeyVideo } from '../components/ChromaKeyVideo';
 import { HeartCursor } from '../components/HeartCursor';
@@ -28,12 +30,12 @@ const ScrollReveal = ({ children, className = '' }: { children: React.ReactNode,
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
-  const onEnter = () => navigate('/login');
+  const onEnter = () => navigate.push('/login');
 
   // Redirect authenticated users to home
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate('/home');
+      navigate.push('/home');
     }
   }, [isAuthenticated, isLoading, navigate]);
 
@@ -138,7 +140,7 @@ export const Landing: React.FC = () => {
       </div>
 
       <nav className="relative z-20 px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate('/')}>
+        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate.push('/')}>
           <Ghost className="w-6 h-6 sm:w-8 sm:h-8 text-neon group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
           <span className="text-xl sm:text-2xl font-black tracking-tighter">
             <span className="group-hover:text-neon transition-colors">OTHR</span>
@@ -150,15 +152,15 @@ export const Landing: React.FC = () => {
             Features
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
           </a>
-          <Link to="/blog" className="hover:text-neon transition-colors relative group">
+          <Link href="/blog" className="hover:text-neon transition-colors relative group">
             Blog
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
           </Link>
-          <Link to="/developers" className="hover:text-neon transition-colors relative group">
+          <Link href="/developers" className="hover:text-neon transition-colors relative group">
             Meet the Developers
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
           </Link>
-          <Link to="/safety" className="hover:text-neon transition-colors relative group">
+          <Link href="/safety" className="hover:text-neon transition-colors relative group">
             Safety
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
           </Link>
@@ -429,7 +431,7 @@ export const Landing: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-8 sm:mb-12">
             <div className="col-span-2 md:col-span-2">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4 cursor-pointer group" onClick={() => navigate('/')}>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4 cursor-pointer group" onClick={() => navigate.push('/')}>
                 <Ghost className="w-5 h-5 sm:w-6 sm:h-6 text-neon group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
                 <span className="font-black tracking-tighter text-lg sm:text-xl text-white">
                   <span className="group-hover:text-neon transition-colors">OTHR</span>
@@ -447,7 +449,7 @@ export const Landing: React.FC = () => {
                 <a href="#" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:bg-neon hover:text-white hover:scale-110 hover:-rotate-6 transition-all duration-300">
                   <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
                 </a>
-                <Link to="/about" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:bg-neon hover:text-white hover:scale-110 hover:rotate-6 transition-all duration-300">
+                <Link href="/about" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:bg-neon hover:text-white hover:scale-110 hover:rotate-6 transition-all duration-300">
                   <Ghost className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Link>
               </div>
@@ -456,20 +458,20 @@ export const Landing: React.FC = () => {
             <div>
               <h4 className="text-white font-bold uppercase tracking-widest text-xs sm:text-sm mb-4 sm:mb-6">Company</h4>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-500">
-                <li><Link to="/about" className="hover:text-neon hover:translate-x-1 inline-block transition-all">About Us</Link></li>
-                <li><Link to="/developers" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Developers</Link></li>
-                <li><Link to="/careers" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Careers</Link></li>
-                <li><Link to="/contact" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Contact</Link></li>
+                <li><Link href="/about" className="hover:text-neon hover:translate-x-1 inline-block transition-all">About Us</Link></li>
+                <li><Link href="/developers" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Developers</Link></li>
+                <li><Link href="/careers" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Careers</Link></li>
+                <li><Link href="/contact" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Contact</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="text-white font-bold uppercase tracking-widest text-xs sm:text-sm mb-4 sm:mb-6">Legal</h4>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-500">
-                <li><Link to="/privacy" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Privacy</Link></li>
-                <li><Link to="/terms" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Terms</Link></li>
-                <li><Link to="/safety" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Safety</Link></li>
-                <li><Link to="/guidelines" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Guidelines</Link></li>
+                <li><Link href="/privacy" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Privacy</Link></li>
+                <li><Link href="/terms" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Terms</Link></li>
+                <li><Link href="/safety" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Safety</Link></li>
+                <li><Link href="/guidelines" className="hover:text-neon hover:translate-x-1 inline-block transition-all">Guidelines</Link></li>
               </ul>
             </div>
           </div>

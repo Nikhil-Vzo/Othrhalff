@@ -1,7 +1,11 @@
 node_modules/
 .env
+.env.local
+.env.*
 dist/
 build/
+.next/
+client/.next/
 .DS_Store
 *.log
 .vscode/

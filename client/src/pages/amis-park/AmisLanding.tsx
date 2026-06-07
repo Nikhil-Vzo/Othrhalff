@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { Sparkles, MapPin, Radio, ArrowRight, Flame, Ghost, Zap, BarChart2, MessageSquare, Map } from 'lucide-react';
 import { AclStreamCard } from './AclStreamCard';
 
