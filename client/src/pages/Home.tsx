@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MatchProfile } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
@@ -437,7 +437,7 @@ export const Home: React.FC = () => {
 
                     {/* Notification Button - Now rightmost for better mobile reach */}
                     <button
-                        onClick={() => navigate('/notifications')}
+                        onClick={() => navigate.push('/notifications')}
                         className="relative p-2.5 bg-black/60 backdrop-blur-2xl rounded-full border border-white/10 text-gray-400 hover:text-neon transition-all hover:border-neon/30 hover:scale-105 active:scale-95"
                     >
                         <Bell className="w-5 h-5" />

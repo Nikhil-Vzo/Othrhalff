@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { ArrowLeft, MapPin, Users, CheckCircle2, Circle, Send, Loader2, Flame, Ghost, Zap } from 'lucide-react';
 import { useAmisEventDetail } from './useAmisData';
 import { CATEGORY_META, REACTION_EMOJIS } from './types';
@@ -35,7 +35,7 @@ export const AmisEventDetail: React.FC = () => {
       <div className="h-full bg-transparent flex flex-col items-center justify-center text-gray-500 gap-4">
         <Ghost className="w-12 h-12 text-gray-700" />
         <p className="text-sm font-bold">Event not found</p>
-        <button onClick={() => navigate('/amis-park/events')} className="text-neon text-xs font-bold uppercase tracking-widest hover:underline">Back to Events</button>
+        <button onClick={() => navigate.push('/amis-park/events')} className="text-neon text-xs font-bold uppercase tracking-widest hover:underline">Back to Events</button>
       </div>
     );
   }
@@ -67,7 +67,7 @@ export const AmisEventDetail: React.FC = () => {
       {/* === STICKY HEADER === */}
       <div className="flex-none p-4 md:px-8 border-b border-gray-800/50 bg-black/40 backdrop-blur-2xl z-40 sticky top-0">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <button onClick={() => navigate('/amis-park/events')} className="p-2.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 hover:border-neon/30 hover:text-neon transition-all">
+          <button onClick={() => navigate.push('/amis-park/events')} className="p-2.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 hover:border-neon/30 hover:text-neon transition-all">
             <ArrowLeft className="w-5 h-5 text-gray-400" />
           </button>
           <div className="flex-1 min-w-0">

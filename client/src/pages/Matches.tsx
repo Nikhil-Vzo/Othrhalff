@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { supabase } from '../lib/supabase';
 import { MatchProfile } from '../types';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
 import { Search, Ghost, Loader2, BadgeCheck } from 'lucide-react';
 import { getOptimizedUrl } from '../utils/image';
 import { getRandomQuote } from '../data/loadingQuotes';
@@ -57,7 +57,7 @@ export const Matches: React.FC = () => {
   const { currentUser } = useAuth();
   const { isUserOnline } = usePresence();
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation() as any;
 
   // 1. Load from localStorage cache for instant display
   const [chats, setChats] = useState<ChatPreview[]>(() => {
@@ -263,7 +263,7 @@ export const Matches: React.FC = () => {
             <Ghost className="w-16 h-16 text-gray-700 mb-4" />
             <p className="text-base font-bold text-gray-400 mb-2">No matches yet</p>
             <p className="text-sm text-gray-600 mb-6 text-center max-w-xs">Start swiping to find your OthrHalff — they're waiting for you!</p>
-            <button onClick={() => navigate('/home')} className="px-6 py-3 bg-neon text-white font-bold text-sm uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,0,127,0.4)]">
+            <button onClick={() => navigate.push('/home')} className="px-6 py-3 bg-neon text-white font-bold text-sm uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,0,127,0.4)]">
               Start Discovering
             </button>
           </div>
@@ -276,7 +276,7 @@ export const Matches: React.FC = () => {
                 writeCache(updated);
                 return updated;
               });
-              navigate(`/chat/${chat.id}`, { state: { partner: chat.partner } });
+              navigate.push(`/chat/${chat.id}`);
             }} className="group relative bg-gray-900/30 hover:bg-gray-800/50 border border-gray-800/50 hover:border-gray-700 rounded-2xl p-4 transition-all duration-300 cursor-pointer active:scale-[0.98]">
               <div className="flex items-center gap-4">
                 <div className="relative">
