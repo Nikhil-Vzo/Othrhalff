@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { ArrowLeft, Send, Image as ImageIcon, X, Loader2, MessageCircle, SmilePlus, MapPin, Ghost, ChevronDown, BarChart3, Plus, Minus, Building2, Hammer, GraduationCap, Map } from 'lucide-react';
 import { useAmisFeed, REACTIONS } from './useAmisFeed';
 import { useAmisEvents, useAmisPolls } from './useAmisData';
@@ -136,7 +136,7 @@ export const AmisFeed: React.FC = () => {
       <div className="flex-none p-4 md:px-8 border-b border-gray-800/50 bg-black/40 backdrop-blur-2xl z-40 sticky top-0">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
-            <button onClick={() => navigate('/amis-park')} className="p-2.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 hover:border-neon/30 hover:text-neon transition-all">
+            <button onClick={() => navigate.push('/amis-park')} className="p-2.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 hover:border-neon/30 hover:text-neon transition-all">
               <ArrowLeft className="w-5 h-5 text-gray-400" />
             </button>
             <div className="flex-1">

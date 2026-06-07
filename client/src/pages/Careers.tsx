@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Briefcase, ChevronRight, Send, User, Phone, Mail, GraduationCap, X, CheckCircle2, Code2, Palette, Megaphone, Video, Instagram, Share2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 
 interface JobPosition {
@@ -61,7 +61,7 @@ export const Careers: React.FC = () => {
         <div className="h-screen w-full overflow-y-auto overflow-x-hidden bg-black text-white font-sans flex flex-col">
             {/* Header */}
             <div className="p-6 border-b border-gray-900 bg-black/50 backdrop-blur-md sticky top-0 z-20 flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <button onClick={() => navigate.back()} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
                     <ArrowLeft className="w-6 h-6 text-gray-400" />
                 </button>
                 <div>

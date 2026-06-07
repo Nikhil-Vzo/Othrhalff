@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { X, ArrowRight, Ghost, Sparkles, MapPin, Zap } from 'lucide-react';
 
 interface AmisEntryModalProps {
@@ -108,7 +108,7 @@ export const AmisEntryModal: React.FC<AmisEntryModalProps> = ({ isOpen, onClose 
           <button 
             onClick={() => {
               onClose();
-              navigate('/amis-park');
+              navigate.push('/amis-park');
             }}
             className="w-full relative group overflow-hidden rounded-2xl p-[1px]"
           >

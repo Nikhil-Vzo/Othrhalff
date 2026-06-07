@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 import { ArrowLeft, Instagram, Linkedin, Github } from 'lucide-react';
 
 export const Developers: React.FC = () => {
@@ -63,7 +63,7 @@ export const Developers: React.FC = () => {
       </div>
 
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate.push('/')}
         className="fixed top-6 left-6 text-gray-400 hover:text-white flex items-center gap-2 transition-colors z-20"
       >
         <ArrowLeft className="w-6 h-6" /> Back

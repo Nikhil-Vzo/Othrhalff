@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Ghost, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { NeonInput, NeonButton } from '../components/Common';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
+import Link from 'next/link';
 import { authService } from '../services/auth';
 import { analytics } from '../utils/analytics';
 
@@ -85,7 +86,7 @@ export const Login: React.FC = () => {
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600 opacity-10 blur-[150px] rounded-full animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate.push('/')}
         className="absolute top-6 left-6 text-gray-500 hover:text-white flex items-center gap-2 z-20 transition-colors"
       >
         <RotateCcw className="w-4 h-4" /> Back to Home
@@ -184,7 +185,7 @@ export const Login: React.FC = () => {
                 <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 transition-opacity peer-checked:opacity-100" />
               </div>
               <label htmlFor="terms" className="text-xs text-gray-400 leading-relaxed cursor-pointer select-none">
-                I agree to the <Link to="/terms" target="_blank" className="text-neon hover:underline">Terms of Service</Link>, <Link to="/privacy" target="_blank" className="text-neon hover:underline">Privacy Policy</Link>, and acknowledge I am a current university student.
+                I agree to the <Link href="/terms" target="_blank" className="text-neon hover:underline">Terms of Service</Link>, <Link href="/privacy" target="_blank" className="text-neon hover:underline">Privacy Policy</Link>, and acknowledge I am a current university student.
               </label>
             </div>
           )}

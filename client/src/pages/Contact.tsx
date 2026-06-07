@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { usePathname as useLocation, useRouter as useNavigate } from 'next/navigation';
 import { ArrowLeft, Mail, MessageSquare, AlertTriangle } from 'lucide-react';
 
 export const Contact: React.FC = () => {
-    const location = useLocation();
+    const location = useLocation() as any;
     const navigate = useNavigate();
     const state = location.state as { reportUserId?: string; reportUserName?: string } | null;
 
@@ -25,7 +25,7 @@ export const Contact: React.FC = () => {
         setSubmitted(true);
 
         setTimeout(() => {
-            navigate(-1); // Go back after 2 seconds
+            navigate.back(); // Go back after 2 seconds
         }, 2000);
     };
 
@@ -48,7 +48,7 @@ export const Contact: React.FC = () => {
             {/* Header */}
             <div className="px-4 py-3 bg-black/95 backdrop-blur-md border-b border-gray-800 flex items-center gap-3">
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={() => navigate.back()}
                     className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800 transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5" />

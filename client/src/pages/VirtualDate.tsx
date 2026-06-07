@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Film, Music, Gamepad2, Layers, Stars, Zap, Heart, ArrowRight, Lock, Sparkles, Play } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter as useNavigate } from 'next/navigation';
 
 export const VirtualDate: React.FC = () => {
   const navigate = useNavigate();
@@ -58,7 +58,7 @@ export const VirtualDate: React.FC = () => {
 
   const handleDateClick = (id: string, available: boolean) => {
     if (available) {
-      navigate(`/virtual-date/${id}`);
+      navigate.push(`/virtual-date/${id}`);
     }
   };
 

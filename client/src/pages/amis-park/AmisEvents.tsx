@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
 import { Search, ArrowLeft, Loader2, Ghost, MapPin, Users, Flame, X, Building2, Hammer, GraduationCap, LayoutGrid, AlertCircle } from 'lucide-react';
 import { useAmisEvents } from './useAmisData';
 import { EventCategory, CATEGORY_META } from './types';
@@ -47,7 +47,7 @@ export const AmisEvents: React.FC = () => {
         <div className="max-w-3xl mx-auto">
           {/* Top row: back + title + search toggle */}
           <div className="flex items-center gap-3 mb-3">
-            <button onClick={() => navigate('/amis-park')} className="p-2 rounded-full bg-white/[0.04] border border-white/[0.06] hover:border-neon/30 hover:text-neon transition-all shrink-0">
+            <button onClick={() => navigate.push('/amis-park')} className="p-2 rounded-full bg-white/[0.04] border border-white/[0.06] hover:border-neon/30 hover:text-neon transition-all shrink-0">
               <ArrowLeft className="w-4 h-4 text-gray-400" />
             </button>
             <div className="flex-1 min-w-0">
@@ -229,7 +229,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, i, mounted, navigate, comp
 
   return (
     <button
-      onClick={() => navigate(`/amis-park/event/${event.id}`)}
+      onClick={() => navigate.push(`/amis-park/event/${event.id}`)}
       className={`group w-full text-left relative bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05] hover:border-white/[0.1] rounded-xl transition-all duration-300 overflow-hidden ${
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       } ${compact ? 'p-3.5' : 'p-4'}`}
