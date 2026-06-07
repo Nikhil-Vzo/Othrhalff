@@ -2,33 +2,88 @@
 
 import React, { useState, useEffect } from 'react';
 import { StarField } from '../../src/components/StarField';
-import { Ghost, Sparkles, Heart } from 'lucide-react';
+import { Ghost, Sparkles } from 'lucide-react';
 
-const ghostFrames = [
-  // Frame 0: Happy / Cute look
-  `    .---.
-   /     \\
-  |  o o  |
-  |   v   |
-  \\  \\ /  /
-   \`--'--'`,
-  
-  // Frame 1: Winking and puckering (blowing kiss)
-  `    .---.
-   /     \\
-  |  o -  |
-  |   *   |
-  \\  \\ /  /
-   \`--'--'`,
-   
-  // Frame 2: Kiss blown!
-  `    .---.
-   /     \\
-  |  o -  |
-  |   O   |
-  \\  \\ /  /
-   \`--'--'`
-];
+const baseAscii = `                                                                                                     
+                                                                                                     
+                                                                                                     
+                                              #####*#####                                            
+                                        #*********************##                                     
+                                    *****************************###                                 
+                                 #***********************************#                               
+                               *#***********#####     ##**#*************                             
+                             #***********#                   #*#**********                           
+                           ##********##                          #*********#                         
+                          #*********                               *********#                        
+                         #********#                                  *********                       
+                        #*******#                                     #*******#                      
+                       #*******#                                        #*******                     
+                      #********                                         #*******#                    
+                      ********                                           ********#                   
+                      #******#                                            #******#                   
+                     #******#                                             #******#                   
+                     #******#          **###               ##*###         #******#                   
+                     #******          #*****#             #****#*          ******#                   
+                     *******          #*****#             #*****#          *******                   
+                     *******           *###*               **##*           *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******                                               *******                   
+                     *******   #****##          #****##          #*****#   *******                   
+                     ******* ##********#      #********##      ##********# *******                   
+                     *******#***********##   #************#   #************#******                   
+                     **************************************##*********************                   
+                     *************##***************##***************#*************                   
+                     ***********#    #***********#   #************#   #***********                   
+                     *********##      #********#       #********#       #*********                   
+                     #******##          ##****#          ##**##           #*******                   
+                      ****##                                                #****#                   
+                                                                                                     
+                                                                                                     
+                                                                                                     
+                                                                                                     
+                                                                                                     
+                                                                                                     
+                                                                                                     `;
+
+// Helper to generate the animated frames from the static ASCII base
+const getGhostFrame = (frame: number): string => {
+  const lines = baseAscii.split('\n');
+
+  if (frame === 1 || frame === 2) {
+    // Wink right eye (rows 19-22, which are indexes 18-21 0-indexed)
+    lines[18] = lines[18].replace("              ##*###         #******#", "                             #******#");
+    lines[19] = lines[19].replace("             #****#*          ******#", "             #######          ******#");
+    lines[20] = lines[20].replace("             #*****#          *******", "                              *******");
+    lines[21] = lines[21].replace("              **##*", "                  ");
+  }
+
+  if (frame === 1) {
+    // Puckered mouth (row 25, index 24)
+    lines[24] = lines[24].replace(
+      "                    *******                                               *******",
+      "                    *******                      (*)                      *******"
+    );
+  } else if (frame === 2) {
+    // Open mouth blowing kiss (row 25, index 24)
+    lines[24] = lines[24].replace(
+      "                    *******                                               *******",
+      "                    *******                      (O)                      *******"
+    );
+  }
+
+  return lines.join('\n');
+};
 
 interface FloatingHeart {
   id: number;
@@ -42,7 +97,7 @@ export default function MaintenancePage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setFrame((prev) => {
-        const next = (prev + 1) % ghostFrames.length;
+        const next = (prev + 1) % 3; // 0, 1, 2
         if (next === 2) {
           // Spawn a new heart
           const newHeart = {
@@ -58,7 +113,7 @@ export default function MaintenancePage() {
         }
         return next;
       });
-    }, 600);
+    }, 800);
 
     return () => clearInterval(interval);
   }, []);
@@ -79,7 +134,7 @@ export default function MaintenancePage() {
             opacity: 1;
           }
           100% {
-            transform: translateY(-160px) translateX(var(--drift)) scale(1.4) rotate(15deg);
+            transform: translateY(-180px) translateX(var(--drift)) scale(1.5) rotate(15deg);
             opacity: 0;
           }
         }
@@ -92,7 +147,7 @@ export default function MaintenancePage() {
             transform: translateY(0px);
           }
           50% {
-            transform: translateY(-10px);
+            transform: translateY(-6px);
           }
         }
         .animate-card-float {
@@ -103,19 +158,11 @@ export default function MaintenancePage() {
       {/* Spacer for vertical layout */}
       <div className="h-6" />
 
-      {/* Main Glassmorphic Card */}
-      <main className="w-full max-w-xl bg-neutral-950/40 border border-neutral-900/80 backdrop-blur-xl rounded-3xl p-8 sm:p-12 shadow-[0_0_50px_rgba(255,0,127,0.1)] relative z-10 animate-card-float my-auto">
-        {/* Pulsing Status Badge */}
-        <div className="flex justify-center mb-8">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-xs font-black tracking-widest text-[#ff007f] uppercase animate-pulse-slow">
-            <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
-            Renovation In Progress
-          </span>
-        </div>
-
+      {/* Main Glassmorphic Card (Borderless) */}
+      <main className="w-full max-w-2xl bg-neutral-950/40 backdrop-blur-xl rounded-3xl p-6 sm:p-10 shadow-[0_0_50px_rgba(255,0,127,0.1)] relative z-10 animate-card-float my-auto">
         {/* Brand Name Header */}
-        <header className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 justify-center select-none mb-2">
+        <header className="text-center mb-6">
+          <div className="inline-flex items-center gap-3 justify-center select-none mb-1">
             <div className="relative">
               <Ghost className="w-8 h-8 text-neon drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] rotate-6" />
               <Sparkles className="w-3.5 h-3.5 text-white absolute -top-1 -right-1 animate-pulse" />
@@ -129,15 +176,15 @@ export default function MaintenancePage() {
           </p>
         </header>
 
-        {/* Dynamic ASCII Ghostblowing Kiss Area */}
-        <div className="flex flex-col items-center justify-center py-6 mb-8">
-          <div className="relative inline-block font-mono text-neon select-none h-[110px] w-[140px] flex items-center justify-center">
-            <pre className="text-2xl leading-none text-[#ff007f] filter drop-shadow-[0_0_10px_rgba(255,0,127,0.6)]">
-              {ghostFrames[frame]}
+        {/* Dynamic ASCII Logo blowing a kiss */}
+        <div className="flex flex-col items-center justify-center py-2 mb-6 relative">
+          <div className="relative w-full max-w-lg flex items-center justify-center overflow-hidden h-[180px] sm:h-[240px]">
+            <pre className="text-[3.8px] xs:text-[4.8px] sm:text-[6.2px] md:text-[7.2px] leading-[1.0] text-[#ff007f] filter drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] font-mono font-bold select-none whitespace-pre text-center">
+              {getGhostFrame(frame)}
             </pre>
             
-            {/* Absolute container located around the ghost's mouth */}
-            <div className="absolute top-[38%] left-[62%] pointer-events-none">
+            {/* Floating Hearts Container, aligned around the mouth line */}
+            <div className="absolute top-[48%] left-[50.5%] pointer-events-none">
               {hearts.map((heart) => (
                 <span
                   key={heart.id}
@@ -161,19 +208,6 @@ export default function MaintenancePage() {
           <p className="text-base sm:text-lg text-neutral-400 font-medium italic tracking-wide">
             a chapter of love begins soon
           </p>
-        </div>
-
-        {/* Early Access Notification Mock Input */}
-        <div className="flex flex-col sm:flex-row gap-2.5 max-w-md w-full mx-auto mt-10">
-          <input
-            type="email"
-            placeholder="Enter email for early access..."
-            className="flex-1 bg-black/60 border border-neutral-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-neon transition-colors placeholder:text-neutral-600 font-sans"
-            disabled
-          />
-          <button className="bg-neon hover:bg-neon/90 text-white font-black text-sm px-6 py-3.5 rounded-2xl transition-all duration-300 shadow-[0_0_15px_rgba(255,0,127,0.3)] hover:shadow-[0_0_25px_rgba(255,0,127,0.5)] cursor-not-allowed whitespace-nowrap uppercase tracking-wider">
-            Notify Me
-          </button>
         </div>
       </main>
 
