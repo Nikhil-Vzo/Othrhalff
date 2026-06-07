@@ -53,11 +53,12 @@ export const Notifications: React.FC = () => {
 
     // 2. Find Match ID and Navigate
     try {
-      const { data: match } = await supabase
+      const { data: matches } = await supabase
         .from('matches')
         .select('id')
-        .or(`and(user_a.eq.${notif.fromUserId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${notif.fromUserId})`)
-        .maybeSingle();
+        .or(`and(user_a.eq.${notif.fromUserId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${notif.fromUserId})`);
+
+      const match = matches && matches.length > 0 ? matches[0] : null;
 
       if (match) {
         navigate.push(`/chat/${match.id}`);
@@ -78,11 +79,12 @@ export const Notifications: React.FC = () => {
 
     try {
       // 0. CHECK EXISTING MATCH FIRST (Bidirectional)
-      const { data: existingMatch } = await supabase
+      const { data: existingMatches } = await supabase
         .from('matches')
         .select('id')
-        .or(`and(user_a.eq.${notif.fromUserId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${notif.fromUserId})`)
-        .maybeSingle();
+        .or(`and(user_a.eq.${notif.fromUserId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${notif.fromUserId})`);
+
+      const existingMatch = existingMatches && existingMatches.length > 0 ? existingMatches[0] : null;
 
       if (existingMatch) {
         // Match exists, just delete notification and navigate
@@ -112,18 +114,17 @@ export const Notifications: React.FC = () => {
       while (!matchData && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const { data, error: matchError } = await supabase
+        const { data: matches, error: matchError } = await supabase
           .from('matches')
           .select('id')
-          .or(`and(user_a.eq.${notif.fromUserId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${notif.fromUserId})`)
-          .maybeSingle(); // Use maybeSingle to avoid errors
+          .or(`and(user_a.eq.${notif.fromUserId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${notif.fromUserId})`);
 
         if (matchError) {
           console.error('Match check error:', matchError);
         }
 
-        if (data) {
-          matchData = data;
+        if (matches && matches.length > 0) {
+          matchData = matches[0];
           break;
         }
 
@@ -241,14 +242,13 @@ export const Notifications: React.FC = () => {
       while (!matchData && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const { data } = await supabase
+        const { data: matches } = await supabase
           .from('matches')
           .select('id')
-          .or(`and(user_a.eq.${userId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${userId})`)
-          .maybeSingle();
+          .or(`and(user_a.eq.${userId},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${userId})`);
 
-        if (data) {
-          matchData = data;
+        if (matches && matches.length > 0) {
+          matchData = matches[0];
           break;
         }
 
