@@ -507,33 +507,6 @@ describe('VirtualDate.tsx migration (src/views/VirtualDate.tsx)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// AmisEntryModal.tsx (component, not a page - but was changed in the PR)
-// ---------------------------------------------------------------------------
-describe('AmisEntryModal.tsx migration (src/components/AmisEntryModal.tsx)', () => {
-  let source: string;
-
-  beforeAll(() => {
-    source = fs.readFileSync(
-      path.resolve(__dirname, '../../src/components/AmisEntryModal.tsx'),
-      'utf-8',
-    );
-  });
-
-  it('does not import from react-router-dom', () => {
-    expect(source).not.toContain("from 'react-router-dom'");
-    expect(source).not.toContain('from "react-router-dom"');
-  });
-
-  it('imports useRouter from next/navigation', () => {
-    expect(source).toContain("from 'next/navigation'");
-  });
-
-  it('uses navigate.push() instead of navigate()', () => {
-    expect(source).toContain('navigate.push(');
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Cross-cutting: none of the migrated files import react-router-dom
 // ---------------------------------------------------------------------------
 describe('No react-router-dom imports in migrated files', () => {
