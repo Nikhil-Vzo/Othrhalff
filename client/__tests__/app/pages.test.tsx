@@ -111,6 +111,10 @@ jest.mock('../../src/views/Contact', () => ({
   Contact: () => <div data-testid="contact-page">Contact</div>,
 }));
 
+jest.mock('../../src/components/StarField', () => ({
+  StarField: () => <div data-testid="star-field">StarField</div>,
+}));
+
 // ---------------------------------------------------------------------------
 // Import page components under test AFTER mocks are registered
 // ---------------------------------------------------------------------------
@@ -135,6 +139,7 @@ import SafetyPage from '../../app/safety/page';
 import GuidelinesPage from '../../app/guidelines/page';
 import CareersPage from '../../app/careers/page';
 import ContactPage from '../../app/contact/page';
+import MaintenancePage from '../../app/maintenance/page';
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -376,3 +381,9 @@ describe('Contact page (app/contact/page.tsx)', () => {
     expect(screen.getByTestId('contact-page')).toBeInTheDocument();
   });
 });
+
+describe('Maintenance page (app/maintenance/page.tsx)', () => {
+  it('renders without throwing', () => {
+    expect(() => render(<MaintenancePage />)).not.toThrow();
+  });
+});

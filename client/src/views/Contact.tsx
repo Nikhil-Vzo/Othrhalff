@@ -1,16 +1,19 @@
+"use client";
+
 import React, { useState } from 'react';
-import { usePathname as useLocation, useRouter as useNavigate } from 'next/navigation';
+import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Mail, MessageSquare, AlertTriangle } from 'lucide-react';
 
 export const Contact: React.FC = () => {
-    const location = useLocation() as any;
     const navigate = useNavigate();
-    const state = location.state as { reportUserId?: string; reportUserName?: string } | null;
+    const searchParams = useSearchParams();
+    const reportUserId = searchParams.get('reportUserId') || searchParams.get('report_user_id') || '';
+    const reportUserName = searchParams.get('reportUserName') || searchParams.get('report_user_name') || '';
 
-    const [subject, setSubject] = useState(state?.reportUserId ? 'Report User' : '');
+    const [subject, setSubject] = useState(reportUserId ? 'Report User' : '');
     const [message, setMessage] = useState(
-        state?.reportUserId
-            ? `I want to report user: ${state.reportUserName}\n\nReason: `
+        reportUserId
+            ? `I want to report user: ${reportUserName}\n\nReason: `
             : ''
     );
     const [email, setEmail] = useState('');
@@ -59,7 +62,7 @@ export const Contact: React.FC = () => {
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
-                    {state?.reportUserId && (
+                    {reportUserId && (
                         <div className="bg-red-900/10 border border-red-800/30 rounded-xl p-4 mb-6">
                             <div className="flex items-start gap-3">
                                 <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />

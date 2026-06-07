@@ -78,9 +78,17 @@ export const Confessions: React.FC = () => {
     const navigate = useNavigate();
 
     // 1. ZERO-FLICKER INIT: Read cache synchronously
-    const [confessions, setConfessions] = useState<Confession[]>(() => readCache());
+    const [confessions, setConfessions] = useState<Confession[]>([]);
 
-    const [isLoading, setIsLoading] = useState(() => confessions.length === 0);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const cached = readCache();
+        if (cached && cached.length > 0) {
+            setConfessions(cached);
+            setIsLoading(false);
+        }
+    }, []);
 
     const [newText, setNewText] = useState('');
     const [newImage, setNewImage] = useState<string | null>(null);

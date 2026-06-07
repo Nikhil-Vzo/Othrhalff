@@ -73,6 +73,13 @@ export const CinemaDate: React.FC = () => {
     const [url, setUrl] = useState<string>('');
     const [inputUrl, setInputUrl] = useState(''); // Separate state for input tracking
     const [isPlaying, setIsPlaying] = useState(false);
+    const [origin, setOrigin] = useState('');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setOrigin(window.location.origin);
+        }
+    }, []);
     const [error, setError] = useState<string | null>(null);
     const [showChat, setShowChat] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -1535,7 +1542,7 @@ export const CinemaDate: React.FC = () => {
                                             id="youtube-iframe-element"
                                             width="100%"
                                             height="100%"
-                                            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&mute=0&controls=${isHost ? 1 : 0}&disablekb=${isHost ? 0 : 1}&origin=${window.location.origin}`}
+                                            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&mute=0&controls=${isHost ? 1 : 0}&disablekb=${isHost ? 0 : 1}&origin=${origin}`}
                                             title="YouTube video player"
                                             frameBorder="0"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

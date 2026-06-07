@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { supabase } from '../lib/supabase';
 import { MatchProfile } from '../types';
-import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
+import { useRouter as useNavigate } from 'next/navigation';
 import { Search, Ghost, Loader2, BadgeCheck } from 'lucide-react';
 import { getOptimizedUrl } from '../utils/image';
 import { getRandomQuote } from '../data/loadingQuotes';
@@ -57,45 +57,35 @@ export const Matches: React.FC = () => {
   const { currentUser } = useAuth();
   const { isUserOnline } = usePresence();
   const navigate = useNavigate();
-  const location = useLocation() as any;
 
-  // 1. Load from localStorage cache for instant display
-  const [chats, setChats] = useState<ChatPreview[]>(() => {
+  // 1. Initialize state variables to null / empty arrays to avoid SSR issues
+  const [chats, setChats] = useState<ChatPreview[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load cache and session state on mount
+  useEffect(() => {
+    let initialChats = readCache();
     try {
-      let initialChats = readCache();
-
-      // CHECK FOR INSTANT UPDATE FROM CHAT
-      // If we just came back from a chat, update that specific match immediately
-      if (location.state?.updatedMatchId) {
-        const { updatedMatchId, lastMessage, lastMessageTime } = location.state;
-
+      const lastViewedMatchId = sessionStorage.getItem('last_viewed_match_id');
+      if (lastViewedMatchId) {
         initialChats = initialChats.map((c: ChatPreview) => {
-          if (c.id === updatedMatchId) {
+          if (c.id === lastViewedMatchId) {
             return {
               ...c,
-              lastMessage: lastMessage || c.lastMessage,
-              lastMessageTime: lastMessageTime || c.lastMessageTime,
-              unreadCount: 0 // We just read it
+              unreadCount: 0
             };
           }
           return c;
         });
-
-        // Re-sort because the timestamp changed
-        initialChats.sort((a: ChatPreview, b: ChatPreview) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-
-        // Update cache immediately
         writeCache(initialChats);
-
-        // Clear state to prevent re-runs
-        window.history.replaceState({}, document.title);
+        sessionStorage.removeItem('last_viewed_match_id');
       }
-
-      return initialChats;
-    } catch { return []; }
-  });
-
-  const [loading, setLoading] = useState(() => chats.length === 0);
+    } catch (e) {
+      console.error(e);
+    }
+    setChats(initialChats);
+    setLoading(initialChats.length === 0);
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread' | 'online'>('all');
 
@@ -105,7 +95,8 @@ export const Matches: React.FC = () => {
   // 2. The Core Loading Function — server-side block filtering via RPC
   const loadMatches = useCallback(async (isBackground = false) => {
     if (!currentUser || !supabase) return;
-    if (!isBackground && chats.length === 0) setLoading(true);
+    const hasCache = readCache().length > 0;
+    if (!isBackground && !hasCache) setLoading(true);
 
     try {
       // Single RPC call — blocked users are filtered server-side

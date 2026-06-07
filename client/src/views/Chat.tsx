@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
+import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
@@ -51,25 +51,24 @@ export const Chat: React.FC = () => {
   const params = useParams();
   const id = params?.id as string;
   const matchId = id!; // Guaranteed by route
-  const location = useLocation() as any; // Add this hook
   const cacheKey = `otherhalf_chat_${matchId}_v3`;
 
-  const [partner, setPartner] = useState<MatchProfile | null>(() => {
-    // 1. Check Navigation State (Fastest)
-    if (location.state?.partner) return location.state.partner;
-    // 2. Check Session Storage
-    try { const c = sessionStorage.getItem(cacheKey); return c ? JSON.parse(c).partner : null; } catch { return null; }
-  });
-
-  const [messages, setMessages] = useState<Message[]>(() => {
-    try { const c = sessionStorage.getItem(cacheKey); return c ? JSON.parse(c).messages : []; } catch { return []; }
-  });
+  const [partner, setPartner] = useState<MatchProfile | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // Loading is only true if we don't have a partner yet. Messages can load lazily.
-  const [loading, setLoading] = useState(() => !partner);
+  const [loading, setLoading] = useState(true);
 
   const partnerRef = useRef(partner);
   useEffect(() => { partnerRef.current = partner; }, [partner]);
+
+  useEffect(() => {
+    return () => {
+      if (matchId) {
+        sessionStorage.setItem('last_viewed_match_id', matchId);
+      }
+    };
+  }, [matchId]);
 
   const { currentUser } = useAuth();
   const { startCall, setOutgoingCall, setOutgoingCallSessionId, isCallActive } = useCall();
@@ -103,26 +102,54 @@ export const Chat: React.FC = () => {
     if (container) { container.addEventListener('contextmenu', preventScreenshot); document.addEventListener('keydown', handleKeyDown); return () => { container.removeEventListener('contextmenu', preventScreenshot); document.removeEventListener('keydown', handleKeyDown); }; }
   }, []);
 
-  // 4. Persistence Effect: If we have a partner from state, ensure it hits cache immediately
-  useEffect(() => {
-    if (location.state?.partner) {
-      try {
-        const currentCache = sessionStorage.getItem(cacheKey);
-        const cachedMessages = currentCache ? JSON.parse(currentCache).messages : [];
-        sessionStorage.setItem(cacheKey, JSON.stringify({ partner: location.state.partner, messages: cachedMessages }));
-      } catch { }
-    }
-  }, [location.state, cacheKey]);
-
   // Initial Load
   useEffect(() => {
     if (!currentUser || !matchId || !supabase) return;
-    if (partner) subscribeToUser(partner.id);
-    if (messages.length > 0) setTimeout(() => messagesEndRef.current?.scrollIntoView(), 0);
+
+    let initialPartner: MatchProfile | null = null;
+    let initialMessages: Message[] = [];
+
+    // 1. Check Chat Cache in sessionStorage
+    try {
+      const c = sessionStorage.getItem(cacheKey);
+      if (c) {
+        const parsed = JSON.parse(c);
+        initialPartner = parsed.partner || null;
+        initialMessages = parsed.messages || [];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 2. Fallback: Check matches cache in localStorage
+    if (!initialPartner) {
+      try {
+        const cachedMatchesStr = localStorage.getItem('otherhalf_matches_cache_v6');
+        if (cachedMatchesStr) {
+          const cachedMatches = JSON.parse(cachedMatchesStr);
+          const foundMatch = cachedMatches.find((m: any) => m.id === matchId);
+          if (foundMatch && foundMatch.partner) {
+            initialPartner = foundMatch.partner;
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (initialPartner) {
+      setPartner(initialPartner);
+      subscribeToUser(initialPartner.id);
+      setLoading(false);
+    }
+    if (initialMessages.length > 0) {
+      setMessages(initialMessages);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView(), 0);
+    }
 
     const loadInitialData = async () => {
       try {
-        let partnerId = partner?.id;
+        let partnerId = initialPartner?.id;
 
         // Fetch partner ID if totally missing (direct link load)
         if (!partnerId) {
@@ -142,9 +169,10 @@ export const Chat: React.FC = () => {
             };
             setPartner(newPartner);
             subscribeToUser(partnerId!);
+            partnerId = newPartner.id;
           }
         } else {
-          // We have a partner (from State or Cache). 
+          // We have a partner (from State/Cache). 
           // Refresh profile in BACKGROUND (Fire & Forget) to keep clear of stale data
           supabase.from('profiles').select('id, real_name, anonymous_id, avatar, is_verified').eq('id', partnerId).single().then(({ data: profile }) => {
             if (profile) {
@@ -168,34 +196,37 @@ export const Chat: React.FC = () => {
         }
 
         // Parallel Fetch: Messages + Block Status
-        const [blockStatus, messagesRes] = await Promise.all([
-          partnerId ? checkBlockStatus(partnerId, currentUser.id) : Promise.resolve({ isBlocked: false, isBlockedBy: false }),
-          supabase.from('messages').select('id, sender_id, text, created_at, is_read').eq('match_id', matchId).order('created_at', { ascending: false }).limit(MESSAGES_PER_PAGE)
-        ]);
+        if (partnerId) {
+          const [blockStatus, messagesRes] = await Promise.all([
+            checkBlockStatus(partnerId, currentUser.id),
+            supabase.from('messages').select('id, sender_id, text, created_at, is_read').eq('match_id', matchId).order('created_at', { ascending: false }).limit(MESSAGES_PER_PAGE)
+          ]);
 
-        setIsBlocked(blockStatus.isBlocked); setIsBlockedByThem(blockStatus.isBlockedBy);
+          setIsBlocked(blockStatus.isBlocked); setIsBlockedByThem(blockStatus.isBlockedBy);
 
-        let newMessages: Message[] = messages;
-        if (messagesRes.data) {
-          newMessages = messagesRes.data.map((m: any) => ({
-            id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(),
-            timestamp: new Date(m.created_at).getTime(),
-            isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞')
-          })).reverse();
-          setMessages(newMessages); setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
-          setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
-        }
+          let newMessages: Message[] = initialMessages;
+          if (messagesRes.data) {
+            newMessages = messagesRes.data.map((m: any) => ({
+              id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(),
+              timestamp: new Date(m.created_at).getTime(),
+              isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞')
+            })).reverse();
+            setMessages(newMessages); setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
+            setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
+          }
 
-        // Update cache with latest partner (possibly updated) and messages
-        if (partnerRef.current && newMessages.length > 0) {
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: partnerRef.current, messages: newMessages })); } catch (e) { }
+          // Update cache with latest partner (possibly updated) and messages
+          const currentPartner = partnerRef.current || initialPartner;
+          if (currentPartner && newMessages.length > 0) {
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: newMessages })); } catch (e) { }
+          }
         }
 
       } catch (err) { console.error('Error loading chat:', err); } finally { setLoading(false); }
     };
 
     loadInitialData();
-    return () => { if (partner) unsubscribeFromUser(partner.id); };
+    return () => { if (partnerRef.current) unsubscribeFromUser(partnerRef.current.id); };
   }, [matchId, currentUser]);
 
   // === FIX BUG 3: Use Ref for markMessagesRead ===
@@ -326,7 +357,7 @@ export const Chat: React.FC = () => {
                 <div className="absolute right-0 top-12 z-50 w-48 bg-gray-900 border border-gray-700 rounded-xl shadow-xl overflow-hidden">
                   <button onClick={() => { navigate.push(`/profile/${partner.id}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><User className="w-4 h-4" /> View Profile</button>
                   <button onClick={() => { setShowMenu(false); handleBlockUser(); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><Ban className="w-4 h-4" /> {isBlocked ? 'Unblock' : 'Block'}</button>
-                  <button onClick={() => { navigate.push('/contact'); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800"><AlertTriangle className="w-4 h-4" /> Report</button>
+                  <button onClick={() => { navigate.push(`/contact?reportUserId=${partner.id}&reportUserName=${partner.realName || partner.anonymousId}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800"><AlertTriangle className="w-4 h-4" /> Report</button>
                 </div>
               </>
             )}

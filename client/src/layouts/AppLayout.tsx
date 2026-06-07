@@ -6,9 +6,13 @@ import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal } from 'lucide-react';
-import { VideoCall } from '../components/VideoCall';
+import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
+
+const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mod.VideoCall), {
+  ssr: false
+});
 
 interface AppLayoutProps {
   children: React.ReactNode;

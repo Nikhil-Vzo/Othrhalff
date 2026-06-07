@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { NeonInput, NeonButton } from '../components/Common';
@@ -5,7 +7,7 @@ import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X
 import { AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, LOOKING_FOR_OPTIONS, BRANCH_CATEGORIES, YEAR_OPTIONS } from '../constants';
 import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
-import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
+import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 
 // Generate arrays for DOB dropdowns
@@ -16,7 +18,7 @@ const YEARS = Array.from({ length: 30 }, (_, i) => (new Date().getFullYear() - 1
 export const Onboarding: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation() as any;
+  const searchParams = useSearchParams();
 
   // Loading state to prevent flash of form while checking for existing profile
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
@@ -25,7 +27,7 @@ export const Onboarding: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   // State to hold the verified email
-  const [email, setEmail] = useState<string>(location.state?.email || '');
+  const [email, setEmail] = useState<string>(searchParams.get('email') || '');
 
   // DOB as separate fields for cool UI
   const [dobDay, setDobDay] = useState('');
