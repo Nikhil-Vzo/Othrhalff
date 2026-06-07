@@ -86,8 +86,8 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             // SendBeacon as backup - browser will queue even during page unload
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+                const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 
                 if (!supabaseUrl || !supabaseKey) return;
 

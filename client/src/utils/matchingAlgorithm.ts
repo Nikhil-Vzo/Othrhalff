@@ -17,10 +17,12 @@ export const calculateMatchPercentage = (
   const candidateInterests = new Set(candidate.interests.map(i => i.toLowerCase()));
 
   // Calculate Intersection (Shared Interests)
-  const intersection = [...userInterests].filter(i => candidateInterests.has(i));
+  const userInterestsArray = Array.from(userInterests);
+  const intersection = userInterestsArray.filter(i => candidateInterests.has(i));
   
   // Calculate Union (Total Unique Interests)
-  const union = new Set([...userInterests, ...candidateInterests]);
+  const union = new Set(userInterests);
+  candidateInterests.forEach(i => union.add(i));
 
   // Jaccard Score (0 to 1)
   const jaccardIndex = union.size === 0 ? 0 : intersection.length / union.size;

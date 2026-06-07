@@ -51,7 +51,7 @@ export const initiateCall = async (
         console.log(`[CallSignaling] Broadcast signal sent to ${receiverId}`);
 
         // 2. Get Agora Token from API
-        const apiUrl = import.meta.env.VITE_API_URL || '';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || '';
         const response = await fetch(`${apiUrl}/api/initiate-call`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

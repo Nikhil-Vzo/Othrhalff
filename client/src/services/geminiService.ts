@@ -3,7 +3,7 @@ import { MatchProfile } from "../types";
 
 const getAiClient = () => {
   // Get API key from Vite environment variables
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
   if (!apiKey) {
     console.warn("VITE_GEMINI_API_KEY is not set. Gemini AI features will be disabled.");
     return null;

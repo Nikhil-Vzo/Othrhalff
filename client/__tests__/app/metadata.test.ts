@@ -42,15 +42,15 @@ jest.mock('../../src/context/NotificationContext', () => ({
   NotificationProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.mock('../../src/pages/Landing', () => ({
+jest.mock('../../src/views/Landing', () => ({
   Landing: () => null,
 }));
 
-jest.mock('../../src/pages/Blog', () => ({
+jest.mock('../../src/views/Blog', () => ({
   Blog: () => null,
 }));
 
-jest.mock('../../src/pages/StaticPages', () => ({
+jest.mock('../../src/views/StaticPages', () => ({
   About: () => null,
   Privacy: () => null,
   Terms: () => null,
@@ -58,7 +58,7 @@ jest.mock('../../src/pages/StaticPages', () => ({
   Guidelines: () => null,
 }));
 
-jest.mock('../../src/pages/Careers', () => ({
+jest.mock('../../src/views/Careers', () => ({
   Careers: () => null,
 }));
 

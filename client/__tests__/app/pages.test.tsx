@@ -2,7 +2,7 @@
  * Tests for Next.js App Router page components (client/app/*\/page.tsx).
  *
  * Each page in the app directory is a thin wrapper that renders the corresponding
- * src/pages/ component. These tests verify:
+ * src/views/ component. These tests verify:
  *  - Each Page() component renders without throwing
  *  - Each page delegates rendering to the correct underlying component
  *
@@ -37,65 +37,65 @@ jest.mock('next/link', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Mock all underlying src/pages components
+// Mock all underlying src/views components
 // ---------------------------------------------------------------------------
-jest.mock('../../src/pages/Landing', () => ({
+jest.mock('../../src/views/Landing', () => ({
   Landing: () => <div data-testid="landing-page">Landing</div>,
 }));
 
-jest.mock('../../src/pages/Login', () => ({
+jest.mock('../../src/views/Login', () => ({
   Login: () => <div data-testid="login-page">Login</div>,
 }));
 
-jest.mock('../../src/pages/Onboarding', () => ({
+jest.mock('../../src/views/Onboarding', () => ({
   Onboarding: () => <div data-testid="onboarding-page">Onboarding</div>,
 }));
 
-jest.mock('../../src/pages/Home', () => ({
+jest.mock('../../src/views/Home', () => ({
   Home: () => <div data-testid="home-page">Home</div>,
 }));
 
-jest.mock('../../src/pages/Matches', () => ({
+jest.mock('../../src/views/Matches', () => ({
   Matches: () => <div data-testid="matches-page">Matches</div>,
 }));
 
-jest.mock('../../src/pages/Chat', () => ({
+jest.mock('../../src/views/Chat', () => ({
   Chat: () => <div data-testid="chat-page">Chat</div>,
 }));
 
-jest.mock('../../src/pages/Notifications', () => ({
+jest.mock('../../src/views/Notifications', () => ({
   Notifications: () => <div data-testid="notifications-page">Notifications</div>,
 }));
 
-jest.mock('../../src/pages/VirtualDate', () => ({
+jest.mock('../../src/views/VirtualDate', () => ({
   VirtualDate: () => <div data-testid="virtual-date-page">VirtualDate</div>,
 }));
 
-jest.mock('../../src/pages/virtual-dates/CinemaDate', () => ({
+jest.mock('../../src/views/virtual-dates/CinemaDate', () => ({
   CinemaDate: () => <div data-testid="cinema-date-page">CinemaDate</div>,
 }));
 
-jest.mock('../../src/pages/virtual-dates/MusicDate', () => ({
+jest.mock('../../src/views/virtual-dates/MusicDate', () => ({
   MusicDate: () => <div data-testid="music-date-page">MusicDate</div>,
 }));
 
-jest.mock('../../src/pages/Profile', () => ({
+jest.mock('../../src/views/Profile', () => ({
   Profile: () => <div data-testid="profile-page">Profile</div>,
 }));
 
-jest.mock('../../src/pages/Developers', () => ({
+jest.mock('../../src/views/Developers', () => ({
   Developers: () => <div data-testid="developers-page">Developers</div>,
 }));
 
-jest.mock('../../src/pages/Confessions', () => ({
+jest.mock('../../src/views/Confessions', () => ({
   Confessions: () => <div data-testid="confessions-page">Confessions</div>,
 }));
 
-jest.mock('../../src/pages/Blog', () => ({
+jest.mock('../../src/views/Blog', () => ({
   Blog: () => <div data-testid="blog-page">Blog</div>,
 }));
 
-jest.mock('../../src/pages/StaticPages', () => ({
+jest.mock('../../src/views/StaticPages', () => ({
   About: () => <div data-testid="about-page">About</div>,
   Privacy: () => <div data-testid="privacy-page">Privacy</div>,
   Terms: () => <div data-testid="terms-page">Terms</div>,
@@ -103,11 +103,11 @@ jest.mock('../../src/pages/StaticPages', () => ({
   Guidelines: () => <div data-testid="guidelines-page">Guidelines</div>,
 }));
 
-jest.mock('../../src/pages/Careers', () => ({
+jest.mock('../../src/views/Careers', () => ({
   Careers: () => <div data-testid="careers-page">Careers</div>,
 }));
 
-jest.mock('../../src/pages/Contact', () => ({
+jest.mock('../../src/views/Contact', () => ({
   Contact: () => <div data-testid="contact-page">Contact</div>,
 }));
 
