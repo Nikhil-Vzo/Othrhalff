@@ -77,7 +77,7 @@ export const CinemaDate: React.FC = () => {
     const [showChat, setShowChat] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [camPositions, setCamPositions] = useState<Record<string, { x: number, y: number }>>(() => ({
-        'YOU': { x: window.innerWidth - 140, y: 20 }
+        'YOU': { x: typeof window !== 'undefined' ? window.innerWidth - 140 : 800, y: 20 }
     }));
     const [camSizes, setCamSizes] = useState<Record<string, { width: number, height: number }>>({ 'YOU': { width: 96, height: 64 } });
     const activeDragId = useRef<string | null>(null);

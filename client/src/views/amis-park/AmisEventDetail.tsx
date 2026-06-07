@@ -5,7 +5,8 @@ import { useAmisEventDetail } from './useAmisData';
 import { CATEGORY_META, REACTION_EMOJIS } from './types';
 
 export const AmisEventDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams();
+  const id = params?.id as string;
   const navigate = useNavigate();
   const { event, posts, loading, userCheckedIn, userReaction, checkinCount, reactionCounts, toggleCheckin, toggleReaction, addPost } = useAmisEventDetail(id);
 

@@ -41,7 +41,7 @@ export const Notifications: React.FC = () => {
   const handleSystemClick = async (notif: NotificationItem) => {
     await markAsRead(notif.id);
     if (notif.actionUrl) {
-      navigate(notif.actionUrl);
+      navigate.push(notif.actionUrl);
     }
   };
 

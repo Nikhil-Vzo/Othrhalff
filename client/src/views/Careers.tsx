@@ -1,5 +1,8 @@
+"use client";
+
 import React, { useState } from 'react';
 import { ArrowLeft, Briefcase, ChevronRight, Send, User, Phone, Mail, GraduationCap, X, CheckCircle2, Code2, Palette, Megaphone, Video, Instagram, Share2 } from 'lucide-react';
+
 import { useRouter as useNavigate } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 

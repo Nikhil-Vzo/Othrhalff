@@ -47,7 +47,7 @@ for (const [routePath, componentPath] of Object.entries(routes)) {
 
   let relativeDots = '../'.repeat(routePath.split('/').length);
 
-  const content = `"use client";\n\nimport { ${exportName} } from '${relativeDots}src/pages/${componentPath}';\n\nexport default function Page() {\n  return <${exportName} />;\n}\n`;
+  const content = `"use client";\n\nimport { ${exportName} } from '${relativeDots}src/views/${componentPath}';\n\nexport default function Page() {\n  return <${exportName} />;\n}\n`;
 
   fs.writeFileSync(path.join(dir, 'page.tsx'), content);
 }

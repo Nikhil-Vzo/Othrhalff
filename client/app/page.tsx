@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { Landing } from '../src/pages/Landing';
+import { Landing } from '../src/views/Landing';
 
 export const metadata: Metadata = {
   title: 'OthrHalff - Where anonymous meets destiny.',

@@ -14,8 +14,8 @@ const BLOCKS = [
 
 export const AmisEvents: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialFilter = searchParams.get('filter');
+  const searchParams = useSearchParams();
+  const initialFilter = searchParams?.get('filter');
   const [mounted, setMounted] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -183,7 +183,7 @@ interface BlockSectionProps {
   block: { id: string; name: string; icon?: any; accent: string };
   events: any[];
   mounted: boolean;
-  navigate: (path: string) => void;
+  navigate: any;
 }
 
 const BlockSection: React.FC<BlockSectionProps> = ({ block, events, mounted, navigate }) => {
@@ -218,7 +218,7 @@ interface EventCardProps {
   event: any;
   i: number;
   mounted: boolean;
-  navigate: (path: string) => void;
+  navigate: any;
   compact?: boolean;
 }
 

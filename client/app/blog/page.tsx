@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { Blog } from '../../src/pages/Blog';
+import { Blog } from '../../src/views/Blog';
 
 export const metadata: Metadata = {
   title: 'OthrHalff Blog - The Story Behind the App',

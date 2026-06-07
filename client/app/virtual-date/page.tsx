@@ -1,6 +1,6 @@
 "use client";
 
-import { VirtualDate } from '../../src/pages/VirtualDate';
+import { VirtualDate } from '../../src/views/VirtualDate';
 
 export default function Page() {
   return <VirtualDate />;

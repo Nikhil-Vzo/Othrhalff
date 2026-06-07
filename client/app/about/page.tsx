@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { About } from '../../src/pages/StaticPages';
+import { About } from '../../src/views/StaticPages';
 
 export const metadata: Metadata = {
   title: 'About OthrHalff',

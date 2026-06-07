@@ -14,7 +14,8 @@ import {
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS } from '../constants';
 
 export const Profile: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
+    const params = useParams();
+    const id = params?.id as string;
     const navigate = useNavigate();
     const { currentUser, updateProfile, logout } = useAuth();
 
@@ -32,7 +33,7 @@ export const Profile: React.FC = () => {
     const [showLegal, setShowLegal] = useState(false);
     const [showAccount, setShowAccount] = useState(false);
     const [showBehindScenes, setShowBehindScenes] = useState(false);
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(() => (window as any).__pwaInstallPrompt);
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(() => typeof window !== 'undefined' ? (window as any).__pwaInstallPrompt : null);
 
     // Also listen in case it fires after mount (unlikely but safe)
     useEffect(() => {
@@ -45,8 +46,8 @@ export const Profile: React.FC = () => {
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
 
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    const isIOS = typeof window !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) : false;
+    const isStandalone = typeof window !== 'undefined' ? (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) : false;
 
     const handleInstallPWA = async () => {
         if (isStandalone) {
@@ -486,7 +487,7 @@ export const Profile: React.FC = () => {
                                                 ].map(item => (
                                                     <button
                                                         key={item.path}
-                                                        onClick={() => navigate(item.path)}
+                                                        onClick={() => navigate.push(item.path)}
                                                         className="w-full p-4 rounded-2xl hover:bg-gray-800/60 group text-left transition-all flex items-center gap-3 border border-gray-800 hover:border-gray-600 bg-black/20"
                                                     >
                                                         <item.icon className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />

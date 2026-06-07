@@ -48,7 +48,8 @@ const ChatSkeleton = () => {
 };
 
 export const Chat: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams();
+  const id = params?.id as string;
   const matchId = id!; // Guaranteed by route
   const location = useLocation() as any; // Add this hook
   const cacheKey = `otherhalf_chat_${matchId}_v3`;

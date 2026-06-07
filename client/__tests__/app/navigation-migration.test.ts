@@ -21,7 +21,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const SRC = path.resolve(__dirname, '../../src/pages');
+const SRC = path.resolve(__dirname, '../../src/views');
 
 function readPage(relativePath: string): string {
   return fs.readFileSync(path.join(SRC, relativePath), 'utf-8');
@@ -73,7 +73,7 @@ function assertNavigatePushPattern(source: string) {
 // ---------------------------------------------------------------------------
 // Blog.tsx
 // ---------------------------------------------------------------------------
-describe('Blog.tsx migration (src/pages/Blog.tsx)', () => {
+describe('Blog.tsx migration (src/views/Blog.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -103,7 +103,7 @@ describe('Blog.tsx migration (src/pages/Blog.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Careers.tsx
 // ---------------------------------------------------------------------------
-describe('Careers.tsx migration (src/pages/Careers.tsx)', () => {
+describe('Careers.tsx migration (src/views/Careers.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -128,7 +128,7 @@ describe('Careers.tsx migration (src/pages/Careers.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Chat.tsx
 // ---------------------------------------------------------------------------
-describe('Chat.tsx migration (src/pages/Chat.tsx)', () => {
+describe('Chat.tsx migration (src/views/Chat.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -156,7 +156,7 @@ describe('Chat.tsx migration (src/pages/Chat.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Confessions.tsx
 // ---------------------------------------------------------------------------
-describe('Confessions.tsx migration (src/pages/Confessions.tsx)', () => {
+describe('Confessions.tsx migration (src/views/Confessions.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -180,7 +180,7 @@ describe('Confessions.tsx migration (src/pages/Confessions.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Contact.tsx
 // ---------------------------------------------------------------------------
-describe('Contact.tsx migration (src/pages/Contact.tsx)', () => {
+describe('Contact.tsx migration (src/views/Contact.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -210,7 +210,7 @@ describe('Contact.tsx migration (src/pages/Contact.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Developers.tsx
 // ---------------------------------------------------------------------------
-describe('Developers.tsx migration (src/pages/Developers.tsx)', () => {
+describe('Developers.tsx migration (src/views/Developers.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -234,7 +234,7 @@ describe('Developers.tsx migration (src/pages/Developers.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Home.tsx
 // ---------------------------------------------------------------------------
-describe('Home.tsx migration (src/pages/Home.tsx)', () => {
+describe('Home.tsx migration (src/views/Home.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -258,7 +258,7 @@ describe('Home.tsx migration (src/pages/Home.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Landing.tsx
 // ---------------------------------------------------------------------------
-describe('Landing.tsx migration (src/pages/Landing.tsx)', () => {
+describe('Landing.tsx migration (src/views/Landing.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -295,7 +295,7 @@ describe('Landing.tsx migration (src/pages/Landing.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Login.tsx
 // ---------------------------------------------------------------------------
-describe('Login.tsx migration (src/pages/Login.tsx)', () => {
+describe('Login.tsx migration (src/views/Login.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -328,7 +328,7 @@ describe('Login.tsx migration (src/pages/Login.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Matches.tsx
 // ---------------------------------------------------------------------------
-describe('Matches.tsx migration (src/pages/Matches.tsx)', () => {
+describe('Matches.tsx migration (src/views/Matches.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -363,7 +363,7 @@ describe('Matches.tsx migration (src/pages/Matches.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Notifications.tsx
 // ---------------------------------------------------------------------------
-describe('Notifications.tsx migration (src/pages/Notifications.tsx)', () => {
+describe('Notifications.tsx migration (src/views/Notifications.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -395,7 +395,7 @@ describe('Notifications.tsx migration (src/pages/Notifications.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Onboarding.tsx
 // ---------------------------------------------------------------------------
-describe('Onboarding.tsx migration (src/pages/Onboarding.tsx)', () => {
+describe('Onboarding.tsx migration (src/views/Onboarding.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -419,7 +419,7 @@ describe('Onboarding.tsx migration (src/pages/Onboarding.tsx)', () => {
 // ---------------------------------------------------------------------------
 // Profile.tsx
 // ---------------------------------------------------------------------------
-describe('Profile.tsx migration (src/pages/Profile.tsx)', () => {
+describe('Profile.tsx migration (src/views/Profile.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -452,7 +452,7 @@ describe('Profile.tsx migration (src/pages/Profile.tsx)', () => {
 // ---------------------------------------------------------------------------
 // StaticPages.tsx
 // ---------------------------------------------------------------------------
-describe('StaticPages.tsx migration (src/pages/StaticPages.tsx)', () => {
+describe('StaticPages.tsx migration (src/views/StaticPages.tsx)', () => {
   let source: string;
 
   beforeAll(() => {
@@ -480,7 +480,7 @@ describe('StaticPages.tsx migration (src/pages/StaticPages.tsx)', () => {
 // ---------------------------------------------------------------------------
 // VirtualDate.tsx
 // ---------------------------------------------------------------------------
-describe('VirtualDate.tsx migration (src/pages/VirtualDate.tsx)', () => {
+describe('VirtualDate.tsx migration (src/views/VirtualDate.tsx)', () => {
   let source: string;
 
   beforeAll(() => {

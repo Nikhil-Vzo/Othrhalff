@@ -97,7 +97,7 @@ export const AmisLanding: React.FC = () => {
             return (
               <button
                 key={action.label}
-                onClick={() => navigate(action.path)}
+                onClick={() => navigate.push(action.path)}
                 className={`group relative bg-black/50 backdrop-blur-3xl border border-white/10 hover:border-white/20 rounded-[24px] p-6 text-left transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 overflow-hidden shadow-xl hover:shadow-2xl ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                 style={{ transitionDelay: `${400 + i * 120}ms` }}
               >

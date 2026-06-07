@@ -1,6 +1,6 @@
 "use client";
 
-import { Safety } from '../../src/pages/StaticPages';
+import { Safety } from '../../src/views/StaticPages';
 
 export default function Page() {
   return <Safety />;

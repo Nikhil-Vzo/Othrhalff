@@ -340,8 +340,8 @@ export const Home: React.FC = () => {
     };
 
     // Calculate 3D transforms
-    const rotateY = (dragX / window.innerWidth) * 25;
-    const rotateZ = (dragX / window.innerWidth) * 15;
+    const rotateY = typeof window !== 'undefined' ? (dragX / window.innerWidth) * 25 : 0;
+    const rotateZ = typeof window !== 'undefined' ? (dragX / window.innerWidth) * 15 : 0;
     const scale = isDragging ? 1.02 : 1;
     const likeOpacity = Math.max(0, Math.min((dragX - 30) / 80, 1));
     const nopeOpacity = Math.max(0, Math.min((-dragX - 30) / 80, 1));

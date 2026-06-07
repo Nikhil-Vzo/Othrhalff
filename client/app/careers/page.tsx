@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { Careers } from '../../src/pages/Careers';
+import { Careers } from '../../src/views/Careers';
 
 export const metadata: Metadata = {
   title: 'Careers | OthrHalff',
