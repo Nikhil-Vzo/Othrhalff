@@ -143,11 +143,21 @@ export const Matches: React.FC = () => {
       // Already sorted by RPC, but ensure client-side consistency
       mappedChats.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
 
+      // Client-side deduplication safeguard: Keep only first match per unique partner
+      const uniqueChats: ChatPreview[] = [];
+      const seenPartnerIds = new Set<string>();
+      for (const chat of mappedChats) {
+        if (!seenPartnerIds.has(chat.partner.id)) {
+          seenPartnerIds.add(chat.partner.id);
+          uniqueChats.push(chat);
+        }
+      }
+
       setChats(prev => {
-        const isDifferent = JSON.stringify(prev) !== JSON.stringify(mappedChats);
+        const isDifferent = JSON.stringify(prev) !== JSON.stringify(uniqueChats);
         if (isDifferent) {
-          writeCache(mappedChats);
-          return mappedChats;
+          writeCache(uniqueChats);
+          return uniqueChats;
         }
         return prev;
       });
