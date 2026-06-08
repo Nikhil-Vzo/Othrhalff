@@ -438,9 +438,10 @@ export const Home: React.FC = () => {
                     {/* Notification Button - Now rightmost for better mobile reach */}
                     <button
                         onClick={() => navigate.push('/notifications')}
+                        aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
                         className="relative p-2.5 bg-black/60 backdrop-blur-2xl rounded-full border border-white/10 text-gray-400 hover:text-neon transition-all hover:border-neon/30 hover:scale-105 active:scale-95"
                     >
-                        <Bell className="w-5 h-5" />
+                        <Bell className="w-5 h-5" aria-hidden="true" />
                         {unreadCount > 0 && (
                             <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-neon text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-black animate-pulse">
                                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -544,12 +545,12 @@ export const Home: React.FC = () => {
                             {/* Background card stack */}
                             {thirdProfile && (
                                 <div className="absolute top-6 bottom-20 inset-x-0 bg-gray-900/50 rounded-[28px] transform scale-[0.88] translate-y-6 opacity-30 border border-gray-800/50 pointer-events-none overflow-hidden blur-[1px]">
-                                    <img src={thirdProfile.avatar} className="w-full h-full object-cover opacity-40 grayscale" alt="" />
+                                    <img src={thirdProfile.avatar} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" />
                                 </div>
                             )}
                             {nextProfile && (
                                 <div className="absolute top-3 bottom-16 inset-x-0 bg-gray-900/80 rounded-[28px] transform scale-[0.94] translate-y-3 opacity-50 border border-gray-800 pointer-events-none overflow-hidden">
-                                    <img src={nextProfile.avatar} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" />
+                                    <img src={nextProfile.avatar} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" />
                                 </div>
                             )}
 
@@ -657,17 +658,19 @@ export const Home: React.FC = () => {
                                 <button
                                     onClick={() => handleSwipe('left')}
                                     disabled={isSwiping}
+                                    aria-label={`Pass on ${currentProfile?.realName || currentProfile?.anonymousId || 'this profile'}`}
                                     className="w-16 h-16 bg-gradient-to-br from-gray-900 to-gray-800 backdrop-blur-xl border border-gray-700 rounded-full flex items-center justify-center text-red-400 hover:text-red-300 hover:scale-110 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)] transition-all duration-300 active:scale-95 shadow-xl disabled:opacity-50 disabled:pointer-events-none"
                                 >
-                                    <X className="w-7 h-7" strokeWidth={3} />
+                                    <X className="w-7 h-7" strokeWidth={3} aria-hidden="true" />
                                 </button>
 
                                 <button
                                     onClick={() => handleSwipe('right')}
                                     disabled={isSwiping}
+                                    aria-label={`Like ${currentProfile?.realName || currentProfile?.anonymousId || 'this profile'}`}
                                     className="w-16 h-16 bg-gradient-to-br from-neon to-pink-600 backdrop-blur-xl border border-neon/30 rounded-full flex items-center justify-center text-white hover:scale-110 hover:shadow-[0_0_40px_rgba(255,0,127,0.5)] transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(255,0,127,0.3)] disabled:opacity-50 disabled:pointer-events-none"
                                 >
-                                    <Heart className="w-7 h-7 fill-current" />
+                                    <Heart className="w-7 h-7 fill-current" aria-hidden="true" />
                                 </button>
                             </div>
                         </div>

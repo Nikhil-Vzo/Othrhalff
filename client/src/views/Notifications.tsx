@@ -337,7 +337,21 @@ export const Notifications: React.FC = () => {
                 if (notif.type === 'message') handleMessageClick(notif);
                 else if (notif.type === 'system') handleSystemClick(notif);
               }}
-              className={`p-5 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] ${notif.read ? 'bg-gray-900/30 border-gray-800/50' : 'bg-gray-900 border-neon/50 shadow-[0_0_15px_rgba(255,0,127,0.05)]'
+              role={(notif.type === 'message' || notif.type === 'system') ? 'button' : undefined}
+              tabIndex={(notif.type === 'message' || notif.type === 'system') ? 0 : undefined}
+              aria-label={
+                notif.type === 'message' ? `Open message from ${notif.title}` :
+                notif.type === 'system' ? notif.title :
+                undefined
+              }
+              onKeyDown={(notif.type === 'message' || notif.type === 'system') ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (notif.type === 'message') handleMessageClick(notif);
+                  else if (notif.type === 'system') handleSystemClick(notif);
+                }
+              } : undefined}
+              className={`p-5 rounded-2xl border transition-all ${(notif.type === 'message' || notif.type === 'system') ? 'cursor-pointer hover:scale-[1.01]' : ''} ${notif.read ? 'bg-gray-900/30 border-gray-800/50' : 'bg-gray-900 border-neon/50 shadow-[0_0_15px_rgba(255,0,127,0.05)]'
                 }`}
             >
               <div className="flex items-start gap-4">

@@ -26,33 +26,34 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const pathname = usePathname() || '';
   const router = useRouter();
 
-  const [matchCount, setMatchCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
-  // Fetch real-time active match count for the chat badge
+  // Fetch real-time unread messages count for the chat badge
   useEffect(() => {
     if (!currentUser || !supabase) return;
 
-    const fetchMatchCount = async () => {
+    const fetchUnreadCount = async () => {
       try {
         const { count, error } = await supabase
-          .from('matches')
+          .from('messages')
           .select('id', { count: 'exact', head: true })
-          .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
+          .neq('sender_id', currentUser.id)
+          .eq('is_read', false);
 
         if (!error && count !== null) {
-          setMatchCount(count);
+          setUnreadMessageCount(count);
         }
       } catch (err) {
-        console.error('Error fetching matches count:', err);
+        console.error('Error fetching unread messages count:', err);
       }
     };
 
-    fetchMatchCount();
+    fetchUnreadCount();
 
-    // Listen for changes in matches to update badge live
-    const channel = supabase.channel('matches-count-layout')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-        fetchMatchCount();
+    // Listen for changes in messages to update badge live
+    const channel = supabase.channel('unread-messages-count-layout')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        fetchUnreadCount();
       })
       .subscribe();
 
@@ -96,7 +97,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home', icon: Search, label: 'Discover' },
-    { path: '/matches', icon: MessageCircle, label: 'Messages', badge: matchCount > 0 ? matchCount : undefined },
+    { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
     { path: '/virtual-date', icon: CalendarHeart, label: 'Virtual Date' },
@@ -110,8 +111,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         {/* Brand Header */}
         <div className="p-8 pb-4">
           <div
+            role="button"
+            tabIndex={0}
             className="group flex items-center gap-3 cursor-pointer select-none"
             onClick={() => handleNavClick('/home')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNavClick('/home'); } }}
+            aria-label="Go to home"
           >
             <div className="relative">
               <Ghost className="w-8 h-8 text-neon drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] group-hover:rotate-12 transition-transform duration-300" />
@@ -188,7 +193,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         {/* User Profile Card */}
         <div className="p-4 border-t border-gray-900/50 bg-black/50">
           <div
+            role="button"
+            tabIndex={0}
             onClick={() => handleNavClick('/profile')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNavClick('/profile'); } }}
+            aria-label="Go to your profile"
             className="relative group p-3 rounded-2xl bg-gradient-to-b from-black to-black border border-gray-800 hover:border-neon/30 transition-all duration-300 cursor-pointer overflow-hidden"
           >
             {/* Glow Effect */}
@@ -223,8 +232,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </div>
 
               {/* Options Icon */}
-              <button className="text-gray-600 hover:text-white transition-colors">
-                <MoreHorizontal className="w-5 h-5" />
+              <button aria-label="Profile options" className="text-gray-600 hover:text-white transition-colors">
+                <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
           </div>

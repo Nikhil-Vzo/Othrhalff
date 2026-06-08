@@ -248,7 +248,7 @@ export const Matches: React.FC = () => {
         <h1 className="text-2xl font-black tracking-tight mb-4 flex items-center gap-2">Matches <span className="bg-neon/10 text-neon text-xs px-2 py-1 rounded-full border border-neon/20">{chats.length}</span></h1>
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon transition-colors" />
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search matches..." className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-neon/50 focus:bg-gray-900 transition-all" />
+          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search matches..." aria-label="Search matches" className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-neon/50 focus:bg-gray-900 transition-all" />
         </div>
       </div>
 
@@ -270,7 +270,11 @@ export const Matches: React.FC = () => {
           </div>
         ) : (
           filteredChats.map(chat => (
-            <div key={chat.id} onClick={() => {
+            <div key={chat.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Chat with ${chat.partner.realName || chat.partner.anonymousId}${chat.unreadCount > 0 ? `, ${chat.unreadCount} unread` : ''}`}
+              onClick={() => {
               // === FIX BUG 2: Optimistic Cache Update ===
               setChats(prev => {
                 const updated = prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c);
@@ -278,7 +282,19 @@ export const Matches: React.FC = () => {
                 return updated;
               });
               navigate.push(`/chat/${chat.id}`);
-            }} className="group relative bg-gray-900/30 hover:bg-gray-800/50 border border-gray-800/50 hover:border-gray-700 rounded-2xl p-4 transition-all duration-300 cursor-pointer active:scale-[0.98]">
+            }}
+              onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setChats(prev => {
+                  const updated = prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c);
+                  writeCache(updated);
+                  return updated;
+                });
+                navigate.push(`/chat/${chat.id}`);
+              }
+            }}
+              className="group relative bg-gray-900/30 hover:bg-gray-800/50 border border-gray-800/50 hover:border-gray-700 rounded-2xl p-4 transition-all duration-300 cursor-pointer active:scale-[0.98]">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <img src={getOptimizedUrl(chat.partner.avatar, 64)} alt="Avatar" className="w-14 h-14 rounded-full object-cover border-2 border-gray-800 group-hover:border-gray-600 transition-colors" />

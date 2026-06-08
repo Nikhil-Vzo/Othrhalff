@@ -669,7 +669,7 @@ export const Confessions: React.FC = () => {
             {/* Header */}
             <div className="flex-none p-4 border-b border-gray-800/50 bg-black/20 backdrop-blur-md z-40 sticky top-0 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate.push('/home')} className="p-2 hover:bg-gray-800 rounded-full hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" /></button>
+                    <button onClick={() => navigate.push('/home')} aria-label="Go back to Discover" className="p-2 hover:bg-gray-800 rounded-full hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" aria-hidden="true" /></button>
                     <div>
                         <h1 className="text-xl font-bold uppercase tracking-tight">Confessions</h1>
                         <p className="text-[10px] text-gray-500 font-mono">
@@ -709,7 +709,7 @@ export const Confessions: React.FC = () => {
 
                     {/* Sort Menu */}
                     <div className="relative">
-                        <button onClick={() => setShowSortMenu(!showSortMenu)} className={`p-2 rounded-full transition-colors ${showSortMenu ? 'bg-white text-black' : 'bg-gray-900 text-gray-400'}`}><SlidersHorizontal className="w-5 h-5" /></button>
+                        <button onClick={() => setShowSortMenu(!showSortMenu)} aria-label="Sort options" aria-expanded={showSortMenu} className={`p-2 rounded-full transition-colors ${showSortMenu ? 'bg-white text-black' : 'bg-gray-900 text-gray-400'}`}><SlidersHorizontal className="w-5 h-5" aria-hidden="true" /></button>
                         {showSortMenu && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)}></div>
@@ -757,7 +757,7 @@ export const Confessions: React.FC = () => {
                                         </div>
                                     </div>
                                     <p className="text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{conf.text}</p>
-                                    {conf.imageUrl && <div className="mb-4 rounded-lg overflow-hidden border border-gray-900 bg-black aspect-video" onClick={() => setViewImage(conf.imageUrl || null)}><img src={conf.imageUrl} className="w-full h-full object-cover" /></div>}
+                                    {conf.imageUrl && <div className="mb-4 rounded-lg overflow-hidden border border-gray-900 bg-black aspect-video" onClick={() => setViewImage(conf.imageUrl || null)}><img src={conf.imageUrl} className="w-full h-full object-cover" alt="Confession image" /></div>}
 
                                     {conf.type === 'poll' && conf.pollOptions && (
                                         <div className="mb-4 space-y-2 bg-gray-900/30 p-3 rounded-lg border border-gray-900">
@@ -815,8 +815,8 @@ export const Confessions: React.FC = () => {
                                                         }
                                                     }}
                                                 />
-                                                <button onClick={() => handleCommentSubmit(conf.id)} className="p-2 bg-gray-800 text-white rounded-lg">
-                                                    <Send className="w-3.5 h-3.5" />
+                                                <button onClick={() => handleCommentSubmit(conf.id)} aria-label="Submit comment" className="p-2 bg-gray-800 text-white rounded-lg">
+                                                    <Send className="w-3.5 h-3.5" aria-hidden="true" />
                                                 </button>
                                             </div>
                                         </div>
@@ -841,9 +841,11 @@ export const Confessions: React.FC = () => {
                                 setIsPollMode(!isPollMode); 
                                 setNewImage(null); 
                             }} 
+                            aria-label={isPollMode ? 'Cancel poll mode' : 'Create a poll'}
+                            aria-pressed={isPollMode}
                             className={`p-2 rounded-full ${isPollMode ? 'text-white bg-gray-900' : 'text-gray-500'}`}
                         >
-                            <BarChart2 className="w-5 h-5" />
+                            <BarChart2 className="w-5 h-5" aria-hidden="true" />
                         </button>
                         <div className="h-4 w-px bg-gray-800"></div>
                         <input id="confession-image-input" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -852,17 +854,19 @@ export const Confessions: React.FC = () => {
                                 document.getElementById('confession-image-input')?.click();
                             }} 
                             disabled={isPollMode} 
+                            aria-label="Upload image"
                             className="p-2 text-gray-500"
                         >
-                            <ImageIcon className="w-5 h-5" />
+                            <ImageIcon className="w-5 h-5" aria-hidden="true" />
                         </button>
                         <input 
                             value={newText} 
                             onChange={e => setNewText(e.target.value)} 
                             placeholder={isPollMode ? "Poll question..." : "Confess anonymously..."} 
+                            aria-label={isPollMode ? 'Poll question' : 'Anonymous confession text'}
                             className="flex-1 bg-transparent text-white px-2 outline-none text-xs font-medium" 
                         />
-                        <button onClick={handlePost} disabled={isPosting || (!newText.trim() && !newImage)} className="p-2.5 bg-white rounded-full text-black hover:bg-gray-200">{isPosting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
+                        <button onClick={handlePost} aria-label="Post confession" disabled={isPosting || (!newText.trim() && !newImage)} className="p-2.5 bg-white rounded-full text-black hover:bg-gray-200">{isPosting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Send className="w-4 h-4" aria-hidden="true" />}</button>
                     </div>
                     {isPollMode && (
                         <div className="mt-2 bg-black border border-gray-800 rounded-xl p-3 mx-2">
