@@ -16,8 +16,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== 'undefined') {
+      return authService.getCurrentUser();
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !authService.getCurrentUser();
+    }
+    return true;
+  });
   const [showLogoutCountdown, setShowLogoutCountdown] = useState(false);
 
   // Load from DB on mount (Optimized: Cache-First)
@@ -98,6 +108,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (user: UserProfile) => {
     setCurrentUser(user);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('otherhalf_confessions_campus_v4');
+      localStorage.removeItem('otherhalf_confessions_global_v4');
+      localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
+      localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
+    }
     // Non-blocking sync
     authService.login(user).catch(err => console.error("Background sync error:", err));
   };
@@ -119,6 +135,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionStorage.removeItem('otherhalf_matches_cache_expiry');
     sessionStorage.removeItem('otherhalf_notifications_cache');
     sessionStorage.removeItem('otherhalf_notifications_cache_expiry');
+
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('otherhalf_confessions_campus_v4');
+      localStorage.removeItem('otherhalf_confessions_global_v4');
+      localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
+      localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
+    }
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {

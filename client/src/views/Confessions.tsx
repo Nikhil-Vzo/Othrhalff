@@ -91,35 +91,16 @@ export const Confessions: React.FC = () => {
     const navigate = useNavigate();
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [feedMode, setFeedMode] = useState<'campus' | 'global'>(currentUser ? 'campus' : 'global');
-    const [guestUniversity, setGuestUniversity] = useState<string | null>(null);
-    const [guestBranch, setGuestBranch] = useState<string | null>(null);
-    const [showGuestSetup, setShowGuestSetup] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [customAuthMessage, setCustomAuthMessage] = useState<string | undefined>(undefined);
 
-    // Temp inputs for guest setup modal
-    const [tempCollege, setTempCollege] = useState(CHHATTISGARH_COLLEGES[0]);
-    const [customCollege, setCustomCollege] = useState('');
-    const [tempBranchCategory, setTempBranchCategory] = useState('');
-    const [tempBranch, setTempBranch] = useState('');
-
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const storedUniv = localStorage.getItem('otherhalf_guest_university');
-            const storedBranch = localStorage.getItem('otherhalf_guest_branch');
-            setGuestUniversity(storedUniv);
-            setGuestBranch(storedBranch);
-            if (storedUniv) {
-                setTempCollege(CHHATTISGARH_COLLEGES.includes(storedUniv) ? storedUniv : 'Other');
-                if (!CHHATTISGARH_COLLEGES.includes(storedUniv)) {
-                    setCustomCollege(storedUniv);
-                }
-            }
-            if (storedBranch) {
-                setTempBranchCategory('Other');
-                setTempBranch(storedBranch);
-            }
+        if (currentUser) {
+            setFeedMode('campus');
+        } else {
+            setFeedMode('global');
         }
-    }, []);
+    }, [currentUser]);
 
     // 1. ZERO-FLICKER INIT: Read cache synchronously
     const [confessions, setConfessions] = useState<Confession[]>([]);
@@ -169,15 +150,14 @@ export const Confessions: React.FC = () => {
     useEffect(() => {
         if (!supabase) return;
 
-        const targetUniv = currentUser
-            ? currentUser.university
-            : (typeof window !== 'undefined' ? localStorage.getItem('otherhalf_guest_university') : null);
+        const targetUniv = currentUser ? currentUser.university : null;
 
         const init = async () => {
-            // Reset page and hasMore for fresh fetch
+            setIsRefreshing(true);
             setPage(0);
             setHasMore(true);
             await fetchConfessions(0, true);
+            setIsRefreshing(false);
         };
 
         init();
@@ -268,16 +248,15 @@ export const Confessions: React.FC = () => {
 
 
     // 3. Fetch Logic
-    const fetchConfessions = async (pageIndex: number, reset = false) => {
+    const fetchConfessions = useCallback(async (pageIndex: number, reset = false) => {
         if (!supabase) return;
         if (pageIndex > 0) setIsLoadingMore(true);
 
         const from = pageIndex * POSTS_PER_PAGE;
         const to = from + POSTS_PER_PAGE - 1;
 
-        const targetUniv = currentUser
-            ? currentUser.university
-            : (typeof window !== 'undefined' ? localStorage.getItem('otherhalf_guest_university') : null);
+        const targetUniv = currentUser ? currentUser.university : null;
+        const targetUnivClean = targetUniv?.trim();
 
         let query = supabase.from('confessions')
             .select(`
@@ -294,10 +273,10 @@ export const Confessions: React.FC = () => {
             .limit(3, { foreignTable: 'confession_comments' })
             .range(from, to);
 
-        if (feedMode === 'campus' && targetUniv) {
-            query = query.ilike('university', `${targetUniv}%`);
-        } else if (feedMode === 'global' && targetUniv) {
-            query = query.not('university', 'ilike', `${targetUniv}%`);
+        if (feedMode === 'campus' && targetUnivClean) {
+            query = query.ilike('university', `${targetUnivClean}%`);
+        } else if (feedMode === 'global' && targetUnivClean) {
+            query = query.not('university', 'ilike', `${targetUnivClean}%`);
         }
 
         if (sortType === 'newest') {
@@ -365,12 +344,12 @@ export const Confessions: React.FC = () => {
             });
         }
         setIsLoadingMore(false);
-    };
+    }, [currentUser, sortType, feedMode]);
 
     // 4. Infinite Scroll
     useEffect(() => {
         const observer = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+            if (entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading && !isRefreshing) {
                 const nextPage = page + 1;
                 setPage(nextPage);
                 fetchConfessions(nextPage, false);
@@ -378,7 +357,7 @@ export const Confessions: React.FC = () => {
         }, { threshold: 1.0 });
         if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
-    }, [hasMore, isLoadingMore, isLoading, page]);
+    }, [hasMore, isLoadingMore, isLoading, isRefreshing, page, fetchConfessions]);
 
 
     // --- Handlers (Preserved) ---
@@ -394,21 +373,6 @@ export const Confessions: React.FC = () => {
             let left = rect.left; if (left + 300 > window.innerWidth) left = window.innerWidth - 310; if (left < 10) left = 10;
             setMenuPosition({ top: rect.bottom + 5, left }); setActiveReactionMenu(id);
         }
-    };
-
-    const handleGuestSetupSubmit = async () => {
-        const finalCollege = tempCollege === 'Other' ? customCollege.trim() : tempCollege;
-        const finalBranch = tempBranchCategory === 'Other' ? tempBranch.trim() : tempBranchCategory;
-        if (!finalCollege || !finalBranch) return;
-
-        localStorage.setItem('otherhalf_guest_university', finalCollege);
-        localStorage.setItem('otherhalf_guest_branch', finalBranch);
-        setGuestUniversity(finalCollege);
-        setGuestBranch(finalBranch);
-        setShowGuestSetup(false);
-
-        // Auto submit post after configuring college
-        await submitPost(finalCollege, finalBranch);
     };
 
     const submitPost = async (college: string, branch: string) => {
@@ -520,10 +484,6 @@ export const Confessions: React.FC = () => {
         if (isPollMode && (pollOptions.filter(o => o.trim()).length < 2 || !newText.trim())) return;
 
         if (!currentUser) {
-            if (!guestUniversity || !guestBranch) {
-                setShowGuestSetup(true);
-                return;
-            }
             // Enforce rate limit (1 post per 24 hours)
             const lastPostStr = localStorage.getItem('otherhalf_guest_last_post_time');
             if (lastPostStr) {
@@ -536,7 +496,7 @@ export const Confessions: React.FC = () => {
                     return;
                 }
             }
-            await submitPost(guestUniversity, guestBranch);
+            await submitPost('Guest', 'General');
         } else {
             await submitPost(currentUser.university, currentUser.branch || 'General');
         }
@@ -674,8 +634,8 @@ export const Confessions: React.FC = () => {
                     <div>
                         <h1 className="text-xl font-bold uppercase tracking-tight">Confessions</h1>
                         <p className="text-[10px] text-gray-500 font-mono">
-                            {feedMode === 'campus' 
-                                ? (currentUser?.university || guestUniversity || 'My Campus') 
+                            {currentUser 
+                                ? (feedMode === 'campus' ? currentUser.university : 'Global Feed') 
                                 : 'Global Feed'}
                         </p>
                     </div>
@@ -683,35 +643,30 @@ export const Confessions: React.FC = () => {
 
                 {/* Tabs & Sort */}
                 <div className="flex items-center gap-2 sm:gap-4">
-                    <div className="flex bg-gray-950/60 p-1 rounded-full border border-white/5">
-                        <button
-                            onClick={() => {
-                                if (!currentUser) {
-                                    setCustomAuthMessage("Login to see your campus");
-                                    setShowAuthModal(true);
-                                    return;
-                                }
-                                setFeedMode('campus');
-                            }}
-                            className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all ${
-                                feedMode === 'campus'
-                                    ? 'bg-white text-black font-extrabold shadow-[0_2px_10px_rgba(255,255,255,0.1)]'
-                                    : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            Campus
-                        </button>
-                        <button
-                            onClick={() => setFeedMode('global')}
-                            className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all ${
-                                feedMode === 'global'
-                                    ? 'bg-white text-black font-extrabold shadow-[0_2px_10px_rgba(255,255,255,0.1)]'
-                                    : 'text-gray-400 hover:text-white'
-                            }`}
-                        >
-                            Global
-                        </button>
-                    </div>
+                    {currentUser && (
+                        <div className="flex bg-gray-950/60 p-1 rounded-full border border-white/5">
+                            <button
+                                onClick={() => setFeedMode('campus')}
+                                className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all ${
+                                    feedMode === 'campus'
+                                        ? 'bg-white text-black font-extrabold shadow-[0_2px_10px_rgba(255,255,255,0.1)]'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                Campus
+                            </button>
+                            <button
+                                onClick={() => setFeedMode('global')}
+                                className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all ${
+                                    feedMode === 'global'
+                                        ? 'bg-white text-black font-extrabold shadow-[0_2px_10px_rgba(255,255,255,0.1)]'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                Global
+                            </button>
+                        </div>
+                    )}
 
                     {/* Sort Menu */}
                     <div className="relative">
@@ -738,7 +693,6 @@ export const Confessions: React.FC = () => {
                     <div className="space-y-4">
                         {confessions.map(conf => {
                             const { college, department } = parseUniversity(conf.university);
-                            const viewerCollege = currentUser ? currentUser.university : guestUniversity;
                             return (
                                 <div key={conf.id} className={`bg-gray-900/30 backdrop-blur-md border rounded-xl p-4 ${conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? 'border-neon/50' : 'border-gray-800/50'}`}>
                                     {/* Card Content Matches User's + Existing */}
@@ -757,9 +711,7 @@ export const Confessions: React.FC = () => {
                                             </div>
                                             <div className="flex justify-between mt-0.5">
                                                 <p className="text-[10px] text-gray-600 uppercase font-bold">
-                                                    {feedMode === 'campus' 
-                                                        ? (department || 'Campus Post') 
-                                                        : [college, department].filter(Boolean).join(' • ')}
+                                                    {department || 'General'}
                                                 </p>
                                                 <span className="text-[10px] text-gray-600 font-mono">{new Date(conf.timestamp).toLocaleDateString()}</span>
                                             </div>
@@ -895,111 +847,7 @@ export const Confessions: React.FC = () => {
                 message={customAuthMessage}
             />
 
-            {/* Guest Setup Modal */}
-            {showGuestSetup && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    {/* Backdrop */}
-                    <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={() => setShowGuestSetup(false)} />
-                    
-                    {/* Glassmorphic Card */}
-                    <div className="relative w-full max-w-md bg-neutral-950/80 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_0_50px_rgba(255,0,127,0.15)] z-10">
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setShowGuestSetup(false)}
-                            className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white rounded-full hover:bg-white/5 transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
 
-                        <div className="text-center mb-6">
-                            <div className="inline-flex items-center gap-2 justify-center select-none mb-3">
-                                <Ghost className="w-5 h-5 text-neon drop-shadow-[0_0_8px_rgba(255,0,127,0.5)]" />
-                                <span className="text-lg font-black text-white tracking-tighter uppercase">
-                                    Post Info
-                                </span>
-                            </div>
-                            <h3 className="text-base sm:text-lg font-bold text-white uppercase">Tell us your college</h3>
-                            <p className="text-xs text-neutral-400 mt-1">
-                                We need this to show your post on your college campus feed and label it in the global feed.
-                            </p>
-                        </div>
-
-                        <div className="space-y-4">
-                            {/* College Selection */}
-                            <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Select College</label>
-                                <select
-                                    value={tempCollege}
-                                    onChange={(e) => {
-                                        setTempCollege(e.target.value);
-                                        if (e.target.value !== 'Other') setCustomCollege('');
-                                    }}
-                                    className="w-full bg-gray-900 border border-gray-800 text-white text-xs px-3 py-2.5 rounded-xl outline-none focus:border-neon transition-colors"
-                                >
-                                    {CHHATTISGARH_COLLEGES.map(c => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Custom College Input if "Other" is selected */}
-                            {tempCollege === 'Other' && (
-                                <div>
-                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Enter College Name</label>
-                                    <input
-                                        type="text"
-                                        placeholder="E.g. Amity University"
-                                        value={customCollege}
-                                        onChange={(e) => setCustomCollege(e.target.value)}
-                                        className="w-full bg-gray-900 border border-gray-800 text-white text-xs px-3 py-2.5 rounded-xl outline-none focus:border-neon transition-colors"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Department Selection */}
-                            <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Select Department / Branch</label>
-                                <select
-                                    value={tempBranchCategory}
-                                    onChange={(e) => {
-                                        setTempBranchCategory(e.target.value);
-                                        if (e.target.value !== 'Other') setTempBranch('');
-                                    }}
-                                    className="w-full bg-gray-900 border border-gray-800 text-white text-xs px-3 py-2.5 rounded-xl outline-none focus:border-neon transition-colors"
-                                >
-                                    <option value="">Choose department...</option>
-                                    {BRANCH_CATEGORIES.map(b => (
-                                        <option key={b} value={b}>{b}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Custom Branch Input if "Other" is selected */}
-                            {tempBranchCategory === 'Other' && (
-                                <div>
-                                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Enter Department / Branch</label>
-                                    <input
-                                        type="text"
-                                        placeholder="E.g. Mechanical Engineering"
-                                        value={tempBranch}
-                                        onChange={(e) => setTempBranch(e.target.value)}
-                                        className="w-full bg-gray-900 border border-gray-800 text-white text-xs px-3 py-2.5 rounded-xl outline-none focus:border-neon transition-colors"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Submit Button */}
-                            <button
-                                onClick={handleGuestSetupSubmit}
-                                disabled={!tempCollege || (tempCollege === 'Other' && !customCollege.trim()) || !tempBranchCategory || (tempBranchCategory === 'Other' && !tempBranch.trim())}
-                                className="w-full py-3 bg-neon disabled:opacity-50 text-white font-bold text-sm uppercase tracking-wider rounded-full hover:scale-[1.02] transition-transform shadow-[0_0_20px_rgba(255,0,127,0.4)] mt-2"
-                            >
-                                Save & Continue
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
