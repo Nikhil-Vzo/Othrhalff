@@ -463,9 +463,17 @@ export const Confessions: React.FC = () => {
             } else {
                 // Guest user: call the backend proxy endpoint to bypass RLS
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || '';
+
+                // Get auth token (may be null for truly unauthenticated guests)
+                const { data: { session: guestSession } } = await supabase.auth.getSession();
+                const guestToken = guestSession?.access_token ?? '';
+
                 const response = await fetch(`${apiUrl}/api/post-guest-confession`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(guestToken ? { 'Authorization': `Bearer ${guestToken}` } : {})
+                    },
                     body: JSON.stringify({
                         college,
                         branch,

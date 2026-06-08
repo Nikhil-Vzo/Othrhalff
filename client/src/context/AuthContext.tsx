@@ -106,6 +106,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
+
+  // Sync Supabase access token to the service worker's IndexedDB
+  // so background push notification handlers can authenticate API calls
+  const syncTokenToSW = useCallback(async () => {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token && reg.active) {
+        reg.active.postMessage({ type: 'SET_AUTH_TOKEN', token: session.access_token });
+      }
+    } catch (e) {
+      console.warn('[Auth] Failed to sync token to SW:', e);
+    }
+  }, []);
+
+  const clearSWToken = useCallback(() => {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      if (reg.active) reg.active.postMessage({ type: 'CLEAR_AUTH_TOKEN' });
+    }).catch(() => {});
+  }, []);
+
   const login = async (user: UserProfile) => {
     setCurrentUser(user);
     if (typeof window !== 'undefined') {
@@ -116,32 +139,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     // Non-blocking sync
     authService.login(user).catch(err => console.error("Background sync error:", err));
+    // Sync token to SW for background push notification handling
+    syncTokenToSW();
   };
+
+  const clearAllCaches = useCallback(() => {
+    // Session storage caches
+    sessionStorage.removeItem('otherhalf_discover_cache_v3');
+    sessionStorage.removeItem('otherhalf_discover_cache_expiry_v3');
+    // Matches cache (localStorage, persists across tabs)
+    localStorage.removeItem('otherhalf_matches_cache_v6');
+    localStorage.removeItem('otherhalf_matches_expiry_v6');
+    // Confessions caches
+    localStorage.removeItem('otherhalf_confessions_campus_v4');
+    localStorage.removeItem('otherhalf_confessions_global_v4');
+    localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
+    localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
+  }, []);
 
   const handleCountdownComplete = useCallback(() => {
     setShowLogoutCountdown(false);
     setCurrentUser(null);
+    clearAllCaches();
+    clearSWToken();
     authService.logout();
-  }, []);
+  }, [clearAllCaches, clearSWToken]);
 
   const logout = () => {
     setCurrentUser(null);
+    clearAllCaches();
+    clearSWToken();
     authService.logout();
-
-    // Clear all caches
-    sessionStorage.removeItem('otherhalf_discover_cache');
-    sessionStorage.removeItem('otherhalf_discover_cache_expiry');
-    sessionStorage.removeItem('otherhalf_matches_cache');
-    sessionStorage.removeItem('otherhalf_matches_cache_expiry');
-    sessionStorage.removeItem('otherhalf_notifications_cache');
-    sessionStorage.removeItem('otherhalf_notifications_cache_expiry');
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('otherhalf_confessions_campus_v4');
-      localStorage.removeItem('otherhalf_confessions_global_v4');
-      localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
-      localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
-    }
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {

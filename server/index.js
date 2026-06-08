@@ -11,6 +11,36 @@ dotenv.config();
 const app = express();
 const port = parseInt(process.env.PORT || '5000', 10);
 
+// ─── Supabase (anon client for JWT verification only) ────────────────────────
+const supabaseAuthClient = createClient(
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
+  process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+);
+
+/**
+ * JWT Authentication Middleware
+ * Verifies the Supabase access token from the Authorization header.
+ * Attaches the verified user ID to req.userId.
+ */
+async function verifySupabaseToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Missing Bearer token' });
+  }
+  const token = authHeader.split('Bearer ')[1];
+  try {
+    const { data: { user }, error } = await supabaseAuthClient.auth.getUser(token);
+    if (error || !user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+    }
+    req.userId = user.id; // attach verified user ID for downstream use
+    next();
+  } catch (err) {
+    console.error('JWT verification error:', err);
+    return res.status(401).json({ error: 'Unauthorized: Token verification failed' });
+  }
+}
+
 // CORS Configuration - Allow both production and development origins
 const corsOptions = {
   origin: [
@@ -35,7 +65,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Agora: Generate RTC Token for Video/Audio Call
-app.post('/api/agora-token', async (req, res) => {
+app.post('/api/agora-token', verifySupabaseToken, async (req, res) => {
   try {
     const appId = process.env.AGORA_APP_ID;
     const appCertificate = process.env.AGORA_APP_CERTIFICATE;
@@ -78,7 +108,7 @@ app.post('/api/agora-token', async (req, res) => {
 });
 
 // Agora: Initiate Call with Database Session
-app.post('/api/initiate-call', async (req, res) => {
+app.post('/api/initiate-call', verifySupabaseToken, async (req, res) => {
   try {
     const { receiverId, matchId } = req.body;
 
@@ -124,12 +154,16 @@ app.post('/api/initiate-call', async (req, res) => {
 });
 
 // Accept Match API (for Service Worker)
-app.post('/api/accept-match', async (req, res) => {
+app.post('/api/accept-match', verifySupabaseToken, async (req, res) => {
   try {
     const { myId, targetId } = req.body;
 
+    // Security: ensure the requesting user is acting as themselves
     if (!myId || !targetId) {
       return res.status(400).json({ error: 'Missing myId or targetId' });
+    }
+    if (req.userId !== myId) {
+      return res.status(403).json({ error: 'Forbidden: You cannot act as another user' });
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -164,7 +198,7 @@ app.post('/api/accept-match', async (req, res) => {
 });
 
 // Post Guest Confession API (Service role key bypasses RLS)
-app.post('/api/post-guest-confession', async (req, res) => {
+app.post('/api/post-guest-confession', verifySupabaseToken, async (req, res) => {
   try {
     const { college, branch, text, imageUrl, type, pollOptions } = req.body;
 

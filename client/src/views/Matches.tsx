@@ -101,7 +101,7 @@ export const Matches: React.FC = () => {
     try {
       // Single RPC call — blocked users are filtered server-side
       const { data: formatted, error } = await supabase
-        .rpc('get_matches_with_preview', { current_user_id: currentUser.id });
+        .rpc('get_matches_with_preview');
 
       if (error) throw error;
 
