@@ -48,6 +48,7 @@ export const Onboarding: React.FC = () => {
   });
 
   const [branchCategory, setBranchCategory] = useState('');
+  const [customUniversity, setCustomUniversity] = useState('');
 
   // --- NEW: Check for existing profile & Auto-fill from Google ---
   useEffect(() => {
@@ -158,6 +159,10 @@ export const Onboarding: React.FC = () => {
       setError("Please select your field of study.");
       return;
     }
+    if (tempProfile.university === 'Other' && !customUniversity.trim()) {
+      setError("Please enter your college name.");
+      return;
+    }
     if (!dobDay || !dobMonth || !dobYear) {
       setError("Please select your complete date of birth.");
       return;
@@ -198,7 +203,7 @@ export const Onboarding: React.FC = () => {
         anonymousId: `User#${Math.floor(Math.random() * 10000).toString(16).toUpperCase()}`,
         realName: tempProfile.realName.trim(),
         gender: tempProfile.gender || 'Male',
-        university: tempProfile.university || CHHATTISGARH_COLLEGES[0],
+        university: tempProfile.university === 'Other' ? customUniversity.trim() : (tempProfile.university || CHHATTISGARH_COLLEGES[0]),
         universityEmail: email,
         isVerified: false,
         branch: tempProfile.branch || 'General',
@@ -318,6 +323,16 @@ export const Onboarding: React.FC = () => {
               </select>
               <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
             </div>
+
+            {tempProfile.university === 'Other' && (
+              <div className="mt-2 animate-fade-in">
+                <NeonInput
+                  value={customUniversity}
+                  onChange={e => setCustomUniversity(e.target.value)}
+                  placeholder="Enter your college/university name"
+                />
+              </div>
+            )}
             <p className="text-[10px] text-yellow-500/80 mt-2 flex items-start gap-1">
               <span className="mt-0.5">⚠️</span>
               <span>Note: You cannot change your college once selected. To change it later, you will need to verify your ID card.</span>
