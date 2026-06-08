@@ -27,6 +27,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const router = useRouter();
 
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch real-time unread messages count for the chat badge
   useEffect(() => {
@@ -83,7 +88,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     ['/home', '/matches', '/notifications', '/confessions'].includes(pathname) ||
     pathname.startsWith('/chat/');
 
-  if ((!currentUser && !isPublicConfessions) || !isAuthenticatedPath) {
+  if (!mounted || (!currentUser && !isPublicConfessions) || !isAuthenticatedPath) {
     return <>{children}</>;
   }
 

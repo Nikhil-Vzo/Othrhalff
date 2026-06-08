@@ -32,7 +32,15 @@ const readCache = (): ChatPreview[] => {
       return [];
     }
     const cached = localStorage.getItem(CACHE_KEY);
-    return cached ? JSON.parse(cached) : [];
+    if (!cached) return [];
+    const parsed = JSON.parse(cached);
+    if (Array.isArray(parsed)) {
+      return parsed.map((c: any) => ({
+        ...c,
+        lastMessage: c.lastMessage ? (typeof c.lastMessage === 'object' ? (c.lastMessage.text || c.lastMessage.content || '') : c.lastMessage) : null
+      }));
+    }
+    return [];
   } catch { return []; }
 };
 
@@ -134,7 +142,7 @@ export const Matches: React.FC = () => {
             matchPercentage: 0,
             distance: 'Connected'
           },
-          lastMessage: m.last_message,
+          lastMessage: m.last_message ? (typeof m.last_message === 'object' ? (m.last_message.text || m.last_message.content || '') : m.last_message) : null,
           lastMessageTime: m.last_message_time ? new Date(m.last_message_time).getTime() : null,
           unreadCount: m.unread_count
         };

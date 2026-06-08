@@ -120,7 +120,11 @@ export const Chat: React.FC = () => {
       if (c) {
         const parsed = JSON.parse(c);
         initialPartner = parsed.partner || null;
-        initialMessages = parsed.messages || [];
+        const rawMsgs = parsed.messages || [];
+        initialMessages = rawMsgs.map((m: any) => ({
+          ...m,
+          text: m.text ? (typeof m.text === 'object' ? (m.text.text || m.text.content || '') : m.text) : ''
+        }));
       }
     } catch (e) {
       console.error(e);
@@ -211,12 +215,17 @@ export const Chat: React.FC = () => {
 
           let newMessages: Message[] = initialMessages;
           if (messagesRes.data) {
-            newMessages = messagesRes.data.map((m: any) => ({
-              id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(),
-              timestamp: new Date(m.created_at).getTime(),
-              isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞'),
-              isRead: m.is_read
-            })).reverse();
+            newMessages = messagesRes.data.map((m: any) => {
+              const textStr = m.text ? (typeof m.text === 'object' ? (m.text.text || m.text.content || '') : m.text) : '';
+              return {
+                id: m.id,
+                senderId: m.sender_id,
+                text: textStr.replace('[SYSTEM]', '').trim(),
+                timestamp: new Date(m.created_at).getTime(),
+                isSystem: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
+                isRead: m.is_read
+              };
+            }).reverse();
             setMessages(newMessages); setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
             setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
           }
@@ -299,7 +308,15 @@ export const Chat: React.FC = () => {
 
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new;
-          const incoming: Message = { id: newMsg.id, senderId: newMsg.sender_id, text: newMsg.text.replace('[SYSTEM]', '').trim(), timestamp: new Date(newMsg.created_at).getTime(), isSystem: newMsg.text.startsWith('[SYSTEM]') || newMsg.text.startsWith('📞'), isRead: newMsg.is_read };
+          const textStr = newMsg.text ? (typeof newMsg.text === 'object' ? (newMsg.text.text || newMsg.text.content || '') : newMsg.text) : '';
+          const incoming: Message = {
+            id: newMsg.id,
+            senderId: newMsg.sender_id,
+            text: textStr.replace('[SYSTEM]', '').trim(),
+            timestamp: new Date(newMsg.created_at).getTime(),
+            isSystem: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
+            isRead: newMsg.is_read
+          };
 
           // Block enforcement: ignore messages from blocked users
           if (newMsg.sender_id !== currentUser?.id) {
