@@ -338,7 +338,7 @@ export const Chat: React.FC = () => {
 
   const handleInputChange = (val: string) => {
     setNewMessage(val);
-    if (!channelRef.current || !currentUser) return;
+    if (!channelRef.current || !currentUser || channelRef.current.state !== 'joined') return;
 
     // Send typing: true
     channelRef.current.send({
@@ -350,7 +350,7 @@ export const Chat: React.FC = () => {
     // Reset timeout to broadcast typing = false after 1.5s
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      if (channelRef.current && currentUser) {
+      if (channelRef.current && currentUser && channelRef.current.state === 'joined') {
         channelRef.current.send({
           type: 'broadcast',
           event: 'typing',
@@ -365,7 +365,7 @@ export const Chat: React.FC = () => {
     
     // Clear typing indicator immediately
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (channelRef.current) {
+    if (channelRef.current && channelRef.current.state === 'joined') {
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
@@ -376,7 +376,26 @@ export const Chat: React.FC = () => {
     const textToSend = newMessage.trim(); setNewMessage('');
     const optimistic: Message = { id: `temp-${Date.now()}`, senderId: currentUser.id, text: textToSend, timestamp: Date.now(), isSystem: false, isRead: false };
     setMessages(prev => [...prev, optimistic]); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    try { await supabase.from('messages').insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend }); analytics.messageSent(); }
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
+        .select()
+        .single();
+      if (error) throw error;
+      if (data) {
+        const confirmed: Message = {
+          id: data.id,
+          senderId: data.sender_id,
+          text: data.text.replace('[SYSTEM]', '').trim(),
+          timestamp: new Date(data.created_at).getTime(),
+          isSystem: data.text.startsWith('[SYSTEM]') || data.text.startsWith('📞'),
+          isRead: data.is_read
+        };
+        setMessages(prev => prev.map(m => m.id === optimistic.id ? confirmed : m));
+      }
+      analytics.messageSent();
+    }
     catch { setMessages(prev => prev.filter(m => m.id !== optimistic.id)); showToast('Failed', 'error'); }
   };
 
@@ -450,7 +469,7 @@ export const Chat: React.FC = () => {
                       msg.id.toString().startsWith('temp-') ? (
                         <Clock className="w-2.5 h-2.5 text-white/55 animate-pulse" />
                       ) : msg.isRead ? (
-                        <CheckCheck className="w-3 h-3 text-white drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]" />
+                        <CheckCheck className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_3px_rgba(0,255,255,0.8)]" />
                       ) : (
                         <Check className="w-3 h-3 text-white/60" />
                       )
