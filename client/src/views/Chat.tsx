@@ -5,7 +5,7 @@ import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
 import { MatchProfile, Message } from '../types';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Smile, Check, CheckCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PermissionModal } from '../components/PermissionModal';
 import { blockUser, unblockUser, checkBlockStatus } from '../services/blockService';
@@ -86,6 +86,11 @@ export const Chat: React.FC = () => {
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmLabel: 'Confirm', isDestructive: false, onConfirm: () => { } });
   const [permissionModal, setPermissionModal] = useState({ isOpen: false, type: 'video' as 'audio' | 'video', onGranted: () => { } });
+
+  const [partnerIsTyping, setPartnerIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -209,7 +214,8 @@ export const Chat: React.FC = () => {
             newMessages = messagesRes.data.map((m: any) => ({
               id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(),
               timestamp: new Date(m.created_at).getTime(),
-              isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞')
+              isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞'),
+              isRead: m.is_read
             })).reverse();
             setMessages(newMessages); setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
             setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
@@ -256,7 +262,7 @@ export const Chat: React.FC = () => {
     try {
       const { data: msgData } = await supabase.from('messages').select('id, sender_id, text, created_at, is_read').eq('match_id', matchId).order('created_at', { ascending: false }).range(messages.length, messages.length + MESSAGES_PER_PAGE - 1);
       if (msgData && msgData.length > 0) {
-        const formatted = msgData.map((m: any) => ({ id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(), timestamp: new Date(m.created_at).getTime(), isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞') })).reverse();
+        const formatted = msgData.map((m: any) => ({ id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(), timestamp: new Date(m.created_at).getTime(), isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞'), isRead: m.is_read })).reverse();
         setMessages(prev => [...formatted, ...prev]); setHasMoreMessages(msgData.length === MESSAGES_PER_PAGE);
       } else setHasMoreMessages(false);
     } catch (err) { console.error(err); } finally { setIsLoadingMore(false); }
@@ -275,41 +281,100 @@ export const Chat: React.FC = () => {
 
     const channel = supabase.channel(`chat_turbo:${matchId}`)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*', // Listen to INSERT and UPDATE
         schema: 'public',
         table: 'messages',
-        filter: `match_id=eq.${matchId}` // Server-side filter
+        filter: `match_id=eq.${matchId}`
       }, (payload) => {
-        const newMsg = payload.new;
-        const incoming: Message = { id: newMsg.id, senderId: newMsg.sender_id, text: newMsg.text.replace('[SYSTEM]', '').trim(), timestamp: new Date(newMsg.created_at).getTime(), isSystem: newMsg.text.startsWith('[SYSTEM]') || newMsg.text.startsWith('📞') };
-
-        // Block enforcement: ignore messages from blocked users
-        if (newMsg.sender_id !== currentUser?.id) {
-          if (isBlocked || isBlockedByThem) return; // Don't show messages if blocked
-          markMessagesReadRef.current();
+        if (payload.eventType === 'UPDATE') {
+          const updatedMsg = payload.new;
+          setMessages(prev => {
+            const next = prev.map(m => m.id === updatedMsg.id ? { ...m, isRead: updatedMsg.is_read } : m);
+            const currentPartner = partnerRef.current;
+            if (currentPartner) try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: next })); } catch (e) { }
+            return next;
+          });
+          return;
         }
 
-        setMessages(prev => {
-          if (prev.some(m => m.id === incoming.id)) return prev;
-          const hasOptimistic = prev.some(m => m.id.toString().startsWith('temp-') && m.senderId === incoming.senderId && m.text === incoming.text);
-          const next = hasOptimistic ? prev.map(m => (m.id.toString().startsWith('temp-') && m.senderId === incoming.senderId && m.text === incoming.text) ? incoming : m) : [...prev, incoming];
+        if (payload.eventType === 'INSERT') {
+          const newMsg = payload.new;
+          const incoming: Message = { id: newMsg.id, senderId: newMsg.sender_id, text: newMsg.text.replace('[SYSTEM]', '').trim(), timestamp: new Date(newMsg.created_at).getTime(), isSystem: newMsg.text.startsWith('[SYSTEM]') || newMsg.text.startsWith('📞'), isRead: newMsg.is_read };
 
-          const currentPartner = partnerRef.current;
-          if (currentPartner) try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: next })); } catch (e) { }
+          // Block enforcement: ignore messages from blocked users
+          if (newMsg.sender_id !== currentUser?.id) {
+            if (isBlocked || isBlockedByThem) return; // Don't show messages if blocked
+            markMessagesReadRef.current();
+          }
 
-          const container = chatContainerRef.current;
-          if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-          return next;
-        });
+          setMessages(prev => {
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            const hasOptimistic = prev.some(m => m.id.toString().startsWith('temp-') && m.senderId === incoming.senderId && m.text === incoming.text);
+            const next = hasOptimistic ? prev.map(m => (m.id.toString().startsWith('temp-') && m.senderId === incoming.senderId && m.text === incoming.text) ? incoming : m) : [...prev, incoming];
+
+            const currentPartner = partnerRef.current;
+            if (currentPartner) try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: next })); } catch (e) { }
+
+            const container = chatContainerRef.current;
+            if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            return next;
+          });
+        }
+      })
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.userId === partnerRef.current?.id) {
+          setPartnerIsTyping(payload.payload.isTyping);
+        }
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
   }, [matchId]);
+
+  const handleInputChange = (val: string) => {
+    setNewMessage(val);
+    if (!channelRef.current || !currentUser) return;
+
+    // Send typing: true
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: currentUser.id, isTyping: true }
+    });
+
+    // Reset timeout to broadcast typing = false after 1.5s
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      if (channelRef.current && currentUser) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, isTyping: false }
+        });
+      }
+    }, 1500);
+  };
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault(); if (!newMessage.trim() || !currentUser || !matchId || isBlocked || isBlockedByThem) return;
+    
+    // Clear typing indicator immediately
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: currentUser.id, isTyping: false }
+      });
+    }
+
     const textToSend = newMessage.trim(); setNewMessage('');
-    const optimistic: Message = { id: `temp-${Date.now()}`, senderId: currentUser.id, text: textToSend, timestamp: Date.now(), isSystem: false };
+    const optimistic: Message = { id: `temp-${Date.now()}`, senderId: currentUser.id, text: textToSend, timestamp: Date.now(), isSystem: false, isRead: false };
     setMessages(prev => [...prev, optimistic]); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     try { await supabase.from('messages').insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend }); analytics.messageSent(); }
     catch { setMessages(prev => prev.filter(m => m.id !== optimistic.id)); showToast('Failed', 'error'); }
@@ -368,10 +433,103 @@ export const Chat: React.FC = () => {
         {isLoadingMore && <div className="flex justify-center"><Loader2 className="w-5 h-5 text-gray-500 animate-spin" /></div>}
         <div className="mb-4 bg-gradient-to-r from-blue-900/10 to-purple-900/10 border border-blue-800/20 rounded-2xl p-3 backdrop-blur-sm flex gap-3"><div className="p-2 bg-blue-600/10 rounded-full h-fit"><Shield className="w-4 h-4 text-blue-400" /></div><div><h4 className="text-xs font-bold text-blue-400 flex items-center gap-2"><Clock className="w-3 h-3" /> Privacy Active</h4><p className="text-[11px] text-gray-400">Messages deleted after 3 days. Screenshots disabled.</p></div></div>
         {messages.length === 0 && <div className="flex flex-col items-center justify-center h-[50vh] opacity-50"><Ghost className="w-10 h-10 text-gray-700 mb-2" /><p className="text-sm text-gray-500">No messages yet.</p></div>}
-        {messages.map((msg, i) => { const isMe = msg.senderId === currentUser?.id; if (msg.isSystem) return <div key={msg.id} className="flex justify-center w-full my-4"><span className="text-[10px] uppercase text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800/50 flex items-center gap-2">{msg.text.replace('📞', '').trim()}</span></div>; return (<div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>{!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" />}</div>}<div className={`relative px-4 py-2.5 rounded-2xl text-sm break-words ${isMe ? 'bg-neon text-white rounded-br-none' : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'}`}>{msg.text}<span className={`text-[9px] block mt-1 opacity-60 text-right ${isMe ? 'text-white' : 'text-gray-400'}`}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div></div></div>); })}
+        {messages.map((msg, i) => {
+          const isMe = msg.senderId === currentUser?.id;
+          if (msg.isSystem) return <div key={msg.id} className="flex justify-center w-full my-4"><span className="text-[10px] uppercase text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800/50 flex items-center gap-2">{msg.text.replace('📞', '').trim()}</span></div>;
+          return (
+            <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                {!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" />}</div>}
+                <div className={`relative px-4 py-2.5 rounded-2xl text-sm break-words ${isMe ? 'bg-neon text-white rounded-br-none' : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'}`}>
+                  {msg.text}
+                  <div className="flex items-center justify-end gap-1 mt-1">
+                    <span className={`text-[9px] opacity-60 ${isMe ? 'text-white' : 'text-gray-400'}`}>
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {isMe && (
+                      msg.id.toString().startsWith('temp-') ? (
+                        <Clock className="w-2.5 h-2.5 text-white/55 animate-pulse" />
+                      ) : msg.isRead ? (
+                        <CheckCheck className="w-3 h-3 text-white drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]" />
+                      ) : (
+                        <Check className="w-3 h-3 text-white/60" />
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {partnerIsTyping && (
+          <div className="flex items-center gap-2 text-gray-500 text-xs pl-10">
+            <div className="flex items-center gap-1 bg-gray-900/60 border border-gray-800/80 px-3 py-1.5 rounded-full backdrop-blur-sm">
+              <span className="text-[10px] font-mono tracking-wider font-semibold text-neon">{partner?.realName || partner?.anonymousId}</span>
+              <span className="text-[10px] text-gray-400">is typing</span>
+              <div className="flex gap-0.5 ml-1">
+                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-3 bg-black/95 backdrop-blur-md border-t border-gray-800 z-20 relative">{(isBlocked || isBlockedByThem) && <div className="absolute inset-0 bg-gray-900/95 flex items-center justify-center z-30"><div className="text-center"><Ban className="w-8 h-8 text-gray-600 mx-auto mb-2" aria-hidden="true" /><p className="text-sm text-gray-400 font-medium">{isBlocked ? 'You blocked this user' : 'User unavailable'}</p>{isBlocked && <button onClick={handleBlockUser} className="mt-3 px-4 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-full">Unblock</button>}</div></div>}<form onSubmit={handleSend} className="max-w-4xl mx-auto flex items-end gap-2 px-2 pb-2"><div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl flex items-center gap-2 px-3 py-1 shadow-inner focus-within:border-gray-600 transition-colors"><input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." aria-label="Message input" className="flex-1 bg-transparent py-3 text-sm text-white placeholder-gray-500 outline-none min-h-[44px] max-h-32" /></div><button type="submit" disabled={!newMessage.trim()} aria-label="Send message" className="p-3 rounded-full bg-neon text-white shadow-lg hover:bg-[#d6006b] transition-all disabled:opacity-50"><Send className="w-5 h-5 fill-current" aria-hidden="true" /></button></form></div>
+      <div className="p-3 bg-black/95 backdrop-blur-md border-t border-gray-800 z-20 relative">
+        {(isBlocked || isBlockedByThem) && (
+          <div className="absolute inset-0 bg-gray-900/95 flex items-center justify-center z-30">
+            <div className="text-center">
+              <Ban className="w-8 h-8 text-gray-600 mx-auto mb-2" aria-hidden="true" />
+              <p className="text-sm text-gray-400 font-medium">{isBlocked ? 'You blocked this user' : 'User unavailable'}</p>
+              {isBlocked && <button onClick={handleBlockUser} className="mt-3 px-4 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-full">Unblock</button>}
+            </div>
+          </div>
+        )}
+        <form onSubmit={handleSend} className="max-w-4xl mx-auto flex items-end gap-2 px-2 pb-2 relative">
+          <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl flex items-center gap-2 px-3 py-1 shadow-inner focus-within:border-gray-600 transition-colors relative">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              aria-label="Toggle emoji picker"
+              aria-expanded={showEmojiPicker}
+              className={`p-2 text-gray-500 hover:text-white transition-colors rounded-full ${showEmojiPicker ? 'bg-gray-800 text-white' : ''}`}
+            >
+              <Smile className="w-5 h-5" />
+            </button>
+            <input
+              value={newMessage}
+              onChange={e => handleInputChange(e.target.value)}
+              placeholder="Type a message..."
+              aria-label="Message input"
+              className="flex-1 bg-transparent py-3 text-sm text-white placeholder-gray-500 outline-none min-h-[44px] max-h-32"
+            />
+            {showEmojiPicker && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowEmojiPicker(false)} />
+                <div className="absolute bottom-14 left-2 z-40 bg-gray-900/95 border border-gray-700/80 rounded-2xl p-2 backdrop-blur-xl flex items-center gap-1.5 shadow-2xl transition-all duration-200">
+                  {['❤️', '🔥', '😂', '✨', '👀', '🥺', '🙌', '💯'].map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setNewMessage(prev => prev + emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="text-lg hover:scale-125 transition-transform p-1.5 rounded-lg hover:bg-gray-800/80 active:scale-95"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <button type="submit" disabled={!newMessage.trim()} aria-label="Send message" className="p-3 rounded-full bg-neon text-white shadow-lg hover:bg-[#d6006b] transition-all disabled:opacity-50">
+            <Send className="w-5 h-5 fill-current" aria-hidden="true" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
