@@ -17,7 +17,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const { currentUser } = useAuth();
     const [onlineUsers, setOnlineUsers] = useState<Map<string, boolean>>(new Map());
     const [lastSeenMap, setLastSeenMap] = useState<Map<string, Date>>(new Map());
-    const [subscribedUsers, setSubscribedUsers] = useState<Set<string>>(new Set());
+    const subscribedChannelsRef = useRef<Map<string, any>>(new Map());
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -157,9 +157,10 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Subscribe to specific users' presence
     const subscribeToUser = (userId: string) => {
-        if (!supabase || subscribedUsers.has(userId)) return;
+        if (!supabase || subscribedChannelsRef.current.has(userId)) return;
 
-        setSubscribedUsers(prev => new Set(prev).add(userId));
+        // Immediately mark as tracked to prevent concurrent calls
+        subscribedChannelsRef.current.set(userId, true);
 
         // Fetch initial presence
         supabase
@@ -196,17 +197,19 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             .subscribe();
 
         // Store channel for cleanup
+        subscribedChannelsRef.current.set(userId, channel);
+
         return () => {
-            supabase.removeChannel(channel);
+            unsubscribeFromUser(userId);
         };
     };
 
     const unsubscribeFromUser = (userId: string) => {
-        setSubscribedUsers(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(userId);
-            return newSet;
-        });
+        const channel = subscribedChannelsRef.current.get(userId);
+        if (channel && channel !== true) {
+            supabase.removeChannel(channel);
+        }
+        subscribedChannelsRef.current.delete(userId);
     };
 
     const isUserOnline = (userId: string): boolean => {

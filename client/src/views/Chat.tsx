@@ -488,7 +488,7 @@ export const Chat: React.FC = () => {
                       ) : msg.isRead ? (
                         <CheckCheck className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_3px_rgba(0,255,255,0.8)]" />
                       ) : (
-                        <Check className="w-3 h-3 text-white/60" />
+                        <CheckCheck className="w-3 h-3 text-white/60" />
                       )
                     )}
                   </div>

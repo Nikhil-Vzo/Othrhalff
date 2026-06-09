@@ -45,35 +45,51 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         if (!isBackground) setLoading(true);
 
         try {
+            // Fetch notifications without foreign key join to avoid 500 errors if FK is missing
             const { data, error } = await supabase
                 .from('notifications')
-                .select(`
-          *,
-          fromUser:profiles!notifications_from_user_id_fkey (
-            id, anonymous_id, avatar, university
-          )
-        `)
+                .select('*')
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            const mapped: NotificationItem[] = (data || []).map((n: any) => ({
-                id: n.id,
-                title: n.title,
-                message: n.message,
-                timestamp: new Date(n.created_at).getTime(),
-                read: n.read,
-                type: n.type,
-                fromUserId: n.from_user_id,
-                actionUrl: n.action_url || undefined,
-                fromUser: n.fromUser ? {
-                    id: n.fromUser.id,
-                    anonymousId: n.fromUser.anonymous_id,
-                    avatar: n.fromUser.avatar,
-                    university: n.fromUser.university
-                } : undefined
-            }));
+            // Extract all unique fromUserIds
+            const userIds = [...new Set((data || []).map(n => n.from_user_id || n.data?.from_user_id).filter(Boolean))];
+            
+            // Fetch profiles in a separate query
+            let profilesMap = new Map();
+            if (userIds.length > 0) {
+                const { data: profiles, error: profError } = await supabase
+                    .from('profiles')
+                    .select('id, anonymous_id, avatar, university')
+                    .in('id', userIds);
+                if (profiles && !profError) {
+                    profiles.forEach(p => profilesMap.set(p.id, p));
+                }
+            }
+
+            const mapped: NotificationItem[] = (data || []).map((n: any) => {
+                const fromUserId = n.from_user_id || n.data?.from_user_id;
+                const fromUser = profilesMap.get(fromUserId);
+                
+                return {
+                    id: n.id,
+                    title: n.title,
+                    message: n.message,
+                    timestamp: new Date(n.created_at).getTime(),
+                    read: n.is_read || n.read,
+                    type: n.type,
+                    fromUserId: fromUserId,
+                    actionUrl: n.action_url || n.data?.action_url || undefined,
+                    fromUser: fromUser ? {
+                        id: fromUser.id,
+                        anonymousId: fromUser.anonymous_id,
+                        avatar: fromUser.avatar,
+                        university: fromUser.university
+                    } : undefined
+                };
+            });
 
             // Deduplicate Logic
             const uniqueNotifications: NotificationItem[] = [];
