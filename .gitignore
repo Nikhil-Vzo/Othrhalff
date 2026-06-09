@@ -13,3 +13,4 @@ client/.next/
 .gemini/
 db_backup/
 
+.worktrees/
