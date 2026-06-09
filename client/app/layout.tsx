@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { Providers } from './providers';
+import { AppLayout } from '../src/layouts/AppLayout';
 import { Inter } from 'next/font/google';
 import '../src/index.css';
 
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          {children}
+          <AppLayout>
+            {children}
+          </AppLayout>
         </Providers>
       </body>
     </html>

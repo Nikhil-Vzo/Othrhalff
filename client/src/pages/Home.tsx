@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MatchProfile } from '../types';
 import { useRouter as useNavigate } from 'next/navigation';
-import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell } from 'lucide-react';
+import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Menu, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 
@@ -28,7 +28,8 @@ const getAge = (dob?: string): number | null => {
 };
 
 export const Home: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser, logout } = useAuth();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [queue, setQueue] = useState<MatchProfile[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [quote] = useState(getRandomQuote());
@@ -36,6 +37,10 @@ export const Home: React.FC = () => {
     const [dragY, setDragY] = useState(0);
     const [startX, setStartX] = useState(0);
     const [startY, setStartY] = useState(0);
+
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const pullStartY = useRef<number | null>(null);
 
     const [filterMode, setFilterMode] = useState<'campus' | 'global'>('campus');
     const navigate = useNavigate();
@@ -231,8 +236,40 @@ export const Home: React.FC = () => {
         return () => card.removeEventListener('touchmove', onTouchMove);
     }, [isDragging, currentProfile]);
 
+    const handleGlobalTouchStart = (e: React.TouchEvent) => {
+        pullStartY.current = e.touches[0].clientY;
+    };
+
+    const handleGlobalTouchMove = (e: React.TouchEvent) => {
+        if (!pullStartY.current) return;
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - pullStartY.current;
+        
+        if (deltaY > 0 && !isRefreshing) {
+            setPullDistance(Math.min(deltaY * 0.5, 90));
+        }
+    };
+
+    const handleGlobalTouchEnd = async () => {
+        if (!pullStartY.current) return;
+        if (pullDistance > 60 && !isRefreshing) {
+            setIsRefreshing(true);
+            setPullDistance(60); 
+            await Promise.all([
+                fetchFreshData(false),
+                new Promise(resolve => setTimeout(resolve, 3000))
+            ]);
+            setIsRefreshing(false);
+            setPullDistance(0);
+        } else {
+            setPullDistance(0);
+        }
+        pullStartY.current = null;
+    };
+
     // Enhanced touch handlers with spring physics feel
     const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+        if ('touches' in e) e.stopPropagation();
         setIsDragging(true);
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
@@ -241,6 +278,7 @@ export const Home: React.FC = () => {
     };
 
     const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+        if ('touches' in e) e.stopPropagation();
         if (!isDragging) return;
         // Prevent browser scroll/refresh while swiping
         if ('touches' in e) {
@@ -263,7 +301,8 @@ export const Home: React.FC = () => {
         else setSwipeDirection(null);
     };
 
-    const endSwipe = () => {
+    const endSwipe = (e?: React.TouchEvent | React.MouseEvent) => {
+        if (e && 'touches' in e) e.stopPropagation();
         setIsDragging(false);
         const threshold = window.innerWidth * 0.2;
 
@@ -349,7 +388,12 @@ export const Home: React.FC = () => {
     if (!currentUser) return null;
 
     return (
-        <div className="h-full w-full bg-transparent flex flex-col relative overflow-hidden select-none touch-none">
+        <div 
+            className="h-full w-full bg-transparent flex flex-col relative overflow-hidden select-none touch-none"
+            onTouchStart={handleGlobalTouchStart}
+            onTouchMove={handleGlobalTouchMove}
+            onTouchEnd={handleGlobalTouchEnd}
+        >
 
             {/* === REACTIVE BACKGROUND === */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -399,11 +443,11 @@ export const Home: React.FC = () => {
                 </div>
             )}
 
-            {/* === TOP HEADER === */}
-            <div className="w-full px-5 py-4 flex items-center justify-between gap-3 z-30 relative">
+            {/* === DESKTOP HEADER === */}
+            <div className="hidden md:flex w-full px-5 py-4 items-center justify-between gap-3 z-30 relative">
                 <div className="flex items-center gap-2">
                     <Ghost className={`w-7 h-7 drop-shadow-[0_0_12px_rgba(255,0,127,0.6)] ${isRecycleMode ? 'text-yellow-400' : 'text-neon'}`} />
-                    <span className="text-xl font-black text-white tracking-tighter uppercase hidden sm:block">
+                    <span className="text-xl font-black text-white tracking-tighter uppercase">
                         {isRecycleMode ? 'Second Chance' : 'Discover'}
                     </span>
                 </div>
@@ -433,9 +477,7 @@ export const Home: React.FC = () => {
                         </button>
                     </div>
 
-
-
-                    {/* Notification Button - Now rightmost for better mobile reach */}
+                    {/* Notification Button */}
                     <button
                         onClick={() => navigate.push('/notifications')}
                         className="relative p-2.5 bg-black/60 backdrop-blur-2xl rounded-full border border-white/10 text-gray-400 hover:text-neon transition-all hover:border-neon/30 hover:scale-105 active:scale-95"
@@ -450,8 +492,131 @@ export const Home: React.FC = () => {
                 </div>
             </div>
 
+            {/* === MOBILE TOP HEADER === */}
+            <div className="md:hidden w-full px-4 py-4 flex items-center justify-between z-30 relative">
+                
+                {/* Left: Menu */}
+                <div className="flex items-center z-10">
+                    <button 
+                        onClick={() => setIsMenuOpen(true)}
+                        className="relative p-2 bg-black/60 backdrop-blur-2xl rounded-full border border-white/10 text-gray-400 hover:text-neon transition-all hover:border-neon/30 hover:scale-105 active:scale-95"
+                    >
+                        <Menu className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Menu relocated outside */}
+
+                {/* Center: Logo */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 z-0 pointer-events-none">
+                    {/* Background Normal Logo */}
+                    <Ghost 
+                        className={`absolute inset-0 w-10 h-10 transition-opacity duration-300 ${isRecycleMode ? 'text-yellow-400' : 'text-neon'} ${(pullDistance > 0 || isRefreshing) ? 'opacity-20' : 'opacity-100'}`} 
+                        style={{ filter: `drop-shadow(0 0 12px ${isRecycleMode ? 'rgba(250,204,21,0.6)' : 'rgba(255,0,127,0.6)'})` }}
+                    />
+                    
+                    {/* Foreground Tracing Logo */}
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                        className={`absolute inset-0 w-10 h-10 transition-colors duration-300 ${isRecycleMode 
+                            ? 'text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.8)]' 
+                            : 'text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.8)]' 
+                        } ${isRefreshing ? 'animate-draw-loop' : ''}`}
+                    >
+                        <path pathLength="100" style={{ strokeDasharray: 100, strokeDashoffset: isRefreshing ? undefined : Math.max(0, 100 - (pullDistance / 60) * 100), transition: !isRefreshing ? 'stroke-dashoffset 0.1s linear' : 'none' }} d="M9 10h.01"/>
+                        <path pathLength="100" style={{ strokeDasharray: 100, strokeDashoffset: isRefreshing ? undefined : Math.max(0, 100 - (pullDistance / 60) * 100), transition: !isRefreshing ? 'stroke-dashoffset 0.1s linear' : 'none' }} d="M15 10h.01"/>
+                        <path pathLength="100" style={{ strokeDasharray: 100, strokeDashoffset: isRefreshing ? undefined : Math.max(0, 100 - (pullDistance / 60) * 100), transition: !isRefreshing ? 'stroke-dashoffset 0.1s linear' : 'none' }} d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/>
+                    </svg>
+                </div>
+
+                {/* Right: Notifications */}
+                <div className="flex items-center z-10">
+                    <button
+                        onClick={() => navigate.push('/notifications')}
+                        className="relative p-2 bg-black/60 backdrop-blur-2xl rounded-full border border-white/10 text-gray-400 hover:text-neon transition-all hover:border-neon/30 hover:scale-105 active:scale-95"
+                    >
+                        <Bell className="w-5 h-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-neon text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-black animate-pulse">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* === MOBILE SLIDE OVER MENU === */}
+            <div className={`fixed inset-0 z-[9999] transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                {/* Backdrop */}
+                <div 
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    onClick={() => setIsMenuOpen(false)}
+                />
+                
+                {/* Drawer */}
+                <div className={`absolute top-0 left-0 bottom-0 w-[75vw] max-w-[300px] bg-gray-900 border-r border-white/10 shadow-2xl transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="p-6 flex flex-col h-full overflow-y-auto">
+                        {/* Close button */}
+                        <button 
+                            onClick={() => setIsMenuOpen(false)}
+                            className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        {/* Header: Profile Info */}
+                        <div className="flex flex-col mt-8 mb-6">
+                            <img 
+                                src={currentUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.realName || 'User'}`} 
+                                alt="Profile" 
+                                className="w-16 h-16 rounded-full object-cover border-2 border-neon shadow-[0_0_12px_rgba(255,0,127,0.4)] mb-4"
+                            />
+                            <h2 className="text-xl font-bold text-white tracking-tight">{currentUser?.realName || 'User'}</h2>
+                            <p className="text-sm text-gray-400">{currentUser?.university || 'University'}</p>
+                        </div>
+
+                        {/* Likes Button */}
+                        <button 
+                            onClick={() => navigate.push('/matches')}
+                            className="w-full flex items-center gap-3 p-4 mb-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-pink-500/50 text-white font-bold transition-all"
+                        >
+                            <div className="p-2 bg-pink-500/10 rounded-lg">
+                                <Heart className="w-5 h-5 text-neon" />
+                            </div>
+                            <span>My Likes</span>
+                        </button>
+
+                        {/* Footer: Logout */}
+                        <div className="mt-4 border-t border-white/10 pt-6 pb-8">
+                            <button 
+                                onClick={() => {
+                                    setIsMenuOpen(false);
+                                    logout();
+                                }}
+                                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-red-400 font-bold transition-all border border-red-500/20 hover:border-red-500/50"
+                            >
+                                <LogOut className="w-5 h-5" />
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* === MAIN CONTENT === */}
-            <div className="flex-1 flex flex-col items-center justify-center relative w-full px-4 min-h-0 pb-20 md:pb-0">
+            <div 
+                className="flex-1 flex flex-col items-center justify-center relative w-full px-4 min-h-0 pb-20 md:pb-0"
+                style={{
+                    transform: `translateY(${pullDistance}px)`,
+                    transition: pullDistance === 0 || isRefreshing ? 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'
+                }}
+            >
 
                 {/* LOADING STATE - Skeleton Card */}
                 {isLoading ? (
@@ -652,31 +817,48 @@ export const Home: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* === ACTION BUTTONS === */}
-                            <div className="absolute bottom-0 inset-x-0 flex justify-center gap-6 z-20 h-20 items-center pb-2">
-                                <button
-                                    onClick={() => handleSwipe('left')}
-                                    disabled={isSwiping}
-                                    className="w-16 h-16 bg-gradient-to-br from-gray-900 to-gray-800 backdrop-blur-xl border border-gray-700 rounded-full flex items-center justify-center text-red-400 hover:text-red-300 hover:scale-110 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)] transition-all duration-300 active:scale-95 shadow-xl disabled:opacity-50 disabled:pointer-events-none"
-                                >
-                                    <X className="w-7 h-7" strokeWidth={3} />
-                                </button>
-
-                                <button
-                                    onClick={() => handleSwipe('right')}
-                                    disabled={isSwiping}
-                                    className="w-16 h-16 bg-gradient-to-br from-neon to-pink-600 backdrop-blur-xl border border-neon/30 rounded-full flex items-center justify-center text-white hover:scale-110 hover:shadow-[0_0_40px_rgba(255,0,127,0.5)] transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(255,0,127,0.3)] disabled:opacity-50 disabled:pointer-events-none"
-                                >
-                                    <Heart className="w-7 h-7 fill-current" />
-                                </button>
-                            </div>
+                            {/* === ACTION BUTTONS REMOVED === */}
                         </div>
                     </div>
                 )}
             </div>
 
+            {/* === MOBILE BOTTOM FILTER TOGGLE === */}
+            <div className="md:hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-50">
+                <div className="flex bg-black/80 backdrop-blur-3xl rounded-full p-1 border border-white/20 shadow-2xl">
+                    <button
+                        onClick={() => setFilterMode('campus')}
+                        className={`flex items-center gap-1.5 px-4 py-2 md:px-6 md:py-2.5 rounded-full text-[11px] md:text-xs font-bold uppercase transition-all duration-300 ${filterMode === 'campus'
+                            ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
+                            : 'text-gray-400 hover:text-gray-200'
+                            }`}
+                    >
+                        <School className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        Campus
+                    </button>
+                    <button
+                        onClick={() => setFilterMode('global')}
+                        className={`flex items-center gap-1.5 px-4 py-2 md:px-6 md:py-2.5 rounded-full text-[11px] md:text-xs font-bold uppercase transition-all duration-300 ${filterMode === 'global'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                            : 'text-gray-400 hover:text-gray-200'
+                            }`}
+                    >
+                        <Globe className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        Global
+                    </button>
+                </div>
+            </div>
+
             {/* CSS for custom animations */}
             <style>{`
+                @keyframes draw-loop {
+                    0% { stroke-dashoffset: 0; }
+                    100% { stroke-dashoffset: 100; }
+                }
+                .animate-draw-loop path {
+                    stroke-dasharray: 100;
+                    animation: draw-loop 1.5s ease-in-out infinite alternate;
+                }
                 @keyframes burst-out {
                     0% { transform: rotate(var(--rotation)) translateY(-20px) scale(1); opacity: 1; }
                     100% { transform: rotate(var(--rotation)) translateY(-80px) scale(0); opacity: 0; }

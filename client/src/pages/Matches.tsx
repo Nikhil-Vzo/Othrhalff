@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { supabase } from '../lib/supabase';
 import { MatchProfile } from '../types';
-import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
+import { useRouter as useNavigate } from 'next/navigation';
 import { Search, Ghost, Loader2, BadgeCheck } from 'lucide-react';
 import { getOptimizedUrl } from '../utils/image';
 import { getRandomQuote } from '../data/loadingQuotes';
@@ -32,7 +32,15 @@ const readCache = (): ChatPreview[] => {
       return [];
     }
     const cached = localStorage.getItem(CACHE_KEY);
-    return cached ? JSON.parse(cached) : [];
+    if (!cached) return [];
+    const parsed = JSON.parse(cached);
+    if (Array.isArray(parsed)) {
+      return parsed.map((c: any) => ({
+        ...c,
+        lastMessage: c.lastMessage ? (typeof c.lastMessage === 'object' ? (c.lastMessage.text || c.lastMessage.content || '') : c.lastMessage) : null
+      }));
+    }
+    return [];
   } catch { return []; }
 };
 
@@ -57,45 +65,35 @@ export const Matches: React.FC = () => {
   const { currentUser } = useAuth();
   const { isUserOnline } = usePresence();
   const navigate = useNavigate();
-  const location = useLocation() as any;
 
-  // 1. Load from localStorage cache for instant display
-  const [chats, setChats] = useState<ChatPreview[]>(() => {
+  // 1. Initialize state variables to null / empty arrays to avoid SSR issues
+  const [chats, setChats] = useState<ChatPreview[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load cache and session state on mount
+  useEffect(() => {
+    let initialChats = readCache();
     try {
-      let initialChats = readCache();
-
-      // CHECK FOR INSTANT UPDATE FROM CHAT
-      // If we just came back from a chat, update that specific match immediately
-      if (location.state?.updatedMatchId) {
-        const { updatedMatchId, lastMessage, lastMessageTime } = location.state;
-
+      const lastViewedMatchId = sessionStorage.getItem('last_viewed_match_id');
+      if (lastViewedMatchId) {
         initialChats = initialChats.map((c: ChatPreview) => {
-          if (c.id === updatedMatchId) {
+          if (c.id === lastViewedMatchId) {
             return {
               ...c,
-              lastMessage: lastMessage || c.lastMessage,
-              lastMessageTime: lastMessageTime || c.lastMessageTime,
-              unreadCount: 0 // We just read it
+              unreadCount: 0
             };
           }
           return c;
         });
-
-        // Re-sort because the timestamp changed
-        initialChats.sort((a: ChatPreview, b: ChatPreview) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-
-        // Update cache immediately
         writeCache(initialChats);
-
-        // Clear state to prevent re-runs
-        window.history.replaceState({}, document.title);
+        sessionStorage.removeItem('last_viewed_match_id');
       }
-
-      return initialChats;
-    } catch { return []; }
-  });
-
-  const [loading, setLoading] = useState(() => chats.length === 0);
+    } catch (e) {
+      console.error(e);
+    }
+    setChats(initialChats);
+    setLoading(initialChats.length === 0);
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread' | 'online'>('all');
 
@@ -105,12 +103,13 @@ export const Matches: React.FC = () => {
   // 2. The Core Loading Function — server-side block filtering via RPC
   const loadMatches = useCallback(async (isBackground = false) => {
     if (!currentUser || !supabase) return;
-    if (!isBackground && chats.length === 0) setLoading(true);
+    const hasCache = readCache().length > 0;
+    if (!isBackground && !hasCache) setLoading(true);
 
     try {
       // Single RPC call — blocked users are filtered server-side
       const { data: formatted, error } = await supabase
-        .rpc('get_matches_with_preview', { current_user_id: currentUser.id });
+        .rpc('get_matches_with_preview');
 
       if (error) throw error;
 
@@ -143,7 +142,7 @@ export const Matches: React.FC = () => {
             matchPercentage: 0,
             distance: 'Connected'
           },
-          lastMessage: m.last_message,
+          lastMessage: m.last_message ? (typeof m.last_message === 'object' ? (m.last_message.text || m.last_message.content || '') : m.last_message) : null,
           lastMessageTime: m.last_message_time ? new Date(m.last_message_time).getTime() : null,
           unreadCount: m.unread_count
         };
@@ -152,11 +151,21 @@ export const Matches: React.FC = () => {
       // Already sorted by RPC, but ensure client-side consistency
       mappedChats.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
 
+      // Client-side deduplication safeguard: Keep only first match per unique partner
+      const uniqueChats: ChatPreview[] = [];
+      const seenPartnerIds = new Set<string>();
+      for (const chat of mappedChats) {
+        if (!seenPartnerIds.has(chat.partner.id)) {
+          seenPartnerIds.add(chat.partner.id);
+          uniqueChats.push(chat);
+        }
+      }
+
       setChats(prev => {
-        const isDifferent = JSON.stringify(prev) !== JSON.stringify(mappedChats);
+        const isDifferent = JSON.stringify(prev) !== JSON.stringify(uniqueChats);
         if (isDifferent) {
-          writeCache(mappedChats);
-          return mappedChats;
+          writeCache(uniqueChats);
+          return uniqueChats;
         }
         return prev;
       });
@@ -247,7 +256,7 @@ export const Matches: React.FC = () => {
         <h1 className="text-2xl font-black tracking-tight mb-4 flex items-center gap-2">Matches <span className="bg-neon/10 text-neon text-xs px-2 py-1 rounded-full border border-neon/20">{chats.length}</span></h1>
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon transition-colors" />
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search matches..." className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-neon/50 focus:bg-gray-900 transition-all" />
+          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search matches..." aria-label="Search matches" className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-neon/50 focus:bg-gray-900 transition-all" />
         </div>
       </div>
 
@@ -269,7 +278,11 @@ export const Matches: React.FC = () => {
           </div>
         ) : (
           filteredChats.map(chat => (
-            <div key={chat.id} onClick={() => {
+            <div key={chat.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Chat with ${chat.partner.realName || chat.partner.anonymousId}${chat.unreadCount > 0 ? `, ${chat.unreadCount} unread` : ''}`}
+              onClick={() => {
               // === FIX BUG 2: Optimistic Cache Update ===
               setChats(prev => {
                 const updated = prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c);
@@ -277,7 +290,19 @@ export const Matches: React.FC = () => {
                 return updated;
               });
               navigate.push(`/chat/${chat.id}`);
-            }} className="group relative bg-gray-900/30 hover:bg-gray-800/50 border border-gray-800/50 hover:border-gray-700 rounded-2xl p-4 transition-all duration-300 cursor-pointer active:scale-[0.98]">
+            }}
+              onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setChats(prev => {
+                  const updated = prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c);
+                  writeCache(updated);
+                  return updated;
+                });
+                navigate.push(`/chat/${chat.id}`);
+              }
+            }}
+              className="group relative bg-gray-900/30 hover:bg-gray-800/50 border border-gray-800/50 hover:border-gray-700 rounded-2xl p-4 transition-all duration-300 cursor-pointer active:scale-[0.98]">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <img src={getOptimizedUrl(chat.partner.avatar, 64)} alt="Avatar" className="w-14 h-14 rounded-full object-cover border-2 border-gray-800 group-hover:border-gray-600 transition-colors" />
