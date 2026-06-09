@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
@@ -29,14 +30,23 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "autoprefixer": "^10.4.19",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
+    "ts-jest": "^29.4.11",
     "typescript": "^5.2.2"
+  },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "^16.2.7"
   }
 }

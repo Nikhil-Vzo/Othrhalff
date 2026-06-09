@@ -77,11 +77,38 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
             // Deduplicate Logic
             const uniqueNotifications: NotificationItem[] = [];
-            const seenMap = new Set<string>();
+            
+            // 1. Separate match notifications from others
+            const matchNotifications = mapped.filter(n => n.type === 'match');
+            const otherNotifications = mapped.filter(n => n.type !== 'match');
 
-            for (const notif of mapped) {
+            // 2. Deduplicate match notifications that are near-simultaneous (within 10s)
+            const uniqueMatches: NotificationItem[] = [];
+            for (const matchNotif of matchNotifications) {
+                const isDuplicate = uniqueMatches.some(m => 
+                    Math.abs(m.timestamp - matchNotif.timestamp) < 10000
+                );
+
+                if (!isDuplicate) {
+                    uniqueMatches.push(matchNotif);
+                } else {
+                    const existingIndex = uniqueMatches.findIndex(m => 
+                        Math.abs(m.timestamp - matchNotif.timestamp) < 10000
+                    );
+                    if (existingIndex !== -1 && !uniqueMatches[existingIndex].fromUserId && matchNotif.fromUserId) {
+                        uniqueMatches[existingIndex] = matchNotif; // Prefer the one with partner profile details
+                    }
+                }
+            }
+
+            // 3. Re-combine and sort by descending timestamp
+            const combined = [...uniqueMatches, ...otherNotifications];
+            combined.sort((a, b) => b.timestamp - a.timestamp);
+
+            // 4. Run through secondary grouping to map keys
+            const seenMap = new Set<string>();
+            for (const notif of combined) {
                 let uniqueKey = notif.id;
-                // Group social notifications so "User A liked you" doesn't show 5 times
                 if ((notif.type === 'like' || notif.type === 'match') && notif.fromUserId) {
                     uniqueKey = `${notif.type}-${notif.fromUserId}`;
                 }

@@ -1,6 +1,50 @@
 // OthrHalff Service Worker for PWA
 const CACHE_NAME = 'othrhalff-v4.0'; // Bump version when updating
 const RUNTIME_CACHE = 'othrhalff-runtime-v2';
+const AUTH_DB_NAME = 'othrhalff-auth';
+const AUTH_STORE_NAME = 'tokens';
+
+// ─── IndexedDB helpers for secure token storage ─────────────────────────────
+function openAuthDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(AUTH_DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(AUTH_STORE_NAME);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+async function getAuthToken() {
+    try {
+        const db = await openAuthDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(AUTH_STORE_NAME, 'readonly');
+            const req = tx.objectStore(AUTH_STORE_NAME).get('access_token');
+            req.onsuccess = () => resolve(req.result ?? null);
+            req.onerror = () => resolve(null);
+        });
+    } catch { return null; }
+}
+async function setAuthToken(token) {
+    try {
+        const db = await openAuthDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(AUTH_STORE_NAME, 'readwrite');
+            tx.objectStore(AUTH_STORE_NAME).put(token, 'access_token');
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) { console.error('[SW] Failed to store auth token:', e); }
+}
+async function clearAuthToken() {
+    try {
+        const db = await openAuthDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(AUTH_STORE_NAME, 'readwrite');
+            tx.objectStore(AUTH_STORE_NAME).delete('access_token');
+            tx.oncomplete = resolve;
+        });
+    } catch { }
+}
 
 // Core files to cache on install (keep minimal for fast install)
 const CORE_CACHE = [
@@ -266,6 +310,16 @@ self.addEventListener('message', (event) => {
             })
         );
     }
+
+    // Store the Supabase access token securely in IndexedDB for use in background handlers
+    if (event.data && event.data.type === 'SET_AUTH_TOKEN' && event.data.token) {
+        event.waitUntil(setAuthToken(event.data.token));
+    }
+
+    // Clear the token on logout
+    if (event.data && event.data.type === 'CLEAR_AUTH_TOKEN') {
+        event.waitUntil(clearAuthToken());
+    }
 });
 
 // Background sync (if supported) - for offline message queuing
@@ -319,25 +373,30 @@ self.addEventListener('notificationclick', (event) => {
         const apiUrl = 'https://testing-of.onrender.com'; // Testing Of Production URL
 
         event.waitUntil(
-            fetch(`${apiUrl}/api/accept-match`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ myId: payload.myId, targetId: payload.targetId })
+            getAuthToken().then((token) => {
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                return fetch(`${apiUrl}/api/accept-match`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ myId: payload.myId, targetId: payload.targetId })
+                })
+                    .then(response => {
+                        if (!response.ok) throw new Error('API Fail');
+                        // Optional: Show a confirmation toast/notification
+                        return self.registration.showNotification('It\'s a Match! 🎉', {
+                            body: 'You can now chat with them.',
+                            icon: '/favicon.png'
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Mobile background fetch failed:', err);
+                        return self.registration.showNotification('Error', {
+                            body: 'Could not accept. Please open the app.',
+                        });
+                    });
             })
-                .then(response => {
-                    if (!response.ok) throw new Error('API Fail');
-                    // Optional: Show a confirmation toast/notification
-                    return self.registration.showNotification('It\'s a Match! 🎉', {
-                        body: 'You can now chat with them.',
-                        icon: '/favicon.png'
-                    });
-                })
-                .catch(err => {
-                    console.error('Mobile background fetch failed:', err);
-                    return self.registration.showNotification('Error', {
-                        body: 'Could not accept. Please open the app.',
-                    });
-                })
         );
     } else {
         // If they click the notification itself (not the button), open the app

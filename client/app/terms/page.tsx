@@ -1,6 +1,10 @@
-"use client";
+import { Metadata } from 'next';
+import { Terms } from '../../src/views/StaticPages';
 
-import { Terms } from '../../src/pages/StaticPages';
+export const metadata: Metadata = {
+  title: 'Terms of Service | OthrHalff',
+  description: 'Terms of Service for OthrHalff. By using this platform, you agree to our terms and conditions.',
+};
 
 export default function Page() {
   return <Terms />;

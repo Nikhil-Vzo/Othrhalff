@@ -345,47 +345,90 @@ create trigger on_reaction_added
 ## 5. Required RPCs (Edge Functions as Postgres Procedures)
 
 ```sql
--- 1. Get Potential Matches (Profiles the user hasn't swiped on yet and aren't blocked)
-create or replace function public.get_potential_matches(current_user_id uuid, display_limit integer default 20)
+-- 1. Get Potential Matches (Profiles the user hasn't swiped on yet and aren't blocked, filtered by Campus/Global mode)
+create or replace function public.get_potential_matches(
+  user_id uuid,
+  match_mode text,
+  user_university text,
+  display_limit integer default 20
+)
 returns setof public.profiles
 language plpgsql
 security definer -- Runs with elevated privileges to bypass strict match view limits safely
 as $$
 begin
-  return query
-  select p.*
-  from public.profiles p
-  where p.id != current_user_id
-  -- Exclude people they've already swiped on
-  and not exists (
-    select 1 from public.swipes s 
-    where s.liker_id = current_user_id and s.target_id = p.id
-  )
-  -- Exclude blocked users (both directions)
-  and not exists (
-    select 1 from public.blocked_users b
-    where (b.blocker_id = current_user_id and b.blocked_id = p.id)
-       or (b.blocker_id = p.id and b.blocked_id = current_user_id)
-  )
-  order by p.created_at desc
-  limit display_limit;
+  if match_mode = 'campus' then
+    return query
+    select p.*
+    from public.profiles p
+    where p.id != user_id
+      and p.university = user_university
+      -- Exclude people they've already swiped on
+      and not exists (
+        select 1 from public.swipes s 
+        where s.liker_id = user_id and s.target_id = p.id
+      )
+      -- Exclude blocked users (both directions)
+      and not exists (
+        select 1 from public.blocked_users b
+        where (b.blocker_id = user_id and b.blocked_id = p.id)
+           or (b.blocker_id = p.id and b.blocked_id = user_id)
+      )
+    order by p.created_at desc
+    limit display_limit;
+  else -- Global mode
+    return query
+    select p.*
+    from public.profiles p
+    where p.id != user_id
+      and p.university != user_university
+      -- Exclude people they've already swiped on
+      and not exists (
+        select 1 from public.swipes s 
+        where s.liker_id = user_id and s.target_id = p.id
+      )
+      -- Exclude blocked users (both directions)
+      and not exists (
+        select 1 from public.blocked_users b
+        where (b.blocker_id = user_id and b.blocked_id = p.id)
+           or (b.blocker_id = p.id and b.blocked_id = user_id)
+      )
+    order by p.created_at desc
+    limit display_limit;
+  end if;
 end;
 $$;
 
--- 2. Get Skipped Profiles (Users the current user has 'passed' on)
-create or replace function public.get_skipped_profiles(current_user_id uuid)
+-- 2. Get Skipped Profiles (Users the current user has 'passed' on, filtered by Campus/Global mode)
+create or replace function public.get_skipped_profiles(
+  current_user_id uuid,
+  match_mode text,
+  user_university text
+)
 returns setof public.profiles
 language plpgsql
 security definer
 as $$
 begin
-  return query
-  select p.*
-  from public.profiles p
-  join public.swipes s on s.target_id = p.id
-  where s.liker_id = current_user_id
-  and s.action = 'pass'
-  order by s.created_at desc;
+  if match_mode = 'campus' then
+    return query
+    select p.*
+    from public.profiles p
+    join public.swipes s on s.target_id = p.id
+    where s.liker_id = current_user_id
+      and s.action = 'pass'
+      and p.university = user_university
+    order by s.created_at desc;
+  else -- Global mode
+    return query
+    select p.*
+    from public.profiles p
+    join public.swipes s on s.target_id = p.id
+    where s.liker_id = current_user_id
+      and s.action = 'pass'
+      and p.university != user_university
+    order by s.created_at desc;
+  end if;
 end;
 $$;
 

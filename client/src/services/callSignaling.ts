@@ -52,9 +52,17 @@ export const initiateCall = async (
 
         // 2. Get Agora Token from API
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || '';
+
+        // Get the current session token to authenticate the request
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        const accessToken = authSession?.access_token ?? '';
+
         const response = await fetch(`${apiUrl}/api/initiate-call`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
             body: JSON.stringify({ receiverId, matchId, callType: callerInfo.callType })
         });
 
