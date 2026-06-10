@@ -114,7 +114,8 @@ export const Matches: React.FC = () => {
 
       if (matchesError) throw matchesError;
 
-      const partnerIds = [...new Set((matchesData || []).map((m: any) => m.user_a === currentUser.id ? m.user_b : m.user_a))];
+      const rawPartnerIds = (matchesData || []).map((m: any) => m.user_a === currentUser.id ? m.user_b : m.user_a);
+      const partnerIds = rawPartnerIds.filter((val, idx, self) => self.indexOf(val) === idx);
       
       let profilesMap = new Map();
       if (partnerIds.length > 0) {

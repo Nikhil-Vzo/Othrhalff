@@ -55,7 +55,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             if (error) throw error;
 
             // Extract all unique fromUserIds
-            const userIds = [...new Set((data || []).map(n => n.from_user_id || n.data?.from_user_id).filter(Boolean))];
+            const rawUserIds = (data || []).map(n => n.from_user_id || n.data?.from_user_id).filter(Boolean);
+            const userIds = rawUserIds.filter((val, idx, self) => self.indexOf(val) === idx);
             
             // Fetch profiles in a separate query
             let profilesMap = new Map();

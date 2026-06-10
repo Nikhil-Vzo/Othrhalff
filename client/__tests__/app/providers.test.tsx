@@ -82,9 +82,9 @@ import { Providers } from '../../app/providers';
 // ---------------------------------------------------------------------------
 // Helper: a component that intentionally throws
 // ---------------------------------------------------------------------------
-function ThrowingChild() {
+const ThrowingChild: React.FC = () => {
   throw new Error('Test error from child');
-}
+};
 
 describe('Providers component', () => {
   it('renders children', () => {
