@@ -13,10 +13,11 @@ Here is what's new in Othrhalff:
 ---
 
 ### 💬 1. Supercharged Real-Time Chatting
+* **Local Offline Storage (Dexie DB)**: Integrated client-side IndexedDB using Dexie.js. Your chat history now loads instantly from local storage, allowing you to view and navigate chats even without an active network connection, while drastically reducing network overhead.
+* **Optimistic UI & Message Status Indicators**: Messages appear instantly in the chat window with a "sending" (pulsing clock) indicator. Once saved on the server, they update to "delivered" / "read", and show a "failed" alert if the transmission fails.
 * **Typing Indicators**: No more waiting in suspense! You can now see exactly when your match is drafting a message with our new animated typing bubble.
 * **Live Read Receipts (Neon Glow)**: Instantly track your message delivery status. Messages show a pulsing clock during transit, a single checkmark when delivered, and glowing neon cyan double-checkmarks the second they are read.
 * **Quick Emoji Drawer**: Tapping the new smile icon pops open a glassmorphic bar of the most popular dating and reaction emojis (`❤️`, `🔥`, `😂`, `✨`, `👀`, `🥺`, `🙌`, `💯`) to quickly append to your texts.
-* **Instant Sent Confirmation**: Messages are confirmed instantly upon hitting the server, eliminating local latency.
 
 ### 📣 2. Feed Upgrades ("The Pulse")
 * **Campus vs. Global Feeds**: Switch easily between confessions from your specific university ("Campus") and a unified feed of anonymous posts from campuses nationwide ("Global").
