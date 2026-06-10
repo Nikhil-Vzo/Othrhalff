@@ -5,7 +5,7 @@ import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
 import { MatchProfile, Message } from '../types';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Smile, Check, CheckCheck, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Gamepad2, Check, CheckCheck, ArrowDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PermissionModal } from '../components/PermissionModal';
 import { blockUser, unblockUser, checkBlockStatus } from '../services/blockService';
@@ -18,6 +18,13 @@ import { db, LocalMessage } from '../lib/db';
 import Dexie from 'dexie';
 
 import { getRandomQuote } from '../data/loadingQuotes';
+import { 
+  WYR_TEMPLATES, 
+  hashString, 
+  shuffleArray, 
+  TwoTruthsLieState, 
+  WouldYouRatherState 
+} from '../data/games';
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -153,7 +160,14 @@ export const Chat: React.FC = () => {
   const [permissionModal, setPermissionModal] = useState({ isOpen: false, type: 'video' as 'audio' | 'video', onGranted: () => { } });
 
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGamesDrawer, setShowGamesDrawer] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<'none' | '2tl' | 'wyr'>('none');
+  const [twoTruths1, setTwoTruths1] = useState('');
+  const [twoTruths2, setTwoTruths2] = useState('');
+  const [oneLie, setOneLie] = useState('');
+  const [customWyrQuestion, setCustomWyrQuestion] = useState('');
+  const [customWyrA, setCustomWyrA] = useState('');
+  const [customWyrB, setCustomWyrB] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
 
@@ -406,8 +420,12 @@ export const Chat: React.FC = () => {
 
         if (payload.eventType === 'UPDATE') {
           const updatedMsg = payload.new;
-          db.messages.update(updatedMsg.id, { is_read: updatedMsg.is_read }).catch(dbErr => {
-            console.error('Failed to update message read status in local DB:', dbErr);
+          db.messages.update(updatedMsg.id, { 
+            is_read: updatedMsg.is_read,
+            text: updatedMsg.text ? updatedMsg.text.replace('[SYSTEM]', '').trim() : undefined,
+            reaction: updatedMsg.reaction || undefined
+          }).catch(dbErr => {
+            console.error('Failed to update message in local DB on UPDATE:', dbErr);
           });
           return;
         }
@@ -555,6 +573,183 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const sendGameMessage = async (textToSend: string) => {
+    if (!currentUser || !matchId || isBlocked || isBlockedByThem) return;
+    
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticLocal: LocalMessage = {
+      id: optimisticId,
+      match_id: matchId,
+      sender_id: currentUser.id,
+      text: textToSend,
+      created_at: Date.now(),
+      is_system: false,
+      is_read: false,
+      status: 'sending'
+    };
+    
+    let localSaved = false;
+    try {
+      await db.messages.put(optimisticLocal);
+      localSaved = true;
+    } catch (dbErr) {
+      console.error('Failed to write optimistic game message to local DB:', dbErr);
+    }
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      if (data) {
+        if (localSaved) {
+          try {
+            await db.transaction('rw', db.messages, async () => {
+              await db.messages.delete(optimisticId);
+              const existing = await db.messages.get(data.id);
+              await db.messages.put({
+                ...mapSupabaseMessageToLocal(data, matchId),
+                is_read: existing ? existing.is_read : data.is_read
+              });
+            });
+          } catch (dbErr) {
+            console.error('Failed to sync game message to local DB:', dbErr);
+          }
+        } else {
+          try {
+            await db.messages.put(mapSupabaseMessageToLocal(data, matchId));
+          } catch (dbErr) {
+            console.error('Failed to write final game message to local DB:', dbErr);
+          }
+        }
+      }
+    } catch (sendErr) { 
+      console.error('Failed to send game message:', sendErr);
+      if (localSaved) {
+        try {
+          await db.messages.update(optimisticId, { status: 'failed' });
+        } catch (dbErr) {
+          console.error('Failed to mark game message as failed in local DB:', dbErr);
+        }
+      } 
+      showToast('Failed to send game', 'error'); 
+    }
+  };
+
+  const sendGame2TL = async () => {
+    if (!twoTruths1.trim() || !twoTruths2.trim() || !oneLie.trim()) return;
+    
+    const options = shuffleArray([twoTruths1.trim(), twoTruths2.trim(), oneLie.trim()]);
+    const lieHash = hashString(oneLie.trim());
+    
+    const payload: TwoTruthsLieState = {
+      creatorId: currentUser!.id,
+      options,
+      lieHash,
+      status: 'active'
+    };
+    
+    const text = `[GAME:2TL:v1] ${JSON.stringify(payload)}`;
+    await sendGameMessage(text);
+    
+    setTwoTruths1('');
+    setTwoTruths2('');
+    setOneLie('');
+    setSelectedGame('none');
+    setShowGamesDrawer(false);
+  };
+
+  const sendGameWYR = async (templateQuestion?: string, templateA?: string, templateB?: string) => {
+    let question = '';
+    let optionA = '';
+    let optionB = '';
+    
+    if (templateQuestion && templateA && templateB) {
+      question = templateQuestion;
+      optionA = templateA;
+      optionB = templateB;
+    } else {
+      if (!customWyrQuestion.trim() || !customWyrA.trim() || !customWyrB.trim()) return;
+      question = customWyrQuestion.trim();
+      optionA = customWyrA.trim();
+      optionB = customWyrB.trim();
+    }
+    
+    const payload: WouldYouRatherState = {
+      question,
+      optionA,
+      optionB,
+      votes: {}
+    };
+    
+    const text = `[GAME:WYR:v1] ${JSON.stringify(payload)}`;
+    await sendGameMessage(text);
+    
+    setCustomWyrQuestion('');
+    setCustomWyrA('');
+    setCustomWyrB('');
+    setSelectedGame('none');
+    setShowGamesDrawer(false);
+  };
+
+  const handleGuess2TL = async (msgId: string, currentState: TwoTruthsLieState, guessedOpt: string) => {
+    const isCorrect = hashString(guessedOpt) === currentState.lieHash;
+    const updatedState: TwoTruthsLieState = {
+      ...currentState,
+      guess: guessedOpt,
+      guessedCorrectly: isCorrect,
+      status: 'completed'
+    };
+    
+    const serialized = `[GAME:2TL:v1] ${JSON.stringify(updatedState)}`;
+    
+    try {
+      await db.messages.update(msgId, { text: serialized });
+      
+      const { error } = await supabase
+        .from('messages')
+        .update({ text: serialized })
+        .eq('id', msgId);
+        
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to submit 2TL guess:", err);
+      showToast("Failed to guess", "error");
+    }
+  };
+
+  const handleVoteWYR = async (msgId: string, currentState: WouldYouRatherState, option: 'A' | 'B') => {
+    if (!currentUser) return;
+    const updatedVotes = {
+      ...currentState.votes,
+      [currentUser.id]: option
+    };
+    const updatedState: WouldYouRatherState = {
+      ...currentState,
+      votes: updatedVotes
+    };
+    
+    const serialized = `[GAME:WYR:v1] ${JSON.stringify(updatedState)}`;
+    
+    try {
+      await db.messages.update(msgId, { text: serialized });
+      
+      const { error } = await supabase
+        .from('messages')
+        .update({ text: serialized })
+        .eq('id', msgId);
+        
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to submit WYR vote:", err);
+      showToast("Failed to vote", "error");
+    }
+  };
+
   const startVideoCall = async (type: 'audio' | 'video' = 'video') => { if (!partner || isStartingCall || !matchId || isCallActive || isBlocked || isBlockedByThem) return; isUserOnline(partner.id) ? proceedWithCallCheck(type) : showConfirm('User Offline', `Call anyway?`, () => proceedWithCallCheck(type), false, 'Call'); };
   const proceedWithCallCheck = (type: 'audio' | 'video') => setPermissionModal({ isOpen: true, type, onGranted: () => { setPermissionModal(prev => ({ ...prev, isOpen: false })); proceedWithCall(type); } });
   const proceedWithCall = async (type: 'audio' | 'video') => {
@@ -638,6 +833,247 @@ export const Chat: React.FC = () => {
         {messages.map((msg, i) => {
           const isMe = msg.senderId === currentUser?.id;
           if (msg.isSystem) return <div key={msg.id} className="flex justify-center w-full my-4"><span className="text-[10px] uppercase text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800/50 flex items-center gap-2">{msg.text.replace('📞', '').trim()}</span></div>;
+          
+          if (msg.text.startsWith('[GAME:2TL:v1]')) {
+            try {
+              const gameState: TwoTruthsLieState = JSON.parse(msg.text.replace('[GAME:2TL:v1] ', ''));
+              const isMeCreator = gameState.creatorId === currentUser?.id;
+              
+              return (
+                <div key={msg.id} className="flex justify-center w-full my-4">
+                  <div className="w-full max-w-sm bg-gradient-to-br from-[#1c0d2b]/60 to-[#08020f]/95 border border-purple-500/35 rounded-2xl p-4 backdrop-blur-md shadow-2xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
+                    <div className="absolute -right-8 -top-8 w-20 h-20 bg-purple-500/10 rounded-full blur-xl pointer-events-none" />
+                    
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5 font-mono">
+                      🎲 2 Truths & a Lie
+                    </h4>
+                    
+                    {gameState.status === 'active' && !isMeCreator && !gameState.guess && (
+                      <div className="space-y-2.5">
+                        <p className="text-xs text-gray-300 mb-1">Guess which one is the <span className="text-red-400 font-semibold">LIE</span>:</p>
+                        {gameState.options.map((opt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleGuess2TL(msg.id, gameState, opt)}
+                            className="w-full text-left px-3.5 py-2.5 text-xs bg-purple-900/20 hover:bg-purple-800/30 border border-purple-500/20 hover:border-purple-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {gameState.status === 'active' && isMeCreator && !gameState.guess && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] text-gray-400 mb-2">
+                          You set up these options. Waiting for partner to guess {isUserOnline(partner.id) ? (
+                            <span className="text-green-400 font-semibold">(Online 🟢)</span>
+                          ) : (
+                            <span className="text-gray-500 font-medium">(Offline ⚪ - they'll play when they return)</span>
+                          )}:
+                        </p>
+                        {gameState.options.map((opt, idx) => {
+                          const isLie = hashString(opt) === gameState.lieHash;
+                          return (
+                            <div
+                              key={idx}
+                              className={`px-3 py-2 text-xs border rounded-xl flex items-center justify-between ${
+                                isLie ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-gray-950/40 border-gray-900 text-gray-400'
+                              }`}
+                            >
+                              <span>{opt}</span>
+                              {isLie && <span className="text-[9px] font-bold text-red-500 uppercase tracking-wide">Lie</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {gameState.guess && (
+                      <div className="space-y-3">
+                        <div className="text-[11px] text-gray-400 mb-1">
+                          {isMeCreator ? (
+                            <span>Partner guessed:</span>
+                          ) : (
+                            <span>You guessed:</span>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {gameState.options.map((opt, idx) => {
+                            const isLie = hashString(opt) === gameState.lieHash;
+                            const wasGuessed = opt === gameState.guess;
+                            let bgBorderClass = 'bg-gray-950/40 border-gray-900 text-gray-500';
+                            
+                            if (isLie) {
+                              bgBorderClass = 'bg-green-500/15 border-green-500/35 text-green-300';
+                            } else if (wasGuessed && !isLie) {
+                              bgBorderClass = 'bg-red-500/15 border-red-500/35 text-red-300';
+                            }
+                            
+                            return (
+                              <div
+                                key={idx}
+                                className={`px-3 py-2.5 text-xs border rounded-xl flex items-center justify-between ${bgBorderClass}`}
+                              >
+                                <span className={!isLie && !wasGuessed ? 'opacity-50' : ''}>{opt}</span>
+                                <div className="flex gap-1.5 items-center">
+                                  {isLie && <span className="text-[9px] font-bold text-green-400 uppercase tracking-wider">Lie</span>}
+                                  {wasGuessed && (
+                                    <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/30 font-medium font-mono uppercase">
+                                      Guess
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className={`text-xs font-bold text-center mt-3 pt-2 border-t border-purple-500/10 ${gameState.guessedCorrectly ? 'text-green-400' : 'text-red-400'}`}>
+                          {gameState.guessedCorrectly ? (
+                            <span>🎉 Correct! The lie was spotted!</span>
+                          ) : (
+                            <span>❌ Wrong! The lie was successfully hidden.</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            } catch (e) {
+              console.error("Error rendering 2TL message card:", e);
+            }
+          }
+          
+          if (msg.text.startsWith('[GAME:WYR:v1]')) {
+            try {
+              const gameState: WouldYouRatherState = JSON.parse(msg.text.replace('[GAME:WYR:v1] ', ''));
+              const myVote = gameState.votes[currentUser?.id || ''];
+              const partnerId = partner?.id;
+              const partnerVote = gameState.votes[partnerId || ''];
+              
+              const totalVotes = Object.keys(gameState.votes).length;
+              const bothVoted = totalVotes >= 2;
+              
+              let countA = 0;
+              let countB = 0;
+              Object.values(gameState.votes).forEach(v => {
+                if (v === 'A') countA++;
+                if (v === 'B') countB++;
+              });
+              
+              const pctA = totalVotes > 0 ? Math.round((countA / totalVotes) * 100) : 0;
+              const pctB = totalVotes > 0 ? Math.round((countB / totalVotes) * 100) : 0;
+              
+              return (
+                <div key={msg.id} className="flex justify-center w-full my-4">
+                  <div className="w-full max-w-sm bg-gradient-to-br from-[#0c1a24]/60 to-[#02070d]/95 border border-cyan-500/35 rounded-2xl p-4 backdrop-blur-md shadow-2xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
+                    <div className="absolute -right-8 -top-8 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
+                    
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 mb-3 flex items-center gap-1.5 font-mono">
+                      ⚔️ Would You Rather
+                    </h4>
+                    
+                    <p className="text-xs text-gray-200 font-medium mb-3.5 line-clamp-3 leading-relaxed">{gameState.question}</p>
+                    
+                    {!bothVoted && !myVote && (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => handleVoteWYR(msg.id, gameState, 'A')}
+                          className="w-full text-center px-4 py-3 text-xs bg-cyan-900/20 hover:bg-cyan-800/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
+                        >
+                          {gameState.optionA}
+                        </button>
+                        <div className="text-center text-[9px] text-gray-600 font-mono tracking-widest uppercase my-1">— OR —</div>
+                        <button
+                          onClick={() => handleVoteWYR(msg.id, gameState, 'B')}
+                          className="w-full text-center px-4 py-3 text-xs bg-cyan-900/20 hover:bg-cyan-800/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
+                        >
+                          {gameState.optionB}
+                        </button>
+                      </div>
+                    )}
+                    
+                    {!bothVoted && myVote && (
+                      <div className="space-y-3">
+                        <p className="text-[11px] text-gray-400">
+                          You voted. Waiting for partner to vote {isUserOnline(partner.id) ? (
+                            <span className="text-cyan-400 font-semibold">(Online 🟢)</span>
+                          ) : (
+                            <span className="text-gray-500 font-medium">(Offline ⚪ - they'll vote when they return)</span>
+                          )}...
+                        </p>
+                        <div className="px-4 py-3 text-xs bg-cyan-950/40 border border-cyan-900/30 rounded-xl text-gray-300 font-medium text-center font-mono">
+                          Selected: {myVote === 'A' ? gameState.optionA : gameState.optionB}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {bothVoted && (
+                      <div className="space-y-3.5">
+                        {/* Option A Results */}
+                        <div className="space-y-1.5 relative">
+                          <div className="flex justify-between text-xs font-semibold px-1 text-gray-200">
+                            <span className="truncate max-w-[80%]">{gameState.optionA}</span>
+                            <span>{pctA}%</span>
+                          </div>
+                          <div className="h-7 w-full bg-gray-950/80 rounded-lg overflow-hidden border border-gray-900 relative flex items-center">
+                            <div 
+                              className="h-full bg-cyan-500/20 border-r border-cyan-500/40 transition-all duration-700" 
+                              style={{ width: `${pctA}%` }} 
+                            />
+                            <div className="absolute right-2 flex gap-1 items-center">
+                              {myVote === 'A' && (
+                                <span className="text-[8px] bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 rounded px-1 font-mono uppercase font-bold">
+                                  You
+                                </span>
+                              )}
+                              {partnerVote === 'A' && (
+                                <span className="text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 font-mono uppercase font-bold">
+                                  Partner
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Option B Results */}
+                        <div className="space-y-1.5 relative">
+                          <div className="flex justify-between text-xs font-semibold px-1 text-gray-200">
+                            <span className="truncate max-w-[80%]">{gameState.optionB}</span>
+                            <span>{pctB}%</span>
+                          </div>
+                          <div className="h-7 w-full bg-gray-950/80 rounded-lg overflow-hidden border border-gray-900 relative flex items-center">
+                            <div 
+                              className="h-full bg-pink-500/20 border-r border-pink-500/40 transition-all duration-700" 
+                              style={{ width: `${pctB}%` }} 
+                            />
+                            <div className="absolute right-2 flex gap-1 items-center">
+                              {myVote === 'B' && (
+                                <span className="text-[8px] bg-pink-400/20 text-pink-300 border border-pink-400/30 rounded px-1 font-mono uppercase font-bold">
+                                  You
+                                </span>
+                              )}
+                              {partnerVote === 'B' && (
+                                <span className="text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 font-mono uppercase font-bold">
+                                  Partner
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            } catch (e) {
+              console.error("Error rendering WYR message card:", e);
+            }
+          }
+
           return (
             <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -711,12 +1147,15 @@ export const Chat: React.FC = () => {
           <div className="flex-1 bg-gray-900 border border-gray-800 rounded-2xl flex items-center gap-2 px-3 py-1 shadow-inner focus-within:border-gray-600 transition-colors relative">
             <button
               type="button"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              aria-label="Toggle emoji picker"
-              aria-expanded={showEmojiPicker}
-              className={`p-2 text-gray-500 hover:text-white transition-colors rounded-full ${showEmojiPicker ? 'bg-gray-800 text-white' : ''}`}
+              onClick={() => {
+                setShowGamesDrawer(!showGamesDrawer);
+                setSelectedGame('none');
+              }}
+              aria-label="Launch Icebreakers & Games"
+              aria-expanded={showGamesDrawer}
+              className={`p-2 text-gray-500 hover:text-neon transition-colors rounded-full ${showGamesDrawer ? 'bg-gray-800 text-neon' : ''}`}
             >
-              <Smile className="w-5 h-5" />
+              <Gamepad2 className="w-5 h-5" />
             </button>
             <input
               value={newMessage}
@@ -725,23 +1164,145 @@ export const Chat: React.FC = () => {
               aria-label="Message input"
               className="flex-1 bg-transparent py-3 text-sm text-white placeholder-gray-500 outline-none min-h-[44px] max-h-32"
             />
-            {showEmojiPicker && (
+            {showGamesDrawer && (
               <>
-                <div className="fixed inset-0 z-30" onClick={() => setShowEmojiPicker(false)} />
-                <div className="absolute bottom-14 left-2 z-40 bg-gray-900/95 border border-gray-700/80 rounded-2xl p-2 backdrop-blur-xl flex items-center gap-1.5 shadow-2xl transition-all duration-200">
-                  {['❤️', '🔥', '😂', '✨', '👀', '🥺', '🙌', '💯'].map(emoji => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => {
-                        setNewMessage(prev => prev + emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      className="text-lg hover:scale-125 transition-transform p-1.5 rounded-lg hover:bg-gray-800/80 active:scale-95"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                <div className="fixed inset-0 z-35" onClick={() => setShowGamesDrawer(false)} />
+                <div className="absolute bottom-16 left-0 right-0 mx-auto max-w-sm z-40 bg-gray-950/95 border border-purple-500/20 rounded-2xl p-4 backdrop-blur-xl shadow-2xl transition-all duration-300 animate-[scaleIn_0.25s_ease-out]">
+                  {selectedGame === 'none' && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-900">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wide">🎲 Chat Icebreakers</h4>
+                        <button onClick={() => setShowGamesDrawer(false)} className="text-[10px] text-gray-500 hover:text-gray-300 font-mono">Close</button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGame('2tl')}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-purple-950/20 hover:bg-purple-900/30 border border-purple-500/10 hover:border-purple-500/30 text-left transition-all group"
+                        >
+                          <span className="text-xl">🎲</span>
+                          <div>
+                            <div className="text-xs font-bold text-purple-300 group-hover:text-purple-200">2 Truths & a Lie</div>
+                            <div className="text-[10px] text-gray-400">Post items and see if they can find the lie!</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGame('wyr')}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-cyan-950/20 hover:bg-cyan-900/30 border border-cyan-500/10 hover:border-cyan-500/30 text-left transition-all group"
+                        >
+                          <span className="text-xl">⚔️</span>
+                          <div>
+                            <div className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">Would You Rather</div>
+                            <div className="text-[10px] text-gray-400">Vote on college & lifestyle questions together.</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedGame === '2tl' && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-900">
+                        <button onClick={() => setSelectedGame('none')} className="text-[10px] text-purple-400 hover:underline">← Back</button>
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wide">2 Truths & a Lie</h4>
+                        <span className="w-8" />
+                      </div>
+                      <div className="space-y-2.5">
+                        <input
+                          type="text"
+                          value={twoTruths1}
+                          onChange={e => setTwoTruths1(e.target.value)}
+                          placeholder="Truth #1 (e.g. I can play the drums)"
+                          className="w-full bg-gray-905 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
+                        />
+                        <input
+                          type="text"
+                          value={twoTruths2}
+                          onChange={e => setTwoTruths2(e.target.value)}
+                          placeholder="Truth #2 (e.g. I have a twin brother)"
+                          className="w-full bg-gray-905 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
+                        />
+                        <input
+                          type="text"
+                          value={oneLie}
+                          onChange={e => setOneLie(e.target.value)}
+                          placeholder="The LIE (e.g. I speak fluent Russian)"
+                          className="w-full bg-gray-905 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-500/40 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={sendGame2TL}
+                          disabled={!twoTruths1.trim() || !twoTruths2.trim() || !oneLie.trim()}
+                          className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900/40 disabled:text-gray-500 font-bold text-white text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] mt-1"
+                        >
+                          Send to Chat
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedGame === 'wyr' && (
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar">
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-900 sticky top-0 bg-gray-950 z-10">
+                        <button onClick={() => setSelectedGame('none')} className="text-[10px] text-cyan-400 hover:underline">← Back</button>
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wide">Would You Rather</h4>
+                        <span className="w-8" />
+                      </div>
+                      
+                      <div className="space-y-2.5">
+                        <span className="text-[9px] uppercase font-bold text-gray-500 tracking-wider">Choose a template:</span>
+                        <div className="grid grid-cols-1 gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                          {WYR_TEMPLATES.map((tmpl, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => sendGameWYR(tmpl.question, tmpl.optionA, tmpl.optionB)}
+                              className="text-left px-2.5 py-2 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg text-[10px] text-gray-300 transition-colors truncate hover:text-cyan-300"
+                            >
+                              💡 {tmpl.optionA} OR {tmpl.optionB}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        <div className="text-center text-[9px] text-gray-600 font-mono tracking-wide">OR WRITE CUSTOM</div>
+                        
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={customWyrQuestion}
+                            onChange={e => setCustomWyrQuestion(e.target.value)}
+                            placeholder="Custom Question (e.g. Would you rather...)"
+                            className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/40 transition-colors"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={customWyrA}
+                              onChange={e => setCustomWyrA(e.target.value)}
+                              placeholder="Option A"
+                              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/40 transition-colors"
+                            />
+                            <input
+                              type="text"
+                              value={customWyrB}
+                              onChange={e => setCustomWyrB(e.target.value)}
+                              placeholder="Option B"
+                              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/40 transition-colors"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => sendGameWYR()}
+                            disabled={!customWyrQuestion.trim() || !customWyrA.trim() || !customWyrB.trim()}
+                            className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-900/40 disabled:text-gray-500 font-bold text-white text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] mt-1"
+                          >
+                            Send Custom WYR
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -2,10 +2,9 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { Providers } from './providers';
 import { AppLayout } from '../src/layouts/AppLayout';
-import { Inter } from 'next/font/google';
 import '../src/index.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = { className: '' };
 
 export const metadata: Metadata = {
   title: 'OthrHalff',
