@@ -30,6 +30,7 @@ export interface Message {
   isSystem?: boolean;
   isRead?: boolean;
   status?: 'sent' | 'sending' | 'failed';
+  reaction?: string;
 }
 
 export interface ChatSession {

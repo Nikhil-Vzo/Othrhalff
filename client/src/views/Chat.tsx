@@ -5,7 +5,7 @@ import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
 import { MatchProfile, Message } from '../types';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Smile, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Smile, Check, CheckCheck, ArrowDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PermissionModal } from '../components/PermissionModal';
 import { blockUser, unblockUser, checkBlockStatus } from '../services/blockService';
@@ -61,7 +61,8 @@ const mapSupabaseMessageToLocal = (msg: any, matchId: string): LocalMessage => {
     created_at: new Date(msg.created_at).getTime(),
     is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
     is_read: msg.is_read,
-    status: 'sent'
+    status: 'sent',
+    reaction: msg.reaction || undefined
   };
 };
 
@@ -87,7 +88,8 @@ export const Chat: React.FC = () => {
       timestamp: m.created_at,
       isSystem: m.is_system,
       isRead: m.is_read,
-      status: m.status
+      status: m.status,
+      reaction: m.reaction
     }));
   }, [liveMessages]);
 
@@ -113,6 +115,33 @@ export const Chat: React.FC = () => {
 
   const [newMessage, setNewMessage] = useState('');
   const [showMenu, setShowMenu] = useState(false);
+  const [wallpaper, setWallpaper] = useState<'midnight' | 'cyberpunk' | 'nebula' | 'slate'>(() => {
+    try {
+      const saved = localStorage.getItem('othrhalff_chat_wallpaper');
+      return (saved as any) || 'midnight';
+    } catch {
+      return 'midnight';
+    }
+  });
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const changeWallpaper = (w: 'midnight' | 'cyberpunk' | 'nebula' | 'slate') => {
+    setWallpaper(w);
+    try {
+      localStorage.setItem('othrhalff_chat_wallpaper', w);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMessageDoubleClick = async (msgId: string, currentReaction?: string) => {
+    const newReaction = currentReaction === '❤️' ? undefined : '❤️';
+    try {
+      await db.messages.update(msgId, { reaction: newReaction });
+    } catch (err) {
+      console.error('Failed to update message reaction in local DB:', err);
+    }
+  };
   const [isStartingCall, setIsStartingCall] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedByThem, setIsBlockedByThem] = useState(false);
@@ -321,8 +350,12 @@ export const Chat: React.FC = () => {
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (e.currentTarget.scrollTop === 0 && hasMoreMessages && !isLoadingMore) {
-      const container = e.currentTarget; const oldScrollHeight = container.scrollHeight;
+    const container = e.currentTarget;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 300;
+    setShowScrollBottom(!isNearBottom);
+
+    if (container.scrollTop === 0 && hasMoreMessages && !isLoadingMore) {
+      const oldScrollHeight = container.scrollHeight;
       loadMoreMessages().then(() => { requestAnimationFrame(() => { container.scrollTop = container.scrollHeight - oldScrollHeight; }); });
     }
   };
@@ -515,7 +548,12 @@ export const Chat: React.FC = () => {
   if (!partner) return null;
 
   return (
-    <div className="h-full w-full bg-transparent flex flex-col relative">
+    <div className={`h-full w-full flex flex-col relative transition-all duration-500 ${
+      wallpaper === 'midnight' ? 'bg-gradient-to-b from-[#0a050f] via-[#05020a] to-[#000000]' :
+      wallpaper === 'cyberpunk' ? 'bg-[#030008] bg-[linear-gradient(rgba(255,0,127,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,0,127,0.02)_1px,transparent_1px)] bg-[size:32px_32px]' :
+      wallpaper === 'nebula' ? 'bg-gradient-to-tr from-[#0b001a] via-[#02000a] to-[#120024]' :
+      'bg-[#0f1115]'
+    }`}>
       <ConfirmationModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} isDestructive={confirmModal.isDestructive} onConfirm={confirmModal.onConfirm} onCancel={closeConfirmModal} />
       <PermissionModal isOpen={permissionModal.isOpen} onPermissionsGranted={permissionModal.onGranted} onCancel={() => setPermissionModal(prev => ({ ...prev, isOpen: false }))} requiredPermissions={permissionModal.type === 'video' ? ['camera', 'microphone'] : ['microphone']} />
       <div className="flex-none px-4 py-3 bg-black/95 backdrop-blur-md border-b border-gray-800 flex items-center justify-between z-20">
@@ -534,6 +572,28 @@ export const Chat: React.FC = () => {
                   <button onClick={() => { navigate.push(`/profile/${partner.id}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><User className="w-4 h-4" /> View Profile</button>
                   <button onClick={() => { setShowMenu(false); handleBlockUser(); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><Ban className="w-4 h-4" /> {isBlocked ? 'Unblock' : 'Block'}</button>
                   <button onClick={() => { navigate.push(`/contact?reportUserId=${partner.id}&reportUserName=${partner.realName || partner.anonymousId}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800"><AlertTriangle className="w-4 h-4" /> Report</button>
+                  <div className="border-t border-gray-800 px-4 py-2.5">
+                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Chat Theme</span>
+                    <div className="flex gap-2 mt-2">
+                      {(['midnight', 'cyberpunk', 'nebula', 'slate'] as const).map(w => (
+                        <button
+                          key={w}
+                          onClick={() => changeWallpaper(w)}
+                          title={w.charAt(0).toUpperCase() + w.slice(1)}
+                          className={`w-6 h-6 rounded-full border transition-all ${
+                            wallpaper === w ? 'border-neon scale-110 shadow-[0_0_8px_rgba(255,0,127,0.5)]' : 'border-gray-700 hover:border-gray-500'
+                          }`}
+                          style={{
+                            background: 
+                              w === 'midnight' ? 'linear-gradient(135deg, #0a050f, #000)' :
+                              w === 'cyberpunk' ? '#030008' :
+                              w === 'nebula' ? 'linear-gradient(135deg, #0b001a, #120024)' :
+                              '#0f1115'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -551,8 +611,16 @@ export const Chat: React.FC = () => {
             <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                 {!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" />}</div>}
-                <div className={`relative px-4 py-2.5 rounded-2xl text-sm break-words ${isMe ? 'bg-neon text-white rounded-br-none' : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'}`}>
+                <div 
+                  onDoubleClick={() => handleMessageDoubleClick(msg.id, msg.reaction)}
+                  className={`relative px-4 py-2.5 rounded-2xl text-sm break-words select-none cursor-pointer transition-transform active:scale-[0.98] ${isMe ? 'bg-neon text-white rounded-br-none' : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'}`}
+                >
                   {msg.text}
+                  {msg.reaction && (
+                    <div className="absolute -bottom-2.5 right-3 bg-gray-950 border border-gray-700/80 rounded-full px-1.5 py-0.5 text-[9px] flex items-center justify-center shadow-lg shadow-black/80 animate-[scaleIn_0.2s_ease-out]">
+                      {msg.reaction}
+                    </div>
+                  )}
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className={`text-[9px] opacity-60 ${isMe ? 'text-white' : 'text-gray-400'}`}>
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -589,6 +657,15 @@ export const Chat: React.FC = () => {
         )}
         <div ref={messagesEndRef} />
       </div>
+      {showScrollBottom && (
+        <button
+          onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          className="absolute bottom-24 right-6 z-30 p-2.5 rounded-full bg-gray-900/90 hover:bg-gray-800 border border-gray-700 text-neon shadow-lg shadow-black/60 transition-all active:scale-90 flex items-center justify-center hover:scale-105"
+          aria-label="Scroll to bottom"
+        >
+          <ArrowDown className="w-4 h-4 animate-[bounce_1.5s_infinite]" />
+        </button>
+      )}
       <div className="p-3 bg-black/95 backdrop-blur-md border-t border-gray-800 z-20 relative">
         {(isBlocked || isBlockedByThem) && (
           <div className="absolute inset-0 bg-gray-900/95 flex items-center justify-center z-30">

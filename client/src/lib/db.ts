@@ -9,6 +9,7 @@ export interface LocalMessage {
   is_read: boolean;
   is_system: boolean;
   status: 'sent' | 'sending' | 'failed';
+  reaction?: string;
 }
 
 export class ChatDatabase extends Dexie {
