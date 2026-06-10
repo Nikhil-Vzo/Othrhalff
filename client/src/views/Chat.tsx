@@ -177,12 +177,14 @@ export const Chat: React.FC = () => {
     if (!currentUser || !matchId || !supabase) return;
 
     let initialPartner: MatchProfile | null = null;
+    let cacheTime = 0;
     // 1. Check Chat Cache in sessionStorage (Only for Partner Data now, Dexie handles messages)
     try {
       const c = sessionStorage.getItem(cacheKey);
       if (c) {
         const parsed = JSON.parse(c);
         initialPartner = parsed.partner || null;
+        cacheTime = parsed.timestamp || 0;
       }
     } catch (e) {
       console.error(e);
@@ -238,33 +240,57 @@ export const Chat: React.FC = () => {
           }
         } else {
           // We have a partner (from State/Cache). 
-          // Refresh profile in BACKGROUND (Fire & Forget) to keep clear of stale data
-          supabase.from('profiles').select('id, real_name, anonymous_id, avatar, is_verified').eq('id', partnerId).single().then(({ data: profile }) => {
-            if (profile) {
-              setPartner(prev => {
-                if (!prev) return prev;
-                const updated = {
-                  ...prev,
-                  realName: profile.real_name,
-                  anonymousId: profile.anonymous_id,
-                  avatar: profile.avatar,
-                  isVerified: profile.is_verified
-                };
-                // Only update if changed (simple check)
-                if (JSON.stringify(prev) !== JSON.stringify(updated)) {
-                  return updated;
-                }
-                return prev;
-              });
-            }
-          });
+          // Refresh profile in BACKGROUND (Fire & Forget) to keep clear of stale data if cache is > 5 mins old
+          const shouldRefreshProfile = !cacheTime || (Date.now() - cacheTime > 5 * 60 * 1000);
+          
+          if (shouldRefreshProfile) {
+            supabase.from('profiles').select('id, real_name, anonymous_id, avatar, is_verified').eq('id', partnerId).single().then(({ data: profile }) => {
+              if (profile) {
+                setPartner(prev => {
+                  if (!prev) return prev;
+                  const updated = {
+                    ...prev,
+                    realName: profile.real_name,
+                    anonymousId: profile.anonymous_id,
+                    avatar: profile.avatar,
+                    isVerified: profile.is_verified
+                  };
+                  // Only update if changed (simple check)
+                  if (JSON.stringify(prev) !== JSON.stringify(updated)) {
+                    try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: updated, timestamp: Date.now() })); } catch (e) { }
+                    return updated;
+                  }
+                  return prev;
+                });
+              }
+            });
+          }
         }
 
         // Parallel Fetch: Messages + Block Status
         if (partnerId) {
+          // 1. Retrieve the latest local message timestamp to perform delta sync
+          const localMessages = await db.messages.where('[match_id+created_at]').between([matchId, Dexie.minKey], [matchId, Dexie.maxKey]).toArray();
+          const latestLocalMsg = localMessages.length > 0 ? localMessages[localMessages.length - 1] : null;
+          
+          let messagesQuery;
+          if (latestLocalMsg) {
+            messagesQuery = supabase.from('messages')
+              .select('id, sender_id, text, created_at, is_read')
+              .eq('match_id', matchId)
+              .gt('created_at', new Date(latestLocalMsg.created_at).toISOString())
+              .order('created_at', { ascending: false });
+          } else {
+            messagesQuery = supabase.from('messages')
+              .select('id, sender_id, text, created_at, is_read')
+              .eq('match_id', matchId)
+              .order('created_at', { ascending: false })
+              .limit(MESSAGES_PER_PAGE);
+          }
+
           const [blockStatus, messagesRes] = await Promise.all([
             checkBlockStatus(partnerId, currentUser.id),
-            supabase.from('messages').select('id, sender_id, text, created_at, is_read').eq('match_id', matchId).order('created_at', { ascending: false }).limit(MESSAGES_PER_PAGE)
+            messagesQuery
           ]);
 
           setIsBlocked(blockStatus.isBlocked); setIsBlockedByThem(blockStatus.isBlockedBy);
@@ -280,9 +306,14 @@ export const Chat: React.FC = () => {
             } catch (dbErr) {
               console.error('Failed to sync initial messages to local DB:', dbErr);
             }
-            
-            setOldestLoaded(new Date(messagesRes.data[messagesRes.data.length - 1].created_at).getTime());
-            setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
+          }
+
+          // 2. Compute final scroll positioning and paging index using combined database state
+          const updatedLocalMessages = await db.messages.where('[match_id+created_at]').between([matchId, Dexie.minKey], [matchId, Dexie.maxKey]).toArray();
+          if (updatedLocalMessages.length > 0) {
+            setOldestLoaded(updatedLocalMessages[0].created_at);
+            // If delta query returned full page limit, we might have more remote messages, otherwise we are up to date
+            setHasMoreMessages(latestLocalMsg ? true : updatedLocalMessages.length >= MESSAGES_PER_PAGE);
             setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
           } else {
             setHasMoreMessages(false);
@@ -291,7 +322,7 @@ export const Chat: React.FC = () => {
           // Update cache with latest partner (possibly updated)
           const currentPartner = partnerRef.current || initialPartner;
           if (currentPartner) {
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner })); } catch (e) { }
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, timestamp: Date.now() })); } catch (e) { }
           }
         }
 
