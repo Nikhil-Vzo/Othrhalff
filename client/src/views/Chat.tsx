@@ -13,6 +13,8 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { initiateCall, checkUserBusy } from '../services/callSignaling';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl } from '../utils/image';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, LocalMessage } from '../lib/db';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 
@@ -54,9 +56,26 @@ export const Chat: React.FC = () => {
   const cacheKey = `otherhalf_chat_${matchId}_v3`;
 
   const [partner, setPartner] = useState<MatchProfile | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
 
-  // Loading is only true if we don't have a partner yet. Messages can load lazily.
+  const liveMessages = useLiveQuery(
+    () => db.messages.where('match_id').equals(matchId).sortBy('created_at'),
+    [matchId]
+  );
+
+  const messages: Message[] = React.useMemo(() => {
+    if (!liveMessages) return [];
+    return liveMessages.map(m => ({
+      id: m.id,
+      senderId: m.sender_id,
+      text: m.text,
+      timestamp: m.created_at,
+      isSystem: m.is_system,
+      isRead: m.is_read,
+      status: m.status
+    }));
+  }, [liveMessages]);
+
+  // Loading is only true if we don't have a partner yet. Messages load instantly from Dexie.
   const [loading, setLoading] = useState(true);
 
   const partnerRef = useRef(partner);
@@ -83,6 +102,7 @@ export const Chat: React.FC = () => {
   const [isBlockedByThem, setIsBlockedByThem] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [oldestLoaded, setOldestLoaded] = useState<number>(Date.now());
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmLabel: 'Confirm', isDestructive: false, onConfirm: () => { } });
   const [permissionModal, setPermissionModal] = useState({ isOpen: false, type: 'video' as 'audio' | 'video', onGranted: () => { } });
@@ -112,19 +132,12 @@ export const Chat: React.FC = () => {
     if (!currentUser || !matchId || !supabase) return;
 
     let initialPartner: MatchProfile | null = null;
-    let initialMessages: Message[] = [];
-
-    // 1. Check Chat Cache in sessionStorage
+    // 1. Check Chat Cache in sessionStorage (Only for Partner Data now, Dexie handles messages)
     try {
       const c = sessionStorage.getItem(cacheKey);
       if (c) {
         const parsed = JSON.parse(c);
         initialPartner = parsed.partner || null;
-        const rawMsgs = parsed.messages || [];
-        initialMessages = rawMsgs.map((m: any) => ({
-          ...m,
-          text: m.text ? (typeof m.text === 'object' ? (m.text.text || m.text.content || '') : m.text) : ''
-        }));
       }
     } catch (e) {
       console.error(e);
@@ -151,10 +164,8 @@ export const Chat: React.FC = () => {
       subscribeToUser(initialPartner.id);
       setLoading(false);
     }
-    if (initialMessages.length > 0) {
-      setMessages(initialMessages);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView(), 0);
-    }
+    // Auto-scroll to bottom if Dexie loaded messages instantly
+    setTimeout(() => messagesEndRef.current?.scrollIntoView(), 50);
 
     const loadInitialData = async () => {
       try {
@@ -213,27 +224,36 @@ export const Chat: React.FC = () => {
 
           setIsBlocked(blockStatus.isBlocked); setIsBlockedByThem(blockStatus.isBlockedBy);
 
-          let newMessages: Message[] = initialMessages;
-          if (messagesRes.data) {
-            newMessages = messagesRes.data.map((m: any) => {
-              const textStr = m.text ? (typeof m.text === 'object' ? (m.text.text || m.text.content || '') : m.text) : '';
+          if (messagesRes.data && messagesRes.data.length > 0) {
+            const localMsgs: LocalMessage[] = messagesRes.data.map((m: any) => {
+              const rawText = m.text || m.content;
+              const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
               return {
                 id: m.id,
-                senderId: m.sender_id,
+                match_id: matchId,
+                sender_id: m.sender_id,
                 text: textStr.replace('[SYSTEM]', '').trim(),
-                timestamp: new Date(m.created_at).getTime(),
-                isSystem: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
-                isRead: m.is_read
+                created_at: new Date(m.created_at).getTime(),
+                is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
+                is_read: m.is_read,
+                status: 'sent'
               };
-            }).reverse();
-            setMessages(newMessages); setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
+            });
+            
+            // Sync to Dexie in background
+            await db.messages.bulkPut(localMsgs);
+            
+            setOldestLoaded(new Date(messagesRes.data[messagesRes.data.length - 1].created_at).getTime());
+            setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
             setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
+          } else {
+            setHasMoreMessages(false);
           }
 
-          // Update cache with latest partner (possibly updated) and messages
+          // Update cache with latest partner (possibly updated)
           const currentPartner = partnerRef.current || initialPartner;
-          if (currentPartner && newMessages.length > 0) {
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: newMessages })); } catch (e) { }
+          if (currentPartner) {
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner })); } catch (e) { }
           }
         }
 
@@ -269,10 +289,31 @@ export const Chat: React.FC = () => {
     if (!hasMoreMessages || isLoadingMore || !matchId) return;
     setIsLoadingMore(true);
     try {
-      const { data: msgData } = await supabase.from('messages').select('id, sender_id, text, created_at, is_read').eq('match_id', matchId).order('created_at', { ascending: false }).range(messages.length, messages.length + MESSAGES_PER_PAGE - 1);
+      const { data: msgData } = await supabase.from('messages')
+        .select('id, sender_id, text, created_at, is_read')
+        .eq('match_id', matchId)
+        .lt('created_at', new Date(oldestLoaded).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
+
       if (msgData && msgData.length > 0) {
-        const formatted = msgData.map((m: any) => ({ id: m.id, senderId: m.sender_id, text: m.text.replace('[SYSTEM]', '').trim(), timestamp: new Date(m.created_at).getTime(), isSystem: m.text.startsWith('[SYSTEM]') || m.text.startsWith('📞'), isRead: m.is_read })).reverse();
-        setMessages(prev => [...formatted, ...prev]); setHasMoreMessages(msgData.length === MESSAGES_PER_PAGE);
+        const localMsgs: LocalMessage[] = msgData.map((m: any) => {
+          const rawText = m.text || m.content;
+          const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
+          return {
+            id: m.id,
+            match_id: matchId,
+            sender_id: m.sender_id,
+            text: textStr.replace('[SYSTEM]', '').trim(),
+            created_at: new Date(m.created_at).getTime(),
+            is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
+            is_read: m.is_read,
+            status: 'sent'
+          };
+        });
+        await db.messages.bulkPut(localMsgs);
+        setOldestLoaded(new Date(msgData[msgData.length - 1].created_at).getTime());
+        setHasMoreMessages(msgData.length === MESSAGES_PER_PAGE);
       } else setHasMoreMessages(false);
     } catch (err) { console.error(err); } finally { setIsLoadingMore(false); }
   };
@@ -286,36 +327,36 @@ export const Chat: React.FC = () => {
 
   // Realtime
   useEffect(() => {
-    if (!matchId || !supabase) return;
-
-    const channel = supabase.channel(`chat_turbo:${matchId}`)
+    // Use a unique channel name for every mount to avoid React Strict Mode race conditions during cleanup
+    const uniqueChannelName = `chat_turbo_${matchId}_${Math.random().toString(36).substring(7)}`;
+    const channel = supabase.channel(uniqueChannelName)
       .on('postgres_changes', {
         event: '*', // Listen to INSERT and UPDATE
         schema: 'public',
-        table: 'messages',
-        filter: `match_id=eq.${matchId}`
+        table: 'messages'
       }, (payload) => {
+        if (!payload.new || !payload.new.match_id || payload.new.match_id.toLowerCase() !== matchId.toLowerCase()) return;
+
         if (payload.eventType === 'UPDATE') {
           const updatedMsg = payload.new;
-          setMessages(prev => {
-            const next = prev.map(m => m.id === updatedMsg.id ? { ...m, isRead: updatedMsg.is_read } : m);
-            const currentPartner = partnerRef.current;
-            if (currentPartner) try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: next })); } catch (e) { }
-            return next;
-          });
+          db.messages.update(updatedMsg.id, { is_read: updatedMsg.is_read });
           return;
         }
 
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new;
-          const textStr = newMsg.text ? (typeof newMsg.text === 'object' ? (newMsg.text.text || newMsg.text.content || '') : newMsg.text) : '';
-          const incoming: Message = {
+          const rawText = newMsg.text || newMsg.content;
+          const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
+          
+          const localMsg: LocalMessage = {
             id: newMsg.id,
-            senderId: newMsg.sender_id,
+            match_id: matchId,
+            sender_id: newMsg.sender_id,
             text: textStr.replace('[SYSTEM]', '').trim(),
-            timestamp: new Date(newMsg.created_at).getTime(),
-            isSystem: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
-            isRead: newMsg.is_read
+            created_at: new Date(newMsg.created_at).getTime(),
+            is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
+            is_read: newMsg.is_read,
+            status: 'sent'
           };
 
           // Block enforcement: ignore messages from blocked users
@@ -324,17 +365,12 @@ export const Chat: React.FC = () => {
             markMessagesReadRef.current();
           }
 
-          setMessages(prev => {
-            if (prev.some(m => m.id === incoming.id)) return prev;
-            const hasOptimistic = prev.some(m => m.id.toString().startsWith('temp-') && m.senderId === incoming.senderId && m.text === incoming.text);
-            const next = hasOptimistic ? prev.map(m => (m.id.toString().startsWith('temp-') && m.senderId === incoming.senderId && m.text === incoming.text) ? incoming : m) : [...prev, incoming];
-
-            const currentPartner = partnerRef.current;
-            if (currentPartner) try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, messages: next })); } catch (e) { }
-
-            const container = chatContainerRef.current;
-            if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-            return next;
+          db.messages.put(localMsg).then(() => {
+             // Auto-scroll logic if they are near bottom
+             const container = chatContainerRef.current;
+             if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
+               setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+             }
           });
         }
       })
@@ -391,29 +427,54 @@ export const Chat: React.FC = () => {
     }
 
     const textToSend = newMessage.trim(); setNewMessage('');
-    const optimistic: Message = { id: `temp-${Date.now()}`, senderId: currentUser.id, text: textToSend, timestamp: Date.now(), isSystem: false, isRead: false };
-    setMessages(prev => [...prev, optimistic]); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    
+    // 1. Instantly create a temporary message object & save to local Dexie
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticLocal: LocalMessage = {
+      id: optimisticId,
+      match_id: matchId,
+      sender_id: currentUser.id,
+      text: textToSend,
+      created_at: Date.now(),
+      is_system: false,
+      is_read: false,
+      status: 'sending'
+    };
+    
+    await db.messages.put(optimisticLocal);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    // 2. Run asynchronous background push
     try {
       const { data, error } = await supabase
         .from('messages')
         .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
         .select()
         .single();
+        
       if (error) throw error;
       if (data) {
-        const confirmed: Message = {
-          id: data.id,
-          senderId: data.sender_id,
-          text: data.text.replace('[SYSTEM]', '').trim(),
-          timestamp: new Date(data.created_at).getTime(),
-          isSystem: data.text.startsWith('[SYSTEM]') || data.text.startsWith('📞'),
-          isRead: data.is_read
-        };
-        setMessages(prev => prev.map(m => m.id === optimistic.id ? confirmed : m));
+        // 3. Delete the temp message and insert the real one from Supabase into Dexie
+        await db.transaction('rw', db.messages, async () => {
+          await db.messages.delete(optimisticId);
+          const existing = await db.messages.get(data.id);
+          await db.messages.put({
+            id: data.id,
+            match_id: matchId,
+            sender_id: data.sender_id,
+            text: data.text.replace('[SYSTEM]', '').trim(),
+            created_at: new Date(data.created_at).getTime(),
+            is_system: data.text.startsWith('[SYSTEM]') || data.text.startsWith('📞'),
+            is_read: existing ? existing.is_read : data.is_read,
+            status: 'sent'
+          });
+        });
       }
       analytics.messageSent();
+    } catch { 
+      await db.messages.update(optimisticId, { status: 'failed' }); 
+      showToast('Failed to send', 'error'); 
     }
-    catch { setMessages(prev => prev.filter(m => m.id !== optimistic.id)); showToast('Failed', 'error'); }
   };
 
   const startVideoCall = async (type: 'audio' | 'video' = 'video') => { if (!partner || isStartingCall || !matchId || isCallActive || isBlocked || isBlockedByThem) return; isUserOnline(partner.id) ? proceedWithCallCheck(type) : showConfirm('User Offline', `Call anyway?`, () => proceedWithCallCheck(type), false, 'Call'); };
@@ -483,8 +544,10 @@ export const Chat: React.FC = () => {
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isMe && (
-                      msg.id.toString().startsWith('temp-') ? (
+                      msg.status === 'sending' ? (
                         <Clock className="w-2.5 h-2.5 text-white/55 animate-pulse" />
+                      ) : msg.status === 'failed' ? (
+                        <AlertTriangle className="w-3 h-3 text-red-500" />
                       ) : msg.isRead ? (
                         <CheckCheck className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_3px_rgba(0,255,255,0.8)]" />
                       ) : (

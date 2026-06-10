@@ -56,7 +56,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     fetchUnreadCount();
 
     // Listen for changes in messages to update badge live
-    const channel = supabase.channel('unread-messages-count-layout')
+    const uniqueChannelName = `unread-messages-count-layout-${Math.random().toString(36).substring(7)}`;
+    const channel = supabase.channel(uniqueChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         fetchUnreadCount();
       })

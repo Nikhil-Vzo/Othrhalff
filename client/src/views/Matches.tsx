@@ -216,7 +216,8 @@ export const Matches: React.FC = () => {
   useEffect(() => {
     loadMatches();
 
-    const channel = supabase.channel('matches-list-updates')
+    const uniqueChannelName = `matches_page_messages_${Math.random().toString(36).substring(7)}`;
+    const channel = supabase.channel(uniqueChannelName)
       // INSERT: new message arrived — optimistically update local state
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as any;

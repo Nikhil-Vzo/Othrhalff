@@ -29,6 +29,7 @@ export interface Message {
   timestamp: number;
   isSystem?: boolean;
   isRead?: boolean;
+  status?: 'sent' | 'sending' | 'failed';
 }
 
 export interface ChatSession {

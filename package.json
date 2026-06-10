@@ -17,8 +17,10 @@
     "server"
   ],
   "dependencies": {
-    "react-player": "^3.4.0",
+    "dexie": "^4.4.3",
+    "dexie-react-hooks": "^4.4.0",
+    "eventemitter3": "^4.0.7",
     "peerjs": "^1.5.5",
-    "eventemitter3": "^4.0.7"
+    "react-player": "^3.4.0"
   }
 }
