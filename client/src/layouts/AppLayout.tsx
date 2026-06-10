@@ -20,7 +20,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, needsOnboarding } = useAuth();
   const { isCallActive, appId, channelName, token, partnerName, partnerAvatar, callType, callSessionId, endCall } = useCall();
   const { unreadCount } = useNotifications();
   const pathname = usePathname() || '';
@@ -32,6 +32,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Enforce onboarding/migration
+  useEffect(() => {
+    if (mounted && needsOnboarding && pathname !== '/onboarding') {
+      router.push('/onboarding');
+    }
+  }, [mounted, needsOnboarding, pathname, router]);
 
   // Fetch real-time unread messages count for the chat badge
   useEffect(() => {
@@ -111,7 +118,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   ];
 
   return (
-    <div className="flex h-screen bg-black text-white font-sans overflow-hidden selection:bg-neon selection:text-white">
+    <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden selection:bg-neon selection:text-white">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-[280px] flex-col border-r border-gray-900 bg-black z-20 relative">
         {/* Brand Header */}

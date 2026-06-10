@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { NeonInput, NeonButton } from '../components/Common';
-import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X, Calendar } from 'lucide-react';
+import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X, Calendar, Eye, EyeOff } from 'lucide-react';
 import { AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, LOOKING_FOR_OPTIONS, BRANCH_CATEGORIES, YEAR_OPTIONS } from '../constants';
 import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,12 @@ export const Onboarding: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [suggestedUsernames, setSuggestedUsernames] = useState<string[]>([]);
+  const [needsMigration, setNeedsMigration] = useState(false);
+  const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // State to hold the verified email
   const [email, setEmail] = useState<string>(searchParams.get('email') || '');
@@ -69,9 +75,33 @@ export const Onboarding: React.FC = () => {
           .single();
 
         if (existingProfile && !error) {
-          // Profile exists! Skip onboarding and redirect to home
+          // Check if old user needs to set a username and password
+          if (!existingProfile.username) {
+            setNeedsMigration(true);
+            setRequiresPasswordSetup(true);
+            if (user.email) setEmail(user.email);
+            setTempProfile(prev => ({
+              ...prev,
+              realName: existingProfile.real_name,
+              gender: existingProfile.gender,
+              university: existingProfile.university,
+              branch: existingProfile.branch,
+              year: existingProfile.year,
+              interests: existingProfile.interests || [],
+              lookingFor: existingProfile.looking_for || [],
+              bio: existingProfile.bio,
+              dob: existingProfile.dob,
+              avatar: existingProfile.avatar,
+            }));
+            // Let them fill out the rest of the form
+            setIsCheckingProfile(false);
+            return;
+          }
+
+          // Profile exists and has username! Skip onboarding and redirect to home
           const appUser: UserProfile = {
             id: existingProfile.id,
+            username: existingProfile.username,
             anonymousId: existingProfile.anonymous_id,
             realName: existingProfile.real_name,
             gender: existingProfile.gender,
@@ -97,6 +127,12 @@ export const Onboarding: React.FC = () => {
         // 2. No existing profile - Set Email for new user
         if (user.email) setEmail(user.email);
 
+        // Check if they signed up via Google (they need a password)
+        const providers = user.app_metadata?.providers || [];
+        if (providers.includes('google') || user.app_metadata?.provider === 'google') {
+           setRequiresPasswordSetup(true);
+        }
+
         // 3. Auto-fill from Google Metadata (Name & Picture)
         const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
         const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
@@ -115,6 +151,60 @@ export const Onboarding: React.FC = () => {
 
     fetchUserAndCheckProfile();
   }, [login, navigate]);
+
+  // --- NEW: Live Username Checker ---
+  useEffect(() => {
+    const username = tempProfile.username || '';
+    
+    // Reset if empty
+    if (!username) {
+      setUsernameStatus('idle');
+      setSuggestedUsernames([]);
+      return;
+    }
+
+    // Client-side rule checking (Instagram Style)
+    const isLengthValid = username.length >= 1 && username.length <= 30;
+    const isFormatValid = /^[a-z0-9_.]+$/.test(username);
+    const noConsecutiveDots = !/\.\./.test(username);
+    const validStartEnd = !/^\./.test(username) && !/\.$/.test(username);
+
+    if (!isLengthValid || !isFormatValid || !noConsecutiveDots || !validStartEnd) {
+      setUsernameStatus('invalid');
+      return;
+    }
+
+    setUsernameStatus('checking');
+
+    // Debounce backend check
+    const timeoutId = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('username', username)
+          .maybeSingle();
+
+        if (data) {
+          setUsernameStatus('taken');
+          // Generate simple suggestions
+          const random1 = Math.floor(Math.random() * 100);
+          const random2 = Math.floor(Math.random() * 999);
+          setSuggestedUsernames([
+            `${username}${random1}`,
+            `${username}_${random2}`,
+            `${username}123`
+          ].slice(0, 3));
+        } else {
+          setUsernameStatus('available');
+        }
+      } catch (err) {
+        console.error("Error checking username:", err);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [tempProfile.username]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,6 +237,14 @@ export const Onboarding: React.FC = () => {
     setError(null);
 
     // Validation
+    if (!tempProfile.username?.trim() || usernameStatus !== 'available') {
+      setError("Please choose a valid and available username.");
+      return;
+    }
+    if (requiresPasswordSetup && (!password || password.length < 6)) {
+      setError("Please create a password (minimum 6 characters) for your account.");
+      return;
+    }
     if (!email) {
       setError("Email is required. Please login again.");
       return;
@@ -194,13 +292,37 @@ export const Onboarding: React.FC = () => {
         return;
       }
 
+      // Check username uniqueness
+      const { data: existingUserWithUsername } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', tempProfile.username.trim())
+        .maybeSingle();
+
+      if (existingUserWithUsername && existingUserWithUsername.id !== authUser.id) {
+        setError("This username is already taken. Please pick another one.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Update password if required
+      if (requiresPasswordSetup && password) {
+        const { error: pwdError } = await supabase.auth.updateUser({ password });
+        if (pwdError) {
+           setError("Failed to set password: " + pwdError.message);
+           setIsSubmitting(false);
+           return;
+        }
+      }
+
       // Compose DOB from separate fields (YYYY-MM-DD format)
       const monthIndex = MONTHS.indexOf(dobMonth) + 1;
       const formattedDob = `${dobYear}-${monthIndex.toString().padStart(2, '0')}-${dobDay}`;
 
       const newUser: UserProfile = {
         id: authUser.id, // Use REAL Supabase Auth UUID
-        anonymousId: `User#${Math.floor(Math.random() * 10000).toString(16).toUpperCase()}`,
+        username: tempProfile.username?.trim(),
+        anonymousId: needsMigration ? tempProfile.anonymousId! : `User#${Math.floor(Math.random() * 10000).toString(16).toUpperCase()}`,
         realName: tempProfile.realName.trim(),
         gender: tempProfile.gender || 'Male',
         university: tempProfile.university === 'Other' ? customUniversity.trim() : (tempProfile.university || CHHATTISGARH_COLLEGES[0]),
@@ -341,6 +463,92 @@ export const Onboarding: React.FC = () => {
 
           {/* Personal Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Username</label>
+              <div className="relative">
+                <NeonInput
+                  value={tempProfile.username || ''}
+                  onChange={e => setTempProfile({ ...tempProfile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '') })}
+                  placeholder="cool_student"
+                  className="pr-10"
+                />
+                {usernameStatus === 'available' && (
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
+                {usernameStatus === 'taken' && (
+                  <X className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+                )}
+                {usernameStatus === 'checking' && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 animate-spin" />
+                )}
+              </div>
+              
+              {/* Status Message & Rules */}
+              <div className="mt-2 text-xs">
+                {usernameStatus === 'available' && (
+                  <span className="text-green-500 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Username available</span>
+                )}
+                {usernameStatus === 'taken' && (
+                  <div className="text-red-500">
+                    <span className="font-medium flex items-center gap-1"><X className="w-3 h-3" /> Username not available.</span>
+                    <div className="mt-1 text-gray-400">
+                      Try: {suggestedUsernames.map(u => (
+                        <span key={u} 
+                          onClick={() => setTempProfile({...tempProfile, username: u})}
+                          className="text-neon cursor-pointer hover:underline mr-2"
+                        >
+                          {u}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Rules List */}
+                <div className="mt-2 space-y-1">
+                  <p className="text-[10px] text-gray-500">Username must be:</p>
+                  <ul className="text-[10px] space-y-0.5">
+                    <li className={!tempProfile.username ? 'text-gray-500' : ((tempProfile.username.length >= 1 && tempProfile.username.length <= 30) ? 'text-green-500' : 'text-red-500')}>
+                      • 1-30 characters long
+                    </li>
+                    <li className={!tempProfile.username ? 'text-gray-500' : (/^[a-z0-9_.]+$/.test(tempProfile.username) ? 'text-green-500' : 'text-red-500')}>
+                      • Only lowercase letters, numbers, underscores & dots
+                    </li>
+                    <li className={!tempProfile.username ? 'text-gray-500' : (!/\.\./.test(tempProfile.username) ? 'text-green-500' : 'text-red-500')}>
+                      • No consecutive dots
+                    </li>
+                    <li className={!tempProfile.username ? 'text-gray-500' : (!/^\./.test(tempProfile.username) && !/\.$/.test(tempProfile.username) ? 'text-green-500' : 'text-red-500')}>
+                      • Cannot start or end with a dot
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {requiresPasswordSetup && (
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Create Password</label>
+                <div className="relative">
+                  <NeonInput
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1">Secure your account</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm text-gray-400 mb-1">Name(Nickname works too!)</label>
               <NeonInput

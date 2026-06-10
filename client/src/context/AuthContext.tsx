@@ -11,6 +11,7 @@ interface AuthContextType {
   updateProfile: (updates: Partial<UserProfile>) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
+  needsOnboarding: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   });
   const [showLogoutCountdown, setShowLogoutCountdown] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   // Load from DB on mount (Optimized: Cache-First)
   useEffect(() => {
@@ -63,8 +65,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
 
             if (profile && !error) {
+              if (!profile.username) {
+                setNeedsOnboarding(true);
+              }
+
               const appUser: UserProfile = {
                 id: profile.id,
+                username: profile.username,
                 anonymousId: profile.anonymous_id,
                 realName: profile.real_name,
                 gender: profile.gender,
@@ -87,6 +94,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setCurrentUser(appUser);
                 localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
               }
+            } else {
+              // Profile does not exist - new user needs onboarding
+              setNeedsOnboarding(true);
             }
           } else if (localUser) {
             // Both getSession AND refreshSession failed — session is truly dead.
@@ -131,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (user: UserProfile) => {
     setCurrentUser(user);
+    setNeedsOnboarding(false);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('otherhalf_confessions_campus_v4');
       localStorage.removeItem('otherhalf_confessions_global_v4');
@@ -187,7 +198,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       updateProfile,
       isAuthenticated: !!currentUser,
-      isLoading
+      isLoading,
+      needsOnboarding
     }}>
       {children}
       {showLogoutCountdown && (

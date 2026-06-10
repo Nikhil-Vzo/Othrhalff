@@ -1,15 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Ghost, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { RotateCcw, Ghost, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
 import { NeonInput, NeonButton } from '../components/Common';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '../services/auth';
 import { analytics } from '../utils/analytics';
+import { supabase } from '../lib/supabase';
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +31,7 @@ export const Login: React.FC = () => {
   // Clear error when user starts typing
   useEffect(() => {
     if (error) setError(null);
-  }, [email]);
+  }, [identifier, password]);
 
   // Email validation regex
   const isValidEmail = (email: string) => {
@@ -44,19 +47,72 @@ export const Login: React.FC = () => {
       return;
     }
 
-    if (!isValidEmail(email)) {
-      setError('Please enter a valid email address.');
+    if (!identifier.trim()) {
+      setError('Please enter a username or email address.');
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
 
     setIsLoading(true);
     try {
-      await authService.signInWithMagicLink(email);
-      analytics.login('Email');
-      setSuccess('Magic Link sent! Check your email inbox to continue.');
+      let finalEmail = identifier.trim().toLowerCase();
+
+      // If it doesn't look like an email, assume it's a username and look it up
+      if (!isValidEmail(finalEmail)) {
+        if (!isLogin) {
+           setError('Please enter a valid email address to sign up.');
+           setIsLoading(false);
+           return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('university_email')
+          .eq('username', finalEmail)
+          .maybeSingle();
+
+        if (profileError || !profile) {
+          throw new Error('Username not found. Please try logging in with your email or Google.');
+        }
+
+        finalEmail = profile.university_email;
+      }
+
+      if (isLogin) {
+        await authService.signInWithPassword(finalEmail, password);
+        analytics.login('Password');
+        setSuccess('Logged in successfully! Redirecting...');
+        // Let the normal app layout handle the routing
+        setTimeout(() => navigate.push('/home'), 500);
+      } else {
+        await authService.signUp(finalEmail, password, '');
+        analytics.login('Signup');
+        setSuccess('Account created! Redirecting to setup...');
+        setTimeout(() => navigate.push('/onboarding'), 500);
+      }
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error.message || 'Failed to send login link. Please try again.');
+      setError(error.message || 'Failed to log in. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMagicLinkFallback = async () => {
+    if (!isValidEmail(identifier.trim())) {
+      setError('Please enter your valid email address to use a magic link.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await authService.signInWithMagicLink(identifier.trim());
+      setSuccess('Magic Link sent! Check your email inbox.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to send magic link.');
     } finally {
       setIsLoading(false);
     }
@@ -162,14 +218,35 @@ export const Login: React.FC = () => {
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
             <NeonInput
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              placeholder={isLogin ? "Username or Email" : "name@example.com"}
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
               required
               disabled={isLoading}
               className="pl-12"
             />
+          </div>
+
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <NeonInput
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              className="pl-12 pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
           </div>
 
           {/* Mandatory Checkbox for Signup */}
@@ -205,6 +282,19 @@ export const Login: React.FC = () => {
             )}
           </NeonButton>
         </form>
+
+        {isLogin && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleMagicLinkFallback}
+              className="text-xs text-gray-400 hover:text-white transition-colors underline"
+              disabled={isLoading}
+            >
+              Don't have a password yet? Log in with Magic Link instead
+            </button>
+          </div>
+        )}
 
         <div className="mt-8 text-center space-y-4">
           <div className="text-sm text-gray-400">

@@ -1,5 +1,6 @@
 export interface UserProfile {
   id: string;
+  username?: string; // Optional for backward compatibility before migration
   anonymousId: string;
   realName: string;
   gender: string;
