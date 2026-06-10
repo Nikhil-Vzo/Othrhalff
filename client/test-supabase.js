@@ -8,6 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function test() {
   const { data, error } = await supabase.from('messages').select('*').limit(1);
   if (error) console.error(error);
-  else console.log(Object.keys(data[0]));
+  else if (data && data.length > 0) console.log(Object.keys(data[0]));
+  else console.log('No messages found in database.');
 }
 test();
