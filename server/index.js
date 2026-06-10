@@ -20,8 +20,8 @@ const port = parseInt(process.env.PORT || '5000', 10);
 
 // ─── Supabase (anon client for JWT verification only) ────────────────────────
 const supabaseAuthClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 );
 
 /**
@@ -173,7 +173,7 @@ app.post('/api/accept-match', verifySupabaseToken, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden: You cannot act as another user' });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     // FIX: Use the Service Role Key to bypass RLS for background actions
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -209,7 +209,7 @@ app.post('/api/post-guest-confession', verifySupabaseToken, async (req, res) => 
   try {
     const { college, branch, text, imageUrl, type, pollOptions } = req.body;
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {

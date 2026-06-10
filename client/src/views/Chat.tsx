@@ -15,6 +15,7 @@ import { analytics } from '../utils/analytics';
 import { getOptimizedUrl } from '../utils/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, LocalMessage } from '../lib/db';
+import Dexie from 'dexie';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 
@@ -49,6 +50,21 @@ const ChatSkeleton = () => {
   );
 };
 
+const mapSupabaseMessageToLocal = (msg: any, matchId: string): LocalMessage => {
+  const rawText = msg.text || msg.content;
+  const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
+  return {
+    id: msg.id,
+    match_id: matchId,
+    sender_id: msg.sender_id,
+    text: textStr.replace('[SYSTEM]', '').trim(),
+    created_at: new Date(msg.created_at).getTime(),
+    is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
+    is_read: msg.is_read,
+    status: 'sent'
+  };
+};
+
 export const Chat: React.FC = () => {
   const params = useParams();
   const id = params?.id as string;
@@ -58,7 +74,7 @@ export const Chat: React.FC = () => {
   const [partner, setPartner] = useState<MatchProfile | null>(null);
 
   const liveMessages = useLiveQuery(
-    () => db.messages.where('match_id').equals(matchId).sortBy('created_at'),
+    () => db.messages.where('[match_id+created_at]').between([matchId, Dexie.minKey], [matchId, Dexie.maxKey]).toArray(),
     [matchId]
   );
 
@@ -102,7 +118,7 @@ export const Chat: React.FC = () => {
   const [isBlockedByThem, setIsBlockedByThem] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [oldestLoaded, setOldestLoaded] = useState<number>(Date.now());
+  const [oldestLoaded, setOldestLoaded] = useState<number | null>(null);
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmLabel: 'Confirm', isDestructive: false, onConfirm: () => { } });
   const [permissionModal, setPermissionModal] = useState({ isOpen: false, type: 'video' as 'audio' | 'video', onGranted: () => { } });
@@ -225,23 +241,16 @@ export const Chat: React.FC = () => {
           setIsBlocked(blockStatus.isBlocked); setIsBlockedByThem(blockStatus.isBlockedBy);
 
           if (messagesRes.data && messagesRes.data.length > 0) {
-            const localMsgs: LocalMessage[] = messagesRes.data.map((m: any) => {
-              const rawText = m.text || m.content;
-              const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
-              return {
-                id: m.id,
-                match_id: matchId,
-                sender_id: m.sender_id,
-                text: textStr.replace('[SYSTEM]', '').trim(),
-                created_at: new Date(m.created_at).getTime(),
-                is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
-                is_read: m.is_read,
-                status: 'sent'
-              };
-            });
+            const localMsgs: LocalMessage[] = messagesRes.data.map((m: any) =>
+              mapSupabaseMessageToLocal(m, matchId)
+            );
             
             // Sync to Dexie in background
-            await db.messages.bulkPut(localMsgs);
+            try {
+              await db.messages.bulkPut(localMsgs);
+            } catch (dbErr) {
+              console.error('Failed to sync initial messages to local DB:', dbErr);
+            }
             
             setOldestLoaded(new Date(messagesRes.data[messagesRes.data.length - 1].created_at).getTime());
             setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
@@ -286,7 +295,7 @@ export const Chat: React.FC = () => {
   }, [matchId, currentUser?.id]);
 
   const loadMoreMessages = async () => {
-    if (!hasMoreMessages || isLoadingMore || !matchId) return;
+    if (!hasMoreMessages || isLoadingMore || !matchId || oldestLoaded === null) return;
     setIsLoadingMore(true);
     try {
       const { data: msgData } = await supabase.from('messages')
@@ -297,21 +306,14 @@ export const Chat: React.FC = () => {
         .limit(MESSAGES_PER_PAGE);
 
       if (msgData && msgData.length > 0) {
-        const localMsgs: LocalMessage[] = msgData.map((m: any) => {
-          const rawText = m.text || m.content;
-          const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
-          return {
-            id: m.id,
-            match_id: matchId,
-            sender_id: m.sender_id,
-            text: textStr.replace('[SYSTEM]', '').trim(),
-            created_at: new Date(m.created_at).getTime(),
-            is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
-            is_read: m.is_read,
-            status: 'sent'
-          };
-        });
-        await db.messages.bulkPut(localMsgs);
+        const localMsgs: LocalMessage[] = msgData.map((m: any) =>
+          mapSupabaseMessageToLocal(m, matchId)
+        );
+        try {
+          await db.messages.bulkPut(localMsgs);
+        } catch (dbErr) {
+          console.error('Failed to sync paginated messages to local DB:', dbErr);
+        }
         setOldestLoaded(new Date(msgData[msgData.length - 1].created_at).getTime());
         setHasMoreMessages(msgData.length === MESSAGES_PER_PAGE);
       } else setHasMoreMessages(false);
@@ -333,31 +335,22 @@ export const Chat: React.FC = () => {
       .on('postgres_changes', {
         event: '*', // Listen to INSERT and UPDATE
         schema: 'public',
-        table: 'messages'
+        table: 'messages',
+        filter: `match_id=eq.${matchId}`
       }, (payload) => {
-        if (!payload.new || !payload.new.match_id || payload.new.match_id.toLowerCase() !== matchId.toLowerCase()) return;
+        if (!payload.new) return;
 
         if (payload.eventType === 'UPDATE') {
           const updatedMsg = payload.new;
-          db.messages.update(updatedMsg.id, { is_read: updatedMsg.is_read });
+          db.messages.update(updatedMsg.id, { is_read: updatedMsg.is_read }).catch(dbErr => {
+            console.error('Failed to update message read status in local DB:', dbErr);
+          });
           return;
         }
 
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new;
-          const rawText = newMsg.text || newMsg.content;
-          const textStr = rawText ? (typeof rawText === 'object' ? (rawText.text || rawText.content || '') : rawText) : '';
-          
-          const localMsg: LocalMessage = {
-            id: newMsg.id,
-            match_id: matchId,
-            sender_id: newMsg.sender_id,
-            text: textStr.replace('[SYSTEM]', '').trim(),
-            created_at: new Date(newMsg.created_at).getTime(),
-            is_system: textStr.startsWith('[SYSTEM]') || textStr.startsWith('📞'),
-            is_read: newMsg.is_read,
-            status: 'sent'
-          };
+          const localMsg = mapSupabaseMessageToLocal(newMsg, matchId);
 
           // Block enforcement: ignore messages from blocked users
           if (newMsg.sender_id !== currentUser?.id) {
@@ -371,6 +364,8 @@ export const Chat: React.FC = () => {
              if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
              }
+          }).catch(dbErr => {
+            console.error('Failed to insert new message into local DB:', dbErr);
           });
         }
       })
@@ -441,7 +436,13 @@ export const Chat: React.FC = () => {
       status: 'sending'
     };
     
-    await db.messages.put(optimisticLocal);
+    let localSaved = false;
+    try {
+      await db.messages.put(optimisticLocal);
+      localSaved = true;
+    } catch (dbErr) {
+      console.error('Failed to write optimistic message to local DB:', dbErr);
+    }
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     // 2. Run asynchronous background push
@@ -455,24 +456,37 @@ export const Chat: React.FC = () => {
       if (error) throw error;
       if (data) {
         // 3. Delete the temp message and insert the real one from Supabase into Dexie
-        await db.transaction('rw', db.messages, async () => {
-          await db.messages.delete(optimisticId);
-          const existing = await db.messages.get(data.id);
-          await db.messages.put({
-            id: data.id,
-            match_id: matchId,
-            sender_id: data.sender_id,
-            text: data.text.replace('[SYSTEM]', '').trim(),
-            created_at: new Date(data.created_at).getTime(),
-            is_system: data.text.startsWith('[SYSTEM]') || data.text.startsWith('📞'),
-            is_read: existing ? existing.is_read : data.is_read,
-            status: 'sent'
-          });
-        });
+        if (localSaved) {
+          try {
+            await db.transaction('rw', db.messages, async () => {
+              await db.messages.delete(optimisticId);
+              const existing = await db.messages.get(data.id);
+              await db.messages.put({
+                ...mapSupabaseMessageToLocal(data, matchId),
+                is_read: existing ? existing.is_read : data.is_read
+              });
+            });
+          } catch (dbErr) {
+            console.error('Failed to sync message to local DB:', dbErr);
+          }
+        } else {
+          try {
+            await db.messages.put(mapSupabaseMessageToLocal(data, matchId));
+          } catch (dbErr) {
+            console.error('Failed to write final message to local DB:', dbErr);
+          }
+        }
       }
       analytics.messageSent();
-    } catch { 
-      await db.messages.update(optimisticId, { status: 'failed' }); 
+    } catch (sendErr) { 
+      console.error('Failed to send message:', sendErr);
+      if (localSaved) {
+        try {
+          await db.messages.update(optimisticId, { status: 'failed' });
+        } catch (dbErr) {
+          console.error('Failed to mark message as failed in local DB:', dbErr);
+        }
+      } 
       showToast('Failed to send', 'error'); 
     }
   };
