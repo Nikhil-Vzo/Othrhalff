@@ -374,9 +374,9 @@ export const Profile: React.FC = () => {
                         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6 md:gap-10 relative z-10">
                             
                             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 w-full md:w-auto">
-                                {/* Squircle Avatar Container */}
+                                {/* Circle Avatar Container */}
                                 <div className="relative flex-shrink-0">
-                                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2rem] border-4 border-zinc-950 shadow-[0_15px_30px_rgba(0,0,0,0.5)] overflow-hidden bg-zinc-800 relative group/avatar">
+                                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-zinc-950 shadow-[0_15px_30px_rgba(0,0,0,0.5)] overflow-hidden bg-zinc-800 relative group/avatar">
                                         <img
                                             src={getOptimizedUrl(profileUser.avatar || AVATAR_PRESETS[0], 384)}
                                             alt="Avatar"
