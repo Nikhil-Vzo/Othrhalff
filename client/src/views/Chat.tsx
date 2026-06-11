@@ -890,7 +890,15 @@ export const Chat: React.FC = () => {
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4" onScroll={handleScroll}>
         {isLoadingMore && <div className="flex justify-center"><Loader2 className="w-5 h-5 text-gray-500 animate-spin" /></div>}
         <div className="mb-4 bg-gradient-to-r from-blue-900/10 to-purple-900/10 border border-blue-800/20 rounded-2xl p-3 backdrop-blur-sm flex gap-3"><div className="p-2 bg-blue-600/10 rounded-full h-fit"><Shield className="w-4 h-4 text-blue-400" /></div><div><h4 className="text-xs font-bold text-blue-400 flex items-center gap-2"><Clock className="w-3 h-3" /> Privacy Active</h4><p className="text-[11px] text-gray-400">Messages deleted after 3 days. Screenshots disabled.</p></div></div>
-        {messages.length === 0 && <div className="flex flex-col items-center justify-center h-[50vh] opacity-50"><Ghost className="w-10 h-10 text-gray-700 mb-2" /><p className="text-sm text-gray-500">No messages yet.</p></div>}
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-[50vh] opacity-75 text-center px-4">
+            <Ghost className="w-10 h-10 text-gray-600 mb-3" />
+            <p className="text-sm text-gray-300 font-medium">No messages yet.</p>
+            <div className="mt-3 p-3 bg-purple-950/10 border border-purple-500/10 rounded-2xl max-w-xs text-[11px] text-gray-400 leading-relaxed backdrop-blur-sm">
+              <span className="text-purple-400 font-bold">💡 Icebreaker Hint:</span> Tap the <Gamepad2 className="w-3.5 h-3.5 inline mx-0.5 text-neon" /> icon below to play <span className="text-white font-semibold">2 Truths & a Lie</span> to kickstart your chat!
+            </div>
+          </div>
+        )}
         {messages.map((msg, i) => {
           const isMe = msg.senderId === currentUser?.id;
           if (msg.isSystem) return <div key={msg.id} className="flex justify-center w-full my-4"><span className="text-[10px] uppercase text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800/50 flex items-center gap-2">{msg.text.replace('📞', '').trim()}</span></div>;
@@ -1218,14 +1226,25 @@ export const Chat: React.FC = () => {
               }}
               aria-label="Launch Icebreakers & Games"
               aria-expanded={showGamesDrawer}
-              className={`p-2 text-gray-500 hover:text-neon transition-colors rounded-full ${showGamesDrawer ? 'bg-gray-800 text-neon' : ''}`}
+              className={`p-2 text-gray-500 hover:text-neon transition-colors rounded-full relative group ${showGamesDrawer ? 'bg-gray-800 text-neon' : ''}`}
             >
               <Gamepad2 className="w-5 h-5" />
+              {!activeGame && (
+                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                </span>
+              )}
+              
+              {/* Tooltip hint to play */}
+              <div className="absolute bottom-12 left-1/2 -translate-x-1/2 hidden group-hover:block bg-gray-950 border border-purple-500/20 px-2.5 py-1.5 rounded-xl text-[10px] text-purple-300 font-bold whitespace-nowrap shadow-2xl backdrop-blur-md z-45 transition-all">
+                🎲 Play Icebreakers & Games!
+              </div>
             </button>
             <input
               value={newMessage}
               onChange={e => handleInputChange(e.target.value)}
-              placeholder="Type a message..."
+              placeholder={activeGame ? "Type a message..." : "Type a message, or tap 🎲 to play a game..."}
               aria-label="Message input"
               className="flex-1 bg-transparent py-3 text-sm text-white placeholder-gray-500 outline-none min-h-[44px] max-h-32"
             />
@@ -1273,33 +1292,74 @@ export const Chat: React.FC = () => {
                         <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wide">2 Truths & a Lie</h4>
                         <span className="w-8" />
                       </div>
-                      <div className="space-y-2.5">
-                        <input
-                          type="text"
-                          value={twoTruths1}
-                          onChange={e => setTwoTruths1(e.target.value)}
-                          placeholder="Truth #1 (e.g. I can play the drums)"
-                          className="w-full bg-gray-905 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
-                        />
-                        <input
-                          type="text"
-                          value={twoTruths2}
-                          onChange={e => setTwoTruths2(e.target.value)}
-                          placeholder="Truth #2 (e.g. I have a twin brother)"
-                          className="w-full bg-gray-905 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
-                        />
-                        <input
-                          type="text"
-                          value={oneLie}
-                          onChange={e => setOneLie(e.target.value)}
-                          placeholder="The LIE (e.g. I speak fluent Russian)"
-                          className="w-full bg-gray-905 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-500/40 transition-colors"
-                        />
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 px-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-green-400">Truth #1</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={twoTruths1}
+                            onChange={e => setTwoTruths1(e.target.value)}
+                            placeholder="e.g. I can play the drums"
+                            className="w-full bg-gray-950 border border-green-500/10 focus:border-green-500/40 rounded-xl px-3 py-2 text-xs text-white outline-none transition-all"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 px-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-green-400">Truth #2</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={twoTruths2}
+                            onChange={e => setTwoTruths2(e.target.value)}
+                            placeholder="e.g. I have a twin brother"
+                            className="w-full bg-gray-950 border border-green-500/10 focus:border-green-500/40 rounded-xl px-3 py-2 text-xs text-white outline-none transition-all"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 px-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-red-400">The Lie</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={oneLie}
+                            onChange={e => setOneLie(e.target.value)}
+                            placeholder="e.g. I speak fluent Russian"
+                            className="w-full bg-gray-950 border border-red-500/10 focus:border-red-500/40 rounded-xl px-3 py-2 text-xs text-white outline-none transition-all"
+                          />
+                        </div>
+
+                        {/* Suggestion Generator Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const TWO_TRUTHS_IDEAS = [
+                              { t1: "I've met a celebrity", t2: "I've never broken a bone", l: "I can speak 3 languages" },
+                              { t1: "I hate chocolate", t2: "I'm a licensed scuba diver", l: "I've never been out of the country" },
+                              { t1: "I played competitive sports", t2: "I can touch my nose with my tongue", l: "I've eaten frog legs" },
+                              { t1: "I've sleepwalked before", t2: "I am a skilled painter", l: "I've met the President" },
+                              { t1: "I can play the piano", t2: "I have bungee jumped", l: "I hate pizza" },
+                              { t1: "I have a pet reptile", t2: "I've ran a half-marathon", l: "I've never seen Star Wars" }
+                            ];
+                            const idea = TWO_TRUTHS_IDEAS[Math.floor(Math.random() * TWO_TRUTHS_IDEAS.length)];
+                            setTwoTruths1(idea.t1);
+                            setTwoTruths2(idea.t2);
+                            setOneLie(idea.l);
+                          }}
+                          className="w-full text-center py-1.5 bg-purple-500/10 border border-purple-500/20 hover:border-purple-400/40 rounded-lg text-[10px] text-purple-400 font-bold flex items-center justify-center gap-1.5 transition-all hover:bg-purple-900/10"
+                        >
+                          ✨ Generate Random Idea
+                        </button>
+
                         <button
                           type="button"
                           onClick={sendGame2TL}
                           disabled={!twoTruths1.trim() || !twoTruths2.trim() || !oneLie.trim()}
-                          className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900/40 disabled:text-gray-500 font-bold text-white text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] mt-1"
+                          className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900/40 disabled:text-gray-500 font-bold text-white text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] mt-1"
                         >
                           Send to Chat
                         </button>
@@ -1376,265 +1436,6 @@ export const Chat: React.FC = () => {
             <Send className="w-5 h-5 fill-current" aria-hidden="true" />
           </button>
         </form>
-      </div>
-    </div>
-
-    {/* Right Column: Activities Sidebar (Desktop Only) */}
-    <div className="hidden md:flex w-80 border-l border-gray-800/60 bg-black/35 backdrop-blur-md flex-col z-20 overflow-hidden">
-      {/* Sidebar Header */}
-      <div className="flex-none px-4 py-3.5 border-b border-gray-800/80 bg-black/20 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Gamepad2 className="w-4 h-4 text-neon animate-pulse" />
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">Activity Center</h4>
-        </div>
-        {activeGame && (
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-        )}
-      </div>
-
-      {/* Sidebar Scrollable Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-        {activeGame ? (
-          /* Active Game Card Pinned in Sidebar */
-          <div className="space-y-4">
-            <div className="p-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md shadow-xl relative overflow-hidden">
-              <div className="absolute -right-8 -top-8 w-20 h-20 bg-neon/10 rounded-full blur-xl pointer-events-none" />
-              
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-neon font-mono">
-                  🎯 Pinned Game
-                </span>
-                <span className="text-[9px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded-full border border-green-500/20 font-medium font-mono uppercase">
-                  Active
-                </span>
-              </div>
-
-              {activeGame.type === '2TL' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎲</span>
-                    <h5 className="text-xs font-bold text-gray-200">2 Truths & a Lie</h5>
-                  </div>
-                  {activeGame.state.creatorId === currentUser?.id ? (
-                    <div className="space-y-2">
-                      <p className="text-[10px] text-gray-400">
-                        Waiting for partner to guess. They'll see this pinned in their sidebar!
-                      </p>
-                      {activeGame.state.options.map((opt, idx) => {
-                        const isLie = hashString(opt) === activeGame.state.lieHash;
-                        return (
-                          <div
-                            key={idx}
-                            className={`px-3 py-2 text-[11px] border rounded-xl flex items-center justify-between ${
-                              isLie ? 'bg-red-500/10 border-red-500/20 text-red-300 font-medium' : 'bg-black/30 border-gray-800 text-gray-400'
-                            }`}
-                          >
-                            <span className="truncate max-w-[80%]">{opt}</span>
-                            {isLie && <span className="text-[8px] font-bold text-red-500 uppercase tracking-wide">Lie</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-[11px] text-gray-300">
-                        Guess which one is the <span className="text-red-400 font-semibold">LIE</span>:
-                      </p>
-                      {activeGame.state.options.map((opt, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleGuess2TL(activeGame.messageId, activeGame.state, opt)}
-                          className="w-full text-left px-3 py-2.5 text-xs bg-purple-950/20 hover:bg-purple-900/30 border border-purple-500/20 hover:border-purple-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeGame.type === 'WYR' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">⚔️</span>
-                    <h5 className="text-xs font-bold text-gray-200">Would You Rather</h5>
-                  </div>
-                  <p className="text-xs text-gray-200 font-medium leading-relaxed bg-black/20 p-2.5 rounded-xl border border-white/5">
-                    {activeGame.state.question}
-                  </p>
-                  
-                  {!activeGame.state.votes[currentUser?.id || ''] ? (
-                    <div className="space-y-2 pt-1">
-                      <button
-                        onClick={() => handleVoteWYR(activeGame.messageId, activeGame.state, 'A')}
-                        className="w-full text-center px-3 py-2.5 text-[11px] bg-cyan-950/20 hover:bg-cyan-900/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98]"
-                      >
-                        {activeGame.state.optionA}
-                      </button>
-                      <div className="text-center text-[9px] text-gray-600 font-mono tracking-widest uppercase py-0.5">— OR —</div>
-                      <button
-                        onClick={() => handleVoteWYR(activeGame.messageId, activeGame.state, 'B')}
-                        className="w-full text-center px-3 py-2.5 text-[11px] bg-cyan-950/20 hover:bg-cyan-900/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98]"
-                      >
-                        {activeGame.state.optionB}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <span>You voted. Waiting for partner to vote...</span>
-                      </p>
-                      <div className="px-3 py-2 text-[11px] bg-cyan-950/40 border border-cyan-900/30 rounded-xl text-cyan-300 font-medium text-center font-mono truncate">
-                        Selected: {activeGame.state.votes[currentUser?.id || ''] === 'A' ? activeGame.state.optionA : activeGame.state.optionB}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Game Launcher inline inside sidebar */
-          <div className="space-y-4">
-            {selectedGame === 'none' && (
-              <div className="space-y-3">
-                <div className="text-center py-4 px-2 border border-dashed border-gray-800 rounded-2xl bg-black/10">
-                  <Sparkles className="w-5 h-5 text-neon mx-auto mb-2 animate-bounce" />
-                  <h5 className="text-xs font-bold text-gray-300">No Active Activity</h5>
-                  <p className="text-[10px] text-gray-500 mt-1 max-w-[200px] mx-auto">
-                    Start an icebreaker game to get to know your partner!
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setSelectedGame('2tl')}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-purple-950/20 hover:bg-purple-900/30 border border-purple-500/10 hover:border-purple-500/30 text-left transition-all group"
-                  >
-                    <span className="text-lg">🎲</span>
-                    <div>
-                      <div className="text-xs font-bold text-purple-300 group-hover:text-purple-200">2 Truths & a Lie</div>
-                      <div className="text-[9px] text-gray-500 mt-0.5">Post items and see if they can find the lie!</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setSelectedGame('wyr')}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-cyan-950/20 hover:bg-cyan-900/30 border border-cyan-500/10 hover:border-cyan-500/30 text-left transition-all group"
-                  >
-                    <span className="text-lg">⚔️</span>
-                    <div>
-                      <div className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">Would You Rather</div>
-                      <div className="text-[9px] text-gray-500 mt-0.5">Vote on college & lifestyle questions together.</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {selectedGame === '2tl' && (
-              <div className="space-y-3 animate-[fadeIn_0.2s_ease-out]">
-                <div className="flex justify-between items-center pb-1 border-b border-gray-800">
-                  <button onClick={() => setSelectedGame('none')} className="text-[10px] text-purple-400 hover:underline">← Back</button>
-                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wide font-mono">Create Game</span>
-                  <span className="w-8" />
-                </div>
-                
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={twoTruths1}
-                    onChange={e => setTwoTruths1(e.target.value)}
-                    placeholder="Truth #1 (e.g. I can play drums)"
-                    className="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
-                  />
-                  <input
-                    type="text"
-                    value={twoTruths2}
-                    onChange={e => setTwoTruths2(e.target.value)}
-                    placeholder="Truth #2 (e.g. I have a twin)"
-                    className="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-purple-500/40 transition-colors"
-                  />
-                  <input
-                    type="text"
-                    value={oneLie}
-                    onChange={e => setOneLie(e.target.value)}
-                    placeholder="The LIE (e.g. I speak Russian)"
-                    className="w-full bg-black/40 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-500/40 transition-colors"
-                  />
-                  <button
-                    onClick={sendGame2TL}
-                    disabled={!twoTruths1.trim() || !twoTruths2.trim() || !oneLie.trim()}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900/40 disabled:text-gray-500 font-bold text-white text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] mt-1"
-                  >
-                    Send to Chat
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {selectedGame === 'wyr' && (
-              <div className="space-y-3 animate-[fadeIn_0.2s_ease-out]">
-                <div className="flex justify-between items-center pb-1 border-b border-gray-800 sticky top-0 bg-black/5 z-10">
-                  <button onClick={() => setSelectedGame('none')} className="text-[10px] text-cyan-400 hover:underline">← Back</button>
-                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wide font-mono">Create WYR</span>
-                  <span className="w-8" />
-                </div>
-                
-                <div className="space-y-2">
-                  <span className="text-[9px] uppercase font-bold text-gray-500 tracking-wider font-mono">Choose a template:</span>
-                  <div className="grid grid-cols-1 gap-1 max-h-[120px] overflow-y-auto custom-scrollbar border border-gray-800 rounded-xl p-1.5 bg-black/20">
-                    {WYR_TEMPLATES.map((tmpl, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => sendGameWYR(tmpl.question, tmpl.optionA, tmpl.optionB)}
-                        className="text-left px-2.5 py-1.5 bg-black/30 hover:bg-black/50 border border-gray-800/50 hover:border-cyan-500/30 rounded-lg text-[9px] text-gray-300 transition-all truncate hover:text-cyan-300"
-                      >
-                        💡 {tmpl.optionA} OR {tmpl.optionB}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <div className="text-center text-[8px] text-gray-600 font-mono tracking-wider">OR WRITE CUSTOM</div>
-                  
-                  <input
-                    type="text"
-                    value={customWyrQuestion}
-                    onChange={e => setCustomWyrQuestion(e.target.value)}
-                    placeholder="Custom Question (Would you rather...)"
-                    className="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/40 transition-colors"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={customWyrA}
-                      onChange={e => setCustomWyrA(e.target.value)}
-                      placeholder="Option A"
-                      className="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-500/40 transition-colors"
-                    />
-                    <input
-                      type="text"
-                      value={customWyrB}
-                      onChange={e => setCustomWyrB(e.target.value)}
-                      placeholder="Option B"
-                      className="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-500/40 transition-colors"
-                    />
-                  </div>
-                  <button
-                    onClick={() => sendGameWYR()}
-                    disabled={!customWyrQuestion.trim() || !customWyrA.trim() || !customWyrB.trim()}
-                    className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-900/40 disabled:text-gray-500 font-bold text-white text-xs rounded-xl shadow-lg transition-all active:scale-[0.98] mt-1"
-                  >
-                    Send Custom WYR
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   </div>

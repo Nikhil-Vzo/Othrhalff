@@ -23,53 +23,53 @@ export interface WYRTemplate {
 export const WYR_TEMPLATES: WYRTemplate[] = [
   {
     question: "Would you rather...",
-    optionA: "Take a 9:00 AM class on Saturday",
-    optionB: "Study in the library basement for 24 hours straight"
+    optionA: "Admit to your crush that you stalked their profile from 2018",
+    optionB: "Send a screenshot of the chat TO the person you're gossiping about"
   },
   {
     question: "Would you rather...",
-    optionA: "Always text in all-caps",
-    optionB: "Only reply using reaction emojis"
+    optionA: "Date someone who claps their hands when they laugh",
+    optionB: "Date someone who types 'u' instead of 'you' every single time"
   },
   {
     question: "Would you rather...",
-    optionA: "Get a free unlimited coffee pass at the campus cafe",
-    optionB: "Get a guaranteed front-row parking spot forever"
+    optionA: "Accidentally like your ex's photo from 3 years ago at 3 AM",
+    optionB: "Send a risky text meant for your best friend to your mom"
   },
   {
     question: "Would you rather...",
-    optionA: "Skip all lectures and only cram the night before",
-    optionB: "Attend every lecture but never take any notes"
+    optionA: "Have a partner who is a 10 but still sleeps with a nightlight",
+    optionB: "Have a partner who is a 6 but makes you laugh until you cry"
   },
   {
     question: "Would you rather...",
-    optionA: "Accidentally text a complaint about a professor to that professor",
-    optionB: "Accidentally 'Reply-All' to a university-wide email list"
+    optionA: "Get left on 'Read' by your crush for 3 days",
+    optionB: "Get left on 'Delivered' for 3 weeks"
   },
   {
     question: "Would you rather...",
-    optionA: "Have exams that are open-book but extremely hard",
-    optionB: "Have exams that are closed-book but straightforward"
+    optionA: "Show your partner your entire internet search history",
+    optionB: "Show your partner all your saved memes"
   },
   {
     question: "Would you rather...",
-    optionA: "Always eat campus dining hall food",
-    optionB: "Cook all your meals in a tiny dorm room microwave"
+    optionA: "Have a first date where they forget their wallet",
+    optionB: "Have a first date where they bring their mom along"
   },
   {
     question: "Would you rather...",
-    optionA: "Be 15 minutes late to every single lecture",
-    optionB: "Be 45 minutes early to every single lecture"
+    optionA: "Only date people who use light mode on their phone",
+    optionB: "Only date people who listen to podcasts at 2x speed"
   },
   {
     question: "Would you rather...",
-    optionA: "Have your phone battery permanently capped at 15%",
-    optionB: "Only be able to use campus Wi-Fi that drops every 10 minutes"
+    optionA: "Get ghosted after an amazing first date",
+    optionB: "Get slow-faded over 3 months of dry texts"
   },
   {
     question: "Would you rather...",
-    optionA: "Do a group project where you do all the work alone",
-    optionB: "Do a group project where no one communicates and you present live"
+    optionA: "Wear your pajamas to a formal final-year presentation",
+    optionB: "Accidentally sit in the front row of the wrong lecture for the whole class"
   }
 ];
 
