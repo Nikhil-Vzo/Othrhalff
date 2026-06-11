@@ -18,7 +18,7 @@ export const Profile: React.FC = () => {
     const params = useParams();
     const id = params?.id as string;
     const navigate = useNavigate();
-    const { currentUser, updateProfile, logout } = useAuth();
+    const { currentUser, updateProfile, logout, isLoading } = useAuth();
 
     // State
     const [isEditing, setIsEditing] = useState(false);
@@ -46,6 +46,13 @@ export const Profile: React.FC = () => {
         window.addEventListener('beforeinstallprompt', handler);
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
+
+    // Redirect to landing page if not logged in (after auth check finishes)
+    useEffect(() => {
+        if (!isLoading && !currentUser) {
+            navigate.push('/');
+        }
+    }, [currentUser, isLoading, navigate]);
 
     // Credentials Manager states
     const [showCredentialsModal, setShowCredentialsModal] = useState(false);
