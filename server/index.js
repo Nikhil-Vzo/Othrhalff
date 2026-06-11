@@ -14,8 +14,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load env variables
-dotenv.config({ path: path.resolve(__dirname, '../client/.env.local') });
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../client/.env') });
+dotenv.config({ path: path.resolve(__dirname, './.env') });
 
 const app = express();
 const port = parseInt(process.env.PORT || '5000', 10);

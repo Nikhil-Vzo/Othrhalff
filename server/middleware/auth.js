@@ -6,14 +6,23 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from client directory
-dotenv.config({ path: path.resolve(__dirname, '../../client/.env.local') });
-dotenv.config();
+// Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../../client/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const supabaseAuthClient = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-  process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
-);
+let supabaseAuthClient;
+
+function getSupabaseAuthClient() {
+  if (!supabaseAuthClient) {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase credentials missing in server env (Check SUPABASE_URL / SUPABASE_ANON_KEY)');
+    }
+    supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseAuthClient;
+}
 
 /**
  * JWT Authentication Middleware
@@ -27,7 +36,8 @@ export async function verifySupabaseToken(req, res, next) {
   }
   const token = authHeader.split('Bearer ')[1];
   try {
-    const { data: { user }, error } = await supabaseAuthClient.auth.getUser(token);
+    const client = getSupabaseAuthClient();
+    const { data: { user }, error } = await client.auth.getUser(token);
     if (error || !user) {
       return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
     }
