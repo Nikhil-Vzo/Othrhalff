@@ -25,7 +25,7 @@ No friction. Just flow.
 
 ##  Future Scope
 
-- AI-based moderation
+
 - Sentiment analysis for campus mood
 - Private anonymous chats
 - Community-based channels
