@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
 
             if (profile && !error) {
-              if (!profile.username) {
+              if (!profile.real_name || !profile.university) {
                 setNeedsOnboarding(true);
               }
 
