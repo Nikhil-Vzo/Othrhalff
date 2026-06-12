@@ -112,6 +112,17 @@ export const CinemaDate: React.FC = () => {
     const [isHost, setIsHost] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
 
+    const [roomHostId, setRoomHostId] = useState<string | null>(null);
+    const roomHostIdRef = useRef<string | null>(null);
+    const roomCodeRef = useRef<string>('');
+    const myPeerIdRef = useRef<string>('');
+
+    useEffect(() => {
+        roomHostIdRef.current = roomHostId;
+        roomCodeRef.current = roomCode;
+        myPeerIdRef.current = myPeerId;
+    }, [roomHostId, roomCode, myPeerId]);
+
     // Profile Info
     const { currentUser } = useAuth();
     const displayName = currentUser?.realName || currentUser?.anonymousId || 'Anonymous';
@@ -201,6 +212,65 @@ export const CinemaDate: React.FC = () => {
         } finally {
             setIsConnecting(false);
         }
+    };
+
+    const handleHostDisconnect = async () => {
+        setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
+        
+        // 1. Get all active peer IDs (including ourselves and remaining peers in the mesh)
+        const remainingPeerIds = [myPeerIdRef.current, ...peersRef.current.map(p => p.peerId)].sort();
+        
+        if (remainingPeerIds.length === 0) return;
+        
+        // 2. The peer with the smallest alphabetical ID becomes the new host
+        const newHostId = remainingPeerIds[0];
+        
+        if (newHostId === myPeerIdRef.current) {
+            console.log("We have been elected as the new host!");
+            setIsHost(true);
+            setRoomHostId(myPeerIdRef.current);
+            
+            // Register ourselves in Supabase
+            if (supabase) {
+                try {
+                    await supabase
+                        .from('active_rooms')
+                        .upsert({
+                            room_id: roomCodeRef.current,
+                            host_peer_id: myPeerIdRef.current,
+                            updated_at: new Date().toISOString()
+                        });
+                    setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
+                } catch (err) {
+                    console.error("Error registering elected host in Supabase:", err);
+                }
+            }
+        } else {
+            console.log(`Peer ${newHostId} has been elected as the new host.`);
+            setRoomHostId(newHostId);
+        }
+    };
+
+    const handleStaleHost = async () => {
+        if (supabase && roomHostIdRef.current) {
+            try {
+                await supabase
+                    .from('active_rooms')
+                    .delete()
+                    .eq('room_id', roomCodeRef.current)
+                    .eq('host_peer_id', roomHostIdRef.current);
+            } catch (err) {
+                console.error("Error cleaning up stale host:", err);
+            }
+        }
+        // Restart connection process
+        const currentRoom = roomCodeRef.current;
+        setRoomCode('');
+        setRoomHostId(null);
+        setIsHost(false);
+        setTimeout(() => {
+            setRoomCode(currentRoom);
+        }, 300);
     };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -294,9 +364,7 @@ export const CinemaDate: React.FC = () => {
     // Initialize Peer on Room Entry
     useEffect(() => {
         if (roomCode) {
-            // Only re-init if the roomCode actually changed or we don't have an instance
-            if (peerInstance.current && peerInstance.current.id === (isHost ? roomCode : myPeerId)) {
-                // Already have correct peer for this room
+            if (peerInstance.current && (peerInstance.current.id === roomHostId || peerInstance.current.id === myPeerId)) {
                 return;
             }
 
@@ -311,8 +379,27 @@ export const CinemaDate: React.FC = () => {
             setPeers([]);
 
             const initPeer = async () => {
+                setIsConnecting(true);
                 try {
-                    // Request Permissions first
+                    // 1. Query Supabase to see if a host exists
+                    let activeHostId: string | null = null;
+                    if (supabase) {
+                        try {
+                            const { data, error: queryError } = await supabase
+                                .from('active_rooms')
+                                .select('host_peer_id')
+                                .eq('room_id', roomCode)
+                                .maybeSingle();
+                            
+                            if (!queryError && data) {
+                                activeHostId = data.host_peer_id;
+                            }
+                        } catch (supabaseErr) {
+                            console.error("Error querying active host:", supabaseErr);
+                        }
+                    }
+
+                    // 2. Request Media Permissions
                     let stream: MediaStream;
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -326,12 +413,25 @@ export const CinemaDate: React.FC = () => {
 
                     setMyStream(stream);
 
-                    // If Host, try to grab the roomCode as ID. If Joiner, random ID.
-                    const newPeerId = isHost ? roomCode : undefined;
+                    // 3. Decide role and configure peer ID
+                    let peerId: string | undefined = undefined;
+                    let currentIsHost = false;
 
-                    // Add config for better reliability
+                    if (activeHostId) {
+                        currentIsHost = false;
+                        setIsHost(false);
+                        setRoomHostId(activeHostId);
+                        setMode('viewer');
+                    } else {
+                        currentIsHost = true;
+                        setIsHost(true);
+                        peerId = 'host-' + roomCode + '-' + Math.random().toString(36).substring(2, 9);
+                        setRoomHostId(peerId);
+                        setMode('select');
+                    }
+
                     const peerConfig: any = {
-                        debug: 2, // Errors
+                        debug: 2,
                         config: {
                             iceServers: [
                                 { urls: 'stun:stun.l.google.com:19302' },
@@ -340,37 +440,43 @@ export const CinemaDate: React.FC = () => {
                         }
                     };
 
-                    const peer = newPeerId ? new Peer(newPeerId, peerConfig) : new Peer(peerConfig);
+                    const peer = peerId ? new Peer(peerId, peerConfig) : new Peer(peerConfig);
 
-                    peer.on('open', (id) => {
+                    peer.on('open', async (id) => {
                         setMyPeerId(id);
                         console.log('My Peer ID:', id);
 
-                        // Track virtual date start or join
-                        if (isHost) {
+                        if (currentIsHost) {
+                            if (supabase) {
+                                try {
+                                    await supabase
+                                        .from('active_rooms')
+                                        .upsert({
+                                            room_id: roomCode,
+                                            host_peer_id: id,
+                                            updated_at: new Date().toISOString()
+                                        });
+                                } catch (dbErr) {
+                                    console.error("Failed to register room host in Supabase:", dbErr);
+                                }
+                            }
                             analytics.virtualDateStart('Movie Date');
                         } else {
                             analytics.virtualDateJoin();
+                            connectToPeer(activeHostId!, stream, peer);
                         }
-
-                        if (!isHost) {
-                            connectToPeer(roomCode, stream, peer);
-                        }
+                        setIsConnecting(false);
                     });
 
                     peer.on('error', (err) => {
                         console.error('Peer error (Full):', err);
-                        // Clean error messages for user
                         let msg = `Connection Error: ${err.type || 'Unknown'}`;
 
-                        if (err.type === 'unavailable-id') {
-                            msg = isHost
-                                ? "Room Name/Code is already taken. Please try another."
-                                : "Room empty or fully occupied. Try again.";
-                            if (isHost) setMode('landing');
-                        } else if (err.type === 'peer-unavailable') {
-                            msg = "Room not found. The host may have left or the code is wrong.";
-                            // Optional: Don't kick to landing immediately, allow retry
+                        if (err.type === 'peer-unavailable') {
+                            msg = "Stale host detected. Initializing room...";
+                            handleStaleHost();
+                        } else if (err.type === 'unavailable-id') {
+                            msg = "Room Name/Code is already taken. Please try another.";
                         } else if (err.type === 'network') {
                             msg = "Network connection lost. Reconnecting...";
                         } else if (err.type === 'server-error') {
@@ -382,9 +488,7 @@ export const CinemaDate: React.FC = () => {
                         }
 
                         setError(msg);
-                        // specific handling for fatal errors
                         if (['unavailable-id', 'invalid-id', 'invalid-key'].includes(err.type)) {
-                            // Fatal
                             setTimeout(() => setMode('landing'), 3000);
                         } else {
                             setTimeout(() => setError(null), 5000);
@@ -396,7 +500,7 @@ export const CinemaDate: React.FC = () => {
                         try {
                             if (call.metadata?.type === 'video') {
                                 console.log('Answering video stream call (no camera back)');
-                                call.answer(); // Video stream doesn't need my camera back
+                                call.answer();
                                 call.on('stream', (stream) => {
                                     console.log("Received remote video stream from", call.peer, stream);
                                     setRemoteVideoStream(stream);
@@ -424,8 +528,6 @@ export const CinemaDate: React.FC = () => {
                         setupDataConnection(conn);
                     });
 
-
-
                     peerInstance.current = peer;
 
                 } catch (err: any) {
@@ -440,18 +542,35 @@ export const CinemaDate: React.FC = () => {
                 // CLEANUP: Destroy peer when component unmounts or room changes
                 if (peerInstance.current) {
                     console.log("Cleaning up Peer instance...");
+                    if (hostRef.current && supabase) {
+                        supabase
+                            .from('active_rooms')
+                            .delete()
+                            .eq('room_id', roomCode)
+                            .eq('host_peer_id', peerInstance.current.id)
+                            .then(({ error: delErr }) => {
+                                if (delErr) console.error("Error deleting room host on unmount:", delErr);
+                            });
+                    }
+
                     peerInstance.current.destroy();
                     peerInstance.current = null;
                 }
                 setPeers([]);
-                setMyStream(null); // Stop stream? Maybe not if we want to reuse it, but here we re-init.
-                // Actually, stopping the stream tracks is good practice if we re-acquire them.
                 if (myStream) {
                     myStream.getTracks().forEach(track => track.stop());
                 }
             };
         }
-    }, [roomCode, isHost]); // Only re-run if room identity changes
+    }, [roomCode]); // Only re-run if room identity changes
+
+    const parseRoomName = (roomId: string) => {
+        const parts = roomId.split('_');
+        if (parts.length >= 3) {
+            return parts[1];
+        }
+        return roomId.replace(/-/g, ' ').toUpperCase();
+    };
 
     // URL Hash/Query Sync for Sharing and Join-on-Load
     useEffect(() => {
@@ -459,11 +578,8 @@ export const CinemaDate: React.FC = () => {
             const searchParams = new URLSearchParams(window.location.search);
             const queryRoom = searchParams.get('room');
             if (queryRoom && mode === 'landing') {
-                setIsConnecting(true);
                 setRoomCode(queryRoom);
-                setRoomName('Joined Room');
-                setIsHost(false);
-                setMode('viewer');
+                setRoomName(parseRoomName(queryRoom));
                 setError(null);
                 return;
             }
@@ -499,10 +615,9 @@ export const CinemaDate: React.FC = () => {
 
         const connectionTimeout = setTimeout(() => {
             if (!conn.open) {
-                console.warn("Connection timeout - Host unreachable");
-                setError("Host unreachable (Timeout). Check code or try again.");
+                console.warn("Connection timeout - Host unreachable. Cleaning up stale host...");
                 conn.close();
-                setMode('landing');
+                handleStaleHost();
             }
         }, 8000);
 
@@ -1010,13 +1125,31 @@ export const CinemaDate: React.FC = () => {
     };
 
     const handleLeaveRoom = () => {
+        // Clear search params to prevent query sync from re-joining
+        if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+
         // Broadcast that I am leaving
         broadcastData({ type: 'LEAVE' });
+
+        // If we were host, delete host registration
+        if (isHost && supabase && peerInstance.current) {
+            supabase
+                .from('active_rooms')
+                .delete()
+                .eq('room_id', roomCode)
+                .eq('host_peer_id', peerInstance.current.id)
+                .then(({ error: delErr }) => {
+                    if (delErr) console.error("Error deleting room host on leave:", delErr);
+                });
+        }
 
         setMode('landing');
         setRoomCode('');
         setRoomName('');
         setJoinCode('');
+        setRoomHostId(null);
         setUrl('');
         setIsPlaying(false);
         window.location.hash = '';
@@ -1256,7 +1389,7 @@ export const CinemaDate: React.FC = () => {
             <div className="absolute top-[20%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-[radial-gradient(circle_at_center,_rgba(79,70,229,0.15)_0%,_transparent_70%)] pointer-events-none -z-0 will-change-transform animate-blob animation-delay-2000" />
 
             <button
-                onClick={() => navigate.push('/virtual-date')}
+                onClick={() => navigate.push('/sparx')}
                 className="absolute top-4 md:top-6 left-4 md:left-6 p-2 md:p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors z-20 group border border-white/10 backdrop-blur-md"
             >
                 <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-white/70 group-hover:text-white" />
@@ -1549,9 +1682,11 @@ export const CinemaDate: React.FC = () => {
                 <div className="h-14 md:h-16 border-b border-gray-900/50 flex items-center justify-between px-3 md:px-6 bg-gray-950/30 backdrop-blur-sm z-20">
                     <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
                         <span className="font-bold text-gray-200 truncate max-w-[80px] md:max-w-[200px] text-sm md:text-base">{roomName}</span>
-                        <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border-2 border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomCode)}>
+                        <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border-2 border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(window.location.origin + '/sparx/cinema?room=' + roomCode)}>
                             <Hash className="w-3 h-3 md:w-4 md:h-4 text-neon" />
-                            <span className="font-mono text-xs md:text-sm font-bold text-neon tracking-wider">{roomCode}</span>
+                            <span className="font-mono text-xs md:text-sm font-bold text-neon tracking-wider">
+                                {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
+                            </span>
                             <Copy className="w-3 h-3 md:w-4 md:h-4 text-neon/70 group-hover:text-neon transition-colors" />
                         </div>
                         {isHost && (
@@ -1859,8 +1994,8 @@ export const CinemaDate: React.FC = () => {
                             <button
                                 onClick={() => {
                                     setShowLeaveModal(false);
-                                    setMode('landing');
-                                    navigate.push('/virtual-date');
+                                    handleLeaveRoom();
+                                    navigate.push('/sparx');
                                 }}
                                 className="flex-1 py-3 px-4 rounded-xl bg-red-500/90 hover:bg-red-500 text-white font-semibold transition-colors"
                             >

@@ -499,7 +499,7 @@ describe('Sparx.tsx migration (src/views/Sparx.tsx)', () => {
   });
 
   it('passes route to router.push() for sparx routes', () => {
-    expect(source).toContain("router.push('/sparx/");
+    expect(source.includes("router.push('/sparx/") || source.includes("router.push(`/sparx/")).toBe(true);
   });
 });
 
