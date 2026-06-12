@@ -303,17 +303,15 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="relative w-full max-w-lg overflow-hidden bg-gradient-to-b from-[#0d091a]/95 to-[#04010a]/98 border border-white/10 rounded-[2.5rem] shadow-[0_0_80px_rgba(255,0,128,0.15)] flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-300"
+        className="relative w-full max-w-lg overflow-hidden bg-[#0d091a] border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Clean, dark container without large glowing ambient blur dots */}
 
         {/* Header */}
         <div className="relative flex items-center justify-between p-6 border-b border-white/5 z-10">
-          <h2 className="text-sm font-black uppercase tracking-wider text-white">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400">
-              Share Glimpse
-            </span>
+          <h2 className="text-sm font-bold text-white tracking-wide">
+            Share a Glimpse
           </h2>
           <button 
             onClick={onClose}
@@ -340,10 +338,10 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
               onDragLeave={handleDrag}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-[2rem] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 min-h-[280px] group
+              className={`relative border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-[200px] group
                 ${dragActive 
-                  ? 'border-pink-500 bg-pink-500/5 shadow-[0_0_30px_rgba(255,0,127,0.15)] scale-[1.01]' 
-                  : 'border-white/10 hover:border-pink-500/50 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.02)]'
+                  ? 'border-pink-500/60 bg-pink-500/5' 
+                  : 'border-white/10 hover:border-white/20 hover:bg-white/[0.02]'
                 }`}
             >
               <input
@@ -354,18 +352,18 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
                 onChange={handleFileChange}
               />
               
-              <div className="p-5 mb-5 rounded-3xl bg-white/5 border border-white/10 group-hover:border-pink-500/30 group-hover:bg-pink-500/5 transition-all duration-300 group-hover:scale-110 shadow-lg">
-                <UploadCloud className="w-8 h-8 text-gray-400 group-hover:text-pink-500 transition-colors" />
+              <div className="p-4 mb-4 rounded-2xl bg-white/5 border border-white/10 group-hover:border-white/20 transition-all duration-200">
+                <UploadCloud className="w-7 h-7 text-gray-500 group-hover:text-gray-300 transition-colors" />
               </div>
               
-              <h3 className="text-lg font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">Drag & drop your story</h3>
-              <p className="text-sm text-gray-400 mb-6 max-w-[280px] leading-relaxed">
-                Choose a visual vibe (JPG, PNG, WebP). Story automatically vanishes in 24 hours.
+              <h3 className="text-base font-semibold text-white mb-1">Drop your image here</h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-[260px] leading-relaxed">
+                JPG, PNG or WebP. Disappears in 24 hours.
               </p>
               
               <button 
                 type="button"
-                className="px-6 py-3 bg-white/5 hover:bg-gradient-to-r hover:from-pink-500 hover:to-purple-600 hover:text-white border border-white/10 hover:border-transparent text-sm font-bold rounded-2xl transition-all duration-300 shadow-sm active:scale-95"
+                className="px-5 py-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 text-sm font-semibold text-gray-300 hover:text-white rounded-xl transition-all duration-200 active:scale-95"
               >
                 Browse Files
               </button>
@@ -373,8 +371,8 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           ) : (
             /* Premium Live Mock-Feed Card Preview */
             <div className="flex flex-col items-center space-y-2">
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-mono flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-pink-500" /> Tap photo to type caption • Drag vertically to position
+              <span className="text-xs uppercase tracking-widest text-gray-500 font-mono flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-gray-500" /> Drag vertically to position caption
               </span>
               
               <div 
@@ -474,7 +472,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           <button
             onClick={handleUpload}
             disabled={isUploading || !file}
-            className="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-black rounded-2xl text-sm shadow-[0_0_20px_rgba(255,0,128,0.25)] hover:shadow-[0_0_35px_rgba(255,0,128,0.45)] transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 min-w-[120px]"
+            className="px-6 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl text-sm transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 min-w-[120px]"
           >
             {isUploading ? (
               <>

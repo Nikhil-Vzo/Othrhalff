@@ -57,6 +57,73 @@ export const Sparx: React.FC = () => {
   // Modals and overlays
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
+  const [activeRooms, setActiveRooms] = useState<any[]>([]);
+  const [creatingType, setCreatingType] = useState<'cinema' | 'music' | null>(null);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
+
+  const fetchActiveRooms = async () => {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('active_rooms')
+          .select('*');
+        if (!error && data) {
+          setActiveRooms(data);
+        }
+      } catch (err) {
+        console.error('Error fetching active rooms:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isLobbyOpen) {
+      fetchActiveRooms();
+      const interval = setInterval(fetchActiveRooms, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isLobbyOpen]);
+
+  const parseRoomDetails = (roomId: string) => {
+    const parts = roomId.split('_');
+    if (parts.length >= 3) {
+      return {
+        type: parts[0],
+        name: parts[1],
+        uniqueId: parts[2]
+      };
+    }
+    return {
+      type: roomId.startsWith('cinema') ? 'cinema' : 'music',
+      name: roomId.replace(/-/g, ' ').toUpperCase(),
+      uniqueId: ''
+    };
+  };
+
+  const handleCreateRoomSubmit = () => {
+    if (!newRoomName.trim()) {
+      setLobbyError("Room name cannot be empty");
+      return;
+    }
+    const currentActiveOfType = activeRooms.filter(r => parseRoomDetails(r.room_id).type === creatingType);
+    if (currentActiveOfType.length >= 4) {
+      setLobbyError(`Maximum of 4 ${creatingType === 'cinema' ? 'Cinema' : 'Music'} rooms are already active.`);
+      return;
+    }
+
+    const nameSlug = newRoomName.trim().substring(0, 30);
+    const uniqueId = Math.random().toString(36).substring(2, 7);
+    const roomId = `${creatingType}_${nameSlug}_${uniqueId}`;
+
+    setIsLobbyOpen(false);
+    setCreatingType(null);
+    setNewRoomName('');
+    setLobbyError(null);
+
+    router.push(`/sparx/${creatingType}?room=${encodeURIComponent(roomId)}`);
+  };
+
   const [showTutorial, setShowTutorial] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -735,8 +802,8 @@ export const Sparx: React.FC = () => {
                           {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
                             <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
                           )}
-                          <span className="text-[10px] text-gray-600 font-mono">
-                            • {timeText}
+                          <span className="text-xs text-gray-500 font-mono">
+                            · {timeText}
                           </span>
                         </div>
                         
@@ -883,73 +950,200 @@ export const Sparx: React.FC = () => {
 
       {/* Vibe Rooms / Duo Dates Lobby Overlay */}
       {isLobbyOpen && (
-        <div 
-          onClick={() => setIsLobbyOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md transition-all duration-300"
+        <div
+          onClick={() => {
+            setIsLobbyOpen(false);
+            setCreatingType(null);
+            setNewRoomName('');
+            setLobbyError(null);
+          }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
         >
-          <div 
-            className="relative w-full max-w-md bg-black border border-gray-900 rounded-3xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.15)] animate-in fade-in zoom-in-95 duration-200"
+          <div
+            className="relative w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <button 
-              onClick={() => setIsLobbyOpen(false)}
-              className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white rounded-full hover:bg-gray-900 transition-colors"
-              aria-label="Close lobby"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-xl font-extrabold text-white mb-1 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]" />
-              Duo Dates Lobby
-            </h3>
-            <p className="text-[10px] text-gray-500 mb-6 uppercase tracking-wider font-bold">
-              Co-experience spaces for matches
-            </p>
-
-            <div className="flex flex-col gap-4">
-              {/* Cinema Room Card */}
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-zinc-900">
+              <div>
+                <h3 className="text-base font-bold text-white leading-tight">
+                  {creatingType === null ? 'Watch Together' : creatingType === 'cinema' ? 'Create Cinema Room' : 'Create Music Lounge'}
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5 font-normal">
+                  {creatingType === null ? 'Join an active room or start your own' : 'Give your room a name. Anyone with a profile can join.'}
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setIsLobbyOpen(false);
-                  router.push('/sparx/cinema');
+                  setCreatingType(null);
+                  setNewRoomName('');
+                  setLobbyError(null);
                 }}
-                className="group relative flex items-start gap-4 p-4 bg-gray-950/40 border border-gray-900 hover:border-cyan-500/30 rounded-2xl text-left transition-all duration-300 hover:shadow-[0_0_15px_rgba(6,182,212,0.08)] active:scale-[0.98]"
+                className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors ml-3 shrink-0"
+                aria-label="Close lobby"
               >
-                <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl group-hover:bg-cyan-500 group-hover:text-white transition-all duration-300">
-                  <Tv className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors mb-1">
-                    Cinema Watch Party
-                  </h4>
-                  <p className="text-xs text-gray-500 group-hover:text-gray-400 leading-relaxed transition-colors">
-                    Stream YouTube, movies, and shows synchronously in real-time with video call integration.
-                  </p>
-                </div>
-              </button>
-
-              {/* Music Session Card */}
-              <button
-                onClick={() => {
-                  setIsLobbyOpen(false);
-                  router.push('/sparx/music');
-                }}
-                className="group relative flex items-start gap-4 p-4 bg-gray-950/40 border border-gray-900 hover:border-purple-500/30 rounded-2xl text-left transition-all duration-300 hover:shadow-[0_0_15px_rgba(168,85,247,0.08)] active:scale-[0.98]"
-              >
-                <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-all duration-300">
-                  <Music className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors mb-1">
-                    Music Lounge
-                  </h4>
-                  <p className="text-xs text-gray-500 group-hover:text-gray-400 leading-relaxed transition-colors">
-                    Listen to synchronized beats and vibe together in a shared listening room.
-                  </p>
-                </div>
+                <X className="w-4 h-4" />
               </button>
             </div>
+
+            {creatingType === null ? (
+              <div className="px-5 py-4 flex flex-col gap-4 max-h-[60vh] overflow-y-auto scrollbar-none">
+                {lobbyError && (
+                  <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-2.5 px-4 rounded-xl">
+                    {lobbyError}
+                  </div>
+                )}
+
+                {/* Cinema Rooms */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Tv className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Cinema  ({activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'cinema').length}/4)
+                    </span>
+                  </div>
+                  {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'cinema').length === 0 ? (
+                    <div className="py-4 px-4 rounded-xl border border-zinc-900 bg-zinc-900/20">
+                      <p className="text-sm text-zinc-500">No active watch parties.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'cinema').map((room) => {
+                        const details = parseRoomDetails(room.room_id);
+                        return (
+                          <button
+                            key={room.room_id}
+                            onClick={() => {
+                              setIsLobbyOpen(false);
+                              router.push(`/sparx/cinema?room=${encodeURIComponent(room.room_id)}`);
+                            }}
+                            className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700 text-left transition-colors group w-full"
+                          >
+                            <div className="min-w-0">
+                              <span className="text-sm font-semibold text-zinc-200 group-hover:text-white block truncate">{details.name}</span>
+                              <span className="text-xs text-zinc-600 block mt-0.5">Cinema Room</span>
+                            </div>
+                            <span className="text-xs font-semibold text-zinc-400 group-hover:text-white border border-zinc-700 px-3 py-1 rounded-lg bg-zinc-900 shrink-0 ml-3">Join</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Music Lounges */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Music className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Music  ({activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'music').length}/4)
+                    </span>
+                  </div>
+                  {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'music').length === 0 ? (
+                    <div className="py-4 px-4 rounded-xl border border-zinc-900 bg-zinc-900/20">
+                      <p className="text-sm text-zinc-500">No active music lounges.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'music').map((room) => {
+                        const details = parseRoomDetails(room.room_id);
+                        return (
+                          <button
+                            key={room.room_id}
+                            onClick={() => {
+                              setIsLobbyOpen(false);
+                              router.push(`/sparx/music?room=${encodeURIComponent(room.room_id)}`);
+                            }}
+                            className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700 text-left transition-colors group w-full"
+                          >
+                            <div className="min-w-0">
+                              <span className="text-sm font-semibold text-zinc-200 group-hover:text-white block truncate">{details.name}</span>
+                              <span className="text-xs text-zinc-600 block mt-0.5">Music Lounge</span>
+                            </div>
+                            <span className="text-xs font-semibold text-zinc-400 group-hover:text-white border border-zinc-700 px-3 py-1 rounded-lg bg-zinc-900 shrink-0 ml-3">Join</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Create Room Form */
+              <div className="px-5 py-4">
+                {lobbyError && (
+                  <div className="mb-4 text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-2.5 px-4 rounded-xl">
+                    {lobbyError}
+                  </div>
+                )}
+                <label className="text-xs text-zinc-500 uppercase font-semibold tracking-wider block mb-2">Room Name</label>
+                <input
+                  type="text"
+                  value={newRoomName}
+                  onChange={(e) => {
+                    setNewRoomName(e.target.value);
+                    setLobbyError(null);
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && handleCreateRoomSubmit()}
+                  placeholder={creatingType === 'cinema' ? 'e.g. Movie Night' : 'e.g. Lofi Beats'}
+                  maxLength={30}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:border-zinc-600 focus:outline-none transition-colors text-sm mb-4"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setCreatingType(null);
+                      setNewRoomName('');
+                      setLobbyError(null);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-semibold text-sm transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleCreateRoomSubmit}
+                    disabled={!newRoomName.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-white hover:bg-zinc-100 text-black font-bold text-sm transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Create Buttons (shown only on lobby listing view) */}
+            {creatingType === null && (
+              <div className="px-5 pb-5 pt-3 border-t border-zinc-900 flex flex-col gap-2">
+                {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'cinema').length < 4 ? (
+                  <button
+                    onClick={() => setCreatingType('cinema')}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-white font-semibold text-sm transition-colors"
+                  >
+                    <Tv className="w-4 h-4 text-zinc-400" />
+                    Create Cinema Room
+                  </button>
+                ) : (
+                  <div className="w-full py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-900 text-zinc-600 font-semibold text-sm text-center">
+                    Cinema Rooms Full (4/4)
+                  </div>
+                )}
+                {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'music').length < 4 ? (
+                  <button
+                    onClick={() => setCreatingType('music')}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-white font-semibold text-sm transition-colors"
+                  >
+                    <Music className="w-4 h-4 text-zinc-400" />
+                    Create Music Lounge
+                  </button>
+                ) : (
+                  <div className="w-full py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-900 text-zinc-600 font-semibold text-sm text-center">
+                    Music Lounges Full (4/4)
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

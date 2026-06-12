@@ -119,6 +119,111 @@ export const MusicDate = () => {
     const [myStream, setMyStream] = useState<MediaStream | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+
+    const [roomHostId, setRoomHostId] = useState<string | null>(null);
+    const roomHostIdRef = useRef<string | null>(null);
+    const roomCodeRef = useRef<string>('');
+    const myPeerIdRef = useRef<string>('');
+    const peersRef = useRef<PeerStream[]>([]);
+    const hostRef = useRef(isHost);
+
+    useEffect(() => {
+        roomHostIdRef.current = roomHostId;
+        roomCodeRef.current = roomCode;
+        myPeerIdRef.current = myPeerId;
+        peersRef.current = peers;
+        hostRef.current = isHost;
+    }, [roomHostId, roomCode, myPeerId, peers, isHost]);
+
+    const handleHostDisconnect = async () => {
+        setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
+        
+        const remainingPeerIds = [myPeerIdRef.current, ...peersRef.current.map(p => p.peerId)].sort();
+        
+        if (remainingPeerIds.length === 0) return;
+        
+        const newHostId = remainingPeerIds[0];
+        
+        if (newHostId === myPeerIdRef.current) {
+            console.log("We have been elected as the new host!");
+            setIsHost(true);
+            setRoomHostId(myPeerIdRef.current);
+            
+            if (supabase) {
+                try {
+                    await supabase
+                        .from('active_rooms')
+                        .upsert({
+                            room_id: roomCodeRef.current,
+                            host_peer_id: myPeerIdRef.current,
+                            updated_at: new Date().toISOString()
+                        });
+                    setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
+                } catch (err) {
+                    console.error("Error registering elected host in Supabase:", err);
+                }
+            }
+        } else {
+            console.log(`Peer ${newHostId} has been elected as the new host.`);
+            setRoomHostId(newHostId);
+        }
+    };
+
+    const handleStaleHost = async () => {
+        if (supabase && roomHostIdRef.current) {
+            try {
+                await supabase
+                    .from('active_rooms')
+                    .delete()
+                    .eq('room_id', roomCodeRef.current)
+                    .eq('host_peer_id', roomHostIdRef.current);
+            } catch (err) {
+                console.error("Error cleaning up stale host:", err);
+            }
+        }
+        const currentRoom = roomCodeRef.current;
+        setRoomCode('');
+        setRoomHostId(null);
+        setIsHost(false);
+        setTimeout(() => {
+            setRoomCode(currentRoom);
+        }, 300);
+    };
+
+    const handleLeaveRoom = () => {
+        if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+        if (isHost && supabase && peerInstance.current) {
+            supabase
+                .from('active_rooms')
+                .delete()
+                .eq('room_id', roomCode)
+                .eq('host_peer_id', peerInstance.current.id)
+                .then(({ error: delErr }) => {
+                    if (delErr) console.error("Error deleting room host on leave:", delErr);
+                });
+        }
+        setMode('landing');
+        setRoomCode('');
+        setRoomName('');
+        setRoomHostId(null);
+        setQueue([]);
+        setCurrentTrack(null);
+        window.location.hash = '';
+    };
+
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopyFeedback('Copied!');
+            setTimeout(() => setCopyFeedback(null), 2000);
+        }).catch(() => {
+            setCopyFeedback('Failed to copy');
+            setTimeout(() => setCopyFeedback(null), 2000);
+        });
+    };
     const { currentUser } = useAuth();
     const displayName = currentUser?.realName || currentUser?.anonymousId || 'Anonymous';
 
@@ -248,17 +353,22 @@ export const MusicDate = () => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [mode]);
 
+    const parseRoomName = (roomId: string) => {
+        const parts = roomId.split('_');
+        if (parts.length >= 3) {
+            return parts[1];
+        }
+        return roomId.replace(/-/g, ' ').toUpperCase();
+    };
+
     // URL Query Sync for Sharing and Join-on-Load
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const searchParams = new URLSearchParams(window.location.search);
             const queryRoom = searchParams.get('room');
             if (queryRoom && mode === 'landing') {
-                setIsConnecting(true);
                 setRoomCode(queryRoom);
-                setRoomName('Joined Music Jam');
-                setIsHost(false);
-                setMode('room');
+                setRoomName(parseRoomName(queryRoom));
                 setError(null);
             }
         }
@@ -278,39 +388,145 @@ export const MusicDate = () => {
     // Initialize Peer
     useEffect(() => {
         if (roomCode) {
-            if (peerInstance.current) {
-                peerInstance.current.destroy();
+            if (peerInstance.current && (peerInstance.current.id === roomHostId || peerInstance.current.id === myPeerId)) {
+                return;
             }
 
+            if (peerInstance.current) {
+                console.log("Destroying old peer instance");
+                peerInstance.current.destroy();
+                peerInstance.current = null;
+            }
+
+            setPeers([]);
+
             const initPeer = async () => {
+                setIsConnecting(true);
                 try {
+                    // 1. Query Supabase to see if a host exists
+                    let activeHostId: string | null = null;
+                    if (supabase) {
+                        try {
+                            const { data, error: queryError } = await supabase
+                                .from('active_rooms')
+                                .select('host_peer_id')
+                                .eq('room_id', roomCode)
+                                .maybeSingle();
+                            
+                            if (!queryError && data) {
+                                activeHostId = data.host_peer_id;
+                            }
+                        } catch (supabaseErr) {
+                            console.error("Error querying active host:", supabaseErr);
+                        }
+                    }
+
+                    // 2. Request Media Permissions
                     let stream: MediaStream;
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     } catch (err) {
                         console.warn("Media Access Failed", err);
                         const canvas = document.createElement('canvas');
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.fillStyle = '#000000';
+                            ctx.fillRect(0, 0, 640, 480);
+                            ctx.font = '30px Arial';
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText('Spectator', 250, 240);
+                        }
                         const videoTrack = canvas.captureStream(30).getVideoTracks()[0];
                         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
                         const audioTrack = audioCtx.createMediaStreamDestination().stream.getAudioTracks()[0];
                         stream = new MediaStream([videoTrack, audioTrack]);
+                        setError("Camera unavailable. Joining as Spectator.");
+                        setTimeout(() => setError(null), 5000);
                     }
                     setMyStream(stream);
 
-                    const newPeerId = isHost ? roomCode : undefined;
-                    const peer = newPeerId ? new Peer(newPeerId) : new Peer();
+                    // 3. Decide role and configure peer ID
+                    let peerId: string | undefined = undefined;
+                    let currentIsHost = false;
 
-                    peer.on('open', (id) => {
+                    if (activeHostId) {
+                        currentIsHost = false;
+                        setIsHost(false);
+                        setRoomHostId(activeHostId);
+                        setMode('room');
+                    } else {
+                        currentIsHost = true;
+                        setIsHost(true);
+                        peerId = 'host-' + roomCode + '-' + Math.random().toString(36).substring(2, 9);
+                        setRoomHostId(peerId);
+                        setMode('room');
+                    }
+
+                    const peerConfig: any = {
+                        debug: 2,
+                        config: {
+                            iceServers: [
+                                { urls: 'stun:stun.l.google.com:19302' },
+                                { urls: 'stun:global.stun.twilio.com:3478' }
+                            ]
+                        }
+                    };
+
+                    const peer = peerId ? new Peer(peerId, peerConfig) : new Peer(peerConfig);
+
+                    peer.on('open', async (id) => {
                         setMyPeerId(id);
-                        if (isHost) {
+                        console.log('My Peer ID:', id);
+
+                        if (currentIsHost) {
+                            if (supabase) {
+                                try {
+                                    await supabase
+                                        .from('active_rooms')
+                                        .upsert({
+                                            room_id: roomCode,
+                                            host_peer_id: id,
+                                            updated_at: new Date().toISOString()
+                                        });
+                                } catch (dbErr) {
+                                    console.error("Failed to register room host in Supabase:", dbErr);
+                                }
+                            }
                             analytics.virtualDateStart('Music Jam');
                         } else {
                             analytics.virtualDateJoin();
-                            connectToPeer(roomCode, stream, peer);
+                            connectToPeer(activeHostId!, stream, peer);
+                        }
+                        setIsConnecting(false);
+                    });
+
+                    peer.on('error', (err) => {
+                        console.error('Peer error (Full):', err);
+                        let msg = `Connection Error: ${err.type || 'Unknown'}`;
+
+                        if (err.type === 'peer-unavailable') {
+                            msg = "Stale host detected. Initializing room...";
+                            handleStaleHost();
+                        } else if (err.type === 'unavailable-id') {
+                            msg = "Room Name/Code is already taken. Please try another.";
+                        } else if (err.type === 'network') {
+                            msg = "Network connection lost. Reconnecting...";
+                        } else if (err.type === 'server-error') {
+                            msg = "Signaling server error. Please retry.";
+                        }
+
+                        setError(msg);
+                        if (['unavailable-id', 'invalid-id', 'invalid-key'].includes(err.type)) {
+                            setTimeout(() => setMode('landing'), 3000);
+                        } else {
+                            setTimeout(() => setError(null), 5000);
                         }
                     });
 
                     peer.on('call', (call) => {
+                        console.log('Receiving call from:', call.peer);
                         call.answer(stream);
                         call.on('stream', (remoteStream) => {
                             setPeers(prev => prev.find(p => p.peerId === call.peer) ? prev : [...prev, { peerId: call.peer, stream: remoteStream }]);
@@ -318,32 +534,87 @@ export const MusicDate = () => {
                         call.on('close', () => setPeers(prev => prev.filter(p => p.peerId !== call.peer)));
                     });
 
-                    peer.on('connection', setupDataConnection);
+                    peer.on('connection', (conn) => {
+                        console.log('Data connection from:', conn.peer);
+                        setupDataConnection(conn);
+                    });
+
                     peerInstance.current = peer;
                 } catch (err: any) {
-                    setError(`System Error: ${err.message}`);
+                    console.error("Critical Peer Init Error:", err);
+                    setError(`System Error: ${err.message || 'Unknown'}`);
                 }
             };
             initPeer();
 
             return () => {
-                peerInstance.current?.destroy();
+                // CLEANUP: Destroy peer when component unmounts or room changes
+                if (peerInstance.current) {
+                    console.log("Cleaning up Peer instance...");
+                    if (hostRef.current && supabase) {
+                        supabase
+                            .from('active_rooms')
+                            .delete()
+                            .eq('room_id', roomCode)
+                            .eq('host_peer_id', peerInstance.current.id)
+                            .then(({ error: delErr }) => {
+                                if (delErr) console.error("Error deleting room host on unmount:", delErr);
+                            });
+                    }
+
+                    peerInstance.current.destroy();
+                    peerInstance.current = null;
+                }
                 setPeers([]);
-                if (myStream) myStream.getTracks().forEach(track => track.stop());
+                if (myStream) {
+                    myStream.getTracks().forEach(track => track.stop());
+                }
             };
         }
-    }, [roomCode, isHost]);
+    }, [roomCode]);
 
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
+        console.log(`Attempting to connect to Host: ${targetId}`);
         const call = peer.call(targetId, stream);
         const conn = peer.connect(targetId, { reliable: true });
 
+        const connectionTimeout = setTimeout(() => {
+            if (!conn.open) {
+                console.warn("Connection timeout - Host unreachable. Cleaning up stale host...");
+                conn.close();
+                handleStaleHost();
+            }
+        }, 8000);
+
         setupDataConnection(conn);
+
+        conn.on('open', () => {
+            clearTimeout(connectionTimeout);
+            console.log("Connected to Host Data Channel!");
+        });
+
+        conn.on('error', (err) => {
+            clearTimeout(connectionTimeout);
+            console.error("Data Connection Error:", err);
+            setError("Lost connection to Host.");
+        });
+
+        conn.on('close', () => {
+            clearTimeout(connectionTimeout);
+            console.log("Disconnected from Host");
+            setError("Host disconnected.");
+            if (targetId === roomHostIdRef.current) {
+                handleHostDisconnect();
+            }
+        });
 
         call.on('stream', (remoteStream) => {
             setPeers(prev => prev.find(p => p.peerId === targetId) ? prev : [...prev, { peerId: targetId, stream: remoteStream }]);
         });
         call.on('close', () => setPeers(prev => prev.filter(p => p.peerId !== targetId)));
+        call.on('error', (err) => {
+            console.error("Call error:", err);
+        });
     };
 
     const setupDataConnection = (conn: DataConnection) => {
@@ -351,7 +622,8 @@ export const MusicDate = () => {
             connections.current[conn.peer] = conn;
             conn.send({ type: 'IDENTITY', payload: { name: displayName } });
 
-            if (isHost) {
+            if (hostRef.current) {
+                // 1. Sync queue & track
                 conn.send({ type: 'SYNC_PLAYER', action: 'queue_sync', payload: queueRef.current });
                 if (currentTrackRef.current) {
                     conn.send({ type: 'SYNC_PLAYER', action: 'track', payload: currentTrackRef.current });
@@ -361,6 +633,12 @@ export const MusicDate = () => {
                             conn.send({ type: 'SYNC_PLAYER', action: 'seek', time: audioRef.current.currentTime });
                         }
                     }
+                }
+
+                // 2. Send Peer List (Mesh)
+                const currentPeers = peersRef.current.map(p => p.peerId);
+                if (currentPeers.length > 0) {
+                    conn.send({ type: 'PEER_LIST', peers: currentPeers });
                 }
             }
         });
@@ -397,6 +675,14 @@ export const MusicDate = () => {
                 setQueue(prev => [...prev, data.payload]);
             } else if (data.action === 'queue_sync') {
                 setQueue(data.payload);
+            }
+        } else if (data.type === 'PEER_LIST') {
+            if (peerInstance.current && myStream) {
+                data.peers.forEach((pid: string) => {
+                    if (pid !== myPeerId && !connections.current[pid]) {
+                        connectToPeer(pid, myStream!, peerInstance.current!);
+                    }
+                });
             }
         }
     };
@@ -875,7 +1161,7 @@ export const MusicDate = () => {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] md:w-[800px] h-[600px] md:h-[800px] rounded-full bg-[radial-gradient(circle_at_center,_rgba(124,58,237,0.15)_0%,_transparent_70%)] pointer-events-none -z-0 will-change-transform animate-blob" />
                 <div className="absolute top-[20%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-[radial-gradient(circle_at_center,_rgba(79,70,229,0.15)_0%,_transparent_70%)] pointer-events-none -z-0 will-change-transform animate-blob animation-delay-2000" />
 
-                <button onClick={() => navigate.push('/virtual-date')} className="absolute top-4 md:top-6 left-4 md:left-6 p-2 md:p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors z-20 border border-white/10 backdrop-blur-md">
+                <button onClick={() => navigate.push('/sparx')} className="absolute top-4 md:top-6 left-4 md:left-6 p-2 md:p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors z-20 border border-white/10 backdrop-blur-md">
                     <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-white/70 hover:text-white" />
                 </button>
 
@@ -1019,8 +1305,10 @@ export const MusicDate = () => {
                     <div className="flex items-center gap-2 md:gap-4 border border-violet-500/30 bg-violet-500/10 px-3 md:px-4 py-1.5 rounded-full overflow-hidden">
                         <span className="font-bold text-gray-200 text-sm md:text-base truncate max-w-[80px] md:max-w-[200px]">{roomName}</span>
                         <div className="w-px h-4 bg-white/20 shrink-0" />
-                        <span className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0">
-                            <Hash className="w-3 h-3" /> {roomCode}
+                        <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
+                            <Hash className="w-3 h-3" />
+                            {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
+                            <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
                         </span>
                     </div>
                     <div className="flex items-center gap-1.5 md:gap-3">
@@ -1057,7 +1345,7 @@ export const MusicDate = () => {
                         <button onClick={toggleFullscreen} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block">
                             <Maximize className="w-5 h-5" />
                         </button>
-                        <button onClick={() => setMode('landing')} className="p-2 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors">
+                        <button onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }} className="p-2 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors">
                             <LogOut className="w-5 h-5" />
                         </button>
                     </div>
@@ -1403,14 +1691,24 @@ export const MusicDate = () => {
                             <button
                                 onClick={() => {
                                     setShowLeaveModal(false);
-                                    setMode('landing');
-                                    navigate.push('/virtual-date');
+                                    handleLeaveRoom();
+                                    navigate.push('/sparx');
                                 }}
                                 className="flex-1 py-3 px-4 rounded-xl bg-red-500/90 hover:bg-red-500 text-white font-semibold transition-colors"
                             >
                                 Leave
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Copy Feedback Toast */}
+            {copyFeedback && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-down">
+                    <div className="bg-neon/90 backdrop-blur-xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-semibold">
+                        <Copy className="w-4 h-4" />
+                        {copyFeedback}
                     </div>
                 </div>
             )}
