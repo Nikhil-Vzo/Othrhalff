@@ -5,7 +5,7 @@ import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
 import { MatchProfile, Message } from '../types';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Gamepad2, Check, CheckCheck, ArrowDown, Sparkles, Plus, Trophy, Tv, Music, Lightbulb, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Gamepad2, Check, CheckCheck, ArrowDown, Sparkles, Plus, Trophy, Tv, Music, Lightbulb, HelpCircle, Dices } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PermissionModal } from '../components/PermissionModal';
 import { blockUser, unblockUser, checkBlockStatus } from '../services/blockService';
@@ -1368,7 +1368,6 @@ export const Chat: React.FC = () => {
                       <div className="space-y-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 px-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                             <span className="text-[9px] uppercase tracking-wider font-bold text-green-400">Truth #1</span>
                           </div>
                           <input
@@ -1381,7 +1380,6 @@ export const Chat: React.FC = () => {
                         </div>
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 px-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                             <span className="text-[9px] uppercase tracking-wider font-bold text-green-400">Truth #2</span>
                           </div>
                           <input
@@ -1394,7 +1392,6 @@ export const Chat: React.FC = () => {
                         </div>
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 px-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                             <span className="text-[9px] uppercase tracking-wider font-bold text-red-400">The Lie</span>
                           </div>
                           <input
@@ -1426,7 +1423,7 @@ export const Chat: React.FC = () => {
                           className="w-full text-center py-1.5 bg-purple-500/10 border border-purple-500/20 hover:border-purple-400/40 rounded-lg text-[10px] text-purple-400 font-bold flex items-center justify-center gap-1.5 transition-all hover:bg-purple-900/10"
                         >
                           <span className="flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5" />
+                            <Dices className="w-3.5 h-3.5" />
                             <span>Generate Random Idea</span>
                           </span>
                         </button>
