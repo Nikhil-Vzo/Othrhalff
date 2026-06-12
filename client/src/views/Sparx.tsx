@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { GlimpseCard } from '../components/GlimpseCard';
 import { GlimpseUploadModal } from '../components/GlimpseUploadModal';
-import { Plus, Tv, Music, X, ChevronUp, Loader2, AlertCircle, RefreshCw, Camera, Ghost } from 'lucide-react';
+import { Plus, Tv, Music, X, ChevronUp, Loader2, AlertCircle, Camera, Ghost } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
