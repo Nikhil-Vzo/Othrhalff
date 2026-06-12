@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
@@ -88,7 +88,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     pathname === '/notifications' ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/chat') ||
-    pathname.startsWith('/virtual-date');
+    pathname.startsWith('/sparx');
 
   const isPublicConfessions = pathname === '/confessions' && !currentUser;
 
@@ -114,7 +114,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
-    { path: '/virtual-date', icon: CalendarHeart, label: 'Virtual Date' },
+    { path: '/sparx', icon: Zap, label: 'Sparx' },
     { path: '/profile', icon: User, label: 'My Profile' },
   ];
 
@@ -295,13 +295,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             </button>
 
             <button
-              onClick={() => handleNavClick('/virtual-date')}
-              className={`p-2 flex flex-col items-center gap-1 ${isActive('/virtual-date') ? 'text-neon' : 'text-gray-600'}`}
+              onClick={() => handleNavClick('/sparx')}
+              className={`p-2 flex flex-col items-center gap-1 ${isActive('/sparx') ? 'text-neon' : 'text-gray-600'}`}
             >
-              <div className={`p-1 rounded-xl ${isActive('/virtual-date') ? 'bg-neon/10' : ''}`}>
-                <CalendarHeart className="w-6 h-6" />
+              <div className={`p-1 rounded-xl ${isActive('/sparx') ? 'bg-neon/10' : ''}`}>
+                <Zap className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold tracking-wider">DATE</span>
+              <span className="text-[10px] font-bold tracking-wider">SPARX</span>
             </button>
 
             <button
