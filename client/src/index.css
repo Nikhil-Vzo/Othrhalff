@@ -127,3 +127,8 @@ body,
 .animate-float-2 {
   animation: float-slow-2 18s infinite ease-in-out;
 }
+
+/* Stacking Context fixes for Story Viewer */
+body.story-active .layout-content-wrapper {
+  z-index: 50 !important;
+}

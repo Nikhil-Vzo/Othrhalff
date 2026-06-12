@@ -1,7 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, Flame, Sparkles, Tv, BadgeCheck } from 'lucide-react';
+import { Heart, BadgeCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getOptimizedUrl } from '../utils/image';
+
+const getRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  
+  if (diffMs < 0) return 'just now';
+  
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffHours < 24) return `${diffHours}h ago`;
+  
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  const diffWeeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+  if (diffWeeks < 4.5) return `${diffWeeks}w ago`;
+  
+  const diffMonths = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 30));
+  if (diffMonths < 12) return `${diffMonths}mo ago`;
+  
+  const diffYears = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365));
+  return `${diffYears}y ago`;
+};
 
 interface GlimpseCardProps {
   glimpse: {
@@ -11,6 +38,7 @@ interface GlimpseCardProps {
     caption: string | null;
     university: string;
     created_at: string;
+    is_anonymous?: boolean;
     profiles: {
       id: string;
       real_name: string | null;
@@ -23,6 +51,8 @@ interface GlimpseCardProps {
   currentUser: any;
   initialReactions: { reaction_type: string; user_id: string }[];
   onOpenLobby: () => void;
+  onNext?: () => void;
+  onPrev?: () => void;
 }
 
 interface FloatingHeart {
@@ -36,9 +66,20 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
   currentUser,
   initialReactions,
   onOpenLobby,
+  onNext,
+  onPrev,
 }) => {
   const [hearts, setHearts] = useState<FloatingHeart[]>([]);
   const lastTap = useRef<number>(0);
+  const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   // States for reactions
   const [heartsCount, setHeartsCount] = useState(0);
@@ -128,14 +169,39 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
     }
   };
 
-  // Double-tap handler
+  // Click/tap handler distinguishing single and double tap
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const width = rect.width;
+
     const now = Date.now();
-    const DOUBLE_PRESS_DELAY = 300;
+    const DOUBLE_PRESS_DELAY = 250;
 
     if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
-      // Double tap detected
+      // Double tap detected: cancel single tap timer
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       handleDoubleTap(e);
+    } else {
+      // Single tap detected: set timer to navigate
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
+      const isLeft = x < width * 0.3;
+
+      timerRef.current = setTimeout(() => {
+        if (isLeft) {
+          if (onPrev) onPrev();
+        } else {
+          if (onNext) onNext();
+        }
+        timerRef.current = null;
+      }, DOUBLE_PRESS_DELAY);
     }
     lastTap.current = now;
   };
@@ -191,7 +257,7 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
   return (
     <div
       onClick={handleCardClick}
-      className="relative w-full h-[100dvh] bg-black overflow-hidden flex items-center justify-center story-card select-none"
+      className="relative w-full h-full bg-black overflow-hidden story-card select-none"
     >
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes float-heart {
@@ -230,12 +296,22 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
 
       {/* Story Image */}
       {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt="Glimpse"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          loading="eager"
-        />
+        <>
+          {/* Blurred Background to fill aspect-ratio gaps */}
+          <img
+            src={imageUrl}
+            alt="Glimpse Background"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none blur-3xl scale-110 opacity-50"
+            loading="eager"
+          />
+          {/* Uncropped Foreground Image */}
+          <img
+            src={imageUrl}
+            alt="Glimpse"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
+            loading="eager"
+          />
+        </>
       ) : (
         <div className="absolute inset-0 w-full h-full bg-gray-950 flex items-center justify-center text-gray-700">
           Loading content...
@@ -243,14 +319,14 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
       )}
 
       {/* Vignette Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/90 pointer-events-none z-10" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/90 pointer-events-none z-20" />
 
       {/* Glassmorphic Profile & Caption Card */}
       <div className="absolute left-4 right-20 bottom-24 md:bottom-8 z-20 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-2 max-w-md animate-in fade-in slide-in-from-bottom-5 duration-500">
         {/* User Credentials */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full border border-white/20 overflow-hidden bg-gray-950 flex-shrink-0">
-            {glimpse.profiles?.avatar ? (
+            {glimpse.profiles?.avatar && !glimpse.is_anonymous ? (
               <img
                 src={getOptimizedUrl(glimpse.profiles.avatar, 64)}
                 alt="Avatar"
@@ -266,35 +342,23 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold text-white truncate">
-                {glimpse.profiles?.real_name || 'Anonymous'}
+                {glimpse.is_anonymous ? 'Anonymous' : (glimpse.profiles?.real_name || 'Anonymous')}
               </span>
-              {glimpse.profiles?.is_verified && (
+              {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
                 <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
               )}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-              <span className="truncate">@{glimpse.profiles?.anonymous_id || 'guest'}</span>
-              <span className="w-1 h-1 rounded-full bg-gray-600" />
               <span className="truncate text-neon/95">{glimpse.profiles?.university || glimpse.university}</span>
+              <span className="w-1 h-1 rounded-full bg-gray-600" />
+              <span>{getRelativeTime(glimpse.created_at)}</span>
             </div>
           </div>
         </div>
-
-        {/* Caption */}
-        {glimpse.caption && (
-          <p className="text-sm text-gray-200 leading-relaxed font-medium mt-1">
-            {glimpse.caption}
-          </p>
-        )}
-
-        {/* Timestamp */}
-        <span className="text-[9px] text-gray-500 font-mono mt-0.5">
-          {new Date(glimpse.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(glimpse.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-        </span>
       </div>
 
       {/* Floating Interaction Panel (Right) */}
-      <div className="absolute right-4 bottom-24 md:bottom-8 z-20 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-right-5 duration-500">
+      <div className="absolute right-4 md:right-8 bottom-24 md:bottom-8 z-20 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-right-5 duration-500">
         {/* Heart Reaction */}
         <button
           onClick={(e) => {
@@ -317,76 +381,6 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
           </div>
           <span className="text-xs font-mono font-bold text-gray-300 mt-1.5 drop-shadow-md">
             {heartsCount}
-          </span>
-        </button>
-
-        {/* Flame Reaction */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleReaction('fire');
-          }}
-          className="flex flex-col items-center group active:scale-75 transition-transform duration-150"
-          aria-label="React with Fire"
-        >
-          <div className={`p-3 rounded-full border backdrop-blur-md transition-all duration-300 shadow-lg
-            ${isFired
-              ? 'bg-orange-500 border-orange-500 text-white shadow-[0_0_15px_#ff7f00]'
-              : 'bg-black/40 border-white/10 text-white hover:border-orange-500/50 hover:text-orange-500'
-            }`}
-          >
-            <Flame
-              className={`w-6 h-6 transition-transform duration-300 group-hover:scale-110 ${isFired ? 'fill-white animate-pulse' : ''}`}
-              strokeWidth={2.2}
-            />
-          </div>
-          <span className="text-xs font-mono font-bold text-gray-300 mt-1.5 drop-shadow-md">
-            {firesCount}
-          </span>
-        </button>
-
-        {/* Sparkles/Like Reaction */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleReaction('like');
-          }}
-          className="flex flex-col items-center group active:scale-75 transition-transform duration-150"
-          aria-label="React with Sparkles"
-        >
-          <div className={`p-3 rounded-full border backdrop-blur-md transition-all duration-300 shadow-lg
-            ${isLiked
-              ? 'bg-purple-500 border-purple-500 text-white shadow-[0_0_15px_#a855f7]'
-              : 'bg-black/40 border-white/10 text-white hover:border-purple-500/50 hover:text-purple-500'
-            }`}
-          >
-            <Sparkles
-              className={`w-6 h-6 transition-transform duration-300 group-hover:scale-110 ${isLiked ? 'fill-white animate-pulse' : ''}`}
-              strokeWidth={2.2}
-            />
-          </div>
-          <span className="text-xs font-mono font-bold text-gray-300 mt-1.5 drop-shadow-md">
-            {likesCount}
-          </span>
-        </button>
-
-        {/* Duo Dates / Vibe Rooms */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenLobby();
-          }}
-          className="flex flex-col items-center group active:scale-75 transition-transform duration-150"
-          aria-label="Open Vibe Rooms"
-        >
-          <div className="p-3 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 backdrop-blur-md transition-all duration-300 shadow-lg hover:bg-cyan-500 hover:text-white hover:border-transparent hover:shadow-[0_0_15px_#06b6d4]">
-            <Tv
-              className="w-6 h-6 transition-transform duration-300 group-hover:scale-110"
-              strokeWidth={2.2}
-            />
-          </div>
-          <span className="text-[10px] font-bold text-cyan-400 mt-1.5 uppercase tracking-wider drop-shadow-md">
-            Lobby
           </span>
         </button>
       </div>

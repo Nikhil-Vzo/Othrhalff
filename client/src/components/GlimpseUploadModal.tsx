@@ -21,7 +21,93 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [captionY, setCaptionY] = useState(50); // Vertical percentage (5 to 95)
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+
+  // Mouse drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDraggingRef.current || !previewContainerRef.current) return;
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    const percentage = Math.max(5, Math.min(95, (relativeY / rect.height) * 100));
+    setCaptionY(percentage);
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  // Touch drag handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    isDraggingRef.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingRef.current || !previewContainerRef.current) return;
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const relativeY = touch.clientY - rect.top;
+    const percentage = Math.max(5, Math.min(95, (relativeY / rect.height) * 100));
+    setCaptionY(percentage);
+  };
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
+  };
+
+  // Click container to position caption strip
+  const handleContainerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input') || target.closest('button')) {
+      return;
+    }
+    e.preventDefault();
+    if (!previewContainerRef.current) return;
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    const percentage = Math.max(5, Math.min(95, (relativeY / rect.height) * 100));
+    setCaptionY(percentage);
+
+    isDraggingRef.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleContainerTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input') || target.closest('button')) {
+      return;
+    }
+    if (!previewContainerRef.current) return;
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const relativeY = touch.clientY - rect.top;
+    const percentage = Math.max(5, Math.min(95, (relativeY / rect.height) * 100));
+    setCaptionY(percentage);
+
+    isDraggingRef.current = true;
+  };
+
+  // Cleanup drag listeners
+  React.useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -93,6 +179,27 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           }
 
           ctx.drawImage(img, 0, 0, width, height);
+
+          // Bake Snapchat-style caption strip
+          if (caption.trim()) {
+            const trimmedCaption = caption.trim();
+            const fontSize = Math.max(16, Math.round(width * 0.035));
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            
+            const bannerHeight = fontSize * 1.8;
+            const yPos = height * (captionY / 100);
+            
+            // Draw background strip
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillRect(0, yPos - bannerHeight / 2, width, bannerHeight);
+            
+            // Draw centered white text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(trimmedCaption, width / 2, yPos);
+          }
+
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -159,6 +266,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           image_path: filePath,
           caption: caption.trim() || null,
           university: currentUser.university || 'Global',
+          is_anonymous: isAnonymous,
         });
 
       if (dbError) {
@@ -169,6 +277,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
       setFile(null);
       setPreviewUrl(null);
       setCaption('');
+      setIsAnonymous(false);
       onUploadSuccess();
       onClose();
     } catch (err: any) {
@@ -270,19 +379,44 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           ) : (
             /* Premium Live Mock-Feed Card Preview */
             <div className="flex flex-col items-center space-y-2">
-              <span className="text-xs uppercase tracking-widest text-gray-500 font-mono flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-pink-500" /> Story Preview
+              <span className="text-xs uppercase tracking-widest text-gray-500 font-mono flex items-center gap-1.5 animate-pulse">
+                <Sparkles className="w-3.5 h-3.5 text-pink-500" /> Tap Photo to add Caption • Drag to position ↕️
               </span>
               
-              <div className="relative rounded-[2rem] overflow-hidden border border-white/10 bg-black w-full aspect-[9/16] max-h-[360px] shadow-2xl flex items-center justify-center group">
+              <div 
+                ref={previewContainerRef}
+                onMouseDown={handleContainerMouseDown}
+                onTouchStart={handleContainerTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="relative rounded-[2rem] overflow-hidden border border-white/10 bg-black w-full aspect-[9/16] max-h-[360px] shadow-2xl flex items-center justify-center group select-none cursor-crosshair"
+              >
                 <img 
                   src={previewUrl} 
                   alt="Upload preview" 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover pointer-events-none" 
                 />
                 
+                {/* Draggable Snapchat-style Caption Input Overlay */}
+                <div 
+                  style={{ top: `${captionY}%` }}
+                  className="absolute left-0 right-0 z-20 transform -translate-y-1/2 cursor-row-resize"
+                >
+                  <div className="bg-black/60 backdrop-blur-[2px] py-2.5 px-4 w-full flex items-center justify-center border-y border-white/10 shadow-lg">
+                    <input 
+                      type="text"
+                      placeholder="TAP TO TYPE CAPTION..."
+                      value={caption}
+                      onChange={(e) => setCaption(e.target.value.slice(0, 100))}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      className="w-full bg-transparent text-white text-center text-sm font-bold placeholder-white/50 outline-none border-none pointer-events-auto uppercase tracking-wide"
+                    />
+                  </div>
+                </div>
+
                 {/* Mock Card Glassmorphic Feed Info Bottom Overlay */}
-                <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md flex flex-col gap-1 pointer-events-none select-none">
+                <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md flex flex-col gap-1 pointer-events-none select-none z-10">
                   <div className="flex items-center gap-2">
                     {currentUser?.avatar ? (
                       <img src={currentUser.avatar} alt="" className="w-6 h-6 rounded-full border border-white/20 object-cover" />
@@ -301,15 +435,12 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
                       <span className="text-[9px] text-gray-300 font-medium">{currentUser?.university || 'My University'}</span>
                     </div>
                   </div>
-                  {caption.trim() && (
-                    <p className="text-xs text-gray-200 mt-2 line-clamp-2 font-light">{caption}</p>
-                  )}
                 </div>
-
+ 
                 {/* Remove preview floating button */}
                 <button
                   onClick={clearSelection}
-                  className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/90 text-white rounded-full backdrop-blur-md transition-all border border-white/10 active:scale-90 hover:scale-105"
+                  className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/90 text-white rounded-full backdrop-blur-md transition-all border border-white/10 active:scale-90 hover:scale-105 z-20"
                   aria-label="Remove image"
                 >
                   <X className="w-4 h-4" />
@@ -318,22 +449,21 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
             </div>
           )}
 
-          {/* Caption Input */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center text-sm font-bold text-gray-300">
-              <label htmlFor="glimpse-caption">Describe the Vibe</label>
-              <span className={`text-xs font-mono ${caption.length > 150 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
-                {caption.length}/150
-              </span>
-            </div>
-            <textarea
-              id="glimpse-caption"
-              placeholder="What's happening right now? Add a slick caption..."
-              value={caption}
-              onChange={(e) => setCaption(e.target.value.slice(0, 150))}
-              rows={3}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 hover:border-white/20 focus:border-pink-500 focus:ring-1 focus:ring-pink-500/50 rounded-2xl text-white placeholder-gray-600 outline-none transition-all duration-300 resize-none text-sm leading-relaxed"
+          {/* Post Anonymously Checkbox */}
+          <div className="flex items-center gap-3 p-1">
+            <input
+              type="checkbox"
+              id="glimpse-anonymous"
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+              className="w-4.5 h-4.5 rounded border-white/20 bg-white/5 text-pink-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-pink-500"
             />
+            <label 
+              htmlFor="glimpse-anonymous" 
+              className="text-xs font-bold text-gray-400 hover:text-white cursor-pointer select-none transition-colors"
+            >
+              Remain Anonymous (post under your anonymous handle)
+            </label>
           </div>
         </div>
 

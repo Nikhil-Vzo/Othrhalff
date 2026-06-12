@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { GlimpseCard } from '../components/GlimpseCard';
 import { GlimpseUploadModal } from '../components/GlimpseUploadModal';
-import { Plus, Tv, Music, X, ChevronUp, Loader2, AlertCircle, Camera, Ghost } from 'lucide-react';
+import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
+import { getOptimizedUrl } from '../utils/image';
 
 interface GlimpseProfile {
   id: string;
@@ -29,6 +30,7 @@ interface Glimpse {
   caption: string | null;
   university: string;
   created_at: string;
+  is_anonymous: boolean;
   profiles: GlimpseProfile | null;
   glimpse_reactions: GlimpseReaction[];
 }
@@ -39,7 +41,7 @@ export const Sparx: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Feeds and states
-  const [feedMode, setFeedMode] = useState<'campus' | 'global'>('campus');
+  const [feedMode, setFeedMode] = useState<'campus' | 'global' | 'leaderboard'>('campus');
   const [glimpses, setGlimpses] = useState<Glimpse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,135 @@ export const Sparx: React.FC = () => {
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Active index of the currently viewed Glimpse card in the full-screen story viewer
+  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+
+  // Viewed glimpses tracker
+  const [viewedIds, setViewedIds] = useState<string[]>([]);
+
+  // Leaderboard states
+  const [leaderboardScope, setLeaderboardScope] = useState<'campus' | 'global'>('campus');
+  const [leaderboardUsers, setLeaderboardUsers] = useState<{ profile: GlimpseProfile; count: number }[]>([]);
+
+  // Load viewed glimpse IDs from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('viewed_glimpse_ids');
+      if (saved) {
+        setViewedIds(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Error loading viewed glimpse IDs:', e);
+    }
+  }, []);
+
+  const markAsViewed = (id: string) => {
+    setViewedIds(prev => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      localStorage.setItem('viewed_glimpse_ids', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Mark glimpses as viewed when opened in the story viewer
+  useEffect(() => {
+    if (activeStoryIndex !== null && glimpses.length > 0 && glimpses[activeStoryIndex]) {
+      markAsViewed(glimpses[activeStoryIndex].id);
+    }
+  }, [activeStoryIndex, glimpses]);
+
+  // Auto-advance logic for story overlay
+  useEffect(() => {
+    if (activeStoryIndex === null) {
+      setStoryProgress(0);
+      return;
+    }
+
+    setStoryProgress(0);
+
+    const interval = setInterval(() => {
+      setStoryProgress(prev => {
+        if (prev >= 100) {
+          // Trigger next story
+          if (activeStoryIndex < glimpses.length - 1) {
+            setActiveStoryIndex(activeStoryIndex + 1);
+          } else {
+            setActiveStoryIndex(null);
+          }
+          return 0;
+        }
+        return prev + (100 / 60); // 60 ticks of 100ms = 6000ms (6 seconds)
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [activeStoryIndex, glimpses.length]);
+
+  // Load leaderboard when toggled or scope changes
+  useEffect(() => {
+    if (feedMode !== 'leaderboard' || !supabase) return;
+    
+    const fetchLeaderboard = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        
+        let query = supabase
+          .from('glimpses')
+          .select(`
+            user_id,
+            university,
+            profiles:user_id (
+              id,
+              real_name,
+              anonymous_id,
+              avatar,
+              is_verified,
+              university
+            )
+          `)
+          .gt('created_at', last24Hours);
+          
+        const targetUniv = currentUser?.university?.trim();
+        if (leaderboardScope === 'campus' && targetUniv) {
+          query = query.ilike('university', `${targetUniv}%`);
+        }
+        
+        const { data, error: queryError } = await query;
+        if (queryError) throw queryError;
+        
+        const countsMap: { [uid: string]: { count: number; profile: GlimpseProfile } } = {};
+        
+        data?.forEach((row: any) => {
+          if (!row.profiles) return;
+          const uid = row.user_id;
+          if (!countsMap[uid]) {
+            countsMap[uid] = { count: 0, profile: row.profiles };
+          }
+          countsMap[uid].count += 1;
+        });
+        
+        const sorted = Object.values(countsMap)
+          .map(item => ({ profile: item.profile, count: item.count }))
+          .sort((a, b) => b.count - a.count);
+          
+        setLeaderboardUsers(sorted);
+      } catch (err: any) {
+        console.error('Error fetching leaderboard:', err);
+        setError(err.message || 'Failed to load leaderboard');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchLeaderboard();
+  }, [feedMode, leaderboardScope, currentUser]);
+
+
 
   // Sync feed mode default based on auth
   useEffect(() => {
@@ -100,6 +231,7 @@ export const Sparx: React.FC = () => {
           caption,
           university,
           created_at,
+          is_anonymous,
           profiles:user_id (
             id,
             real_name,
@@ -162,6 +294,7 @@ export const Sparx: React.FC = () => {
           caption,
           university,
           created_at,
+          is_anonymous,
           profiles:user_id (
             id,
             real_name,
@@ -300,28 +433,10 @@ export const Sparx: React.FC = () => {
     }
   };
 
+  // Removed snap-inbox row click action. Glimpses are revealed directly on scroll.
+
   return (
     <div className="relative w-full h-[100dvh] bg-black text-white overflow-hidden select-none">
-      {/* Swipe up tutorial animation styles */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes swipe-up {
-          0% {
-            transform: translateY(30px);
-            opacity: 0;
-          }
-          50% {
-            opacity: 0.8;
-          }
-          100% {
-            transform: translateY(-30px);
-            opacity: 0;
-          }
-        }
-        .animate-swipe-up {
-          animation: swipe-up 1.8s infinite ease-in-out;
-        }
-      ` }} />
-
       {/* Floating Header Campus Switcher */}
       <header className="absolute top-4 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
         <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/10 backdrop-blur-md rounded-full shadow-2xl pointer-events-auto">
@@ -347,11 +462,21 @@ export const Sparx: React.FC = () => {
           >
             Global
           </button>
+          <button
+            onClick={() => setFeedMode('leaderboard')}
+            className={`px-5 py-2 text-xs font-bold tracking-wider uppercase rounded-full transition-all duration-300
+              ${feedMode === 'leaderboard'
+                ? 'bg-white text-black shadow-lg'
+                : 'text-gray-400 hover:text-white'
+              }`}
+          >
+            Leaderboard
+          </button>
         </div>
       </header>
 
       {/* Floating New Glimpses Alert Pill */}
-      {newGlimpsesAlert && (
+      {newGlimpsesAlert && feedMode !== 'leaderboard' && (
         <button
           onClick={() => {
             fetchGlimpses(true);
@@ -384,6 +509,145 @@ export const Sparx: React.FC = () => {
             Try Again
           </button>
         </div>
+      ) : feedMode === 'leaderboard' ? (
+        /* Leaderboard View */
+        <div className="w-full h-full overflow-y-auto pt-24 px-4 pb-32 scrollbar-none">
+          <div className="max-w-md mx-auto">
+            {/* Header / Intro */}
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-black text-white uppercase tracking-tight mb-1 flex items-center justify-center gap-2">
+                Top Glimpsers ⚡
+              </h2>
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
+                Most glimpses shared in the last 24 hours
+              </p>
+            </div>
+
+            {/* Scope Switcher (Campus vs Global) */}
+            {currentUser && (
+              <div className="flex justify-center gap-2 mb-6">
+                <button
+                  onClick={() => setLeaderboardScope('campus')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                    leaderboardScope === 'campus'
+                      ? 'bg-rose-500 border-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.3)]'
+                      : 'bg-transparent text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-300'
+                  }`}
+                >
+                  My Campus
+                </button>
+                <button
+                  onClick={() => setLeaderboardScope('global')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                    leaderboardScope === 'global'
+                      ? 'bg-rose-500 border-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.3)]'
+                      : 'bg-transparent text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-300'
+                  }`}
+                >
+                  Global
+                </button>
+              </div>
+            )}
+
+            {/* Leaderboard List */}
+            {leaderboardUsers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-4 border border-gray-700 shadow-2xl">
+                  <Ghost className="w-8 h-8 text-gray-600" />
+                </div>
+                <h3 className="text-base font-bold text-white uppercase mb-1">No Active Glimpsers</h3>
+                <p className="text-xs text-gray-500 max-w-[240px] leading-relaxed mb-6">
+                  {leaderboardScope === 'campus'
+                    ? 'No one at your university has shared any glimpses in the last 24 hours.'
+                    : 'No global glimpses have been shared in the last 24 hours.'}
+                </p>
+                <button
+                  onClick={handleOpenUpload}
+                  className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full font-bold text-xs hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(244,63,94,0.2)]"
+                >
+                  Post to claim Rank #1 👑
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {leaderboardUsers.map((user, idx) => {
+                  const rank = idx + 1;
+                  
+                  return (
+                    <div 
+                      key={user.profile.id}
+                      className="flex items-center justify-between p-4 bg-gray-950/40 border border-gray-900 rounded-2xl hover:border-gray-800 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        {/* Rank Badge / Crown */}
+                        <div className="w-6 flex-shrink-0 flex items-center justify-center font-bold font-mono text-sm">
+                          {rank === 1 ? (
+                            <span className="text-xl animate-bounce" title="Rank 1">👑</span>
+                          ) : rank === 2 ? (
+                            <span className="text-slate-400">2</span>
+                          ) : rank === 3 ? (
+                            <span className="text-amber-600">3</span>
+                          ) : (
+                            <span className="text-gray-600">{rank}</span>
+                          )}
+                        </div>
+
+                        {/* Avatar */}
+                        <div className="flex-shrink-0">
+                          <div className={`w-11 h-11 rounded-full overflow-hidden bg-gray-950 flex items-center justify-center
+                            ${rank === 1 
+                              ? 'border-2 border-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.3)]' 
+                              : rank === 2 
+                                ? 'border-2 border-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.3)]' 
+                                : rank === 3 
+                                  ? 'border-2 border-amber-600 shadow-[0_0_8px_rgba(180,83,9,0.3)]' 
+                                  : 'border border-gray-800'
+                            }`}
+                          >
+                            {user.profile.avatar ? (
+                              <img 
+                                src={getOptimizedUrl(user.profile.avatar, 64)} 
+                                alt="Avatar" 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
+                                {user.profile.anonymous_id?.slice(-2).toUpperCase() || '??'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Details */}
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-gray-100 truncate flex items-center gap-1.5">
+                            {user.profile.real_name || 'Anonymous'}
+                            {user.profile.is_verified && (
+                              <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
+                            )}
+                          </h4>
+                          <span className="text-[10px] text-gray-500 block truncate mt-0.5 font-medium">
+                            @{user.profile.anonymous_id || 'anonymous'} • {user.profile.university}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Glimpse Count */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-black text-rose-500 font-mono">
+                          {user.count}
+                        </span>
+                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider font-mono">
+                          {user.count === 1 ? 'glimpse' : 'glimpses'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       ) : glimpses.length === 0 ? (
         <div className="w-full h-full flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in">
           {/* Mascot Circle */}
@@ -410,62 +674,210 @@ export const Sparx: React.FC = () => {
           </button>
         </div>
       ) : (
-        /* Vertical Snap scrolling container */
+        /* Glimpse Thread List View */
         <div 
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth scrollbar-none"
+          className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none divide-y divide-gray-900/50"
         >
-          {glimpses.map((glimpse) => (
-            <div key={glimpse.id} className="w-full h-full snap-start snap-always relative">
-              <GlimpseCard
-                glimpse={glimpse}
-                currentUser={currentUser}
-                initialReactions={glimpse.glimpse_reactions || []}
-                onOpenLobby={() => setIsLobbyOpen(true)}
-              />
-            </div>
-          ))}
+          <div className="max-w-xl mx-auto bg-black">
+            {glimpses.map((glimpse, index) => {
+              const isViewed = viewedIds.includes(glimpse.id);
+              const displayName = glimpse.is_anonymous ? 'Anonymous' : (glimpse.profiles?.real_name || 'Anonymous');
+              const timeText = (() => {
+                const diff = Date.now() - new Date(glimpse.created_at).getTime();
+                const hrs = Math.floor(diff / (1000 * 60 * 60));
+                if (hrs < 1) {
+                  const mins = Math.floor(diff / (1000 * 60));
+                  return `${Math.max(1, mins)}m`;
+                }
+                return `${hrs}h`;
+              })();
+              const reactionCount = glimpse.glimpse_reactions?.length || 0;
+              
+              return (
+                <div key={glimpse.id} className="flex flex-col p-4 bg-black select-none border-b border-gray-900/50">
+                  {/* Main row: Avatar + Glimpse Status */}
+                  <div 
+                    onClick={() => {
+                      markAsViewed(glimpse.id);
+                      setActiveStoryIndex(index);
+                    }}
+                    className="flex items-center justify-between hover:bg-gray-950/40 p-2 rounded-2xl transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      {/* User Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full border border-gray-800 overflow-hidden bg-gray-950 flex items-center justify-center">
+                          {glimpse.profiles?.avatar && !glimpse.is_anonymous ? (
+                            <img 
+                              src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
+                              alt="Avatar" 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
+                              {glimpse.profiles?.anonymous_id?.slice(-2).toUpperCase() || '??'}
+                            </div>
+                          )}
+                        </div>
+                        {!isViewed && (
+                          <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_#f43f5e]" />
+                        )}
+                      </div>
+
+                      {/* Metadata & tap to load status */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-bold text-gray-100 truncate">
+                            {displayName}
+                          </h3>
+                          {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
+                            <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
+                          )}
+                          <span className="text-[10px] text-gray-600 font-mono">
+                            • {timeText}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-xs mt-1 font-medium">
+                          {!isViewed ? (
+                            <>
+                              <div className="w-2.5 h-2.5 bg-rose-500 rounded-sm animate-pulse" />
+                              <span className="text-rose-500 font-semibold">Tap to load</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-2.5 h-2.5 border border-rose-500/60 rounded-sm bg-transparent" />
+                              <span className="text-gray-500">Opened</span>
+                            </>
+                          )}
+                          {reactionCount > 0 && (
+                            <>
+                              <span className="text-gray-700">•</span>
+                              <span className="flex items-center gap-0.5 text-orange-500 font-bold">
+                                {reactionCount} 🔥
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Thread line and Caption sub-box */}
+                  {glimpse.caption && (
+                    <div 
+                      onClick={() => {
+                        markAsViewed(glimpse.id);
+                        setActiveStoryIndex(index);
+                      }}
+                      className="flex items-start pr-4 cursor-pointer select-none group mt-1"
+                    >
+                      {/* Thread line container */}
+                      <div className="w-16 flex-shrink-0 self-stretch relative min-h-[40px]">
+                        {/* Vertical line: starts at the top of the container, aligns with avatar center (around 48px from left edge) */}
+                        <div className="absolute top-0 bottom-1/2 left-[32px] w-0.5 bg-gray-800/80 group-hover:bg-neon/30 transition-colors" />
+                        {/* Horizontal line: turns right to connect to the caption card */}
+                        <div className="absolute top-1/2 left-[32px] right-0 h-0.5 bg-gray-800/80 group-hover:bg-neon/30 transition-colors" />
+                      </div>
+
+                      {/* Caption sub-box */}
+                      <div className="flex-1 p-3 ml-2 rounded-2xl bg-gray-950/40 border border-neon/30 group-hover:border-neon group-hover:bg-gray-950/60 group-hover:shadow-[0_0_15px_rgba(255,0,127,0.15)] transition-all duration-300 shadow-sm">
+                        <p className="text-xs text-gray-300 leading-relaxed font-medium italic">
+                          "{glimpse.caption}"
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
           {isLoadingMore && (
-            <div className="w-full h-full snap-start snap-always relative flex flex-col items-center justify-center bg-black gap-3 text-gray-500">
-              <Loader2 className="w-8 h-8 text-neon animate-spin" />
-              <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Loading more moments...</span>
+            <div className="w-full py-8 flex flex-col items-center justify-center gap-2 text-gray-500">
+              <Loader2 className="w-6 h-6 text-neon animate-spin" />
+              <span className="text-[9px] font-bold uppercase tracking-wider font-mono">Loading more glimpses...</span>
             </div>
           )}
         </div>
       )}
 
-      {/* Floating Action Button (FAB) `+` */}
-      <button
-        onClick={handleOpenUpload}
-        className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-30 p-4 bg-neon hover:bg-neon/95 text-white rounded-full shadow-[0_0_20px_rgba(255,0,127,0.5)] hover:shadow-[0_0_30px_rgba(255,0,127,0.8)] transition-all duration-300 active:scale-90"
-        aria-label="Upload new glimpse"
-      >
-        <Plus className="w-6 h-6 stroke-[3px]" />
-      </button>
+      {/* Full-screen Story Viewer Overlay */}
+      {activeStoryIndex !== null && glimpses[activeStoryIndex] && (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none animate-in fade-in duration-200">
+          <GlimpseCard
+            glimpse={glimpses[activeStoryIndex]}
+            currentUser={currentUser}
+            initialReactions={glimpses[activeStoryIndex].glimpse_reactions || []}
+            onOpenLobby={() => setIsLobbyOpen(true)}
+            onNext={() => {
+              if (activeStoryIndex < glimpses.length - 1) {
+                setActiveStoryIndex(activeStoryIndex + 1);
+              } else {
+                setActiveStoryIndex(null);
+              }
+            }}
+            onPrev={() => {
+              if (activeStoryIndex > 0) {
+                setActiveStoryIndex(activeStoryIndex - 1);
+              }
+            }}
+          />
 
-      {/* Swipe Up Tutorial Overlay */}
-      {showTutorial && glimpses.length > 0 && (
-        <div 
-          onClick={dismissTutorial}
-          className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto cursor-pointer"
-        >
-          <div className="flex flex-col items-center gap-6 text-center px-6 animate-in fade-in duration-300">
-            <div className="flex flex-col items-center text-neon">
-              <ChevronUp className="w-12 h-12 stroke-[3px] animate-swipe-up filter drop-shadow-[0_0_8px_#ff007f]" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
-                Swipe Up
-              </h3>
-              <p className="text-sm text-gray-400 max-w-[260px] leading-relaxed">
-                Swipe up vertically to scroll through active campus moments.
-              </p>
-            </div>
-            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em] animate-pulse mt-8">
-              Tap anywhere to dismiss
-            </span>
+          {/* Glimpse Progress Indicators at the Top */}
+          <div className="absolute top-4 left-4 right-12 z-50 flex gap-1">
+            {glimpses.map((_, idx) => (
+              <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full bg-white ${
+                    (idx === activeStoryIndex && storyProgress > 0) 
+                      ? 'transition-all duration-100 ease-linear' 
+                      : ''
+                  }`}
+                  style={{
+                    width: idx < activeStoryIndex 
+                      ? '100%' 
+                      : idx === activeStoryIndex 
+                        ? `${storyProgress}%` 
+                        : '0%'
+                  }}
+                />
+              </div>
+            ))}
           </div>
+
+          {/* Close overlay button */}
+          <button
+            onClick={() => setActiveStoryIndex(null)}
+            className="absolute top-2.5 right-3 z-50 p-2 bg-black/40 hover:bg-black/60 border border-white/10 rounded-full transition-all duration-200 text-white active:scale-95"
+            aria-label="Close stories"
+          >
+            <X className="w-5 h-5 stroke-[2.5px]" />
+          </button>
+        </div>
+      )}
+
+      {/* Floating Action Buttons (FAB) */}
+      {feedMode !== 'leaderboard' && activeStoryIndex === null && (
+        <div className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-30 flex flex-col gap-4 items-center">
+          {/* Duo Dates Lobby FAB */}
+          <button
+            onClick={() => setIsLobbyOpen(true)}
+            className="p-4 bg-cyan-500/90 hover:bg-cyan-500 text-white rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.8)] border border-white/10 transition-all duration-300 active:scale-90"
+            aria-label="Open lobby"
+          >
+            <Tv className="w-6 h-6 text-white" />
+          </button>
+
+          {/* Upload FAB */}
+          <button
+            onClick={handleOpenUpload}
+            className="p-4 bg-neon hover:bg-neon/95 text-white rounded-full shadow-[0_0_20px_rgba(255,0,127,0.5)] hover:shadow-[0_0_30px_rgba(255,0,127,0.8)] border border-white/10 transition-all duration-300 active:scale-90"
+            aria-label="Upload new glimpse"
+          >
+            <Plus className="w-6 h-6 stroke-[3px]" />
+          </button>
         </div>
       )}
 

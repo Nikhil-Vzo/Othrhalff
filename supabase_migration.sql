@@ -94,3 +94,10 @@ CREATE POLICY "Allow user deletion from glimpses bucket"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'glimpses' AND auth.role() = 'authenticated');
 
+
+-- ==========================================
+-- ANONYMITY UPGRADES
+-- ==========================================
+
+-- Add is_anonymous column to glimpses table to support anonymous snaps/stories
+ALTER TABLE public.glimpses ADD COLUMN IF NOT EXISTS is_anonymous boolean DEFAULT false NOT NULL;
