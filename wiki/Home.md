@@ -24,14 +24,14 @@ The pulse of the campus, combined in a single interactive dashboard.
 - **Vertical Video Stories**: Watch and share vertical, TikTok-style daily updates and stories with your peers.
 - **In-App Camera**: Capture and post campus moments instantly with the integrated viewfinder camera.
 
-### 🎬 Duo Dates
+### 🎬 Streaming Rooms
 Synchronous virtual experiences to break the ice and hang out inside the app.
 - **Synchronized Cinema**: Enjoy watch parties together with real-time YouTube video sync and live text/voice chat.
 - **Music Date**: Listen to music simultaneously, sharing playlists and vibes in real time.
 
 ---
 
-## 🗺️ Navigation Index
+##  Navigation Index
 
 Explore the technical and developmental details of the Othrhalff project:
 
