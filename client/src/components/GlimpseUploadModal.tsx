@@ -518,11 +518,11 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
               <X className="w-5 h-5" />
             </button>
             <button 
-              onClick={() => fileInputRef.current?.click()} 
+              onClick={toggleTorch} 
               className="p-2.5 text-white bg-black/40 hover:bg-black/60 rounded-full border border-white/10 backdrop-blur-md transition-all active:scale-90 pointer-events-auto"
-              title="Open Gallery"
+              title="Toggle Flash"
             >
-              <ImageIcon className="w-5 h-5" />
+              {torchOn ? <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" /> : <ZapOff className="w-5 h-5" />}
             </button>
           </div>
 
@@ -536,12 +536,13 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
 
               {/* Action Buttons */}
               <div className="flex items-center justify-between px-10 sm:px-14 pointer-events-none">
-                {/* Flash Toggle */}
+                {/* Open Gallery */}
                 <button 
-                  onClick={toggleTorch} 
+                  onClick={() => fileInputRef.current?.click()} 
                   className="p-3 text-white bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full border border-white/10 transition-all active:scale-90 pointer-events-auto"
+                  title="Open Gallery"
                 >
-                  {torchOn ? <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" /> : <ZapOff className="w-5 h-5" />}
+                  <ImageIcon className="w-5 h-5" />
                 </button>
 
                 {/* Concentric Snapchat Capture Ring */}
