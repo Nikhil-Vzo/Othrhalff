@@ -54,6 +54,42 @@ interface GlimpseUploadModalProps {
   onUploadSuccess: () => void;
 }
 
+let globalFaceDetectorInstance: any = null;
+let faceDetectorLoadPromise: Promise<any> | null = null;
+
+const getFaceDetectorInstance = async () => {
+  if (globalFaceDetectorInstance) return globalFaceDetectorInstance;
+  if (faceDetectorLoadPromise) return faceDetectorLoadPromise;
+  
+  faceDetectorLoadPromise = (async () => {
+    try {
+      // @ts-ignore
+      const visionModule = await (import(/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.mjs") as Promise<any>);
+      const { FaceDetector, FilesetResolver } = visionModule;
+      
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+      );
+      
+      const detector = await FaceDetector.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+          delegate: "GPU"
+        },
+        runningMode: "IMAGE"
+      });
+      
+      globalFaceDetectorInstance = detector;
+      return detector;
+    } catch (err) {
+      faceDetectorLoadPromise = null;
+      throw err;
+    }
+  })();
+  
+  return faceDetectorLoadPromise;
+};
+
 export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
   isOpen,
   onClose,
@@ -256,26 +292,12 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
   }, []);
 
   const getFaceDetector = async () => {
-    if (faceDetectorRef.current) return faceDetectorRef.current;
-    
-    // @ts-ignore
-    const visionModule = await (import(/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.mjs") as Promise<any>);
-    const { FaceDetector, FilesetResolver } = visionModule;
-    
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
-    );
-    
-    const detector = await FaceDetector.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
-        delegate: "GPU"
-      },
-      runningMode: "IMAGE"
-    });
-    
-    faceDetectorRef.current = detector;
-    return detector;
+    try {
+      return await getFaceDetectorInstance();
+    } catch (err) {
+      console.warn("Failed to load face detector singleton, retrying...", err);
+      throw err;
+    }
   };
 
   // Real-time tracking loop inside camera mode
@@ -284,6 +306,8 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
 
     let active = true;
     let animationFrameId: number;
+    let lastDetectionTime = 0;
+    const detectionInterval = 40; // Throttle to 25 FPS to save CPU, battery, and prevent frame drop on mobile
 
     const runTracking = async () => {
       try {
@@ -295,69 +319,78 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
             return;
           }
 
-          const results = detector.detect(videoRef.current);
-          if (results.detections && results.detections.length > 0) {
-            const keypoints = results.detections[0].keypoints;
-            if (keypoints && keypoints.length >= 4) {
-              const eyeR = keypoints[0];
-              const eyeL = keypoints[1];
-              const nose = keypoints[2];
-              const mouth = keypoints[3];
+          const now = performance.now();
+          if (now - lastDetectionTime >= detectionInterval) {
+            lastDetectionTime = now;
+            
+            try {
+              const results = detector.detect(videoRef.current);
+              if (results.detections && results.detections.length > 0) {
+                const keypoints = results.detections[0].keypoints;
+                if (keypoints && keypoints.length >= 4) {
+                  const eyeR = keypoints[0];
+                  const eyeL = keypoints[1];
+                  const nose = keypoints[2];
+                  const mouth = keypoints[3];
 
-              // Eye distance and rotation
-              const dx = eyeL.x - eyeR.x;
-              const dy = eyeL.y - eyeR.y;
-              const eyeDistance = Math.sqrt(dx * dx + dy * dy);
-              const rotationAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
-              const eyeMidX = (eyeR.x + eyeL.x) / 2;
-              const eyeMidY = (eyeR.y + eyeL.y) / 2;
+                  // Eye distance and rotation
+                  const dx = eyeL.x - eyeR.x;
+                  const dy = eyeL.y - eyeR.y;
+                  const eyeDistance = Math.sqrt(dx * dx + dy * dy);
+                  const rotationAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
+                  const eyeMidX = (eyeR.x + eyeL.x) / 2;
+                  const eyeMidY = (eyeR.y + eyeL.y) / 2;
 
-              let targetX = 50;
-              let targetY = 40;
-              let targetScale = 1.0;
+                  let targetX = 50;
+                  let targetY = 40;
+                  let targetScale = 1.0;
 
-              const isMirrored = facingMode === 'user';
+                  const isMirrored = facingMode === 'user';
 
-              switch (activeSticker.type) {
-                case 'glasses':
-                  targetX = isMirrored ? (1 - eyeMidX) : eyeMidX;
-                  targetY = eyeMidY;
-                  targetScale = eyeDistance * 4.5;
-                  break;
-                case 'mustache':
-                  const mustX = (nose.x + mouth.x) / 2;
-                  const mustY = (nose.y + mouth.y) / 2;
-                  targetX = isMirrored ? (1 - mustX) : mustX;
-                  targetY = mustY;
-                  targetScale = eyeDistance * 3.5;
-                  break;
-                case 'crown':
-                  const angleRad = Math.atan2(dy, dx) - Math.PI / 2;
-                  const shiftDist = eyeDistance * 1.5;
-                  const crX = eyeMidX + Math.cos(angleRad) * shiftDist;
-                  const crY = eyeMidY + Math.sin(angleRad) * shiftDist;
-                  targetX = isMirrored ? (1 - crX) : crX;
-                  targetY = crY;
-                  targetScale = eyeDistance * 5.0;
-                  break;
-                case 'dog':
-                  const anchX = (eyeMidX + nose.x) / 2;
-                  const anchY = (eyeMidY + nose.y) / 2;
-                  const dX = anchX;
-                  const dY = anchY - eyeDistance * 0.3;
-                  targetX = isMirrored ? (1 - dX) : dX;
-                  targetY = dY;
-                  targetScale = eyeDistance * 7.5;
-                  break;
+                  switch (activeSticker.type) {
+                    case 'glasses':
+                      targetX = isMirrored ? (1 - eyeMidX) : eyeMidX;
+                      targetY = eyeMidY;
+                      targetScale = eyeDistance * 4.5;
+                      break;
+                    case 'mustache':
+                      const mustX = (nose.x + mouth.x) / 2;
+                      const mustY = (nose.y + mouth.y) / 2;
+                      targetX = isMirrored ? (1 - mustX) : mustX;
+                      targetY = mustY;
+                      targetScale = eyeDistance * 3.5;
+                      break;
+                    case 'crown':
+                      const angleRad = Math.atan2(dy, dx) - Math.PI / 2;
+                      const shiftDist = eyeDistance * 1.5;
+                      const crX = eyeMidX + Math.cos(angleRad) * shiftDist;
+                      const crY = eyeMidY + Math.sin(angleRad) * shiftDist;
+                      targetX = isMirrored ? (1 - crX) : crX;
+                      targetY = crY;
+                      targetScale = eyeDistance * 5.0;
+                      break;
+                    case 'dog':
+                      const anchX = (eyeMidX + nose.x) / 2;
+                      const anchY = (eyeMidY + nose.y) / 2;
+                      const dX = anchX;
+                      const dY = anchY - eyeDistance * 0.3;
+                      targetX = isMirrored ? (1 - dX) : dX;
+                      targetY = dY;
+                      targetScale = eyeDistance * 7.5;
+                      break;
+                  }
+
+                  setActiveSticker({
+                    type: activeSticker.type,
+                    x: targetX * 100,
+                    y: targetY * 100,
+                    scale: targetScale,
+                    rotation: isMirrored ? -rotationAngle : rotationAngle
+                  });
+                }
               }
-
-              setActiveSticker({
-                type: activeSticker.type,
-                x: targetX * 100,
-                y: targetY * 100,
-                scale: targetScale,
-                rotation: isMirrored ? -rotationAngle : rotationAngle
-              });
+            } catch (err) {
+              console.warn("Real-time frame detection failed (ignoring):", err);
             }
           }
 
@@ -368,7 +401,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
 
         track();
       } catch (err) {
-        console.error("Error in real-time face tracking loop:", err);
+        console.warn("Failed to load face detector for camera stream. Falling back to manual positioning.", err);
       }
     };
 
@@ -450,7 +483,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           }
         }
       } catch (err) {
-        console.error("Static face detection alignment failed:", err);
+        console.warn("Static face detection alignment failed (falling back to manual):", err);
       }
     }
   };
