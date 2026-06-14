@@ -1,6 +1,6 @@
 import React, { useState, useRef, DragEvent, ChangeEvent, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Image as ImageIcon, Loader2, UploadCloud, Sparkles, Camera, Zap, ZapOff, RefreshCcw, Grid } from 'lucide-react';
+import { X, Image as ImageIcon, Loader2, Sparkles, Camera, Zap, ZapOff, RefreshCcw, Grid, Send, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -14,30 +14,9 @@ const FILTERS = [
   { name: 'Juno', css: 'saturate(1.2) contrast(1.15) hue-rotate(-4deg)' },
   { name: 'Slumber', css: 'sepia(0.25) saturate(0.85)' },
   { name: 'Crema', css: 'sepia(0.5) brightness(1.15)' },
-  { name: 'Ludwig', css: 'brightness(1.05) saturate(0.8) contrast(1.05)' },
-  { name: 'Aden', css: 'hue-rotate(-20deg) contrast(0.9) saturate(0.85) brightness(1.2)' },
-  { name: 'Perpetua', css: 'contrast(1.1) brightness(1.25)' },
-  { name: 'Amaro', css: 'hue-rotate(-5deg) contrast(1.1) brightness(1.1) saturate(1.3)' },
-  { name: 'Mayfair', css: 'contrast(1.1) saturate(1.1)' },
-  { name: 'Rise', css: 'brightness(1.05) sepia(0.2) contrast(0.9)' },
-  { name: 'Hudson', css: 'brightness(1.2) contrast(0.9) hue-rotate(-15deg)' },
-  { name: 'Valencia', css: 'sepia(0.08) contrast(1.08) brightness(1.08)' },
-  { name: 'X-Pro II', css: 'sepia(0.3) contrast(1.25) brightness(0.8)' },
-  { name: 'Sierra', css: 'sepia(0.21) contrast(0.8) brightness(1.1)' },
-  { name: 'Willow', css: 'grayscale(0.5) contrast(0.95) brightness(0.9)' },
   { name: 'Lo-Fi', css: 'saturate(1.5) contrast(1.5)' },
   { name: 'Inkwell', css: 'grayscale(1) contrast(1.2) brightness(1.05)' },
   { name: 'Hefe', css: 'contrast(1.5) saturate(1.2)' },
-  { name: 'Nashville', css: 'sepia(0.2) contrast(1.2) brightness(1.05) saturate(1.2)' },
-  { name: 'Stinson', css: 'brightness(1.1) saturate(0.85)' },
-  { name: 'Vesper', css: 'sepia(0.35) contrast(1.15) brightness(1.1)' },
-  { name: 'Earlybird', css: 'sepia(0.2) contrast(1.19) brightness(1.05)' },
-  { name: 'Brannan', css: 'sepia(0.5) contrast(1.4)' },
-  { name: 'Sutro', css: 'sepia(0.4) contrast(1.2) brightness(0.9) saturate(1.4)' },
-  { name: 'Toaster', css: 'sepia(0.2) contrast(1.5) brightness(0.9)' },
-  { name: 'Walden', css: 'brightness(1.1) hue-rotate(-10deg) sepia(0.3) saturate(1.6)' },
-  { name: '1977', css: 'sepia(0.5) hue-rotate(-30deg) saturate(1.4) contrast(1.1)' },
-  { name: 'Kelvin', css: 'sepia(0.15) contrast(1.5) brightness(1.1) hue-rotate(-10deg)' },
 ];
 
 interface GlimpseUploadModalProps {
@@ -180,7 +159,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
   };
 
   // Cleanup drag listeners
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -188,16 +167,16 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
   }, []);
 
   // Camera Management
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen && !previewUrl) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.warn("Camera API is not available (requires HTTPS or localhost). Falling back to gallery.");
+        console.warn("Camera API is not available. Falling back to gallery.");
         setCameraError(true);
         return;
       }
 
       let activeStream: MediaStream | null = null;
-      navigator.mediaDevices.getUserMedia({ video: { facingMode } })
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } })
         .then(mediaStream => {
           activeStream = mediaStream;
           setStream(mediaStream);
@@ -243,7 +222,6 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
     setFile(selectedFile);
     const objectUrl = URL.createObjectURL(selectedFile);
     setPreviewUrl(objectUrl);
-    resetDraft(true);
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -450,8 +428,6 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
       ctx.scale(-1, 1);
     }
     
-    // Do NOT apply filter here. 
-    // We apply it in compressImage so the user can change it after capturing.
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     canvas.toBlob((blob) => {
@@ -462,456 +438,265 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
     }, 'image/jpeg', 0.9);
   };
 
-  const renderFilterRow = (positionClasses: string) => (
-    <div className={`${positionClasses} filter-row w-full overflow-x-auto custom-scrollbar flex gap-3 px-6 py-2 z-30 snap-x`}>
+  const renderFilterRow = () => (
+    <div className="filter-row w-full overflow-x-auto custom-scrollbar flex gap-3 px-6 py-2 z-30 snap-x relative pointer-events-auto">
       {FILTERS.map((f) => (
         <button
           key={f.name}
+          type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveFilter(f.css); }}
-          className={`flex flex-col items-center gap-1 shrink-0 snap-center transition-all ${activeFilter === f.css ? 'scale-110 opacity-100' : 'opacity-60 hover:opacity-100 scale-90'}`}
+          className={`flex flex-col items-center gap-1 shrink-0 snap-center transition-all ${activeFilter === f.css ? 'scale-105 opacity-100' : 'opacity-50 hover:opacity-100 scale-90'}`}
         >
           <div 
-            className={`w-14 h-14 rounded-full border-2 ${activeFilter === f.css ? 'border-pink-500' : 'border-white/20'} overflow-hidden bg-black flex items-center justify-center`}
+            className={`w-12 h-12 rounded-full border-2 ${activeFilter === f.css ? 'border-pink-500 shadow-[0_0_8px_rgba(255,0,127,0.4)]' : 'border-white/20'} overflow-hidden bg-black flex items-center justify-center`}
           >
              <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop')", filter: f.css }}></div>
           </div>
-          <span className={`text-[10px] font-bold ${activeFilter === f.css ? 'text-pink-500' : 'text-white'} drop-shadow-md`}>{f.name}</span>
+          <span className={`text-[9px] font-bold ${activeFilter === f.css ? 'text-pink-500' : 'text-zinc-400'} drop-shadow-md`}>{f.name}</span>
         </button>
       ))}
     </div>
   );
 
-  // Reusable Preview Image component for both Mobile and Desktop views
-  const renderPreviewBox = () => (
-    <div className="flex flex-col items-center space-y-2">
-      <span className="text-xs uppercase tracking-widest text-gray-500 font-mono flex items-center gap-1.5">
-        <Sparkles className="w-3 h-3 text-gray-500" /> Drag vertically to position caption
-      </span>
-      
-      <div 
-        ref={previewContainerRef}
-        onMouseDown={handleContainerMouseDown}
-        onTouchStart={handleContainerTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="relative rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black h-[45dvh] max-h-[360px] aspect-[9/16] mx-auto shadow-2xl flex items-center justify-center group select-none cursor-crosshair shrink-0"
-      >
-        <img 
-          src={previewUrl!} 
-          alt="Upload preview" 
-          style={{ filter: activeFilter }}
-          className="w-full h-full object-cover pointer-events-none" 
-        />
-        
-        <div 
-          style={{ top: `${captionY}%` }}
-          className="absolute left-0 right-0 z-20 transform -translate-y-1/2 cursor-row-resize"
-        >
-          <div className="bg-black/60 backdrop-blur-[2px] py-2.5 px-4 w-full flex items-center justify-center border-y border-white/10 shadow-lg">
-            <input 
-              type="text"
-              placeholder="TAP TO TYPE CAPTION..."
-              value={caption}
-              onChange={(e) => setCaption(e.target.value.slice(0, 100))}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              className="w-full bg-transparent text-white text-center text-sm font-bold placeholder-white/50 outline-none border-none pointer-events-auto uppercase tracking-wide"
-            />
+  const mainUIContent = (
+    <div 
+      className={`relative w-full overflow-hidden bg-black flex flex-col z-10 shadow-2xl transition-all duration-300 ${
+        isMobile 
+          ? 'w-screen h-[100dvh]' 
+          : 'max-w-[420px] aspect-[9/16] h-[85dvh] max-h-[780px] border border-white/10 rounded-[3rem] shadow-[0_0_40px_rgba(0,0,0,0.8)]'
+      }`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* -------------------- VIEW 1: CAMERA SCANNING / UPLOAD SELECTION -------------------- */}
+      {!previewUrl ? (
+        <div className="absolute inset-0 flex flex-col justify-between items-center bg-black">
+          {cameraError ? (
+            /* Fallback Gallery Mode */
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center w-full z-10 relative">
+              <div className="absolute top-6 left-6 pointer-events-auto">
+                <button onClick={handleClose} className="p-2.5 text-white bg-black/40 hover:bg-black/60 rounded-full border border-white/10 backdrop-blur-md transition-all active:scale-90">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-3xl max-w-xs flex flex-col items-center shadow-xl">
+                <Camera className="w-10 h-10 text-zinc-500 mb-4" />
+                <h3 className="text-sm font-bold text-white mb-2">Camera Unavailable</h3>
+                <p className="text-xs text-zinc-500 mb-6 leading-relaxed">Please grant camera permissions, or select an image directly from your local photos library.</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3 bg-white hover:bg-zinc-200 text-black text-xs font-black rounded-2xl tracking-wider uppercase transition-all shadow-md active:scale-95"
+                >
+                  Import Photo
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Snapchat Camera Feed Bleed */
+            <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{ filter: activeFilter }}
+                className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+              />
+              {/* Overlay Glass Vignette */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none" />
+            </div>
+          )}
+
+          {/* HUD TOP BAR */}
+          <div className="w-full flex justify-between items-center p-6 z-20 pointer-events-none mt-2">
+            <button 
+              onClick={handleClose} 
+              className="p-2.5 text-white bg-black/40 hover:bg-black/60 rounded-full border border-white/10 backdrop-blur-md transition-all active:scale-90 pointer-events-auto"
+              title="Close Camera"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              className="p-2.5 text-white bg-black/40 hover:bg-black/60 rounded-full border border-white/10 backdrop-blur-md transition-all active:scale-90 pointer-events-auto"
+              title="Open Gallery"
+            >
+              <ImageIcon className="w-5 h-5" />
+            </button>
           </div>
-        </div>
 
-        <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md flex flex-col gap-1 pointer-events-none select-none z-10">
-          <div className="flex items-center gap-2">
-            {currentUser?.avatar ? (
-              <img src={currentUser.avatar} alt="" className="w-6 h-6 rounded-full border border-white/20 object-cover" />
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-pink-500/20 border border-pink-500/50 flex items-center justify-center text-[10px] font-bold text-pink-400">
-                {currentUser?.realName?.[0] || currentUser?.anonymousId?.[0] || '?'}
+          {/* HUD BOTTOM BAR */}
+          {!cameraError && (
+            <div className="w-full flex flex-col z-20 pointer-events-none pb-8">
+              {/* Filter Carousel */}
+              <div className="w-full mb-4 shrink-0">
+                {renderFilterRow()}
               </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-white flex items-center gap-1">
-                {currentUser?.realName || currentUser?.anonymousId || 'You'}
-                {currentUser?.isVerified && (
-                  <span className="w-3 h-3 rounded-full bg-blue-500 flex items-center justify-center text-[8px] text-white">✓</span>
-                )}
-              </span>
-              <span className="text-[9px] text-gray-300 font-medium">{currentUser?.university || 'My University'}</span>
-            </div>
-          </div>
-        </div>
 
-        <button
-          onClick={clearSelection}
-          className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/90 text-white rounded-full backdrop-blur-md transition-all border border-white/10 active:scale-90 hover:scale-105 z-20"
-          aria-label="Remove image"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-
-  // -----------------------------------------------------
-  // MOBILE UI (Full-screen Portal)
-  // -----------------------------------------------------
-  if (isMobile) {
-    const mobileCameraUI = (
-      <div 
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black transition-all duration-300 animate-in fade-in"
-        onClick={onClose}
-      >
-        {!previewUrl && !cameraError ? (
-          /* MOBILE CAMERA VIEW (Full bleed) */
-          <div 
-            className="w-full h-full flex flex-col relative bg-black"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Top Controls */}
-            <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-6 pt-10 z-20 bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
-              <button onClick={onClose} className="p-2 text-white drop-shadow-md transition-transform pointer-events-auto">
-                <X className="w-7 h-7" />
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 text-white drop-shadow-md transition-transform pointer-events-auto">
-                <Grid className="w-7 h-7" />
-              </button>
-            </div>
-
-            {/* Camera Preview Squircle */}
-            <div className="flex-1 flex items-center justify-center p-4 pt-20 pb-40 overflow-hidden">
-              <div className="w-full max-w-[95%] aspect-[4/5] mx-auto relative overflow-hidden rounded-[3rem] shadow-[0_0_40px_rgba(0,0,0,0.5)] bg-gray-900 border border-white/5 shrink-0">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ filter: activeFilter }}
-                  className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-                />
-              </div>
-            </div>
-
-            {/* Bottom Controls Area */}
-            <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none flex flex-col pt-10">
-              <div className="pointer-events-auto w-full">
-                {renderFilterRow('relative')}
-              </div>
-              
-              <div className="p-8 pb-12 flex items-center justify-center gap-12 pointer-events-none">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between px-10 sm:px-14 pointer-events-none">
                 {/* Flash Toggle */}
-                <button onClick={toggleTorch} className="p-3 text-white drop-shadow-md transition-transform active:scale-90 pointer-events-auto">
-                  {torchOn ? <Zap className="w-7 h-7 text-yellow-400 fill-yellow-400" /> : <ZapOff className="w-7 h-7" />}
+                <button 
+                  onClick={toggleTorch} 
+                  className="p-3 text-white bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full border border-white/10 transition-all active:scale-90 pointer-events-auto"
+                >
+                  {torchOn ? <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" /> : <ZapOff className="w-5 h-5" />}
                 </button>
 
-                {/* Capture Button */}
+                {/* Concentric Snapchat Capture Ring */}
                 <button 
                   onClick={capturePhoto} 
-                  className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 hover:scale-105 active:scale-95 transition-all shadow-xl pointer-events-auto"
+                  className="w-20 h-20 rounded-full border-4 border-white bg-white/20 backdrop-blur-sm p-1 transition-all hover:scale-105 active:scale-90 pointer-events-auto flex items-center justify-center cursor-pointer shadow-xl shadow-black/30"
                 >
                   <div className="w-full h-full bg-white rounded-full"></div>
                 </button>
 
-                {/* Flip Camera */}
-                <button onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')} className="p-3 text-white drop-shadow-md transition-transform active:scale-90 pointer-events-auto">
-                  <RefreshCcw className="w-7 h-7" />
-                </button>
-              </div>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-          </div>
-        ) : (
-          /* MOBILE PREVIEW VIEW OR CAMERA ERROR (Card Style) */
-          <div 
-            className="relative w-full max-w-lg overflow-hidden bg-[#0d091a] border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[85dvh] animate-in fade-in zoom-in-95 duration-300 m-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            {previewUrl && (
-              <div className="relative flex items-center justify-between p-6 border-b border-white/5 z-10 shrink-0">
-                <h2 className="text-sm font-bold text-white tracking-wide">
-                  Share a Glimpse
-                </h2>
+                {/* Switch Camera */}
                 <button 
-                  onClick={onClose}
-                  className="p-2 text-gray-400 rounded-full hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 border border-white/5"
+                  onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')} 
+                  className="p-3 text-white bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full border border-white/10 transition-all active:scale-90 pointer-events-auto"
                 >
-                  <X className="w-5 h-5" />
+                  <RefreshCcw className="w-5 h-5" />
                 </button>
               </div>
-            )}
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 z-10">
-              {error && (
-                <div className="p-4 border border-red-500/20 bg-red-500/10 rounded-2xl text-red-400 text-sm font-medium">
-                  {error}
-                </div>
-              )}
-
-              {cameraError && !previewUrl ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center h-full min-h-[50vh] w-full">
-                  <Camera className="w-12 h-12 text-gray-500 mb-4" />
-                  <p className="text-white font-bold mb-2">Camera Unavailable</p>
-                  <p className="text-gray-400 text-sm mb-6 max-w-xs">Please allow camera access, or use the gallery. (Note: Camera requires HTTPS or localhost)</p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all"
-                  >
-                    Open Gallery
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                  <div className="absolute top-4 left-4 z-20">
-                    <button onClick={onClose} className="p-3 text-white drop-shadow-md bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md">
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {previewUrl && (
-                <>
-                  {renderPreviewBox()}
-                  <div className="w-full mt-4 bg-black/20 rounded-2xl py-2">
-                    {renderFilterRow('relative')}
-                  </div>
-                  {/* Post Anonymously Checkbox */}
-                  <div className="flex items-center gap-3 p-1">
-                    <input
-                      type="checkbox"
-                      id="glimpse-anonymous-mobile"
-                      checked={isAnonymous}
-                      onChange={(e) => setIsAnonymous(e.target.checked)}
-                      className="w-4.5 h-4.5 rounded border-white/20 bg-white/5 text-pink-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-pink-500"
-                    />
-                    <label 
-                      htmlFor="glimpse-anonymous-mobile" 
-                      className="text-xs font-bold text-gray-400 hover:text-white cursor-pointer select-none transition-colors"
-                    >
-                      Remain Anonymous (post under your anonymous handle)
-                    </label>
-                  </div>
-                </>
-              )}
             </div>
+          )}
 
-            {/* Footer */}
-            {previewUrl && (
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-white/5 bg-[#05020c]/40 backdrop-blur-md shrink-0">
-                <button
-                  onClick={onClose}
-                  disabled={isUploading}
-                  className="px-5 py-2.5 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-bold rounded-2xl text-sm transition-all duration-300 active:scale-95 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                
-                <button
-                  onClick={handleUpload}
-                  disabled={isUploading || !file}
-                  className="px-6 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl text-sm transition-all duration-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 min-w-[120px]"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      <span>Posting...</span>
-                    </>
-                  ) : (
-                    <span>Post Now</span>
-                  )}
-                </button>
-              </div>
-            )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+      ) : (
+        /* -------------------- VIEW 2: IMAGE PREVIEW & CAPTION OVERLAY -------------------- */
+        <div 
+          ref={previewContainerRef}
+          onMouseDown={handleContainerMouseDown}
+          onTouchStart={handleContainerTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="absolute inset-0 flex flex-col justify-between items-center bg-black select-none cursor-crosshair overflow-hidden"
+        >
+          {/* Full bleed Preview image */}
+          <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+            <img 
+              src={previewUrl} 
+              alt="Upload preview" 
+              style={{ filter: activeFilter }}
+              className="w-full h-full object-cover pointer-events-none" 
+            />
+            {/* Vignette */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/50 pointer-events-none" />
           </div>
-        )}
-      </div>
-    );
-    return createPortal(mobileCameraUI, document.body);
-  }
 
-  // -----------------------------------------------------
-  // DESKTOP UI (Original Box)
-  // -----------------------------------------------------
-  return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030008]/80 backdrop-blur-xl transition-all duration-300 animate-in fade-in"
-      onClick={onClose}
-    >
-      <div 
-        className="relative w-full max-w-lg overflow-hidden bg-[#0d091a] border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[85dvh] animate-in fade-in zoom-in-95 duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        {previewUrl && (
-          <div className="relative flex items-center justify-between p-6 border-b border-white/5 z-10 shrink-0">
-            <h2 className="text-sm font-bold text-white tracking-wide">
-              Share a Glimpse
-            </h2>
+          {/* HUD Top Bar */}
+          <div className="w-full flex justify-between items-center p-6 z-20 pointer-events-none mt-2">
             <button 
-              onClick={onClose}
-              className="p-2 text-gray-400 rounded-full hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 border border-white/5"
+              onClick={clearSelection} 
+              className="p-2.5 text-white bg-black/40 hover:bg-black/60 rounded-full border border-white/10 backdrop-blur-md transition-all active:scale-90 pointer-events-auto"
+              title="Back to Camera"
             >
               <X className="w-5 h-5" />
             </button>
+
+            {/* Drag instructions overlay */}
+            <div className="bg-black/40 border border-white/10 px-3 py-1.5 rounded-full backdrop-blur-md text-[10px] uppercase tracking-widest text-zinc-300 font-bold font-mono">
+              Drag Caption Vertically
+            </div>
           </div>
-        )}
 
-        {/* Content */}
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${previewUrl ? 'p-6 space-y-6 z-10' : 'p-0 relative flex flex-col bg-[#030008]'}`}>
-          {error && (
-            <div className="p-4 border border-red-500/20 bg-red-500/10 rounded-2xl text-red-400 text-sm font-medium">
-              {error}
+          {/* Draggable Snapchat Caption Strip */}
+          <div 
+            style={{ top: `${captionY}%` }}
+            className="absolute left-0 right-0 z-20 transform -translate-y-1/2 cursor-row-resize pointer-events-auto"
+          >
+            <div className="bg-black/60 backdrop-blur-[1.5px] py-3.5 px-6 w-full flex items-center justify-center border-y border-white/10 shadow-lg">
+              <input 
+                type="text"
+                placeholder="TAP TO TYPE CAPTION..."
+                value={caption}
+                onChange={(e) => setCaption(e.target.value.slice(0, 100))}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                className="w-full bg-transparent text-white text-center text-sm font-bold placeholder-white/40 outline-none border-none pointer-events-auto uppercase tracking-wide"
+              />
             </div>
-          )}
+          </div>
 
-          {/* Upload / Camera View Area */}
-          {!previewUrl ? (
-            <div className="relative flex flex-col items-center justify-center h-full min-h-[60vh] bg-[#030008] overflow-hidden">
-              {cameraError ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center h-full w-full">
-                  <Camera className="w-12 h-12 text-gray-500 mb-4" />
-                  <p className="text-white font-bold mb-2">Camera Unavailable</p>
-                  <p className="text-gray-400 text-sm mb-6 max-w-xs">Please allow camera access, or use the gallery. (Note: Camera requires HTTPS or localhost)</p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all"
-                  >
-                    Open Gallery
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                  <div className="absolute top-4 left-4 z-20">
-                    <button onClick={onClose} className="p-3 text-white drop-shadow-md bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md">
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="relative w-full max-w-sm aspect-[4/5] sm:aspect-square mx-auto overflow-hidden rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] mb-10">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      style={{ filter: activeFilter }}
-                      className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-                    />
-                  </div>
-
-                  {/* Top Overlay Controls */}
-                  <div className="absolute top-4 left-4 z-20">
-                    <button onClick={onClose} className="p-3 text-white drop-shadow-md bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md">
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                  <div className="absolute top-4 right-4 z-20">
-                    <button onClick={() => fileInputRef.current?.click()} className="p-3 text-white drop-shadow-md bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md">
-                      <Grid className="w-6 h-6" />
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                  </div>
-
-                  {/* Bottom Controls Area */}
-                  <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col pt-10 pb-8 rounded-b-3xl">
-                    <div className="w-full">
-                      {renderFilterRow('relative')}
-                    </div>
-                    <div className="flex items-center justify-between px-10 sm:px-16 mt-4">
-                      <button onClick={toggleTorch} className="p-3 text-white bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full transition-all active:scale-90">
-                        {torchOn ? <Zap className="w-6 h-6 text-yellow-400 fill-yellow-400" /> : <ZapOff className="w-6 h-6 text-white" />}
-                      </button>
-                      <button 
-                        onClick={capturePhoto} 
-                        className="w-20 h-20 rounded-full border-4 border-white/50 bg-white/20 backdrop-blur-sm p-1 transition-transform active:scale-90"
-                      >
-                        <div className="w-full h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.5)]"></div>
-                      </button>
-                      <button onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')} className="p-3 text-white bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full transition-all active:scale-90">
-                        <RefreshCcw className="w-6 h-6" />
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <>
-              {renderPreviewBox()}
-              <div className="w-full mt-4 bg-black/20 rounded-2xl py-2">
-                {renderFilterRow('relative')}
+          {/* Bottom Controls Area */}
+          <div className="w-full flex flex-col z-20 pointer-events-none pb-8">
+            
+            {/* Error notifications */}
+            {error && (
+              <div className="mx-6 mb-4 p-3 bg-red-950/70 border border-red-900/30 rounded-2xl text-red-400 text-xs font-semibold text-center backdrop-blur-md">
+                {error}
               </div>
-              <div className="flex items-center gap-3 p-1">
+            )}
+
+            {/* Filter swiper */}
+            <div className="w-full mb-4 shrink-0">
+              {renderFilterRow()}
+            </div>
+
+            {/* HUD Footer actions */}
+            <div className="flex items-center justify-between px-6 pointer-events-none">
+              
+              {/* Anonymous HUD Toggle */}
+              <div className="pointer-events-auto bg-black/60 border border-white/10 backdrop-blur-md rounded-full px-4 py-2 flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white transition-all cursor-pointer">
                 <input
                   type="checkbox"
-                  id="glimpse-anonymous-desktop"
+                  id="glimpse-anon-hud"
                   checked={isAnonymous}
                   onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="w-4.5 h-4.5 rounded border-white/20 bg-white/5 text-pink-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-pink-500"
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-pink-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-pink-500"
                 />
-                <label 
-                  htmlFor="glimpse-anonymous-desktop" 
-                  className="text-xs font-bold text-gray-400 hover:text-white cursor-pointer select-none transition-colors"
-                >
-                  Remain Anonymous (post under your anonymous handle)
+                <label htmlFor="glimpse-anon-hud" className="cursor-pointer select-none">
+                  Anon Post
                 </label>
               </div>
-            </>
-          )}
-        </div>
 
-        {/* Footer */}
-        {previewUrl && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-white/5 bg-[#05020c]/40 backdrop-blur-md shrink-0">
-            <button
-              onClick={onClose}
-              disabled={isUploading}
-              className="px-5 py-2.5 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-bold rounded-2xl text-sm transition-all duration-300 active:scale-95 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={isUploading || !file}
-              className="px-6 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl text-sm transition-all duration-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 min-w-[120px]"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Posting...</span>
-                </>
-              ) : (
-                <span>Post Now</span>
-              )}
-            </button>
+              {/* Snapchat style floating send button */}
+              <button 
+                onClick={handleUpload} 
+                disabled={isUploading || !file}
+                className="p-4 bg-gradient-to-tr from-pink-500 to-rose-600 rounded-full border border-white/10 shadow-[0_0_20px_rgba(244,63,94,0.4)] text-white hover:scale-105 active:scale-95 pointer-events-auto transition-all"
+                title="Send Glimpse"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-white" />
+                ) : (
+                  <Send className="w-6 h-6 fill-white" />
+                )}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return createPortal(
+      <div 
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black transition-all duration-300 animate-in fade-in"
+        onClick={handleClose}
+      >
+        {mainUIContent}
+      </div>,
+      document.body
+    );
+  }
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030008]/85 backdrop-blur-xl transition-all duration-300 animate-in fade-in"
+      onClick={handleClose}
+    >
+      {mainUIContent}
     </div>
   );
 };
