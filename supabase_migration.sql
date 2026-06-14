@@ -55,6 +55,12 @@ CREATE POLICY "Users can insert reactions"
   ON public.glimpse_reactions FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
 
+-- Delete: Users can only delete reactions they created
+DROP POLICY IF EXISTS "Users can delete reactions" ON public.glimpse_reactions;
+CREATE POLICY "Users can delete reactions" 
+  ON public.glimpse_reactions FOR DELETE 
+  USING (auth.uid() = user_id);
+
 
 -- ==========================================
 -- PERFORMANCE INDEXES
@@ -92,7 +98,7 @@ CREATE POLICY "Allow authenticated upload access to glimpses bucket"
 DROP POLICY IF EXISTS "Allow user deletion from glimpses bucket" ON storage.objects;
 CREATE POLICY "Allow user deletion from glimpses bucket"
   ON storage.objects FOR DELETE
-  USING (bucket_id = 'glimpses' AND auth.role() = 'authenticated');
+  USING (bucket_id = 'glimpses' AND auth.role() = 'authenticated' AND split_part(name, '/', 1) = auth.uid()::text);
 
 
 -- ==========================================

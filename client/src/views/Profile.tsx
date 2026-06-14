@@ -307,9 +307,6 @@ export const Profile: React.FC = () => {
                 throw new Error("Services not available.");
             }
 
-            const { error: pwdError } = await supabase.auth.updateUser({ password: credForm.password });
-            if (pwdError) throw pwdError;
-
             if (!isPasswordChangeOnly) {
                 const { error: profileError } = await supabase
                     .from('profiles')
@@ -320,7 +317,12 @@ export const Profile: React.FC = () => {
                     .eq('id', currentUser.id);
 
                 if (profileError) throw profileError;
+            }
 
+            const { error: pwdError } = await supabase.auth.updateUser({ password: credForm.password });
+            if (pwdError) throw pwdError;
+
+            if (!isPasswordChangeOnly) {
                 updateProfile({ username: credForm.username.trim() });
             }
 
@@ -1006,8 +1008,8 @@ export const Profile: React.FC = () => {
                                         <NeonInput placeholder="student@university.edu" value={verifyData.email} onChange={e => setVerifyData({ ...verifyData, email: e.target.value })} />
                                     </div>
                                     <NeonButton onClick={async () => {
-                                        if (!verifyData.email.trim() || !verifyData.email.includes('@')) {
-                                            alert("Please enter a valid email.");
+                                        if (!verifyData.email.trim() || !verifyData.email.includes('@') || !verifyData.email.toLowerCase().endsWith('.edu')) {
+                                            alert("Please enter a valid college email address ending with .edu");
                                             return;
                                         }
                                         if (!currentUser) return;

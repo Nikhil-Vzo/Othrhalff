@@ -32,7 +32,7 @@ router.post('/accept-match', verifySupabaseToken, async (req, res) => {
       liker_id: myId,
       target_id: targetId,
       action: 'like'
-    });
+    }, { onConflict: 'liker_id,target_id' });
 
     if (swipeError) throw swipeError;
 

@@ -258,19 +258,20 @@ export const Chat: React.FC = () => {
 
     const loadInitialData = async () => {
       try {
+        // Fetch match data to perform authorization guard and find partner ID if missing
+        const { data: matchData, error: matchError } = await supabase.from('matches').select('user_a, user_b').eq('id', matchId).single();
+        if (matchError || !matchData) { navigate.push('/matches'); return; }
+        
+        // Client-side authorization guard: check if user is actually in this match
+        if (matchData.user_a !== currentUser.id && matchData.user_b !== currentUser.id) {
+          navigate.push('/matches');
+          return;
+        }
+
         let partnerId = initialPartner?.id;
 
         // Fetch partner ID if totally missing (direct link load)
         if (!partnerId) {
-          const { data: matchData, error: matchError } = await supabase.from('matches').select('user_a, user_b').eq('id', matchId).single();
-          if (matchError || !matchData) { navigate.push('/matches'); return; }
-          
-          // Client-side authorization guard: check if user is actually in this match
-          if (matchData.user_a !== currentUser.id && matchData.user_b !== currentUser.id) {
-            navigate.push('/matches');
-            return;
-          }
-          
           partnerId = matchData.user_a === currentUser.id ? matchData.user_b : matchData.user_a;
 
           // If we had to fetch ID, we must fetch profile to show anything
@@ -914,6 +915,18 @@ export const Chat: React.FC = () => {
           if (msg.isSystem && msg.text.startsWith('[INVITE:v1]')) {
             try {
               const inviteData = JSON.parse(msg.text.replace('[INVITE:v1] ', ''));
+              
+              // Validate that invite type is whitelisted and URL pattern is safe
+              const isValidType = inviteData.type === 'cinema' || inviteData.type === 'music';
+              const isValidUrl = typeof inviteData.url === 'string' && (
+                inviteData.url.startsWith('/sparx/cinema') || 
+                inviteData.url.startsWith('/sparx/music')
+              );
+              
+              if (!isValidType || !isValidUrl) {
+                throw new Error('Invalid invite message type or URL');
+              }
+
               const isCinema = inviteData.type === 'cinema';
               const Icon = isCinema ? Tv : Music;
               const buttonText = isCinema ? 'Join Watch Party' : 'Join Music Session';

@@ -79,6 +79,29 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const resetDraft = (keepNewFile = false) => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    if (!keepNewFile) {
+      setFile(null);
+      setPreviewUrl(null);
+      setCaption('');
+      setError(null);
+    }
+  };
+
+  const handleClose = () => {
+    resetDraft(false);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetDraft(false);
+    }
+  }, [isOpen]);
+
   const [captionY, setCaptionY] = useState(50); // Vertical percentage (5 to 95)
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -220,6 +243,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
     setFile(selectedFile);
     const objectUrl = URL.createObjectURL(selectedFile);
     setPreviewUrl(objectUrl);
+    resetDraft(true);
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -365,15 +389,14 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
         });
 
       if (dbError) {
+        await supabase.storage.from('glimpses').remove([filePath]).catch(err => {
+          console.error('Failed to clean up orphaned image from storage:', err);
+        });
         throw dbError;
       }
 
       // Success
-      setFile(null);
-      setPreviewUrl(null);
-      setCaption('');
-      setIsAnonymous(false);
-      setActiveFilter('none');
+      resetDraft(false);
       onUploadSuccess();
       onClose();
     } catch (err: any) {

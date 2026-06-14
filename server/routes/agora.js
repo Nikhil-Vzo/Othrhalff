@@ -51,11 +51,6 @@ router.post('/agora-token', verifySupabaseToken, async (req, res) => {
 // Generate RTC Token for initiating a call session
 router.post('/initiate-call', verifySupabaseToken, async (req, res) => {
   try {
-    const { receiverId, matchId } = req.body;
-
-    if (!receiverId || !matchId) {
-      return res.status(400).json({ error: 'receiverId and matchId are required' });
-    }
 
     const appId = process.env.AGORA_APP_ID;
     const appCertificate = process.env.AGORA_APP_CERTIFICATE;

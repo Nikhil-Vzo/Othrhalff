@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -193,65 +195,66 @@ export const Sparx: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeStoryIndex, glimpses.length]);
 
+  const fetchLeaderboard = async () => {
+    if (!supabase) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      let query = supabase
+        .from('glimpses')
+        .select(`
+          user_id,
+          university,
+          profiles:user_id (
+            id,
+            real_name,
+            anonymous_id,
+            avatar,
+            is_verified,
+            university
+          )
+        `)
+        .gt('created_at', last24Hours);
+        
+      const targetUniv = currentUser?.university?.trim();
+      if (leaderboardScope === 'campus' && targetUniv) {
+        query = query.ilike('university', `${targetUniv}%`);
+      }
+      
+      const { data, error: queryError } = await query;
+      if (queryError) throw queryError;
+      
+      const countsMap: { [uid: string]: { count: number; profile: GlimpseProfile } } = {};
+      
+      data?.forEach((row: any) => {
+        if (!row.profiles) return;
+        const uid = row.user_id;
+        if (!countsMap[uid]) {
+          countsMap[uid] = { count: 0, profile: row.profiles };
+        }
+        countsMap[uid].count += 1;
+      });
+      
+      const sorted = Object.values(countsMap)
+        .map(item => ({ profile: item.profile, count: item.count }))
+        .sort((a, b) => b.count - a.count);
+        
+      setLeaderboardUsers(sorted);
+    } catch (err: any) {
+      console.error('Error fetching leaderboard:', err);
+      setError(err.message || 'Failed to load leaderboard');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load leaderboard when toggled or scope changes
   useEffect(() => {
-    if (feedMode !== 'leaderboard' || !supabase) return;
-    
-    const fetchLeaderboard = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        
-        let query = supabase
-          .from('glimpses')
-          .select(`
-            user_id,
-            university,
-            profiles:user_id (
-              id,
-              real_name,
-              anonymous_id,
-              avatar,
-              is_verified,
-              university
-            )
-          `)
-          .gt('created_at', last24Hours);
-          
-        const targetUniv = currentUser?.university?.trim();
-        if (leaderboardScope === 'campus' && targetUniv) {
-          query = query.ilike('university', `${targetUniv}%`);
-        }
-        
-        const { data, error: queryError } = await query;
-        if (queryError) throw queryError;
-        
-        const countsMap: { [uid: string]: { count: number; profile: GlimpseProfile } } = {};
-        
-        data?.forEach((row: any) => {
-          if (!row.profiles) return;
-          const uid = row.user_id;
-          if (!countsMap[uid]) {
-            countsMap[uid] = { count: 0, profile: row.profiles };
-          }
-          countsMap[uid].count += 1;
-        });
-        
-        const sorted = Object.values(countsMap)
-          .map(item => ({ profile: item.profile, count: item.count }))
-          .sort((a, b) => b.count - a.count);
-          
-        setLeaderboardUsers(sorted);
-      } catch (err: any) {
-        console.error('Error fetching leaderboard:', err);
-        setError(err.message || 'Failed to load leaderboard');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchLeaderboard();
+    if (feedMode === 'leaderboard') {
+      fetchLeaderboard();
+    }
   }, [feedMode, leaderboardScope, currentUser]);
 
 
@@ -470,18 +473,12 @@ export const Sparx: React.FC = () => {
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'glimpse_reactions' }, (payload) => {
         const oldReaction = payload.old;
-        if (oldReaction && oldReaction.glimpse_id) {
+        if (oldReaction?.id) {
           setGlimpses(prev => prev.map(g => {
-            if (g.id === oldReaction.glimpse_id) {
-              return {
-                ...g,
-                glimpse_reactions: (g.glimpse_reactions || []).filter((r: any) => {
-                  if (oldReaction.id) return r.id !== oldReaction.id;
-                  return !(r.user_id === oldReaction.user_id && r.reaction_type === oldReaction.reaction_type);
-                })
-              };
-            }
-            return g;
+            return {
+              ...g,
+              glimpse_reactions: (g.glimpse_reactions || []).filter((r: any) => r.id !== oldReaction.id)
+            };
           }));
         }
       })
@@ -570,7 +567,13 @@ export const Sparx: React.FC = () => {
           <h3 className="text-lg font-bold text-white">Something went wrong</h3>
           <p className="text-sm text-gray-500 max-w-sm">{error}</p>
           <button
-            onClick={() => fetchGlimpses()}
+            onClick={() => {
+              if (feedMode === 'leaderboard') {
+                fetchLeaderboard();
+              } else {
+                fetchGlimpses();
+              }
+            }}
             className="px-6 py-2.5 bg-gray-900 border border-gray-800 rounded-2xl text-xs font-bold tracking-wider uppercase hover:border-neon transition-all"
           >
             Try Again

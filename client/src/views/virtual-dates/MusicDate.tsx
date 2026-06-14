@@ -126,6 +126,7 @@ export const MusicDate = () => {
     const myPeerIdRef = useRef<string>('');
     const peersRef = useRef<PeerStream[]>([]);
     const hostRef = useRef(isHost);
+    const myStreamRef = useRef<MediaStream | null>(null);
 
     useEffect(() => {
         roomHostIdRef.current = roomHostId;
@@ -133,7 +134,8 @@ export const MusicDate = () => {
         myPeerIdRef.current = myPeerId;
         peersRef.current = peers;
         hostRef.current = isHost;
-    }, [roomHostId, roomCode, myPeerId, peers, isHost]);
+        myStreamRef.current = myStream;
+    }, [roomHostId, roomCode, myPeerId, peers, isHost, myStream]);
 
     const handleHostDisconnect = async () => {
         setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
@@ -172,11 +174,30 @@ export const MusicDate = () => {
     const handleStaleHost = async () => {
         if (supabase && roomHostIdRef.current) {
             try {
-                await supabase
+                // Fetch the room entry to verify the current host and check if it's actually stale
+                const { data: roomData } = await supabase
                     .from('active_rooms')
-                    .delete()
+                    .select('host_peer_id, updated_at')
                     .eq('room_id', roomCodeRef.current)
-                    .eq('host_peer_id', roomHostIdRef.current);
+                    .single();
+
+                if (roomData) {
+                    const lastActive = new Date(roomData.updated_at).getTime();
+                    const now = Date.now();
+                    const isStale = (now - lastActive) > 15000; // Stale if no update in 15 seconds
+
+                    // Only delete if the host peer ID matches the expected stale host and it's actually stale
+                    if (roomData.host_peer_id === roomHostIdRef.current && isStale) {
+                        await supabase
+                            .from('active_rooms')
+                            .delete()
+                            .eq('room_id', roomCodeRef.current)
+                            .eq('host_peer_id', roomHostIdRef.current);
+                    } else {
+                        console.log("Host is not stale or has been taken over by another peer.");
+                        return; // Skip restart/takeover if host is still valid/active
+                    }
+                }
             } catch (err) {
                 console.error("Error cleaning up stale host:", err);
             }
@@ -566,8 +587,8 @@ export const MusicDate = () => {
                     peerInstance.current = null;
                 }
                 setPeers([]);
-                if (myStream) {
-                    myStream.getTracks().forEach(track => track.stop());
+                if (myStreamRef.current) {
+                    myStreamRef.current.getTracks().forEach(track => track.stop());
                 }
             };
         }

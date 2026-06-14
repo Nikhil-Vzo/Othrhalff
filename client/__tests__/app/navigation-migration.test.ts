@@ -223,7 +223,7 @@ describe('Developers.tsx migration (src/views/Developers.tsx)', () => {
   });
 
   it('imports Link from next/link', () => {
-    expect(source).toContain("import Link from 'next/link'");
+    expect(source).toMatch(/import\s+Link\s+from\s+['"]next\/link['"]/);
   });
 
   it('uses Link href= attribute (not to=)', () => {
@@ -466,7 +466,7 @@ describe('StaticPages.tsx migration (src/views/StaticPages.tsx)', () => {
   });
 
   it('imports Link from next/link', () => {
-    expect(source).toContain("import Link from 'next/link'");
+    expect(source).toMatch(/import\s+Link\s+from\s+['"]next\/link['"]/);
   });
 
   it('uses Link href= attribute (not to=)', () => {

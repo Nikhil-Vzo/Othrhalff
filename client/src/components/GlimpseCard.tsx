@@ -90,6 +90,8 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
   const [isFired, setIsFired] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
+  const inFlightReactions = useRef<{ heart?: boolean; fire?: boolean; like?: boolean }>({});
+
   // Sync initial reactions from parent/database
   useEffect(() => {
     if (initialReactions) {
@@ -112,6 +114,9 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
   // Handle reaction updates in DB
   const toggleReaction = async (reactionType: 'heart' | 'fire' | 'like') => {
     if (!currentUser || !supabase) return;
+    if (inFlightReactions.current[reactionType]) return;
+
+    inFlightReactions.current[reactionType] = true;
 
     let currentlyActive = false;
     if (reactionType === 'heart') currentlyActive = isHearted;
@@ -153,8 +158,12 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
 
         if (error) throw error;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error toggling reaction ${reactionType}:`, err);
+      // Treat UNIQUE constraint violation (23505) as success
+      if (!currentlyActive && err && (err.code === '23505' || err.message?.includes('23505'))) {
+        return;
+      }
       // Revert optimistic update on failure
       if (reactionType === 'heart') {
         setIsHearted(currentlyActive);
@@ -166,6 +175,8 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
         setIsLiked(currentlyActive);
         setLikesCount(prev => currentlyActive ? prev + 1 : prev - 1);
       }
+    } finally {
+      inFlightReactions.current[reactionType] = false;
     }
   };
 

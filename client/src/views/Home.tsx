@@ -57,14 +57,23 @@ export const Home: React.FC = () => {
     const [showTutorial, setShowTutorial] = useState(false);
 
     useEffect(() => {
-        const hasSeen = localStorage.getItem('hasSeenSwipeTutorial');
-        if (!hasSeen) {
+        try {
+            const hasSeen = localStorage.getItem('hasSeenSwipeTutorial');
+            if (!hasSeen) {
+                setShowTutorial(true);
+            }
+        } catch (e) {
+            console.warn('Failed to access localStorage:', e);
             setShowTutorial(true);
         }
     }, []);
 
     const dismissTutorial = () => {
-        localStorage.setItem('hasSeenSwipeTutorial', 'true');
+        try {
+            localStorage.setItem('hasSeenSwipeTutorial', 'true');
+        } catch (e) {
+            console.warn('Failed to write to localStorage:', e);
+        }
         setShowTutorial(false);
     };
 
@@ -745,8 +754,17 @@ export const Home: React.FC = () => {
                             {/* SWIPE TUTORIAL OVERLAY */}
                             {showTutorial && currentProfile && (
                                 <div 
-                                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-[28px] cursor-pointer"
+                                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-[28px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500"
                                     onClick={dismissTutorial}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            dismissTutorial();
+                                        }
+                                    }}
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label="Dismiss swipe tutorial. Tap anywhere or press space or enter to start."
                                 >
                                     <div className="flex items-center gap-12 w-full px-8 justify-center">
                                         <div className="flex flex-col items-center gap-3 animate-swipe-left opacity-80">

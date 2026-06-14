@@ -31,7 +31,7 @@ Synchronous virtual experiences to break the ice and hang out inside the app.
 
 ---
 
-##  Navigation Index
+## Navigation Index
 
 Explore the technical and developmental details of the Othrhalff project:
 

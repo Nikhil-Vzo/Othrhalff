@@ -45,7 +45,7 @@ for (const [routePath, componentPath] of Object.entries(routes)) {
   if (routePath === 'safety') exportName = 'Safety';
   if (routePath === 'guidelines') exportName = 'Guidelines';
 
-  let relativeDots = '../'.repeat(routePath.split('/').length);
+  let relativeDots = '../'.repeat(routePath.split('/').length + 1);
 
   let content;
   if (routePath === 'sparx/cinema' || routePath === 'sparx/music') {

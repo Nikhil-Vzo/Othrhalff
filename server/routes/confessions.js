@@ -47,7 +47,12 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
       }));
       if (optionsToInsert.length > 0) {
         const { error: pollError } = await supabase.from('poll_options').insert(optionsToInsert);
-        if (pollError) throw pollError;
+        if (pollError) {
+          await supabase.from('confessions').delete().eq('id', post.id).catch(delErr => {
+            console.error('Failed to clean up confession after poll option insert failure:', delErr);
+          });
+          throw pollError;
+        }
       }
     }
 
