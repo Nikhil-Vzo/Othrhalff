@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MatchProfile } from '../types';
 import { useRouter as useNavigate } from 'next/navigation';
-import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell } from 'lucide-react';
+import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl } from '../utils/image';
@@ -54,7 +54,19 @@ export const Home: React.FC = () => {
     const [isSwiping, setIsSwiping] = useState(false);
     const [isRecycleMode, setIsRecycleMode] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
 
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('hasSeenSwipeTutorial');
+        if (!hasSeen) {
+            setShowTutorial(true);
+        }
+    }, []);
+
+    const dismissTutorial = () => {
+        localStorage.setItem('hasSeenSwipeTutorial', 'true');
+        setShowTutorial(false);
+    };
 
     const preloadImages = useCallback((profiles: MatchProfile[]) => {
 
@@ -729,6 +741,37 @@ export const Home: React.FC = () => {
                             </div>
 
                             {/* === ACTION BUTTONS REMOVED === */}
+                            
+                            {/* SWIPE TUTORIAL OVERLAY */}
+                            {showTutorial && currentProfile && (
+                                <div 
+                                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-[28px] cursor-pointer"
+                                    onClick={dismissTutorial}
+                                >
+                                    <div className="flex items-center gap-12 w-full px-8 justify-center">
+                                        <div className="flex flex-col items-center gap-3 animate-swipe-left opacity-80">
+                                            <div className="p-3 rounded-full bg-red-500/20 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                                                <X className="w-8 h-8 text-red-500" />
+                                            </div>
+                                            <span className="font-black text-red-400 text-lg uppercase tracking-wider drop-shadow-md">Pass</span>
+                                        </div>
+                                        
+                                        <div className="flex flex-col items-center gap-3 animate-swipe-right opacity-80">
+                                            <div className="p-3 rounded-full bg-green-500/20 border border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                                                <Heart className="w-8 h-8 text-green-500" />
+                                            </div>
+                                            <span className="font-black text-green-400 text-lg uppercase tracking-wider drop-shadow-md">Like</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="absolute bottom-16 flex flex-col items-center gap-2">
+                                        <Hand className="w-10 h-10 text-white/80 animate-swipe-hand" />
+                                        <p className="text-white/90 font-bold bg-black/40 px-5 py-2.5 rounded-full border border-white/10 mt-2 backdrop-blur-md shadow-xl text-sm">
+                                            Tap anywhere to start
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -757,6 +800,31 @@ export const Home: React.FC = () => {
                 }
                 .animate-pulse-fast {
                     animation: pulse-fast 0.3s ease-in-out 2;
+                }
+                @keyframes swipe-hand {
+                    0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
+                    25% { transform: translateX(-40px) translateY(10px) rotate(-15deg); }
+                    50% { transform: translateX(0) translateY(0) rotate(0deg); }
+                    75% { transform: translateX(40px) translateY(10px) rotate(15deg); }
+                }
+                .animate-swipe-hand {
+                    animation: swipe-hand 3s ease-in-out infinite;
+                }
+                @keyframes swipe-left {
+                    0%, 100% { transform: translateX(0); opacity: 0.5; }
+                    25% { transform: translateX(-15px); opacity: 1; }
+                    50% { transform: translateX(0); opacity: 0.5; }
+                }
+                @keyframes swipe-right {
+                    0%, 100% { transform: translateX(0); opacity: 0.5; }
+                    50% { transform: translateX(0); opacity: 0.5; }
+                    75% { transform: translateX(15px); opacity: 1; }
+                }
+                .animate-swipe-left {
+                    animation: swipe-left 3s ease-in-out infinite;
+                }
+                .animate-swipe-right {
+                    animation: swipe-right 3s ease-in-out infinite;
                 }
             `}</style>
             

@@ -943,7 +943,7 @@ export const Sparx: React.FC = () => {
             className="p-4 bg-neon hover:bg-neon/95 text-white rounded-full shadow-[0_0_20px_rgba(255,0,127,0.5)] hover:shadow-[0_0_30px_rgba(255,0,127,0.8)] border border-white/10 transition-all duration-300 active:scale-90"
             aria-label="Upload new glimpse"
           >
-            <Plus className="w-6 h-6 stroke-[3px]" />
+            <Camera className="w-6 h-6 stroke-[3px]" />
           </button>
         </div>
       )}
