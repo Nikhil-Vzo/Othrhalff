@@ -1276,7 +1276,7 @@ export const Sparx: React.FC = () => {
                   setShowPasscodePrompt(false);
                   setIsLobbyOpen(false);
                   const type = parseRoomDetails(pendingJoinRoom.room_id).type;
-                  router.push(`/sparx/${type}?room=${encodeURIComponent(pendingJoinRoom.room_id)}`);
+                  router.push(`/sparx/${type}?room=${encodeURIComponent(pendingJoinRoom.room_id)}&passcode=${encodeURIComponent(enteredPasscode)}`);
                 }}
                 disabled={enteredPasscode.length < 4}
                 className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

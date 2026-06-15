@@ -119,7 +119,7 @@ export const Chat: React.FC = () => {
       status: m.status,
       reaction: m.reaction
     }));
-  }, [liveMessages]);
+  }, [liveMessages, clearedAt, deletedIds]);
 
   const activeGame = React.useMemo(() => {
     if (!messages || messages.length === 0) return null;
@@ -580,13 +580,12 @@ export const Chat: React.FC = () => {
           localStorage.setItem(`cleared_chat_${matchId}`, now.toString());
 
           // 2. Clear our own messages from Supabase (if they ran the SQL policy)
-          const myMessages = await db.messages.where('match_id').equals(matchId)
-            .filter(m => m.sender_id === currentUser?.id)
-            .toArray();
-          const myMsgIds = myMessages.map(m => m.id);
-
-          if (myMsgIds.length > 0) {
-            await supabase.from('messages').delete().in('id', myMsgIds);
+          if (currentUser?.id) {
+            await supabase
+              .from('messages')
+              .delete()
+              .eq('match_id', matchId)
+              .eq('sender_id', currentUser.id);
           }
 
           // 3. Bulk delete everything from local Dexie DB to save space

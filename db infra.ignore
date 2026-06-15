@@ -196,11 +196,14 @@ create table public.career_inquiries (
 create table public.active_rooms (
   room_id text primary key,
   host_peer_id text not null,
+  host_user_id uuid references auth.users(id) on delete cascade,
   is_private boolean default false,
   passcode text,
   participant_count integer default 1,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+create index idx_active_rooms_passcode on public.active_rooms (passcode) where is_private = true;
 ```
 
 ---
@@ -301,7 +304,7 @@ create policy "Anyone can insert career inquiries" on public.career_inquiries fo
 
 -- ACTIVE ROOMS
 create policy "Anyone can read active rooms" on public.active_rooms for select using (true);
-create policy "Users can manage active rooms" on public.active_rooms for all using (true) with check (true);
+create policy "Users can manage active rooms" on public.active_rooms for all using (auth.uid() = host_user_id) with check (auth.uid() = host_user_id);
 ```
 
 ---

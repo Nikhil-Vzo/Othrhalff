@@ -50,9 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. SLOW (Background): Verify with Supabase for updates/security
       if (supabase) {
         try {
+          let isAborted = false;
           const { data: { session } } = await supabase.auth.getSession().catch(err => {
             if (err.name === 'AbortError' || err.message.includes('AbortError')) {
                 console.log('Ignored AbortError during getSession');
+                isAborted = true;
             } else {
                 throw err;
             }
@@ -62,17 +64,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // If no session, try refreshing (mobile browsers often lose the access token
           // while backgrounded, but the refresh token is still valid)
           let activeSession = session;
-          if (!activeSession && localUser) {
+          if (!activeSession && localUser && !isAborted) {
             console.log('No session found, attempting token refresh...');
             const { data: refreshData } = await supabase.auth.refreshSession().catch(err => {
                 if (err.name === 'AbortError' || err.message.includes('AbortError')) {
                     console.log('Ignored AbortError during refreshSession');
+                    isAborted = true;
                 } else {
                     throw err;
                 }
                 return { data: { session: null } };
             });
             activeSession = refreshData?.session ?? null;
+          }
+
+          if (isAborted) {
+            console.log('Aborted getSession/refreshSession background call, skipping auth state updates');
+            return;
           }
 
           if (activeSession?.user) {

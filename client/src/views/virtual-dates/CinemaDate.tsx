@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 import { ArrowLeft, Link as LinkIcon, AlertCircle, Monitor, FolderOpen, Youtube, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MonitorPlay, Home, Gamepad, Settings as SettingsIcon, Mic, MicOff, Video, VideoOff, MonitorUp, Send, MessageSquare, Maximize, Minimize, Sparkles, Tv, Film, Lock, MoreVertical, Share2 } from 'lucide-react';
 import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
-import { RoomPasswordModal } from '../../components/RoomPasswordModal';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
 import Peer, { DataConnection } from 'peerjs';
 import { useAuth } from '../../context/AuthContext';
@@ -84,7 +83,14 @@ export const CinemaDate: React.FC = () => {
     const [needsPasscode, setNeedsPasscode] = useState(false);
     const [enteredPasscode, setEnteredPasscode] = useState('');
     const [passcodeError, setPasscodeError] = useState<string | null>(null);
-    const [dbPasscodeCache, setDbPasscodeCache] = useState<string | null>(null);
+
+    const isPrivateRoomRef = useRef(isPrivateRoom);
+    const roomPasscodeRef = useRef(roomPasscode);
+
+    useEffect(() => {
+        isPrivateRoomRef.current = isPrivateRoom;
+        roomPasscodeRef.current = roomPasscode;
+    }, [isPrivateRoom, roomPasscode]);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -288,9 +294,10 @@ export const CinemaDate: React.FC = () => {
                             room_id: roomCodeRef.current,
                             host_peer_id: myPeerIdRef.current,
                             updated_at: new Date().toISOString(),
-                            is_private: isPrivateRoom,
-                            passcode: roomPasscode,
-                            participant_count: 1
+                            is_private: isPrivateRoomRef.current,
+                            passcode: roomPasscodeRef.current,
+                            participant_count: peersRef.current.length + 1,
+                            host_user_id: currentUser?.id
                         });
                     setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
@@ -490,7 +497,6 @@ export const CinemaDate: React.FC = () => {
                     // Check Passcode if joining existing private room
                     if (activeHostId && dbIsPrivate) {
                         if (roomPasscode !== dbPasscode) {
-                            setDbPasscodeCache(dbPasscode);
                             setNeedsPasscode(true);
                             setIsConnecting(false);
                             return; // Halt initialization until passcode is provided
@@ -554,7 +560,8 @@ export const CinemaDate: React.FC = () => {
                                             host_peer_id: id,
                                             is_private: isPrivateRoom,
                                             passcode: roomPasscode,
-                                            updated_at: new Date().toISOString()
+                                            updated_at: new Date().toISOString(),
+                                            host_user_id: currentUser?.id
                                         });
                                 } catch (dbErr) {
                                     console.error("Failed to register room host in Supabase:", dbErr);
@@ -1156,6 +1163,8 @@ export const CinemaDate: React.FC = () => {
                     setRoomName('Joined Room');
                     setIsHost(false);
                     setMode('viewer');
+                    setRoomPasscode(entered);
+                    setIsPrivateRoom(true);
                     setError(null);
                 } else {
                     setError('Invalid passcode or room expired');
@@ -1993,13 +2002,24 @@ export const CinemaDate: React.FC = () => {
                                 Back
                             </button>
                             <button
-                                onClick={() => {
-                                    if (enteredPasscode !== dbPasscodeCache) {
-                                        setPasscodeError('Incorrect passcode');
-                                        return;
+                                onClick={async () => {
+                                    if (!supabase) return;
+                                    try {
+                                        const { data, error } = await supabase
+                                            .from('active_rooms')
+                                            .select('room_id')
+                                            .eq('room_id', roomCode)
+                                            .eq('passcode', enteredPasscode)
+                                            .maybeSingle();
+                                        if (error || !data) {
+                                            setPasscodeError('Incorrect passcode');
+                                        } else {
+                                            setRoomPasscode(enteredPasscode);
+                                            setNeedsPasscode(false);
+                                        }
+                                    } catch (err) {
+                                        setPasscodeError('Failed to verify passcode');
                                     }
-                                    setRoomPasscode(enteredPasscode);
-                                    setNeedsPasscode(false);
                                 }}
                                 disabled={enteredPasscode.length < 4}
                                 className="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

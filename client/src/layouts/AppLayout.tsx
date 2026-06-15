@@ -252,9 +252,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </div>
 
               {/* Options Icon */}
-              <button aria-label="Profile options" className={`text-gray-600 hover:text-white transition-colors duration-300 shrink-0 overflow-hidden ${isHome ? 'max-w-[20px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[20px] group-hover/sidebar:opacity-100'}`}>
+              <div className={`text-gray-600 hover:text-white transition-colors duration-300 shrink-0 overflow-hidden ${isHome ? 'max-w-[20px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[20px] group-hover/sidebar:opacity-100'}`}>
                 <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
-              </button>
+              </div>
             </div>
           </div>
         </div>

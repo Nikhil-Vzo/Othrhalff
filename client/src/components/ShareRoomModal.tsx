@@ -86,6 +86,8 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
         }).filter(Boolean) as MatchPartner[];
 
         setMatches(partners);
+      } else {
+        setMatches([]);
       }
     } catch (err) {
       console.error('Failed to fetch matches:', err);
@@ -135,9 +137,10 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
     setSentMessages(prev => ({ ...prev, [matchId]: true }));
     
     try {
+      const parsedUrl = new URL(roomUrl);
       const inviteData = {
         type: roomUrl.includes('/music') ? 'music' : 'cinema',
-        url: new URL(roomUrl).pathname + new URL(roomUrl).search + new URL(roomUrl).hash
+        url: parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
       };
       
       const { error } = await supabase.from('messages').insert({
@@ -237,7 +240,7 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
             ) : (
               <div className="space-y-2">
                 {matches.map(match => (
-                  <div key={match.id} className="flex items-center justify-between p-3 bg-gray-800/50 hover:bg-gray-800 rounded-2xl transition-colors">
+                  <div key={match.matchId} className="flex items-center justify-between p-3 bg-gray-800/50 hover:bg-gray-800 rounded-2xl transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden border border-gray-600">
                         {match.avatar ? (

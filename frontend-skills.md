@@ -24,8 +24,9 @@ Focus on:
 - **Motion & 3D Integration**: This is critical. Utilize GSAP for complex, orchestrated page loads, scroll-triggered physics, and staggered reveals. Where applicable, integrate Three.js for immersive, WebGL-driven background effects or interactive connection visualizers to establish the mood.
 - **Spatial Composition**: Avoid generic dashboard layouts. Use asymmetry, strategic overlap, and diagonal flows. Balance generous negative space with tightly controlled clusters of interactive data.
 - **Visual Details**: Create atmosphere. Apply contextual effects like custom cursors, magnetic hover states, layered transparencies, and subtle grain overlays to make the digital space feel tactile.
+-**No emojis**: NEver use any literal emoji while creating ui use pro icons from lucid react or whatsoever library 
 
-NEVER use generic AI-generated aesthetics (e.g., standard Tailwind templates without customization, predictable card grids, cliched purple-on-white gradients). 
+NEVER use generic AI-generated aesthetics (e.g., standard Tailwind templates without customization, predictable card grids, cliched purple-on-white gradients, emojis). 
 
 **IMPORTANT**: Match implementation complexity to the aesthetic vision. If generating a 3D or highly animated component, ensure the React architecture is robust, utilizing proper refs, state management, and memory cleanup.
 
