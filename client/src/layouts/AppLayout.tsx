@@ -118,25 +118,31 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { path: '/profile', icon: User, label: 'My Profile' },
   ];
 
+  const isHome = pathname === '/home';
+
   return (
     <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden selection:bg-neon selection:text-white">
+      {/* Desktop Sidebar Placeholder to prevent layout shift */}
+      <div className={`hidden md:block shrink-0 h-full bg-black z-10 transition-[width] duration-300 ease-in-out ${isHome ? 'w-[280px]' : 'w-[88px]'}`} />
+
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-[280px] flex-col border-r border-gray-900 bg-black z-20 relative">
-        {/* Brand Header */}
-        <div className="p-8 pb-4">
+      <aside className={`hidden md:flex transition-[width] duration-300 ease-in-out flex-col bg-black z-50 absolute left-0 top-0 bottom-0 overflow-hidden group/sidebar ${isHome ? 'w-[280px] shadow-[4px_0_24px_rgba(0,0,0,0.5)]' : 'w-[88px] hover:w-[280px] group-hover/sidebar:shadow-[4px_0_24px_rgba(0,0,0,0.5)]'}`}>
+        <div className="w-full flex flex-col h-full">
+          {/* Brand Header */}
+        <div className={`p-6 pb-4 flex transition-all duration-300 ${isHome ? 'p-8 justify-start' : 'group-hover/sidebar:p-8 justify-center group-hover/sidebar:justify-start'}`}>
           <div
             role="button"
             tabIndex={0}
-            className="group flex items-center gap-3 cursor-pointer select-none"
+            className={`group flex items-center cursor-pointer select-none transition-all duration-300 ${isHome ? 'gap-3' : 'gap-0 group-hover/sidebar:gap-3'}`}
             onClick={() => handleNavClick('/home')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNavClick('/home'); } }}
             aria-label="Go to home"
           >
-            <div className="relative">
+            <div className="relative shrink-0">
               <Ghost className="w-8 h-8 text-neon drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] group-hover:rotate-12 transition-transform duration-300" />
               <Sparkles className="w-3 h-3 text-white absolute -top-1 -right-1 animate-pulse" />
             </div>
-            <div className="flex flex-col">
+            <div className={`flex flex-col overflow-hidden transition-all duration-300 whitespace-nowrap ${isHome ? 'max-w-[200px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[200px] group-hover/sidebar:opacity-100'}`}>
               <h1 className="text-2xl font-black text-white tracking-tighter uppercase leading-none flex gap-1">
                 <span>Othr</span>
                 <span className="text-neon">Halff</span>
@@ -149,8 +155,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-4">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar overflow-x-hidden">
+          <div className={`text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-4 overflow-hidden transition-all duration-300 whitespace-nowrap ${isHome ? 'max-w-[200px] max-h-[20px] px-4 opacity-100' : 'opacity-0 max-h-0 max-w-0 group-hover/sidebar:max-w-[200px] group-hover/sidebar:max-h-[20px] group-hover/sidebar:px-4 group-hover/sidebar:opacity-100'}`}>
             Menu
           </div>
 
@@ -160,7 +166,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               <button
                 key={item.path}
                 onClick={() => handleNavClick(item.path)}
-                className={`w-full relative group flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 ease-out border overflow-hidden
+                className={`w-full relative group flex items-center rounded-2xl transition-all duration-300 ease-out border overflow-hidden ${isHome ? 'justify-start gap-4 p-3 px-5 py-3.5' : 'justify-center group-hover/sidebar:justify-start gap-0 group-hover/sidebar:gap-4 p-3 group-hover/sidebar:px-5 group-hover/sidebar:py-3.5'}
                   ${active
                     ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.1)]'
                     : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
@@ -168,7 +174,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               >
                 {/* Active Indicator Line */}
                 {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
+                  <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-1 bg-neon rounded-t-full shadow-[0_0_10px_#ff007f] transition-all duration-300 ${isHome ? 'w-4/5' : 'w-8 group-hover/sidebar:w-4/5'}`} />
                 )}
 
                 {/* Hover Gradient Background */}
@@ -176,17 +182,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
                 {/* Icon */}
                 <item.icon
-                  className={`w-5 h-5 relative z-10 transition-transform duration-300 ${active ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]' : 'group-hover:scale-110 group-hover:text-gray-300'}`}
+                  className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-300 ${active ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]' : 'group-hover:scale-110 group-hover:text-gray-300'}`}
                   strokeWidth={active ? 2.5 : 2}
                 />
 
                 {/* Label */}
-                <span className={`text-sm font-bold tracking-wide relative z-10 ${active ? 'text-white' : ''}`}>
+                <span className={`text-sm font-bold tracking-wide relative z-10 overflow-hidden transition-all duration-300 whitespace-nowrap ${active ? 'text-white' : ''} ${isHome ? 'max-w-[200px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[200px] group-hover/sidebar:opacity-100'}`}>
                   {item.label}
                 </span>
 
                 {/* Badges/Indicators */}
-                <div className="ml-auto relative z-10 flex items-center gap-2">
+                <div className={`ml-auto relative z-10 flex items-center gap-2 overflow-hidden transition-all duration-300 whitespace-nowrap ${isHome ? 'max-w-[50px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[50px] group-hover/sidebar:opacity-100'}`}>
                   {item.badge && (
                     <span className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.4)]">
                       {item.badge}
@@ -212,14 +218,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             onClick={() => handleNavClick('/profile')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNavClick('/profile'); } }}
             aria-label="Go to your profile"
-            className="relative group p-3 rounded-2xl bg-gradient-to-b from-black to-black border border-gray-800 hover:border-neon/30 transition-all duration-300 cursor-pointer overflow-hidden"
+            className={`relative group rounded-2xl bg-gradient-to-b from-black to-black border border-gray-800 hover:border-neon/30 transition-all duration-300 cursor-pointer overflow-hidden flex items-center ${isHome ? 'p-3 justify-start' : 'p-2 group-hover/sidebar:p-3 justify-center group-hover/sidebar:justify-start'}`}
           >
             {/* Glow Effect */}
             <div className="absolute inset-0 bg-neon/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            <div className="flex items-center gap-3 relative z-10">
+            <div className={`flex items-center relative z-10 transition-all duration-300 ${isHome ? 'gap-3' : 'gap-0 group-hover/sidebar:gap-3'}`}>
               {/* Avatar */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-neon transition-colors duration-300">
                   {currentUser?.avatar ? (
                     <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" />
@@ -233,7 +239,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </div>
 
               {/* Info */}
-              <div className="flex-1 overflow-hidden">
+              <div className={`overflow-hidden transition-all duration-300 whitespace-nowrap ${isHome ? 'max-w-[150px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[150px] group-hover/sidebar:opacity-100'}`}>
                 <p className="text-sm font-bold text-white truncate group-hover:text-neon transition-colors">
                   {currentUser?.realName || 'Anonymous'}
                 </p>
@@ -246,11 +252,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </div>
 
               {/* Options Icon */}
-              <button aria-label="Profile options" className="text-gray-600 hover:text-white transition-colors">
+              <button aria-label="Profile options" className={`text-gray-600 hover:text-white transition-colors duration-300 shrink-0 overflow-hidden ${isHome ? 'max-w-[20px] opacity-100' : 'opacity-0 max-w-0 group-hover/sidebar:max-w-[20px] group-hover/sidebar:opacity-100'}`}>
                 <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
           </div>
+        </div>
         </div>
       </aside>
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile } from '../types';
 import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
@@ -32,8 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [showLogoutCountdown, setShowLogoutCountdown] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
+  const initRef = useRef(false);
+
   // Load from DB on mount (Optimized: Cache-First)
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+
     const initializeAuth = async () => {
       // 1. FAST: Load from LocalStorage immediately to unblock UI
       const localUser = authService.getCurrentUser();
@@ -45,14 +50,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. SLOW (Background): Verify with Supabase for updates/security
       if (supabase) {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          const { data: { session } } = await supabase.auth.getSession().catch(err => {
+            if (err.name === 'AbortError' || err.message.includes('AbortError')) {
+                console.log('Ignored AbortError during getSession');
+            } else {
+                throw err;
+            }
+            return { data: { session: null } };
+          });
 
           // If no session, try refreshing (mobile browsers often lose the access token
           // while backgrounded, but the refresh token is still valid)
           let activeSession = session;
           if (!activeSession && localUser) {
             console.log('No session found, attempting token refresh...');
-            const { data: refreshData } = await supabase.auth.refreshSession();
+            const { data: refreshData } = await supabase.auth.refreshSession().catch(err => {
+                if (err.name === 'AbortError' || err.message.includes('AbortError')) {
+                    console.log('Ignored AbortError during refreshSession');
+                } else {
+                    throw err;
+                }
+                return { data: { session: null } };
+            });
             activeSession = refreshData?.session ?? null;
           }
 

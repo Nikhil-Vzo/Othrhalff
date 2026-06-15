@@ -333,7 +333,7 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/90 pointer-events-none z-20" />
 
       {/* Glassmorphic Profile & Caption Card */}
-      <div className="absolute left-4 right-20 bottom-24 md:bottom-8 z-20 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-2 max-w-md animate-in fade-in slide-in-from-bottom-5 duration-500">
+      <div className="absolute left-4 md:left-[104px] right-20 bottom-24 md:bottom-8 z-20 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-2 max-w-md animate-in fade-in slide-in-from-bottom-5 duration-500">
         {/* User Credentials */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full border border-white/20 overflow-hidden bg-gray-950 flex-shrink-0">

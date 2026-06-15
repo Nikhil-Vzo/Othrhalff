@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { GlimpseCard } from '../components/GlimpseCard';
 import { GlimpseUploadModal } from '../components/GlimpseUploadModal';
-import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck } from 'lucide-react';
+import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lock, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
@@ -63,6 +63,11 @@ export const Sparx: React.FC = () => {
   const [creatingType, setCreatingType] = useState<'cinema' | 'music' | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
   const [lobbyError, setLobbyError] = useState<string | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [showPasscodePrompt, setShowPasscodePrompt] = useState(false);
+  const [pendingJoinRoom, setPendingJoinRoom] = useState<any>(null);
+  const [enteredPasscode, setEnteredPasscode] = useState('');
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
 
   const fetchActiveRooms = async () => {
     if (supabase) {
@@ -118,12 +123,20 @@ export const Sparx: React.FC = () => {
     const uniqueId = Math.random().toString(36).substring(2, 7);
     const roomId = `${creatingType}_${nameSlug}_${uniqueId}`;
 
+    let redirectUrl = `/sparx/${creatingType}?room=${encodeURIComponent(roomId)}`;
+    
+    if (isPrivate) {
+      const generatedPasscode = Math.floor(1000 + Math.random() * 9000).toString();
+      redirectUrl += `&private=true&passcode=${generatedPasscode}`;
+    }
+
     setIsLobbyOpen(false);
     setCreatingType(null);
     setNewRoomName('');
+    setIsPrivate(false);
     setLobbyError(null);
 
-    router.push(`/sparx/${creatingType}?room=${encodeURIComponent(roomId)}`);
+    router.push(redirectUrl);
   };
 
   const [showTutorial, setShowTutorial] = useState(false);
@@ -200,8 +213,6 @@ export const Sparx: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      
       let query = supabase
         .from('glimpses')
         .select(`
@@ -215,8 +226,7 @@ export const Sparx: React.FC = () => {
             is_verified,
             university
           )
-        `)
-        .gt('created_at', last24Hours);
+        `);
         
       const targetUniv = currentUser?.university?.trim();
       if (leaderboardScope === 'campus' && targetUniv) {
@@ -642,13 +652,23 @@ export const Sparx: React.FC = () => {
               <div className="flex flex-col gap-2">
                 {leaderboardUsers.map((user, idx) => {
                   const rank = idx + 1;
+                  const isCurrentUser = currentUser && currentUser.id === user.profile.id;
                   
                   return (
                     <div 
                       key={user.profile.id}
-                      className="flex items-center justify-between p-4 bg-gray-950/40 border border-gray-900 rounded-2xl hover:border-gray-800 transition-all duration-300"
+                      className={`flex items-center justify-between p-4 border rounded-2xl transition-all duration-300 relative overflow-hidden ${
+                        isCurrentUser
+                          ? 'bg-neon/5 border-neon/40 shadow-[0_0_20px_rgba(255,0,127,0.1)]'
+                          : 'bg-gray-950/40 border-gray-900 hover:border-gray-800'
+                      }`}
                     >
-                      <div className="flex items-center gap-4 min-w-0">
+                      {/* Subtle gradient highlight for current user */}
+                      {isCurrentUser && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-neon/10 to-transparent pointer-events-none" />
+                      )}
+                      
+                      <div className="flex items-center gap-4 min-w-0 relative z-10">
                         {/* Rank Badge */}
                         <div className="w-6 flex-shrink-0 flex items-center justify-center font-bold font-mono text-sm">
                           {rank === 1 ? (
@@ -690,8 +710,11 @@ export const Sparx: React.FC = () => {
 
                         {/* Details */}
                         <div className="min-w-0">
-                          <h4 className="text-sm font-bold text-gray-100 truncate flex items-center gap-1.5">
+                          <h4 className={`text-sm font-bold truncate flex items-center gap-1.5 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
                             {user.profile.real_name || 'Anonymous'}
+                            {isCurrentUser && (
+                              <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)]">You</span>
+                            )}
                             {user.profile.is_verified && (
                               <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
                             )}
@@ -896,7 +919,7 @@ export const Sparx: React.FC = () => {
           />
 
           {/* Glimpse Progress Indicators at the Top */}
-          <div className="absolute top-4 left-4 right-12 z-50 flex gap-1">
+          <div className="absolute top-4 left-4 md:left-[104px] right-12 z-50 flex gap-1">
             {glimpses.map((_, idx) => (
               <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
                 <div 
@@ -963,7 +986,7 @@ export const Sparx: React.FC = () => {
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
         >
           <div
-            className="relative w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-sm max-h-[85dvh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -991,7 +1014,7 @@ export const Sparx: React.FC = () => {
             </div>
 
             {creatingType === null ? (
-              <div className="px-5 py-4 flex flex-col gap-4 max-h-[60vh] overflow-y-auto scrollbar-none">
+              <div className="px-5 py-4 flex-1 flex flex-col gap-4 overflow-y-auto scrollbar-none">
                 {lobbyError && (
                   <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-2.5 px-4 rounded-xl">
                     {lobbyError}
@@ -1018,14 +1041,26 @@ export const Sparx: React.FC = () => {
                           <button
                             key={room.room_id}
                             onClick={() => {
-                              setIsLobbyOpen(false);
-                              router.push(`/sparx/cinema?room=${encodeURIComponent(room.room_id)}`);
+                              if (room.is_private) {
+                                setPendingJoinRoom(room);
+                                setShowPasscodePrompt(true);
+                              } else {
+                                setIsLobbyOpen(false);
+                                router.push(`/sparx/cinema?room=${encodeURIComponent(room.room_id)}`);
+                              }
                             }}
                             className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700 text-left transition-colors group w-full"
                           >
-                            <div className="min-w-0">
-                              <span className="text-sm font-semibold text-zinc-200 group-hover:text-white block truncate">{details.name}</span>
-                              <span className="text-xs text-zinc-600 block mt-0.5">Cinema Room</span>
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-sm font-semibold text-zinc-200 group-hover:text-white truncate flex items-center gap-1.5">
+                                {details.name}
+                                {room.is_private && <Lock className="w-3.5 h-3.5 text-zinc-500" />}
+                              </span>
+                              <span className="text-xs text-zinc-600 mt-0.5 flex items-center gap-1.5">
+                                Cinema Room
+                                <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+                                <span className="flex items-center gap-1"><Users className="w-3 h-3"/> {room.participant_count || 1}</span>
+                              </span>
                             </div>
                             <span className="text-xs font-semibold text-zinc-400 group-hover:text-white border border-zinc-700 px-3 py-1 rounded-lg bg-zinc-900 shrink-0 ml-3">Join</span>
                           </button>
@@ -1055,14 +1090,26 @@ export const Sparx: React.FC = () => {
                           <button
                             key={room.room_id}
                             onClick={() => {
-                              setIsLobbyOpen(false);
-                              router.push(`/sparx/music?room=${encodeURIComponent(room.room_id)}`);
+                              if (room.is_private) {
+                                setPendingJoinRoom(room);
+                                setShowPasscodePrompt(true);
+                              } else {
+                                setIsLobbyOpen(false);
+                                router.push(`/sparx/music?room=${encodeURIComponent(room.room_id)}`);
+                              }
                             }}
                             className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700 text-left transition-colors group w-full"
                           >
-                            <div className="min-w-0">
-                              <span className="text-sm font-semibold text-zinc-200 group-hover:text-white block truncate">{details.name}</span>
-                              <span className="text-xs text-zinc-600 block mt-0.5">Music Lounge</span>
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-sm font-semibold text-zinc-200 group-hover:text-white truncate flex items-center gap-1.5">
+                                {details.name}
+                                {room.is_private && <Lock className="w-3.5 h-3.5 text-zinc-500" />}
+                              </span>
+                              <span className="text-xs text-zinc-600 mt-0.5 flex items-center gap-1.5">
+                                Music Lounge
+                                <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+                                <span className="flex items-center gap-1"><Users className="w-3 h-3"/> {room.participant_count || 1}</span>
+                              </span>
                             </div>
                             <span className="text-xs font-semibold text-zinc-400 group-hover:text-white border border-zinc-700 px-3 py-1 rounded-lg bg-zinc-900 shrink-0 ml-3">Join</span>
                           </button>
@@ -1094,11 +1141,31 @@ export const Sparx: React.FC = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:border-zinc-600 focus:outline-none transition-colors text-sm mb-4"
                   autoFocus
                 />
+                
+                {/* Private Toggle */}
+                <div className="flex items-center gap-3 mb-6 p-1">
+                  <input
+                    type="checkbox"
+                    id="private-room-toggle"
+                    checked={isPrivate}
+                    onChange={(e) => setIsPrivate(e.target.checked)}
+                    className="w-4.5 h-4.5 rounded border-zinc-800 bg-zinc-900 text-purple-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-purple-500"
+                  />
+                  <label 
+                    htmlFor="private-room-toggle" 
+                    className="text-sm font-semibold text-zinc-300 hover:text-white cursor-pointer select-none flex items-center gap-1.5"
+                  >
+                    <Lock className="w-4 h-4 text-zinc-400" />
+                    Private Room (Requires Passcode)
+                  </label>
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setCreatingType(null);
                       setNewRoomName('');
+                      setIsPrivate(false);
                       setLobbyError(null);
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-semibold text-sm transition-colors"
@@ -1121,11 +1188,14 @@ export const Sparx: React.FC = () => {
               <div className="px-5 pb-5 pt-3 border-t border-zinc-900 flex flex-col gap-2">
                 {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'cinema').length < 4 ? (
                   <button
-                    onClick={() => setCreatingType('cinema')}
+                    onClick={() => {
+                      setIsLobbyOpen(false);
+                      router.push('/sparx/cinema');
+                    }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-white font-semibold text-sm transition-colors"
                   >
                     <Tv className="w-4 h-4 text-zinc-400" />
-                    Create Cinema Room
+                    Create/Join Cinema Room
                   </button>
                 ) : (
                   <div className="w-full py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-900 text-zinc-600 font-semibold text-sm text-center">
@@ -1134,11 +1204,14 @@ export const Sparx: React.FC = () => {
                 )}
                 {activeRooms.filter(r => parseRoomDetails(r.room_id).type === 'music').length < 4 ? (
                   <button
-                    onClick={() => setCreatingType('music')}
+                    onClick={() => {
+                      setIsLobbyOpen(false);
+                      router.push('/sparx/music');
+                    }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-white font-semibold text-sm transition-colors"
                   >
                     <Music className="w-4 h-4 text-zinc-400" />
-                    Create Music Lounge
+                    Create/Join Music Room
                   </button>
                 ) : (
                   <div className="w-full py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-900 text-zinc-600 font-semibold text-sm text-center">
@@ -1147,6 +1220,70 @@ export const Sparx: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Passcode Prompt Overlay */}
+      {showPasscodePrompt && pendingJoinRoom && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+              <Lock className="w-5 h-5 text-purple-500" />
+              Private Room
+            </h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              This room is locked. Please enter the 4-digit passcode to join.
+            </p>
+            
+            {passcodeError && (
+              <div className="mb-3 text-red-400 text-xs bg-red-500/10 border border-red-500/20 py-2 px-3 rounded-lg">
+                {passcodeError}
+              </div>
+            )}
+            
+            <input
+              type="text"
+              placeholder="0000"
+              maxLength={4}
+              value={enteredPasscode}
+              onChange={(e) => {
+                setEnteredPasscode(e.target.value.replace(/\D/g, ''));
+                setPasscodeError(null);
+              }}
+              className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest font-mono placeholder-zinc-700 focus:border-purple-500 focus:outline-none transition-colors mb-4"
+              autoFocus
+            />
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowPasscodePrompt(false);
+                  setPendingJoinRoom(null);
+                  setEnteredPasscode('');
+                  setPasscodeError(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (enteredPasscode !== pendingJoinRoom.passcode) {
+                    setPasscodeError('Incorrect passcode');
+                    return;
+                  }
+                  setShowPasscodePrompt(false);
+                  setIsLobbyOpen(false);
+                  const type = parseRoomDetails(pendingJoinRoom.room_id).type;
+                  router.push(`/sparx/${type}?room=${encodeURIComponent(pendingJoinRoom.room_id)}`);
+                }}
+                disabled={enteredPasscode.length < 4}
+                className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Join
+              </button>
+            </div>
           </div>
         </div>
       )}

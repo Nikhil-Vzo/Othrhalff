@@ -5,7 +5,7 @@ import { useCall } from '../context/CallContext';
 import { usePresence } from '../context/PresenceContext';
 import { MatchProfile, Message } from '../types';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Gamepad2, Check, CheckCheck, ArrowDown, Sparkles, Plus, Trophy, Tv, Music, Lightbulb, HelpCircle, Dices } from 'lucide-react';
+import { ArrowLeft, Send, Phone, Video, MoreVertical, Ghost, Shield, Clock, User, AlertTriangle, Ban, Loader2, BadgeCheck, Gamepad2, Check, CheckCheck, ArrowDown, Sparkles, Plus, Trophy, Tv, Music, Lightbulb, HelpCircle, Dices, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PermissionModal } from '../components/PermissionModal';
 import { blockUser, unblockUser, checkBlockStatus } from '../services/blockService';
@@ -86,9 +86,30 @@ export const Chat: React.FC = () => {
     [matchId]
   );
 
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`deleted_messages_${matchId}`);
+      return new Set(stored ? JSON.parse(stored) : []);
+    }
+    return new Set();
+  });
+
+  const [clearedAt, setClearedAt] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`cleared_chat_${matchId}`);
+      return stored ? parseInt(stored, 10) : 0;
+    }
+    return 0;
+  });
+
   const messages: Message[] = React.useMemo(() => {
     if (!liveMessages) return [];
-    return liveMessages.map(m => ({
+    return liveMessages
+      .filter(m => {
+        const msgTime = new Date(m.created_at).getTime();
+        return msgTime > clearedAt && !deletedIds.has(m.id);
+      })
+      .map(m => ({
       id: m.id,
       senderId: m.sender_id,
       text: m.text,
@@ -526,6 +547,61 @@ export const Chat: React.FC = () => {
     }, 1500);
   };
 
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      // 1. Hide locally for this device regardless of who sent it
+      const newDeleted = new Set(deletedIds);
+      newDeleted.add(msgId);
+      setDeletedIds(newDeleted);
+      localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify(Array.from(newDeleted)));
+
+      // 2. Also try to delete from Supabase if we sent it (optional, to permanently remove it from server)
+      const msg = liveMessages?.find(m => m.id === msgId);
+      if (msg && msg.sender_id === currentUser?.id) {
+        await supabase.from('messages').delete().eq('id', msgId);
+      }
+      
+      // 3. Remove from local Dexie database
+      await db.messages.delete(msgId);
+    } catch (e) {
+      console.error('Error deleting message:', e);
+    }
+  };
+
+  const handleClearChat = async () => {
+    showConfirm(
+      'Clear Chat',
+      'Are you sure you want to clear this chat? This will remove all messages from your view only.',
+      async () => {
+        try {
+          // 1. Hide locally for this device by setting a timestamp
+          const now = Date.now();
+          setClearedAt(now);
+          localStorage.setItem(`cleared_chat_${matchId}`, now.toString());
+
+          // 2. Clear our own messages from Supabase (if they ran the SQL policy)
+          const myMessages = await db.messages.where('match_id').equals(matchId)
+            .filter(m => m.sender_id === currentUser?.id)
+            .toArray();
+          const myMsgIds = myMessages.map(m => m.id);
+
+          if (myMsgIds.length > 0) {
+            await supabase.from('messages').delete().in('id', myMsgIds);
+          }
+
+          // 3. Bulk delete everything from local Dexie DB to save space
+          const allMsgs = await db.messages.where('match_id').equals(matchId).toArray();
+          await db.messages.bulkDelete(allMsgs.map(m => m.id));
+
+        } catch (e) {
+          console.error('Error clearing chat:', e);
+        }
+      },
+      true,
+      'Clear Chat'
+    );
+  };
+
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault(); if (!newMessage.trim() || !currentUser || !matchId || isBlocked || isBlockedByThem) return;
     
@@ -865,6 +941,7 @@ export const Chat: React.FC = () => {
                 <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
                 <div className="absolute right-0 top-12 z-50 w-48 bg-gray-900 border border-gray-700 rounded-xl shadow-xl overflow-hidden">
                   <button onClick={() => { navigate.push(`/profile/${partner.id}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><User className="w-4 h-4" /> View Profile</button>
+                  <button onClick={() => { setShowMenu(false); handleClearChat(); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800 border-b border-gray-800/50"><Trash2 className="w-4 h-4" /> Clear Chat</button>
                   <button onClick={() => { setShowMenu(false); handleBlockUser(); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-gray-800"><Ban className="w-4 h-4" /> {isBlocked ? 'Unblock' : 'Block'}</button>
                   <button onClick={() => { navigate.push(`/contact?reportUserId=${partner.id}&reportUserName=${partner.realName || partner.anonymousId}`); setShowMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800"><AlertTriangle className="w-4 h-4" /> Report</button>
                   <div className="border-t border-gray-800 px-4 py-2.5">
@@ -1228,7 +1305,7 @@ export const Chat: React.FC = () => {
                 {!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" />}</div>}
                 <div 
                   onDoubleClick={() => handleMessageDoubleClick(msg.id, msg.reaction)}
-                  className={`relative px-4 py-2.5 rounded-2xl text-sm break-words break-all min-w-0 select-none cursor-pointer transition-all active:scale-[0.98] duration-300 ${
+                  className={`relative px-4 py-2.5 rounded-2xl text-sm break-words break-all min-w-0 select-none cursor-pointer transition-all active:scale-[0.98] duration-300 group ${
                     isMe 
                       ? 'bg-gradient-to-r from-neon to-[#d6006b] border border-white/10 text-white rounded-br-none shadow-[0_4px_12px_rgba(255,0,127,0.3)]' 
                       : 'bg-white/5 backdrop-blur-md border border-white/10 text-gray-100 rounded-bl-none shadow-[0_4px_30px_rgba(0,0,0,0.15)] hover:bg-white/10 hover:border-white/20'
@@ -1256,6 +1333,13 @@ export const Chat: React.FC = () => {
                       )
                     )}
                   </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+                    className={`opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 ${isMe ? '-left-8' : '-right-8'} p-1.5 bg-gray-900/80 hover:bg-red-500/20 hover:text-red-400 rounded-full border border-gray-700 backdrop-blur-md text-gray-400 z-10`}
+                    title="Delete Message"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </div>

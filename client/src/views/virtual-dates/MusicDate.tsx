@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
 import { useAuth } from '../../context/AuthContext';
@@ -67,6 +67,14 @@ export const MusicDate = () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [queue, setQueue] = useState<Track[]>([]);
+
+    // Privacy & Passcode state
+    const [isPrivateRoom, setIsPrivateRoom] = useState(false);
+    const [roomPasscode, setRoomPasscode] = useState<string | null>(null);
+    const [needsPasscode, setNeedsPasscode] = useState(false);
+    const [enteredPasscode, setEnteredPasscode] = useState('');
+    const [passcodeError, setPasscodeError] = useState<string | null>(null);
+    const [dbPasscodeCache, setDbPasscodeCache] = useState<string | null>(null);
 
     // Volume & Fullscreen State
     const [showVolumeControls, setShowVolumeControls] = useState(false);
@@ -158,7 +166,10 @@ export const MusicDate = () => {
                         .upsert({
                             room_id: roomCodeRef.current,
                             host_peer_id: myPeerIdRef.current,
-                            updated_at: new Date().toISOString()
+                            updated_at: new Date().toISOString(),
+                            is_private: isPrivateRoom,
+                            passcode: roomPasscode,
+                            participant_count: 1
                         });
                     setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
@@ -387,9 +398,20 @@ export const MusicDate = () => {
         if (typeof window !== 'undefined') {
             const searchParams = new URLSearchParams(window.location.search);
             const queryRoom = searchParams.get('room');
+            const queryPrivate = searchParams.get('private');
+            const queryPasscode = searchParams.get('passcode');
+            
             if (queryRoom && mode === 'landing') {
                 setRoomCode(queryRoom);
                 setRoomName(parseRoomName(queryRoom));
+                
+                if (queryPrivate === 'true') setIsPrivateRoom(true);
+                if (queryPasscode) setRoomPasscode(queryPasscode);
+                
+                if (queryPrivate || queryPasscode) {
+                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
+                }
+                
                 setError(null);
             }
         }
@@ -408,7 +430,7 @@ export const MusicDate = () => {
 
     // Initialize Peer
     useEffect(() => {
-        if (roomCode) {
+        if (roomCode && !needsPasscode) {
             if (peerInstance.current && (peerInstance.current.id === roomHostId || peerInstance.current.id === myPeerId)) {
                 return;
             }
@@ -426,19 +448,33 @@ export const MusicDate = () => {
                 try {
                     // 1. Query Supabase to see if a host exists
                     let activeHostId: string | null = null;
+                    let dbIsPrivate = false;
+                    let dbPasscode: string | null = null;
                     if (supabase) {
                         try {
                             const { data, error: queryError } = await supabase
                                 .from('active_rooms')
-                                .select('host_peer_id')
+                                .select('host_peer_id, is_private, passcode')
                                 .eq('room_id', roomCode)
                                 .maybeSingle();
                             
                             if (!queryError && data) {
                                 activeHostId = data.host_peer_id;
+                                dbIsPrivate = data.is_private;
+                                dbPasscode = data.passcode;
                             }
                         } catch (supabaseErr) {
                             console.error("Error querying active host:", supabaseErr);
+                        }
+                    }
+
+                    // Check Passcode if joining existing private room
+                    if (activeHostId && dbIsPrivate) {
+                        if (roomPasscode !== dbPasscode) {
+                            setDbPasscodeCache(dbPasscode);
+                            setNeedsPasscode(true);
+                            setIsConnecting(false);
+                            return; // Halt initialization until passcode is provided
                         }
                     }
 
@@ -509,6 +545,8 @@ export const MusicDate = () => {
                                         .upsert({
                                             room_id: roomCode,
                                             host_peer_id: id,
+                                            is_private: isPrivateRoom,
+                                            passcode: roomPasscode,
                                             updated_at: new Date().toISOString()
                                         });
                                 } catch (dbErr) {
@@ -550,7 +588,21 @@ export const MusicDate = () => {
                         console.log('Receiving call from:', call.peer);
                         call.answer(stream);
                         call.on('stream', (remoteStream) => {
-                            setPeers(prev => prev.find(p => p.peerId === call.peer) ? prev : [...prev, { peerId: call.peer, stream: remoteStream }]);
+                            setPeers(prev => {
+                                if (prev.find(p => p.peerId === call.peer)) return prev;
+                                
+                                setCamPositions(prevPos => {
+                                    if (!prevPos[call.peer]) {
+                                        const peerCount = prev.length;
+                                        return { ...prevPos, [call.peer]: { 
+                                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
+                                        }};
+                                    }
+                                    return prevPos;
+                                });
+                                return [...prev, { peerId: call.peer, stream: remoteStream }];
+                            });
                         });
                         call.on('close', () => setPeers(prev => prev.filter(p => p.peerId !== call.peer)));
                     });
@@ -592,7 +644,7 @@ export const MusicDate = () => {
                 }
             };
         }
-    }, [roomCode]);
+    }, [roomCode, needsPasscode, roomPasscode]);
 
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
         console.log(`Attempting to connect to Host: ${targetId}`);
@@ -630,7 +682,21 @@ export const MusicDate = () => {
         });
 
         call.on('stream', (remoteStream) => {
-            setPeers(prev => prev.find(p => p.peerId === targetId) ? prev : [...prev, { peerId: targetId, stream: remoteStream }]);
+            setPeers(prev => {
+                if (prev.find(p => p.peerId === targetId)) return prev;
+                
+                setCamPositions(prevPos => {
+                    if (!prevPos[targetId]) {
+                        const peerCount = prev.length;
+                        return { ...prevPos, [targetId]: { 
+                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
+                        }};
+                    }
+                    return prevPos;
+                });
+                return [...prev, { peerId: targetId, stream: remoteStream }];
+            });
         });
         call.on('close', () => setPeers(prev => prev.filter(p => p.peerId !== targetId)));
         call.on('error', (err) => {
@@ -714,6 +780,31 @@ export const MusicDate = () => {
         });
     };
 
+    // Sync participant count to Supabase
+    useEffect(() => {
+        if (isHost && roomCode && supabase) {
+            const count = peers.length + 1; // +1 for the host
+            supabase
+                .from('active_rooms')
+                .update({ participant_count: count })
+                .eq('room_id', roomCode)
+                .then(({ error }) => {
+                    if (error) console.error("Error updating participant count:", error);
+                });
+        }
+    }, [peers.length, isHost, roomCode]);
+
+    // Initialize local camera position
+    useEffect(() => {
+        setCamPositions(prev => ({
+            ...prev,
+            'me': { 
+                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 : 300 
+            }
+        }));
+    }, []);
+
     const broadcastSync = (action: string, payload: any = {}) => {
         if (!isHost && action !== 'queue_add') return;
         broadcastData({ type: 'SYNC_PLAYER', action, ...payload });
@@ -794,7 +885,7 @@ export const MusicDate = () => {
             controller.abort();
             if (audioRef.current?.src?.startsWith('blob:')) {
                 URL.revokeObjectURL(audioRef.current.src);
-                audioRef.current.src = '';
+                // Intentionally NOT setting audioRef.current.src = '' here because it triggers an artificial onError event in the browser.
             }
         };
     }, [currentTrack]);
@@ -946,7 +1037,10 @@ export const MusicDate = () => {
         }
     };
 
-    const handleAudioError = () => {
+    const handleAudioError = (e: any) => {
+        if (!audioRef.current || !audioRef.current.src || audioRef.current.src === window.location.href) {
+            return; // Ignore empty src errors
+        }
         // Blob fetch already handles fallback — this is only a last resort
         setIsPlaying(false);
         setError('Track failed to load. Try selecting the song again.');
@@ -1031,38 +1125,66 @@ export const MusicDate = () => {
         broadcastSync('seek', { time: newTime });
     };
 
-    const generateRoomCode = () => {
-        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        const numbers = '0123456789';
-        let code = '';
-        for (let i = 0; i < 3; i++) code += letters.charAt(Math.floor(Math.random() * letters.length));
-        code += '-';
-        for (let i = 0; i < 3; i++) code += numbers.charAt(Math.floor(Math.random() * numbers.length));
-        return code;
-    };
-
     const handleCreateRoom = () => {
         if (!roomName.trim()) {
             setError('Please enter a room name');
             return;
         }
         setIsConnecting(true);
-        setRoomCode(generateRoomCode());
+        const nameSlug = roomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
+        const uniqueId = Math.random().toString(36).substring(2, 7);
+        const code = `music_${nameSlug}_${uniqueId}`;
+        
+        if (isPrivateRoom) {
+            const passcode = Math.floor(1000 + Math.random() * 9000).toString();
+            setRoomPasscode(passcode);
+        } else {
+            setRoomPasscode(null);
+        }
+
+        setRoomCode(code);
         setIsHost(true);
         setMode('room');
         setTimeout(() => setIsConnecting(false), 1000);
     };
 
-    const handleJoinRoom = () => {
-        const formatted = joinCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
-        if (formatted.length !== 6) {
-            setError('Please enter a valid room code (e.g., ABC-123)');
+    const handleJoinRoom = async () => {
+        const entered = joinCode.replace(/\D/g, '');
+        if (entered.length !== 4) {
+            setError('Please enter a valid 4-digit passcode');
             return;
         }
-        setRoomCode(`${formatted.slice(0, 3)}-${formatted.slice(3, 6)}`);
-        setRoomName('Joined Room');
-        setIsHost(false);
-        setMode('room');
+        
+        setIsConnecting(true);
+        
+        if (supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('active_rooms')
+                    .select('room_id, is_private, passcode')
+                    .eq('is_private', true)
+                    .eq('passcode', entered)
+                    .like('room_id', 'music_%')
+                    .maybeSingle();
+                    
+                if (error) throw error;
+                
+                if (data) {
+                    setRoomCode(data.room_id);
+                    setRoomName('Joined Room');
+                    setIsHost(false);
+                    setMode('room');
+                    setError(null);
+                } else {
+                    setError('Invalid passcode or room expired');
+                }
+            } catch (err: any) {
+                console.error("Error joining room:", err);
+                setError('Failed to connect to room');
+            } finally {
+                setIsConnecting(false);
+            }
+        }
     };
 
     const toggleMute = () => {
@@ -1104,14 +1226,14 @@ export const MusicDate = () => {
         startDrag(id, e.clientX, e.clientY);
 
         const handleMouseMove = (mvEvent: MouseEvent) => moveDrag(mvEvent.clientX, mvEvent.clientY);
-        const handleMouseUp = () => {
+        const handleEnd = () => {
             endDrag();
             window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mouseup', handleEnd);
         };
 
         window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mouseup', handleEnd);
     };
 
     const handleCamTouchStart = (e: React.TouchEvent, id: string) => {
@@ -1124,14 +1246,14 @@ export const MusicDate = () => {
             if (mvEvent.touches.length !== 1) return;
             moveDrag(mvEvent.touches[0].clientX, mvEvent.touches[0].clientY);
         };
-        const handleTouchEnd = () => {
+        const handleEnd = () => {
             endDrag();
             window.removeEventListener('touchmove', handleTouchMove);
-            window.removeEventListener('touchend', handleTouchEnd);
+            window.removeEventListener('touchend', handleEnd);
         };
 
         window.addEventListener('touchmove', handleTouchMove, { passive: false });
-        window.addEventListener('touchend', handleTouchEnd);
+        window.addEventListener('touchend', handleEnd);
     };
 
     const handleSendMessage = (e: React.FormEvent) => {
@@ -1259,6 +1381,66 @@ export const MusicDate = () => {
         );
     }
 
+    if (needsPasscode) {
+        return (
+            <div className="flex flex-col h-[100dvh] w-full bg-[#050510] text-white overflow-hidden font-sans relative">
+                <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                    <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <Lock className="w-6 h-6 text-violet-500" />
+                            Private Room
+                        </h3>
+                        <p className="text-sm text-zinc-400 mb-6">
+                            This room is locked. Please enter the passcode to join.
+                        </p>
+                        
+                        {passcodeError && (
+                            <div className="mb-4 text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-3 px-4 rounded-xl">
+                                {passcodeError}
+                            </div>
+                        )}
+                        
+                        <input
+                            type="text"
+                            placeholder="0000"
+                            maxLength={4}
+                            value={enteredPasscode}
+                            onChange={(e) => {
+                                setEnteredPasscode(e.target.value.replace(/\D/g, ''));
+                                setPasscodeError(null);
+                            }}
+                            className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-4 text-white text-center text-3xl tracking-widest font-mono placeholder-zinc-700 focus:border-violet-500 focus:outline-none transition-colors mb-6"
+                            autoFocus
+                        />
+                        
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => navigate.push('/sparx')}
+                                className="flex-1 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold transition-colors"
+                            >
+                                Back
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (enteredPasscode !== dbPasscodeCache) {
+                                        setPasscodeError('Incorrect passcode');
+                                        return;
+                                    }
+                                    setRoomPasscode(enteredPasscode);
+                                    setNeedsPasscode(false);
+                                }}
+                                disabled={enteredPasscode.length < 4}
+                                className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Enter Room
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (mode === 'create_room' || mode === 'join_room') {
         const isCreate = mode === 'create_room';
         return (
@@ -1274,7 +1456,7 @@ export const MusicDate = () => {
                             {isCreate ? <PlusCircle className="w-10 h-10" /> : <LogIn className="w-10 h-10" />}
                         </div>
                         <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">{isCreate ? 'Create Your Jam' : 'Join a Jam'}</h2>
-                        <p className="text-sm text-white/50 font-light">{isCreate ? 'Give your room a fun name' : "Enter the host's code"}</p>
+                        <p className="text-sm text-white/50 font-light">{isCreate ? 'Give your room a fun name' : "Enter the 4-digit passcode for private rooms"}</p>
                     </div>
                     {error && <div className="mb-6 text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 py-3 rounded-xl backdrop-blur-md">{error}</div>}
                     <div className="space-y-6">
@@ -1283,18 +1465,34 @@ export const MusicDate = () => {
                                 <label className="block text-sm font-medium text-white/60 mb-2">Room Name</label>
                                 <input type="text" value={roomName} onChange={e => setRoomName(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleCreateRoom()} placeholder="e.g., Midnight Vibes" maxLength={30} disabled={isConnecting} className="w-full bg-[#0a001a]/50 border border-white/10 rounded-xl px-5 py-4 text-white placeholder-white/30 focus:border-violet-500/50 focus:outline-none transition-all disabled:opacity-50 text-base shadow-inner backdrop-blur-md" autoFocus />
                                 <div className="text-xs text-white/30 mt-2 text-right">{roomName.length}/30</div>
+                                {/* Private Toggle */}
+                                <div className="flex items-center gap-3 py-1 mt-4">
+                                    <input
+                                        type="checkbox"
+                                        id="private-room-toggle"
+                                        checked={isPrivateRoom}
+                                        onChange={(e) => setIsPrivateRoom(e.target.checked)}
+                                        className="w-4.5 h-4.5 rounded border-white/10 bg-[#0a001a]/50 text-violet-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-violet-500"
+                                    />
+                                    <label 
+                                        htmlFor="private-room-toggle" 
+                                        className="text-sm font-semibold text-white/70 hover:text-white cursor-pointer select-none flex items-center gap-1.5"
+                                    >
+                                        <Lock className="w-4 h-4 text-white/40" />
+                                        Private Room (Requires Passcode)
+                                    </label>
+                                </div>
                             </div>
                         ) : (
                             <div>
-                                <label className="block text-sm font-medium text-white/60 mb-2">Room Code</label>
-                                <input type="text" value={joinCode} onChange={e => {
-                                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-                                    setJoinCode(val.length === 3 && !val.includes('-') ? val + '-' : val.slice(0, 7));
-                                }} onKeyPress={e => e.key === 'Enter' && handleJoinRoom()} placeholder="ABC-123" disabled={isConnecting} className="w-full bg-[#0a001a]/50 border border-white/10 rounded-xl px-5 py-4 text-center text-xl md:text-2xl tracking-widest text-white placeholder-white/20 focus:border-indigo-500/50 focus:outline-none transition-all font-mono disabled:opacity-50 shadow-inner backdrop-blur-md" autoFocus />
-                                <div className="text-xs text-white/30 mt-3 text-center tracking-widest">FORMAT: ABC-123</div>
+                                <label className="block text-sm font-medium text-white/60 mb-2">Room Passcode</label>
+                                <input type="text" maxLength={4} value={joinCode} onChange={e => {
+                                    setJoinCode(e.target.value.replace(/\D/g, ''));
+                                }} onKeyPress={e => e.key === 'Enter' && handleJoinRoom()} placeholder="0000" disabled={isConnecting} className="w-full bg-[#0a001a]/50 border border-white/10 rounded-xl px-5 py-4 text-center text-xl md:text-2xl tracking-widest text-white placeholder-white/20 focus:border-indigo-500/50 focus:outline-none transition-all font-mono disabled:opacity-50 shadow-inner backdrop-blur-md" autoFocus />
+                                <div className="text-xs text-white/30 mt-3 text-center tracking-widest">FORMAT: 1234</div>
                             </div>
                         )}
-                        <button onClick={isCreate ? handleCreateRoom : handleJoinRoom} disabled={isConnecting || (isCreate ? !roomName.trim() : joinCode.replace('-', '').length !== 6)} className={`w-full bg-gradient-to-r text-white font-bold py-4 rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isCreate ? 'from-violet-500 to-purple-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-indigo-500 to-blue-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]'}`}>
+                        <button onClick={isCreate ? handleCreateRoom : handleJoinRoom} disabled={isConnecting || (isCreate ? !roomName.trim() : joinCode.length !== 4)} className={`w-full bg-gradient-to-r text-white font-bold py-4 rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isCreate ? 'from-violet-500 to-purple-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-indigo-500 to-blue-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]'}`}>
                             {isConnecting ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1331,6 +1529,12 @@ export const MusicDate = () => {
                             {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
                             <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
                         </span>
+                        {isHost && isPrivateRoom && roomPasscode && (
+                            <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold">
+                                <Lock className="w-3 h-3" />
+                                PASSCODE: {roomPasscode}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-1.5 md:gap-3">
                         {/* Mobile search toggle */}
@@ -1629,7 +1833,7 @@ export const MusicDate = () => {
 
                 {/* Chat Panel — desktop: positioned left of sidebar, mobile: bottom sheet */}
                 {showChat && (
-                    <div className="fixed inset-x-0 bottom-20 h-[60vh] md:absolute md:inset-x-auto md:right-96 md:top-0 md:bottom-0 md:h-auto md:w-80 border-t-2 border-violet-500/30 md:border-t-0 md:border-l border-white/5 bg-gray-950/95 backdrop-blur-2xl flex flex-col z-30 shadow-2xl transition-all rounded-t-3xl md:rounded-none">
+                    <div className="fixed inset-x-0 bottom-20 h-[60vh] md:absolute md:inset-x-auto md:right-96 md:top-0 md:bottom-0 md:h-auto md:w-80 border-t-2 border-violet-500/30 md:border-t-0 md:border-l border-white/5 bg-gray-950/95 backdrop-blur-2xl flex flex-col z-[100] shadow-2xl transition-all rounded-t-3xl md:rounded-none">
                         <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
                             <span className="font-bold text-gray-300 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-violet-400" /> Chat</span>
                             <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
@@ -1655,13 +1859,13 @@ export const MusicDate = () => {
             </div>
 
             {/* Fix 3: Video Grids Overlay - only covers top-left area to avoid blocking controls */}
-            <div className="absolute top-0 left-0 w-[220px] md:w-[280px] pointer-events-none z-20 overflow-visible" style={{ height: `${Math.max(160, (1 + peers.length) * 140 + 40)}px` }}>
+            <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
                 {myStream && (
                     <div
                         onMouseDown={(e) => handleCamMouseDown(e, 'me')}
                         onTouchStart={(e) => handleCamTouchStart(e, 'me')}
                         style={{
-                            transform: `translate(${camPositions['me']?.x || 16}px, ${camPositions['me']?.y || (isFullscreen ? 16 : 72)}px)`,
+                            transform: `translate(${camPositions['me']?.x || 0}px, ${camPositions['me']?.y || 0}px)`,
                             position: 'absolute', top: 0, left: 0
                         }}
                         className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
@@ -1682,7 +1886,7 @@ export const MusicDate = () => {
                         onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
                         onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
                         style={{
-                            transform: `translate(${camPositions[peer.peerId]?.x || 16}px, ${camPositions[peer.peerId]?.y || (isFullscreen ? 16 : 72) + ((i + 1) * 120)}px)`,
+                            transform: `translate(${camPositions[peer.peerId]?.x || 0}px, ${camPositions[peer.peerId]?.y || 0}px)`,
                             position: 'absolute', top: 0, left: 0
                         }}
                         className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
@@ -1726,7 +1930,7 @@ export const MusicDate = () => {
 
             {/* Copy Feedback Toast */}
             {copyFeedback && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-down">
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-fade-in-down">
                     <div className="bg-neon/90 backdrop-blur-xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-semibold">
                         <Copy className="w-4 h-4" />
                         {copyFeedback}
