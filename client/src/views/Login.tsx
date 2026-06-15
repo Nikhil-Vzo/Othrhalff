@@ -75,7 +75,15 @@ export const Login: React.FC = () => {
           .eq('username', finalEmail)
           .maybeSingle();
 
-        if (profileError || !profile) {
+        if (profileError) {
+          if (profileError.message.includes('Failed to fetch') || profileError.message.includes('Network Error')) {
+            throw new Error('Database connection failed. Please ensure the Supabase project is active and not paused.');
+          }
+          console.error('Profile lookup error:', profileError);
+          throw new Error('Username not found. Please try logging in with your email or Google.');
+        }
+
+        if (!profile) {
           throw new Error('Username not found. Please try logging in with your email or Google.');
         }
 

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactPlayer from 'react-player';
-import { ArrowLeft, Link as LinkIcon, AlertCircle, Monitor, FolderOpen, Youtube, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MonitorPlay, Home, Gamepad, Settings as SettingsIcon, Mic, MicOff, Video, VideoOff, MonitorUp, Send, MessageSquare, Maximize, Minimize, Sparkles, Tv, Film } from 'lucide-react';
+import { ArrowLeft, Link as LinkIcon, AlertCircle, Monitor, FolderOpen, Youtube, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MonitorPlay, Home, Gamepad, Settings as SettingsIcon, Mic, MicOff, Video, VideoOff, MonitorUp, Send, MessageSquare, Maximize, Minimize, Sparkles, Tv, Film, Lock, MoreVertical, Share2 } from 'lucide-react';
 import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
+import { RoomPasswordModal } from '../../components/RoomPasswordModal';
+import { ShareRoomModal } from '../../components/ShareRoomModal';
 import Peer, { DataConnection } from 'peerjs';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
@@ -14,7 +16,7 @@ interface PeerStream {
     stream: MediaStream;
 }
 
-const StreamVideo = ({ stream, muted = false, mirrored }: { stream: MediaStream, muted?: boolean, mirrored: boolean }) => {
+const StreamVideo = ({ stream, muted = false, mirrored, objectFit = 'cover' }: { stream: MediaStream, muted?: boolean, mirrored: boolean, objectFit?: 'cover' | 'contain' }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     useEffect(() => {
         const video = videoRef.current;
@@ -61,7 +63,7 @@ const StreamVideo = ({ stream, muted = false, mirrored }: { stream: MediaStream,
             autoPlay
             playsInline
             muted={muted}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-${objectFit}`}
             style={{ transform: mirrored ? 'rotateY(180deg)' : 'none' }}
         />
     );
@@ -75,6 +77,14 @@ export const CinemaDate: React.FC = () => {
     const [inputUrl, setInputUrl] = useState(''); // Separate state for input tracking
     const [isPlaying, setIsPlaying] = useState(false);
     const [origin, setOrigin] = useState('');
+    
+    // Privacy & Passcode state
+    const [isPrivateRoom, setIsPrivateRoom] = useState(false);
+    const [roomPasscode, setRoomPasscode] = useState<string | null>(null);
+    const [needsPasscode, setNeedsPasscode] = useState(false);
+    const [enteredPasscode, setEnteredPasscode] = useState('');
+    const [passcodeError, setPasscodeError] = useState<string | null>(null);
+    const [dbPasscodeCache, setDbPasscodeCache] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -82,11 +92,10 @@ export const CinemaDate: React.FC = () => {
         }
     }, []);
     const [error, setError] = useState<string | null>(null);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [showChat, setShowChat] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [camPositions, setCamPositions] = useState<Record<string, { x: number, y: number }>>(() => ({
-        'YOU': { x: typeof window !== 'undefined' ? window.innerWidth - 140 : 800, y: 20 }
-    }));
+    const [camPositions, setCamPositions] = useState<Record<string, { x: number, y: number }>>({});
     const [camSizes, setCamSizes] = useState<Record<string, { width: number, height: number }>>({ 'YOU': { width: 96, height: 64 } });
     const activeDragId = useRef<string | null>(null);
     const activeResizeId = useRef<string | null>(null);
@@ -100,7 +109,20 @@ export const CinemaDate: React.FC = () => {
     const [newMessage, setNewMessage] = useState('');
     const [hasUnread, setHasUnread] = useState(false);
     const [chatNotification, setChatNotification] = useState<{ user: string, text: string } | null>(null);
+    const [joinNotification, setJoinNotification] = useState<{ name: string, timestamp: number } | null>(null);
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const [showUsersList, setShowUsersList] = useState(false);
+    const [isUiVisible, setIsUiVisible] = useState(true);
+    const uiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Room & Peer State
     const [roomName, setRoomName] = useState('');
@@ -122,6 +144,33 @@ export const CinemaDate: React.FC = () => {
         roomCodeRef.current = roomCode;
         myPeerIdRef.current = myPeerId;
     }, [roomHostId, roomCode, myPeerId]);
+
+    const [videoProgress, setVideoProgress] = useState(0);
+    const [videoDuration, setVideoDuration] = useState(0);
+
+    const formatTime = (seconds: number) => {
+        if (!seconds || isNaN(seconds)) return "0:00";
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+                setVideoProgress(playerRef.current.getCurrentTime() || 0);
+                if (typeof playerRef.current.getDuration === 'function') {
+                    setVideoDuration(playerRef.current.getDuration() || 0);
+                }
+            } else if (localVideoRef.current) {
+                setVideoProgress(localVideoRef.current.currentTime || 0);
+                setVideoDuration(localVideoRef.current.duration || 0);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Profile Info
     const { currentUser } = useAuth();
@@ -238,7 +287,10 @@ export const CinemaDate: React.FC = () => {
                         .upsert({
                             room_id: roomCodeRef.current,
                             host_peer_id: myPeerIdRef.current,
-                            updated_at: new Date().toISOString()
+                            updated_at: new Date().toISOString(),
+                            is_private: isPrivateRoom,
+                            passcode: roomPasscode,
+                            participant_count: 1
                         });
                     setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
@@ -352,8 +404,18 @@ export const CinemaDate: React.FC = () => {
             e.preventDefault();
             e.returnValue = '';
         };
+        const handleUnload = () => {
+            if (peerInstance.current) {
+                broadcastData({ type: 'LEAVE' });
+                peerInstance.current.destroy();
+            }
+        };
         window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('unload', handleUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('unload', handleUnload);
+        };
     }, [inRoom]);
 
     // Helper: Create Dummy Stream (Black Screen + Silence) for Spectators/Errors
@@ -384,7 +446,7 @@ export const CinemaDate: React.FC = () => {
 
     // Initialize Peer on Room Entry
     useEffect(() => {
-        if (roomCode) {
+        if (roomCode && !needsPasscode) {
             if (peerInstance.current && (peerInstance.current.id === roomHostId || peerInstance.current.id === myPeerId)) {
                 return;
             }
@@ -404,19 +466,34 @@ export const CinemaDate: React.FC = () => {
                 try {
                     // 1. Query Supabase to see if a host exists
                     let activeHostId: string | null = null;
+                    let dbIsPrivate = false;
+                    let dbPasscode: string | null = null;
+                    
                     if (supabase) {
                         try {
                             const { data, error: queryError } = await supabase
                                 .from('active_rooms')
-                                .select('host_peer_id')
+                                .select('host_peer_id, is_private, passcode')
                                 .eq('room_id', roomCode)
                                 .maybeSingle();
                             
                             if (!queryError && data) {
                                 activeHostId = data.host_peer_id;
+                                dbIsPrivate = data.is_private;
+                                dbPasscode = data.passcode;
                             }
                         } catch (supabaseErr) {
                             console.error("Error querying active host:", supabaseErr);
+                        }
+                    }
+
+                    // Check Passcode if joining existing private room
+                    if (activeHostId && dbIsPrivate) {
+                        if (roomPasscode !== dbPasscode) {
+                            setDbPasscodeCache(dbPasscode);
+                            setNeedsPasscode(true);
+                            setIsConnecting(false);
+                            return; // Halt initialization until passcode is provided
                         }
                     }
 
@@ -475,6 +552,8 @@ export const CinemaDate: React.FC = () => {
                                         .upsert({
                                             room_id: roomCode,
                                             host_peer_id: id,
+                                            is_private: isPrivateRoom,
+                                            passcode: roomPasscode,
                                             updated_at: new Date().toISOString()
                                         });
                                 } catch (dbErr) {
@@ -583,7 +662,7 @@ export const CinemaDate: React.FC = () => {
                 }
             };
         }
-    }, [roomCode]); // Only re-run if room identity changes
+    }, [roomCode, needsPasscode, roomPasscode]); // Re-run when room identity or passcode state changes
 
     const parseRoomName = (roomId: string) => {
         const parts = roomId.split('_');
@@ -598,9 +677,20 @@ export const CinemaDate: React.FC = () => {
         if (typeof window !== 'undefined') {
             const searchParams = new URLSearchParams(window.location.search);
             const queryRoom = searchParams.get('room');
+            const queryPrivate = searchParams.get('private');
+            const queryPasscode = searchParams.get('passcode');
+            
             if (queryRoom && mode === 'landing') {
                 setRoomCode(queryRoom);
                 setRoomName(parseRoomName(queryRoom));
+                
+                if (queryPrivate === 'true') setIsPrivateRoom(true);
+                if (queryPasscode) setRoomPasscode(queryPasscode);
+                
+                if (queryPrivate || queryPasscode) {
+                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
+                }
+                
                 setError(null);
                 return;
             }
@@ -611,8 +701,11 @@ export const CinemaDate: React.FC = () => {
             if (codeStart !== -1) {
                 const hashId = window.location.hash.substring(codeStart + 6);
                 if (hashId && mode === 'landing') {
-                    setJoinCode(hashId);
-                    setMode('join_room');
+                    setRoomCode(hashId);
+                    setRoomName('Joined Room');
+                    setIsHost(false);
+                    setMode('viewer');
+                    setError(null);
                 }
             }
         } else if (roomCode) {
@@ -623,6 +716,14 @@ export const CinemaDate: React.FC = () => {
         }
     }, [roomCode, mode]);
 
+    useEffect(() => {
+        if (joinNotification) {
+            const timer = setTimeout(() => {
+                setJoinNotification(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [joinNotification]);
 
     const connectToPeer = (peerId: string, stream: MediaStream, peer: Peer) => {
         console.log(`Attempting to connect to Host: ${peerId}`);
@@ -852,6 +953,9 @@ export const CinemaDate: React.FC = () => {
             console.log(`Received identity from ${senderId}: ${name}`);
             setPeerNames(prev => ({ ...prev, [senderId]: name }));
             setMessages(prev => [...prev, { user: 'System', text: `${name} joined the room` }]);
+            if (hostRef.current) {
+                setJoinNotification({ name, timestamp: Date.now() });
+            }
             return;
         }
 
@@ -874,13 +978,18 @@ export const CinemaDate: React.FC = () => {
             if (data.action === 'seek' && playerRef.current && typeof playerRef.current.seekTo === 'function') {
                 playerRef.current.seekTo(data.time, true);
             }
-            if (data.action === 'time_update' && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-                // Drift correction: if receiving time update from host
-                const currentTime = playerRef.current.getCurrentTime();
-                const diff = Math.abs(currentTime - data.time);
-                // If drift is > 1.5 seconds, sync up
-                if (diff > 1.5) {
-                    playerRef.current.seekTo(data.time, true);
+            if (data.action === 'time_update') {
+                if (data.time !== undefined) setVideoProgress(data.time);
+                if (data.duration !== undefined) setVideoDuration(data.duration);
+
+                // Drift correction for YouTube
+                if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+                    const currentTime = playerRef.current.getCurrentTime();
+                    const diff = Math.abs(currentTime - data.time);
+                    // If drift is > 1.5 seconds, sync up
+                    if (diff > 1.5) {
+                        playerRef.current.seekTo(data.time, true);
+                    }
                 }
             }
             if (data.action === 'url') {
@@ -907,7 +1016,7 @@ export const CinemaDate: React.FC = () => {
                 });
             }
         } else if (data.type === 'CHAT') {
-            const senderName = peerNames[senderId] || senderId.substring(0, 5);
+            const senderName = peerNamesRef.current[senderId] || senderId.substring(0, 5);
             setMessages(prev => [...prev, { user: senderName, text: data.text }]);
 
             // Notification Logic
@@ -917,7 +1026,7 @@ export const CinemaDate: React.FC = () => {
                 setTimeout(() => setChatNotification(null), 5000);
             }
         } else if (data.type === 'LEAVE') {
-            const senderName = peerNames[senderId] || senderId.substring(0, 5);
+            const senderName = peerNamesRef.current[senderId] || senderId.substring(0, 5);
             setMessages(prev => [...prev, { user: 'System', text: `${senderName} has left the room` }]);
             removePeer(senderId);
         }
@@ -937,6 +1046,19 @@ export const CinemaDate: React.FC = () => {
                 return prev;
             }
             console.log(`Added new peer stream for ${peerId}`);
+            
+            // Initialize peer cam position
+            setCamPositions(prevPos => {
+                if (!prevPos[peerId]) {
+                    const peerCount = prev.length;
+                    return { ...prevPos, [peerId]: { 
+                        x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                        y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
+                    }};
+                }
+                return prevPos;
+            });
+
             return [...prev, { peerId, stream }];
         });
     };
@@ -944,6 +1066,20 @@ export const CinemaDate: React.FC = () => {
     const removePeer = (peerId: string) => {
         setPeers(prev => prev.filter(p => p.peerId !== peerId));
     };
+
+    // Sync participant count to Supabase
+    useEffect(() => {
+        if (isHost && roomCode && supabase) {
+            const count = peers.length + 1; // +1 for the host
+            supabase
+                .from('active_rooms')
+                .update({ participant_count: count })
+                .eq('room_id', roomCode)
+                .then(({ error }) => {
+                    if (error) console.error("Error updating participant count:", error);
+                });
+        }
+    }, [peers.length, isHost, roomCode]);
 
 
     // --- View Control ---
@@ -975,7 +1111,17 @@ export const CinemaDate: React.FC = () => {
             return;
         }
         setIsConnecting(true);
-        const code = generateRoomCode();
+        const nameSlug = roomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
+        const uniqueId = Math.random().toString(36).substring(2, 7);
+        const code = `cinema_${nameSlug}_${uniqueId}`;
+        
+        if (isPrivateRoom) {
+            const passcode = Math.floor(1000 + Math.random() * 9000).toString();
+            setRoomPasscode(passcode);
+        } else {
+            setRoomPasscode(null);
+        }
+
         setRoomCode(code);
         setIsHost(true);
         setMode('select');
@@ -983,21 +1129,46 @@ export const CinemaDate: React.FC = () => {
         setTimeout(() => setIsConnecting(false), 1000);
     };
 
-    const handleJoinRoom = () => {
-        const formatted = joinCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
-        if (formatted.length !== 6) {
-            setError('Please enter a valid room code (e.g., ABC-123)');
+    const handleJoinRoom = async () => {
+        const entered = joinCode.replace(/\D/g, '');
+        if (entered.length !== 4) {
+            setError('Please enter a valid 4-digit passcode');
             setTimeout(() => setError(null), 3000);
             return;
         }
-        // Format as ABC-123
-        const formattedCode = `${formatted.slice(0, 3)}-${formatted.slice(3, 6)}`;
+        
         setIsConnecting(true);
-        setRoomCode(formattedCode);
-        setRoomName('Joined Room');
-        setIsHost(false);
-        setMode('viewer');
-        setError(null);
+        
+        if (supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('active_rooms')
+                    .select('room_id, is_private, passcode')
+                    .eq('is_private', true)
+                    .eq('passcode', entered)
+                    .like('room_id', 'cinema_%')
+                    .maybeSingle();
+                    
+                if (error) throw error;
+                
+                if (data) {
+                    setRoomCode(data.room_id);
+                    setRoomName('Joined Room');
+                    setIsHost(false);
+                    setMode('viewer');
+                    setError(null);
+                } else {
+                    setError('Invalid passcode or room expired');
+                    setTimeout(() => setError(null), 3000);
+                }
+            } catch (err: any) {
+                console.error("Error joining room:", err);
+                setError('Failed to connect to room');
+                setTimeout(() => setError(null), 3000);
+            } finally {
+                setIsConnecting(false);
+            }
+        }
     };
 
 
@@ -1049,16 +1220,28 @@ export const CinemaDate: React.FC = () => {
     };
 
     const handleVideoProgress = (state: any = null) => {
-        // Host periodically sends time updates for drift correction
-        if (isHost && isPlaying && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-            const now = Date.now();
-            // @ts-ignore
-            if (!window.lastSyncTime || now - window.lastSyncTime > 2000) {
-                const currentTime = playerRef.current.getCurrentTime();
-                broadcastSync('time_update', { time: currentTime });
-                // @ts-ignore
-                window.lastSyncTime = now;
+        // Host periodically sends time updates for drift correction and spectator UI
+        if (!isHost || !isPlaying) return;
+        
+        const now = Date.now();
+        // @ts-ignore
+        if (!window.lastSyncTime || now - window.lastSyncTime > 1000) {
+            let currentTime = 0;
+            let duration = 0;
+
+            if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+                currentTime = playerRef.current.getCurrentTime() || 0;
+                duration = typeof playerRef.current.getDuration === 'function' ? playerRef.current.getDuration() : 0;
+            } else if (localVideoRef.current) {
+                currentTime = localVideoRef.current.currentTime || 0;
+                duration = localVideoRef.current.duration || 0;
+            } else {
+                return;
             }
+
+            broadcastSync('time_update', { time: currentTime, duration });
+            // @ts-ignore
+            window.lastSyncTime = now;
         }
     };
 
@@ -1346,11 +1529,22 @@ export const CinemaDate: React.FC = () => {
                     console.warn("Orientation lock failed:", e);
                 }
 
-                // 2. Auto-position PIP to Top Right
-                setCamPositions(prev => ({
-                    ...prev,
-                    'YOU': { x: window.innerWidth - 120, y: 20 }
-                }));
+                // 2. Auto-position PIP to Bottom Right (delay to let orientation settle)
+                setTimeout(() => {
+                    setCamPositions(prev => {
+                        const next = { ...prev };
+                        const keys = Object.keys(next);
+                        const winW = typeof window !== 'undefined' ? window.innerWidth : 800;
+                        const winH = typeof window !== 'undefined' ? window.innerHeight : 400;
+                        
+                        const peerKeys = keys.filter(k => k !== 'YOU');
+                        next['YOU'] = { x: winW - 120, y: winH - 100 };
+                        peerKeys.forEach((key, index) => {
+                            next[key] = { x: winW - 120, y: winH - 100 - ((index + 1) * 80) };
+                        });
+                        return next;
+                    });
+                }, 500);
             } else if (!isFS && isMobile) {
                 // Unlock orientation when exiting
                 try {
@@ -1360,10 +1554,69 @@ export const CinemaDate: React.FC = () => {
                 } catch (e) {
                     console.warn("Orientation unlock failed:", e);
                 }
+
+                // Reposition PIP to Bottom Right for portrait mode
+                setTimeout(() => {
+                    setCamPositions(prev => {
+                        const next = { ...prev };
+                        const keys = Object.keys(next);
+                        const winW = typeof window !== 'undefined' ? window.innerWidth : 400;
+                        const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+                        
+                        const peerKeys = keys.filter(k => k !== 'YOU');
+                        next['YOU'] = { x: winW - 120, y: winH - 100 };
+                        peerKeys.forEach((key, index) => {
+                            next[key] = { x: winW - 120, y: winH - 100 - ((index + 1) * 80) };
+                        });
+                        return next;
+                    });
+                }, 500);
             }
         };
         document.addEventListener('fullscreenchange', handleFullScreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+    }, []);
+
+    // --- Idle UI Logic ---
+    useEffect(() => {
+        // Only apply in active room modes
+        if (['landing', 'create_room', 'join_room'].includes(mode)) {
+            setIsUiVisible(true);
+            if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
+            return;
+        }
+
+        const resetUiTimer = () => {
+            setIsUiVisible(true);
+            if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
+            // Don't auto-hide if chat is open
+            if (!showChat) {
+                uiTimeoutRef.current = setTimeout(() => {
+                    setIsUiVisible(false);
+                }, 5000);
+            }
+        };
+
+        resetUiTimer(); // Start timer immediately when entering FS
+
+        const events = ['mousemove', 'touchstart', 'keydown', 'click'];
+        events.forEach(e => window.addEventListener(e, resetUiTimer));
+
+        return () => {
+            events.forEach(e => window.removeEventListener(e, resetUiTimer));
+            if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
+        };
+    }, [mode, showChat]);
+
+    // Initialize local camera position to center
+    useEffect(() => {
+        setCamPositions(prev => ({
+            ...prev,
+            'YOU': { 
+                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 : 300 
+            }
+        }));
     }, []);
 
     // --- Window Resize Handler ---
@@ -1529,6 +1782,23 @@ export const CinemaDate: React.FC = () => {
                         />
                         <div className="text-xs text-white/30 mt-2 text-right">{roomName.length}/30</div>
                     </div>
+                    {/* Private Toggle */}
+                    <div className="flex items-center gap-3 py-1">
+                        <input
+                            type="checkbox"
+                            id="private-room-toggle"
+                            checked={isPrivateRoom}
+                            onChange={(e) => setIsPrivateRoom(e.target.checked)}
+                            className="w-4.5 h-4.5 rounded border-white/10 bg-[#0a001a]/50 text-pink-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-pink-500"
+                        />
+                        <label 
+                            htmlFor="private-room-toggle" 
+                            className="text-sm font-semibold text-white/70 hover:text-white cursor-pointer select-none flex items-center gap-1.5"
+                        >
+                            <Lock className="w-4 h-4 text-white/40" />
+                            Private Room (Requires Passcode)
+                        </label>
+                    </div>
                     <button
                         onClick={handleCreateRoom}
                         disabled={isConnecting || !roomName.trim()}
@@ -1584,27 +1854,21 @@ export const CinemaDate: React.FC = () => {
                         <LogIn className="w-10 h-10" />
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Join a Room</h2>
-                    <p className="text-sm text-white/50 font-light">Enter the 6-character room code</p>
+                    <p className="text-sm text-white/50 font-light">Enter the 4-digit passcode for private rooms</p>
                 </div>
                 <div className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-white/60 mb-2">Room Code</label>
+                        <label className="block text-sm font-medium text-white/60 mb-2">Room Passcode</label>
                         <div className="relative">
                             <input
                                 type="text"
-                                maxLength={7}
+                                maxLength={4}
                                 value={joinCode}
                                 onChange={(e) => {
-                                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-                                    // Auto-add hyphen after 3 chars
-                                    if (val.length === 3 && !val.includes('-')) {
-                                        setJoinCode(val + '-');
-                                    } else {
-                                        setJoinCode(val.slice(0, 7));
-                                    }
+                                    setJoinCode(e.target.value.replace(/\D/g, ''));
                                 }}
                                 onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
-                                placeholder="ABC-123"
+                                placeholder="0000"
                                 disabled={isConnecting}
                                 className="w-full bg-[#0a001a]/50 border border-white/10 rounded-xl px-5 py-4 pr-12 text-white placeholder-white/30 focus:border-purple-500/50 focus:outline-none transition-all font-mono text-center text-xl md:text-2xl tracking-widest disabled:opacity-50 shadow-inner backdrop-blur-md"
                                 autoFocus
@@ -1613,16 +1877,16 @@ export const CinemaDate: React.FC = () => {
                                 onClick={handlePasteCode}
                                 disabled={isConnecting}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white disabled:opacity-50"
-                                title="Paste code"
+                                title="Paste passcode"
                             >
                                 <Copy className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="text-xs text-white/30 mt-3 text-center tracking-widest">FORMAT: ABC-123</div>
+                        <div className="text-xs text-white/30 mt-3 text-center tracking-widest">FORMAT: 1234</div>
                     </div>
                     <button
                         onClick={handleJoinRoom}
-                        disabled={isConnecting || joinCode.replace('-', '').length !== 6}
+                        disabled={isConnecting || joinCode.length !== 4}
                         className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
                     >
                         {isConnecting ? (
@@ -1689,71 +1953,257 @@ export const CinemaDate: React.FC = () => {
 
     // --- SPA Application Layout (Kosmi Style) ---
 
+    if (needsPasscode) {
+        return (
+            <div className="flex flex-col h-full w-full bg-[#0a0a0c] text-white overflow-hidden font-sans relative">
+                <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                    <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <Lock className="w-6 h-6 text-purple-500" />
+                            Private Room
+                        </h3>
+                        <p className="text-sm text-zinc-400 mb-6">
+                            This room is locked. Please enter the passcode to join.
+                        </p>
+                        
+                        {passcodeError && (
+                            <div className="mb-4 text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-3 px-4 rounded-xl">
+                                {passcodeError}
+                            </div>
+                        )}
+                        
+                        <input
+                            type="text"
+                            placeholder="0000"
+                            maxLength={4}
+                            value={enteredPasscode}
+                            onChange={(e) => {
+                                setEnteredPasscode(e.target.value.replace(/\D/g, ''));
+                                setPasscodeError(null);
+                            }}
+                            className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-4 text-white text-center text-3xl tracking-widest font-mono placeholder-zinc-700 focus:border-purple-500 focus:outline-none transition-colors mb-6"
+                            autoFocus
+                        />
+                        
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => navigate.push('/sparx')}
+                                className="flex-1 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold transition-colors"
+                            >
+                                Back
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (enteredPasscode !== dbPasscodeCache) {
+                                        setPasscodeError('Incorrect passcode');
+                                        return;
+                                    }
+                                    setRoomPasscode(enteredPasscode);
+                                    setNeedsPasscode(false);
+                                }}
+                                disabled={enteredPasscode.length < 4}
+                                className="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Enter Room
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (mode === 'landing') return renderLandingScreen();
     if (mode === 'create_room') return renderCreateRoomScreen();
     if (mode === 'join_room') return renderJoinRoomScreen();
 
     return (
         <div ref={containerRef} className="flex flex-col h-full w-full bg-black text-white overflow-hidden font-sans relative pb-20 md:pb-0">
-
+            {isShareModalOpen && (
+                <ShareRoomModal 
+                    isOpen={isShareModalOpen} 
+                    onClose={() => setIsShareModalOpen(false)} 
+                    roomUrl={window.location.href} 
+                />
+            )}
             {/* 2. Main Center Stage Area */}
             <div className="flex-1 flex flex-col relative min-w-0 bg-[#0a0a0c] overflow-hidden">
                 {/* Top Bar (Room Info) */}
-                <div className="h-14 md:h-16 border-b border-gray-900/50 flex items-center justify-between px-3 md:px-6 bg-gray-950/30 backdrop-blur-sm z-20">
+                <div className={`h-14 md:h-16 border-b border-gray-900/50 flex items-center justify-between px-3 md:px-6 bg-gray-950/30 backdrop-blur-sm z-40 transition-all duration-500 absolute top-0 left-0 right-0 ${!isUiVisible ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
                     <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
                         <span className="font-bold text-gray-200 truncate max-w-[80px] md:max-w-[200px] text-sm md:text-base">{roomName}</span>
-                        <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border-2 border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(window.location.origin + '/sparx/cinema?room=' + roomCode)}>
-                            <Hash className="w-3 h-3 md:w-4 md:h-4 text-neon" />
-                            <span className="font-mono text-xs md:text-sm font-bold text-neon tracking-wider">
-                                {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
-                            </span>
-                            <Copy className="w-3 h-3 md:w-4 md:h-4 text-neon/70 group-hover:text-neon transition-colors" />
-                        </div>
+                        {roomPasscode && (
+                            <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border-2 border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomPasscode)}>
+                                <Hash className="w-3 h-3 md:w-4 md:h-4 text-neon" />
+                                <span className="font-mono text-xs md:text-sm font-bold text-neon tracking-wider">
+                                    {roomPasscode}
+                                </span>
+                                <Copy className="w-3 h-3 md:w-4 md:h-4 text-neon/70 group-hover:text-neon transition-colors" />
+                            </div>
+                        )}
                         {isHost && (
                             <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 text-[10px] font-semibold">
                                 <Users className="w-3 h-3" />
                                 HOST
                             </div>
                         )}
+                        {isHost && isPrivateRoom && roomPasscode && (
+                            <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20 text-[10px] font-semibold">
+                                <Lock className="w-3 h-3" />
+                                PASSCODE: {roomPasscode}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2 md:gap-4">
-                        <div className="flex items-center gap-1 md:gap-2">
-                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <span className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider">Live</span>
-                        </div>
-                        <button
-                            onClick={toggleFullScreen}
-                            className="p-1.5 md:p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
-                            title="Toggle Full Screen"
-                        >
-                            {isFullScreen ? <Minimize className="w-4 h-4 md:w-5 md:h-5" /> : <Maximize className="w-4 h-4 md:w-5 md:h-5" />}
-                        </button>
-                        <button
-                            onClick={() => {
-                                setShowChat(!showChat);
-                                if (!showChat) setHasUnread(false);
-                            }}
-                            className={`p-1.5 md:p-2 rounded-lg transition-colors relative ${showChat ? 'bg-neon/20 text-neon' : 'hover:bg-gray-800 text-gray-400'}`}
-                            title="Toggle Chat"
-                        >
-                            <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
-                            {hasUnread && !showChat && (
-                                <span className="absolute top-1 right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-red-500 rounded-full border-2 border-gray-950 animate-pulse" />
-                            )}
-                        </button>
-                        <button
-                            onClick={handleLeaveRoom}
-                            className="p-1.5 md:p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors"
-                            title="Leave Room"
-                        >
-                            <LogOut className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
+                    <div className="flex items-center gap-2 md:gap-4 relative">
+                        {isMobile ? (
+                            <>
+                                <button
+                                    onClick={toggleFullScreen}
+                                    className="p-1.5 md:p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                    title="Toggle Full Screen"
+                                >
+                                    {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowMobileMenu(!showMobileMenu)}
+                                        className={`p-1.5 rounded-lg transition-colors relative ${showMobileMenu ? 'bg-gray-800 text-white' : 'hover:bg-gray-800 text-gray-400'}`}
+                                    >
+                                        <MoreVertical className="w-5 h-5" />
+                                        {hasUnread && !showChat && (
+                                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-950 animate-pulse" />
+                                        )}
+                                    </button>
+                                    {showMobileMenu && (
+                                        <div className="absolute right-0 top-full mt-2 w-48 bg-gray-900 border border-gray-800 rounded-xl shadow-xl py-2 z-50">
+                                            <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-800 mb-1">
+                                                Participants ({peers.length + 1})
+                                            </div>
+                                            <div className="max-h-32 overflow-y-auto px-2 mb-1">
+                                                <div className="text-sm text-gray-300 py-1.5 px-2">You</div>
+                                                {peers.map(p => (
+                                                    <div key={p.peerId} className="text-sm text-gray-300 py-1.5 px-2 truncate">
+                                                        {peerNames[p.peerId] || p.peerId.substring(0, 5)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="h-px bg-gray-800 my-1"></div>
+                                            <button
+                                                onClick={() => setShowUsersList(!showUsersList)}
+                                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white flex items-center justify-between"
+                                            >
+                                                <div className="flex items-center gap-2"><Users className="w-4 h-4" /> Participants</div>
+                                                <span className="text-xs font-bold bg-gray-800 px-2 py-0.5 rounded-full">{peers.length + 1}</span>
+                                            </button>
+                                            {showUsersList && (
+                                                <div className="bg-gray-950 px-4 py-2 border-y border-gray-800">
+                                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Currently Joined</div>
+                                                    <div className="max-h-32 overflow-y-auto space-y-1">
+                                                        <div className="text-sm text-gray-300">You</div>
+                                                        {peers.map(p => (
+                                                            <div key={p.peerId} className="text-sm text-gray-300 truncate">
+                                                                {peerNames[p.peerId] || p.peerId.substring(0, 5)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => { setShowChat(!showChat); if(!showChat) setHasUnread(false); setShowMobileMenu(false); }}
+                                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white flex items-center justify-between"
+                                            >
+                                                <div className="flex items-center gap-2"><MessageSquare className="w-4 h-4" /> Chat</div>
+                                                {hasUnread && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+                                            </button>
+                                            <button
+                                                onClick={() => { handleLeaveRoom(); setShowMobileMenu(false); }}
+                                                className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2"
+                                            >
+                                                <LogOut className="w-4 h-4" /> Leave Room
+                                            </button>
+                                            {isHost && (
+                                                <button
+                                                    onClick={() => { setIsShareModalOpen(true); setShowMobileMenu(false); }}
+                                                    className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/10 flex items-center gap-2"
+                                                >
+                                                    <Share2 className="w-4 h-4" /> Share Room
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowUsersList(!showUsersList)}
+                                        className={`p-1.5 md:p-2 rounded-lg transition-colors flex items-center gap-2 ${showUsersList ? 'bg-neon/20 text-neon' : 'hover:bg-gray-800 text-gray-400'}`}
+                                        title="Participants"
+                                    >
+                                        <Users className="w-4 h-4 md:w-5 md:h-5" />
+                                        <span className="text-xs font-bold">{peers.length + 1}</span>
+                                    </button>
+                                    {showUsersList && (
+                                        <div className="absolute right-0 top-full mt-2 w-48 bg-gray-900 border border-gray-800 rounded-xl shadow-xl py-2 z-50">
+                                            <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-800 mb-1">
+                                                Currently Joined
+                                            </div>
+                                            <div className="max-h-48 overflow-y-auto px-2">
+                                                <div className="text-sm text-gray-300 py-1.5 px-2">You</div>
+                                                {peers.map(p => (
+                                                    <div key={p.peerId} className="text-sm text-gray-300 py-1.5 px-2 truncate">
+                                                        {peerNames[p.peerId] || p.peerId.substring(0, 5)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                {isHost && (
+                                    <button
+                                        onClick={() => setIsShareModalOpen(true)}
+                                        className="p-1.5 md:p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                        title="Share Room"
+                                    >
+                                        <Share2 className="w-4 h-4 md:w-5 md:h-5" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={toggleFullScreen}
+                                    className="p-1.5 md:p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                    title="Toggle Full Screen"
+                                >
+                                    {isFullScreen ? <Minimize className="w-4 h-4 md:w-5 md:h-5" /> : <Maximize className="w-4 h-4 md:w-5 md:h-5" />}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowChat(!showChat);
+                                        if (!showChat) setHasUnread(false);
+                                    }}
+                                    className={`p-1.5 md:p-2 rounded-lg transition-colors relative ${showChat ? 'bg-neon/20 text-neon' : 'hover:bg-gray-800 text-gray-400'}`}
+                                    title="Toggle Chat"
+                                >
+                                    <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
+                                    {hasUnread && !showChat && (
+                                        <span className="absolute top-1 right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-red-500 rounded-full border-2 border-gray-950 animate-pulse" />
+                                    )}
+                                </button>
+                                <button
+                                    onClick={handleLeaveRoom}
+                                    className="p-1.5 md:p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors"
+                                    title="Leave Room"
+                                >
+                                    <LogOut className="w-4 h-4 md:w-5 md:h-5" />
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 
                 {/* Stage Content - Ultimate Clean YouTube Style */}
-                <div className="flex-shrink-0 w-full flex items-center justify-center relative bg-black">
-                    <div className="w-full max-w-[1600px] md:aspect-video min-h-[240px] md:min-h-0 relative flex flex-col justify-center items-center group">
+                <div className="flex-shrink-0 w-full flex-1 flex items-center justify-center relative bg-black md:pb-16">
+                    <div className="w-full h-full max-w-[1600px] min-h-[240px] md:min-h-0 relative flex flex-col justify-center items-center group">
 
                         {/* Background Glow */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-br from-purple-900/5 to-neon/5 rounded-full blur-3xl pointer-events-none" />
@@ -1804,7 +2254,7 @@ export const CinemaDate: React.FC = () => {
                                 ) : (
                                     <div className="w-full h-full relative">
                                         {remoteVideoStream ? (
-                                            <StreamVideo stream={remoteVideoStream} mirrored={false} />
+                                            <StreamVideo stream={remoteVideoStream} mirrored={false} objectFit="contain" />
                                         ) : (
                                             <div className="flex flex-col items-center justify-center gap-4 text-gray-500">
                                                 <MonitorPlay className="w-12 h-12 animate-pulse" />
@@ -1850,6 +2300,14 @@ export const CinemaDate: React.FC = () => {
                         {/* --- Shared UI Components --- */}
                         {['select', 'youtube', 'file', 'screen', 'viewer'].includes(mode) && (
                             <>
+                                {/* Spectator Timer Overlay */}
+                                {!isHost && url && videoDuration > 0 && (
+                                    <div className={`absolute bottom-6 left-6 z-40 bg-black/70 backdrop-blur-md px-4 py-2 rounded-xl text-white font-mono text-sm border border-white/10 shadow-2xl flex items-center gap-3 transition-opacity duration-500 ${!isUiVisible ? 'opacity-0' : 'opacity-100'}`}>
+                                        <MonitorPlay className="w-4 h-4 text-neon" />
+                                        <span>{formatTime(videoProgress)} / {formatTime(videoDuration)}</span>
+                                    </div>
+                                )}
+                                
                                 {/* Spectator Overlay for Non-Hosts */}
                                 {!isHost && (
                                     <div className="absolute inset-0 z-20 flex items-center justify-center bg-transparent cursor-default">
@@ -1864,7 +2322,7 @@ export const CinemaDate: React.FC = () => {
                                 )}
 
                                 {/* Bottom Control Bar (Overlay) */}
-                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 bg-gray-950/60 backdrop-blur-xl border border-gray-800 rounded-full shadow-2xl z-40 transition-transform duration-300 translate-y-20 group-hover:translate-y-0 opacity-0 group-hover:opacity-100">
+                                <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 bg-gray-950/60 backdrop-blur-xl border border-gray-800 rounded-full shadow-2xl z-40 transition-all duration-300 ${!isUiVisible ? 'translate-y-20 opacity-0' : (isMobile ? 'translate-y-0 opacity-100' : 'translate-y-20 group-hover:translate-y-0 opacity-0 group-hover:opacity-100')}`}>
                                     <button onClick={toggleMute} className={`p-3 rounded-full hover:bg-gray-800/80 transition-colors ${isMuted ? 'text-red-500 bg-red-500/10' : 'text-white'}`}>
                                         {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                                     </button>
@@ -1884,6 +2342,8 @@ export const CinemaDate: React.FC = () => {
                         fixed z-50 shadow-2xl border-2 border-neon/50
                         inset-x-0 bottom-20 h-[60vh]
                         md:top-0 md:right-0 md:bottom-0 md:left-auto md:w-80 md:h-full md:border-l md:border-t-0 md:border-r-0 md:border-b-0
+                        transition-all duration-500
+                        ${!isUiVisible ? (isMobile ? 'translate-y-full opacity-0' : 'translate-x-full opacity-0') : 'translate-x-0 translate-y-0 opacity-100'}
                     `}>
                         <div className="h-10 border-b border-gray-900/50 flex items-center justify-between px-4 bg-black shrink-0">
                             <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
@@ -1926,15 +2386,15 @@ export const CinemaDate: React.FC = () => {
             </div>
 
             {/* Drag Area for Camera Boxes - OUTSIDE for global movement */}
-            <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-[100]">
+            <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50">
                 {myStream && (
                     <div
                         onMouseDown={(e) => handleCamMouseDown(e, 'YOU')}
                         onTouchStart={(e) => handleCamTouchStart(e, 'YOU')}
                         style={{
                             position: 'absolute',
-                            left: '20px',
-                            top: '20px',
+                            left: 0,
+                            top: 0,
                             transform: `translate(${camPositions['YOU']?.x || 0}px, ${camPositions['YOU']?.y || 0}px)`,
                             width: `${camSizes['YOU']?.width || 96}px`,
                             height: `${camSizes['YOU']?.height || 64}px`
@@ -1953,8 +2413,8 @@ export const CinemaDate: React.FC = () => {
                         onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
                         style={{
                             position: 'absolute',
-                            left: '20px',
-                            top: '100px',
+                            left: 0,
+                            top: 0,
                             transform: `translate(${camPositions[peer.peerId]?.x || 0}px, ${camPositions[peer.peerId]?.y || 0}px)`,
                             width: `${camSizes[peer.peerId]?.width || 96}px`,
                             height: `${camSizes[peer.peerId]?.height || 64}px`
@@ -1976,7 +2436,7 @@ export const CinemaDate: React.FC = () => {
                         setHasUnread(false);
                         setChatNotification(null);
                     }}
-                    className="fixed top-20 right-6 z-[60] cursor-pointer animate-fade-in-right bg-gray-900/90 backdrop-blur-xl border border-neon/30 rounded-2xl p-4 shadow-2xl max-w-[280px]"
+                    className="fixed top-20 right-6 z-[100] cursor-pointer animate-fade-in-right bg-gray-900/90 backdrop-blur-xl border border-neon/30 rounded-2xl p-4 shadow-2xl max-w-[280px]"
                 >
                     <div className="flex items-center gap-3 mb-1">
                         <span className="text-xs font-bold text-neon uppercase tracking-wider">{chatNotification.user}</span>
@@ -1987,10 +2447,27 @@ export const CinemaDate: React.FC = () => {
 
             {/* Copy Feedback Toast */}
             {copyFeedback && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-down">
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-fade-in-down">
                     <div className="bg-neon/90 backdrop-blur-xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-semibold">
                         <Copy className="w-4 h-4" />
                         {copyFeedback}
+                    </div>
+                </div>
+            )}
+
+            {/* Join Notification Popup */}
+            {joinNotification && (
+                <div
+                    key={joinNotification.timestamp}
+                    className="fixed bottom-6 right-6 z-[100] pointer-events-none animate-fade-in-up"
+                >
+                    <div className="bg-neon/20 backdrop-blur-md border border-neon/50 text-white px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(var(--color-neon),0.3)] flex items-center gap-3 font-medium">
+                        <div className="w-8 h-8 rounded-full bg-neon/30 flex items-center justify-center shrink-0">
+                            <Users className="w-4 h-4 text-neon" />
+                        </div>
+                        <div>
+                            <span className="font-bold text-neon">{joinNotification.name}</span> joined the cinema
+                        </div>
                     </div>
                 </div>
             )}
