@@ -9,7 +9,7 @@ import {
     LogOut, ChevronDown, Settings, Lock, ShieldBan,
     MessageCircle, Mail, Phone, Loader2, Heart, Search,
     Download, Smartphone, ExternalLink, Code, Scale, FileText,
-    Shield, Info, Briefcase, Users, Rocket, Sparkles
+    Shield, Info, Briefcase, Users, Rocket, Sparkles, Fingerprint
 } from 'lucide-react';
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS, MOCK_INTERESTS } from '../constants';
 import { getOptimizedUrl } from '../utils/image';
@@ -334,6 +334,22 @@ export const Profile: React.FC = () => {
             setCredError(err.message || "Failed to update credentials. Please try again.");
         } finally {
             setCredSaving(false);
+        }
+    };
+
+    const handleRegisterPasskey = async () => {
+        try {
+            if (!supabase) throw new Error("Supabase is not initialized.");
+            const { data, error } = await supabase.auth.registerPasskey();
+            if (error) throw error;
+            alert("Passkey registered successfully! You can now use it to sign in next time.");
+        } catch (err: any) {
+            console.error('Passkey registration error:', err);
+            if (err.name === 'NotAllowedError') {
+                alert("Passkey registration canceled or timed out.");
+            } else {
+                alert(err.message || "Failed to register passkey. Ensure your browser/device supports WebAuthn.");
+            }
         }
     };
 
@@ -840,6 +856,19 @@ export const Profile: React.FC = () => {
                                                                 </div>
                                                             </button>
                                                         )}
+
+                                                        <button
+                                                            onClick={handleRegisterPasskey}
+                                                            className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-neon/40 text-left transition-all flex items-center gap-3 group"
+                                                        >
+                                                            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400 group-hover:text-neon flex-shrink-0 transition-colors">
+                                                                <Fingerprint className="w-4 h-4" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <span className="font-bold text-zinc-200 text-xs block group-hover:text-neon transition-colors">Register Passkey</span>
+                                                                <span className="text-[10px] text-zinc-500">Secure biometric login</span>
+                                                            </div>
+                                                        </button>
 
                                                         <button
                                                             onClick={() => navigate.push('/contact')}

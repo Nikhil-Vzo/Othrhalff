@@ -14,5 +14,8 @@ if (!supabaseUrl || !supabaseKey) {
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     storageKey: 'sb-htepqqigtzmllailykas-auth-token',
+    experimental: {
+      passkey: true,
+    },
   },
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Ghost, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
+import { RotateCcw, Ghost, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { NeonInput, NeonButton } from '../components/Common';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
@@ -145,6 +145,28 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (!supabase) throw new Error('Supabase client not initialized');
+      const { data, error } = await supabase.auth.signInWithPasskey();
+      if (error) throw error;
+      setSuccess('Logged in successfully with Passkey! Redirecting...');
+      analytics.login('Passkey');
+      setTimeout(() => navigate.push('/home'), 500);
+    } catch (err: any) {
+      console.error('Passkey authentication error:', err);
+      if (err.name === 'NotAllowedError') {
+        setError('Passkey authentication canceled or timed out.');
+      } else {
+        setError(err.message || 'Failed to authenticate with Passkey. Make sure you have registered a passkey on this device.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-black p-6 relative overflow-hidden pb-20">
       {/* Background Animations */}
@@ -214,6 +236,18 @@ export const Login: React.FC = () => {
             )}
             {isLogin ? 'Continue with Google' : 'Sign up with Google'}
           </button>
+
+          {isLogin && (
+            <button
+              type="button"
+              onClick={handlePasskeyLogin}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-3 bg-gray-800/40 backdrop-blur-md text-white font-bold py-3.5 rounded-xl border border-gray-700/50 hover:border-neon hover:bg-neon/15 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-neon-sm group"
+            >
+              <Fingerprint className="w-5 h-5 text-neon group-hover:scale-110 transition-transform" />
+              Sign in with Passkey
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-4 mb-8">
