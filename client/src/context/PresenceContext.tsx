@@ -45,38 +45,36 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, []);
 
     // Update user's own presence with throttling to prevent API spam
-    const updatePresence = useCallback(async (isOnline: boolean, force = false) => {
+    const updatePresence = useCallback(async (isOnline: boolean, forceDbWrite = false) => {
         if (!currentUser || !supabase) return;
 
         const now = Date.now();
-        const timeSinceLastWrite = now - lastWriteTimeRef.current;
 
-        // Write immediately if:
-        // 1. We are forcing the write (e.g. visibility changes, tab closures, unmounts).
-        // 2. The online state actually changes (e.g. going offline or coming back online).
-        // 3. Or at least 30 seconds have passed since the last write.
-        const shouldWrite = force || 
-                           lastOnlineStateRef.current !== isOnline || 
-                           timeSinceLastWrite > 30000;
+        // 1. Broadcast online state in realtime memory via Supabase Realtime Presence
+        if (globalChannelRef.current) {
+            globalChannelRef.current.track({
+                user_id: currentUser.id,
+                is_online: isOnline,
+                last_seen: new Date().toISOString()
+            }).catch((err: any) => console.error('Realtime presence track failed:', err));
+        }
 
-        if (!shouldWrite) return;
+        // 2. Persist to database ONLY on connect, disconnect, or forced writes
+        if (forceDbWrite) {
+            try {
+                const { error } = await supabase
+                    .from('user_presence')
+                    .upsert({
+                        user_id: currentUser.id,
+                        is_online: isOnline,
+                        last_seen: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    });
 
-        lastWriteTimeRef.current = now;
-        lastOnlineStateRef.current = isOnline;
-
-        try {
-            const { error } = await supabase
-                .from('user_presence')
-                .upsert({
-                    user_id: currentUser.id,
-                    is_online: isOnline,
-                    last_seen: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                });
-
-            if (error) console.error('Error updating presence:', error);
-        } catch (err) {
-            console.error('Failed to update presence:', err);
+                if (error) console.error('Error updating presence DB:', error);
+            } catch (err) {
+                console.error('Failed to update presence DB:', err);
+            }
         }
     }, [currentUser]);
 
@@ -84,10 +82,11 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     useEffect(() => {
         if (!currentUser) return;
 
-        // Set online immediately (forced)
+        // Set online immediately in DB and Realtime (forced)
         updatePresence(true, true);
 
         // Start heartbeat - 30 seconds is industry standard (up from 10)
+        // Heartbeat is purely realtime memory updates, no DB writes!
         heartbeatIntervalRef.current = setInterval(() => {
             updatePresence(true);
         }, 30000);
@@ -98,12 +97,12 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 clearTimeout(activityTimeoutRef.current);
             }
             
-            // Mark online (throttled - does not hit database if already online within 30s)
+            // Mark online in Realtime (no DB write unless status changes)
             updatePresence(true);
 
             // Set idle/offline timeout (e.g., mark offline after 3 minutes of inactivity)
             activityTimeoutRef.current = setTimeout(() => {
-                updatePresence(false, true); // Forced offline write
+                updatePresence(false, true); // Forced offline write to DB and Realtime
             }, 180000);
         };
 
@@ -114,10 +113,10 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Page Visibility API - detect tab changes (minimize/maximize)
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                // User switched tab/minimized - mark offline immediately (forced)
+                // User switched tab/minimized - mark offline immediately (forced DB write)
                 updatePresence(false, true);
             } else {
-                // User returned - mark online immediately (forced)
+                // User returned - mark online immediately (forced DB write)
                 updatePresence(true, true);
             }
         };
@@ -127,7 +126,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const handleBeforeUnload = () => {
             if (!currentUser || !supabase) return;
 
-            // Try regular update first (forced)
+            // Try regular update first (forced DB write)
             updatePresence(false, true);
 
             // Keepalive fetch as backup - browser queues this during page unload
@@ -184,41 +183,100 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
 
-            // Set offline when component unmounts (forced)
+            // Set offline when component unmounts (forced DB write)
             updatePresence(false, true);
         };
     }, [currentUser, updatePresence]);
 
     // Single global Realtime subscription for all presence updates
     useEffect(() => {
-        if (!supabase) return;
+        if (!currentUser || !supabase) return;
 
-        const channel = supabase
-            .channel('global-presence-updates')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'user_presence'
+        const channel = supabase.channel('global-presence-updates', {
+            config: {
+                presence: {
+                    key: currentUser.id,
                 },
-                (payload) => {
-                    const data = payload.new as any;
-                    if (data) {
-                        setOnlineUsers(prev => {
-                            const m = new Map(prev);
-                            m.set(data.user_id, data.is_online);
-                            return m;
-                        });
+            },
+        });
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const presenceState = channel.presenceState();
+                
+                setOnlineUsers(prev => {
+                    const nextOnline = new Map(prev);
+                    
+                    // Clear previous states for currently tracked users
+                    trackedUsersRef.current.forEach(userId => {
+                        nextOnline.set(userId, !!presenceState[userId]);
+                    });
+                    
+                    // Mark anyone in the presenceState as online
+                    Object.keys(presenceState).forEach(userId => {
+                        const userPresences = presenceState[userId];
+                        const isUserOnline = userPresences?.some((p: any) => p.is_online !== false);
+                        nextOnline.set(userId, !!isUserOnline);
+                    });
+                    
+                    return nextOnline;
+                });
+
+                setLastSeenMap(prev => {
+                    const nextLastSeen = new Map(prev);
+                    Object.keys(presenceState).forEach(userId => {
+                        const userPresences = presenceState[userId];
+                        if (userPresences && userPresences.length > 0) {
+                            const lastSeenStr = (userPresences[0] as any).last_seen;
+                            if (lastSeenStr) {
+                                nextLastSeen.set(userId, new Date(lastSeenStr));
+                            }
+                        }
+                    });
+                    return nextLastSeen;
+                });
+            })
+            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                const isUserOnline = newPresences?.some((p: any) => p.is_online !== false);
+                setOnlineUsers(prev => {
+                    const m = new Map(prev);
+                    m.set(key, !!isUserOnline);
+                    return m;
+                });
+                if (newPresences && newPresences.length > 0) {
+                    const lastSeenStr = (newPresences[0] as any).last_seen;
+                    if (lastSeenStr) {
                         setLastSeenMap(prev => {
                             const m = new Map(prev);
-                            m.set(data.user_id, new Date(data.last_seen));
+                            m.set(key, new Date(lastSeenStr));
                             return m;
                         });
                     }
                 }
-            )
-            .subscribe();
+            })
+            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+                setOnlineUsers(prev => {
+                    const m = new Map(prev);
+                    m.set(key, false);
+                    return m;
+                });
+                setLastSeenMap(prev => {
+                    const m = new Map(prev);
+                    m.set(key, new Date());
+                    return m;
+                });
+            });
+
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                // Publish our initial presence state in realtime memory
+                await channel.track({
+                    user_id: currentUser.id,
+                    is_online: true,
+                    last_seen: new Date().toISOString(),
+                });
+            }
+        });
 
         globalChannelRef.current = channel;
 
@@ -227,7 +285,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 supabase.removeChannel(globalChannelRef.current);
             }
         };
-    }, []);
+    }, [currentUser]);
 
     // CLIENT-SIDE STALE PRESENCE DETECTION
     // Mark users offline if their last_seen is > 60 seconds old (heartbeat is 30s)

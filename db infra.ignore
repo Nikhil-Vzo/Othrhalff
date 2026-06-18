@@ -580,6 +580,13 @@ create policy "Users can delete their own notifications" on public.notifications
   using ((auth.uid() = user_id))
 ;
 
+-- Policy: Users can insert own notifications on notifications
+create policy "Users can insert own notifications" on public.notifications
+  for insert
+  to public
+  with check ((auth.uid() = user_id))
+;
+
 -- Policy: Users can insert their own notifications on notifications
 create policy "Users can insert their own notifications" on public.notifications
   for insert
@@ -1183,6 +1190,37 @@ BEGIN
 END;
 $function$;
 
+```
+
+---
+
+## 6. Custom Indexes
+```sql
+CREATE INDEX idx_blocked_users_blocked ON public.blocked_users USING btree (blocked_id);
+CREATE INDEX idx_blocked_users_blocker ON public.blocked_users USING btree (blocker_id);
+CREATE INDEX idx_call_sessions_caller ON public.call_sessions USING btree (caller_id);
+CREATE INDEX idx_call_sessions_created ON public.call_sessions USING btree (created_at DESC);
+CREATE INDEX idx_call_sessions_receiver ON public.call_sessions USING btree (receiver_id);
+CREATE INDEX idx_call_sessions_status ON public.call_sessions USING btree (status);
+CREATE INDEX idx_confession_comments_confession_id ON public.confession_comments USING btree (confession_id);
+CREATE INDEX idx_confessions_created_at ON public.confessions USING btree (created_at DESC);
+CREATE INDEX idx_matches_user_a ON public.matches USING btree (user_a) INCLUDE (user_b, created_at);
+CREATE INDEX idx_matches_user_b ON public.matches USING btree (user_b) INCLUDE (user_a, created_at);
+CREATE INDEX idx_messages_created_at ON public.messages USING btree (created_at DESC);
+CREATE INDEX idx_messages_match_created ON public.messages USING btree (match_id, created_at DESC);
+CREATE INDEX idx_messages_match_created_at ON public.messages USING btree (match_id, created_at DESC);
+CREATE INDEX idx_messages_match_id ON public.messages USING btree (match_id);
+CREATE INDEX idx_messages_unread ON public.messages USING btree (match_id, sender_id, is_read) WHERE (is_read = false);
+CREATE INDEX idx_notifications_user_created ON public.notifications USING btree (user_id, created_at DESC);
+CREATE INDEX idx_profiles_id ON public.profiles USING btree (id);
+CREATE INDEX idx_profiles_is_verified ON public.profiles USING btree (is_verified);
+CREATE INDEX idx_profiles_university ON public.profiles USING btree (university);
+CREATE INDEX idx_swipes_action ON public.swipes USING btree (action);
+CREATE INDEX idx_swipes_liker ON public.swipes USING btree (liker_id);
+CREATE INDEX idx_swipes_liker_action_created ON public.swipes USING btree (liker_id, action, created_at);
+CREATE INDEX idx_swipes_liker_target ON public.swipes USING btree (liker_id, target_id);
+CREATE INDEX idx_user_presence_online ON public.user_presence USING btree (is_online);
+CREATE INDEX idx_user_presence_updated ON public.user_presence USING btree (updated_at);
 ```
 
 ---
