@@ -6,6 +6,7 @@ interface PresenceContextType {
     onlineUsers: Map<string, boolean>;
     lastSeenMap: Map<string, Date>;
     subscribeToUser: (userId: string) => void;
+    subscribeToUsers: (userIds: string[]) => void;
     unsubscribeFromUser: (userId: string) => void;
     isUserOnline: (userId: string) => boolean;
     getLastSeen: (userId: string) => Date | null;
@@ -17,13 +18,51 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const { currentUser } = useAuth();
     const [onlineUsers, setOnlineUsers] = useState<Map<string, boolean>>(new Map());
     const [lastSeenMap, setLastSeenMap] = useState<Map<string, Date>>(new Map());
-    const subscribedChannelsRef = useRef<Map<string, any>>(new Map());
+    const trackedUsersRef = useRef<Set<string>>(new Set());
+    const globalChannelRef = useRef<any>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const tokenRef = useRef<string | null>(null);
 
-    // Update user's own presence to online
-    const updatePresence = async (isOnline: boolean) => {
+    const lastWriteTimeRef = useRef<number>(0);
+    const lastOnlineStateRef = useRef<boolean | null>(null);
+
+    // Keep active session token updated in a ref for synchronous unload authorization
+    useEffect(() => {
+        if (!supabase) return;
+        
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            tokenRef.current = session?.access_token || null;
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            tokenRef.current = session?.access_token || null;
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
+
+    // Update user's own presence with throttling to prevent API spam
+    const updatePresence = useCallback(async (isOnline: boolean, force = false) => {
         if (!currentUser || !supabase) return;
+
+        const now = Date.now();
+        const timeSinceLastWrite = now - lastWriteTimeRef.current;
+
+        // Write immediately if:
+        // 1. We are forcing the write (e.g. visibility changes, tab closures, unmounts).
+        // 2. The online state actually changes (e.g. going offline or coming back online).
+        // 3. Or at least 30 seconds have passed since the last write.
+        const shouldWrite = force || 
+                           lastOnlineStateRef.current !== isOnline || 
+                           timeSinceLastWrite > 30000;
+
+        if (!shouldWrite) return;
+
+        lastWriteTimeRef.current = now;
+        lastOnlineStateRef.current = isOnline;
 
         try {
             const { error } = await supabase
@@ -39,52 +78,59 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch (err) {
             console.error('Failed to update presence:', err);
         }
-    };
+    }, [currentUser]);
 
-    // Heartbeat - Update presence every 10 seconds (reduced from 30)
+    // Heartbeat and Activity Detection - Throttled to save database bandwidth
     useEffect(() => {
         if (!currentUser) return;
 
-        // Set online immediately
-        updatePresence(true);
+        // Set online immediately (forced)
+        updatePresence(true, true);
 
-        // Start heartbeat - 10 seconds for faster presence updates
+        // Start heartbeat - 30 seconds is industry standard (up from 10)
         heartbeatIntervalRef.current = setInterval(() => {
             updatePresence(true);
-        }, 10000); // 10 seconds (down from 30)
+        }, 30000);
 
         // Activity detection - reset heartbeat on user activity
         const resetActivity = () => {
             if (activityTimeoutRef.current) {
                 clearTimeout(activityTimeoutRef.current);
             }
+            
+            // Mark online (throttled - does not hit database if already online within 30s)
             updatePresence(true);
+
+            // Set idle/offline timeout (e.g., mark offline after 3 minutes of inactivity)
+            activityTimeoutRef.current = setTimeout(() => {
+                updatePresence(false, true); // Forced offline write
+            }, 180000);
         };
 
         window.addEventListener('mousemove', resetActivity);
         window.addEventListener('keydown', resetActivity);
         window.addEventListener('focus', resetActivity);
 
-        // ✅ NEW: Page Visibility API - detect tab changes
+        // Page Visibility API - detect tab changes (minimize/maximize)
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                // User switched tab/minimized - mark offline
-                updatePresence(false);
+                // User switched tab/minimized - mark offline immediately (forced)
+                updatePresence(false, true);
             } else {
-                // User returned - mark online
-                updatePresence(true);
+                // User returned - mark online immediately (forced)
+                updatePresence(true, true);
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // ✅ IMPROVED: Use sendBeacon for more reliable cleanup on page close
+        // Use fetch with keepalive for reliable authenticated cleanup on page close
         const handleBeforeUnload = () => {
             if (!currentUser || !supabase) return;
 
-            // Try regular update first
-            updatePresence(false);
+            // Try regular update first (forced)
+            updatePresence(false, true);
 
-            // SendBeacon as backup - browser will queue even during page unload
+            // Keepalive fetch as backup - browser queues this during page unload
             try {
                 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
                 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -93,18 +139,33 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                 const url = `${supabaseUrl}/rest/v1/user_presence?user_id=eq.${currentUser.id}`;
                 const data = JSON.stringify({
+                    user_id: currentUser.id,
                     is_online: false,
                     last_seen: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 });
 
-                const blob = new Blob([data], { type: 'application/json' });
+                const storageKey = 'sb-htepqqigtzmllailykas-auth-token';
+                const token = tokenRef.current || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '{}')?.access_token : null);
 
-                // Note: sendBeacon doesn't support custom headers directly
-                // We rely on the regular updatePresence(false) call above
-                navigator.sendBeacon(url, blob);
+                const headers: Record<string, string> = {
+                    'apikey': supabaseKey,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                };
+
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: data,
+                    keepalive: true
+                }).catch(err => console.error('keepalive update failed:', err));
             } catch (err) {
-                console.error('sendBeacon failed:', err);
+                console.error('keepalive backup failed:', err);
             }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
@@ -120,16 +181,56 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             window.removeEventListener('mousemove', resetActivity);
             window.removeEventListener('keydown', resetActivity);
             window.removeEventListener('focus', resetActivity);
-            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
 
-            // Set offline when component unmounts
-            updatePresence(false);
+            // Set offline when component unmounts (forced)
+            updatePresence(false, true);
         };
-    }, [currentUser]);
+    }, [currentUser, updatePresence]);
 
-    // ✅ NEW: Client-side stale presence detection
-    // Mark users offline if their last_seen is > 20 seconds old
+    // Single global Realtime subscription for all presence updates
+    useEffect(() => {
+        if (!supabase) return;
+
+        const channel = supabase
+            .channel('global-presence-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'user_presence'
+                },
+                (payload) => {
+                    const data = payload.new as any;
+                    if (data) {
+                        setOnlineUsers(prev => {
+                            const m = new Map(prev);
+                            m.set(data.user_id, data.is_online);
+                            return m;
+                        });
+                        setLastSeenMap(prev => {
+                            const m = new Map(prev);
+                            m.set(data.user_id, new Date(data.last_seen));
+                            return m;
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        globalChannelRef.current = channel;
+
+        return () => {
+            if (globalChannelRef.current) {
+                supabase.removeChannel(globalChannelRef.current);
+            }
+        };
+    }, []);
+
+    // CLIENT-SIDE STALE PRESENCE DETECTION
+    // Mark users offline if their last_seen is > 60 seconds old (heartbeat is 30s)
     useEffect(() => {
         const checkStalePresence = () => {
             const now = Date.now();
@@ -139,8 +240,8 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                 lastSeenMap.forEach((lastSeen, userId) => {
                     const timeSinceLastSeen = now - lastSeen.getTime();
-                    // If last seen > 20 seconds ago and currently marked online, mark offline
-                    if (timeSinceLastSeen > 20000 && updated.get(userId)) {
+                    // If last seen > 60 seconds ago and currently marked online, mark offline
+                    if (timeSinceLastSeen > 60000 && updated.get(userId)) {
                         updated.set(userId, false);
                         hasChanges = true;
                     }
@@ -150,32 +251,23 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             });
         };
 
-        // Check every 5 seconds for stale presence
-        const interval = setInterval(checkStalePresence, 5000);
+        // Check every 10 seconds for stale presence
+        const interval = setInterval(checkStalePresence, 10000);
         return () => clearInterval(interval);
     }, [lastSeenMap]);
 
-    const unsubscribeFromUser = useCallback((userId: string) => {
-        const channel = subscribedChannelsRef.current.get(userId);
-        if (channel && channel !== true) {
-            supabase.removeChannel(channel);
-        }
-        subscribedChannelsRef.current.delete(userId);
-    }, []);
-
-    // Subscribe to specific users' presence
+    // Track a single user and fetch initial presence
     const subscribeToUser = useCallback((userId: string) => {
-        if (!supabase || subscribedChannelsRef.current.has(userId)) return;
+        if (!supabase) return;
+        
+        if (trackedUsersRef.current.has(userId)) return;
+        trackedUsersRef.current.add(userId);
 
-        // Immediately mark as tracked to prevent concurrent calls
-        subscribedChannelsRef.current.set(userId, true);
-
-        // Fetch initial presence
         supabase
             .from('user_presence')
             .select('*')
             .eq('user_id', userId)
-            .single()
+            .maybeSingle()
             .then(({ data, error }) => {
                 if (data && !error) {
                     setOnlineUsers(prev => {
@@ -190,43 +282,44 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     });
                 }
             });
+    }, []);
 
-        // Subscribe to real-time updates
-        const channel = supabase
-            .channel(`presence:${userId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'user_presence',
-                    filter: `user_id=eq.${userId}`
-                },
-                (payload) => {
-                    const data = payload.new as any;
-                    if (data) {
-                        setOnlineUsers(prev => {
-                            const m = new Map(prev);
-                            m.set(userId, data.is_online);
-                            return m;
+    // Batch track users and batch fetch initial presence
+    const subscribeToUsers = useCallback((userIds: string[]) => {
+        if (!supabase || userIds.length === 0) return;
+
+        const newIds = userIds.filter(id => !trackedUsersRef.current.has(id));
+        if (newIds.length === 0) return;
+
+        newIds.forEach(id => trackedUsersRef.current.add(id));
+
+        supabase
+            .from('user_presence')
+            .select('*')
+            .in('user_id', newIds)
+            .then(({ data, error }) => {
+                if (data && !error) {
+                    setOnlineUsers(prev => {
+                        const m = new Map(prev);
+                        data.forEach((row: any) => {
+                            m.set(row.user_id, row.is_online);
                         });
-                        setLastSeenMap(prev => {
-                            const m = new Map(prev);
-                            m.set(userId, new Date(data.last_seen));
-                            return m;
+                        return m;
+                    });
+                    setLastSeenMap(prev => {
+                        const m = new Map(prev);
+                        data.forEach((row: any) => {
+                            m.set(row.user_id, new Date(row.last_seen));
                         });
-                    }
+                        return m;
+                    });
                 }
-            )
-            .subscribe();
+            });
+    }, []);
 
-        // Store channel for cleanup
-        subscribedChannelsRef.current.set(userId, channel);
-
-        return () => {
-            unsubscribeFromUser(userId);
-        };
-    }, [unsubscribeFromUser]);
+    const unsubscribeFromUser = useCallback((userId: string) => {
+        trackedUsersRef.current.delete(userId);
+    }, []);
 
     const isUserOnline = useCallback((userId: string): boolean => {
         return onlineUsers.get(userId) || false;
@@ -242,6 +335,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 onlineUsers,
                 lastSeenMap,
                 subscribeToUser,
+                subscribeToUsers,
                 unsubscribeFromUser,
                 isUserOnline,
                 getLastSeen

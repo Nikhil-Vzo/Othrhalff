@@ -41,9 +41,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   }, [mounted, needsOnboarding, pathname, router]);
 
-  // Fetch real-time unread messages count for the chat badge
+  // Fetch real-time unread messages count for the chat badge (with 300ms debounce to protect database bandwidth)
   useEffect(() => {
     if (!currentUser || !supabase) return;
+
+    let debounceTimeout: NodeJS.Timeout | null = null;
 
     const fetchUnreadCount = async () => {
       try {
@@ -61,17 +63,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       }
     };
 
+    const debouncedFetch = () => {
+      if (debounceTimeout) clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        fetchUnreadCount();
+      }, 300);
+    };
+
     fetchUnreadCount();
 
     // Listen for changes in messages to update badge live
     const uniqueChannelName = `unread-messages-count-layout-${Math.random().toString(36).substring(7)}`;
     const channel = supabase.channel(uniqueChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-        fetchUnreadCount();
+        debouncedFetch();
       })
       .subscribe();
 
     return () => {
+      if (debounceTimeout) clearTimeout(debounceTimeout);
       supabase.removeChannel(channel);
     };
   }, [currentUser]);

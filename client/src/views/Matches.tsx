@@ -110,7 +110,7 @@ ChatPreviewItem.displayName = 'ChatPreviewItem';
 
 export const Matches: React.FC = () => {
   const { currentUser } = useAuth();
-  const { isUserOnline, subscribeToUser, unsubscribeFromUser } = usePresence();
+  const { isUserOnline, subscribeToUsers, unsubscribeFromUser } = usePresence();
   const navigate = useNavigate();
 
   // 1. Initialize state variables to null / empty arrays to avoid SSR issues
@@ -163,54 +163,17 @@ export const Matches: React.FC = () => {
     if (!isBackground && !hasCache) setLoading(true);
 
     try {
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select('id, user_a, user_b')
-        .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_matches_with_preview', { current_user_id: currentUser.id });
 
-      if (matchesError) throw matchesError;
+      if (rpcError) throw rpcError;
 
-      const rawPartnerIds = (matchesData || []).map((m: any) => m.user_a === currentUser.id ? m.user_b : m.user_a);
-      const partnerIds = rawPartnerIds.filter((val, idx, self) => self.indexOf(val) === idx);
-      
-      let profilesMap = new Map();
-      if (partnerIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, anonymous_id, real_name, avatar, university, branch, year, is_verified, gender, bio, dob, interests')
-          .in('id', partnerIds);
-          
-        if (profiles) {
-          profiles.forEach(p => profilesMap.set(p.id, p));
-        }
-      }
-
-      const mappedChats: ChatPreview[] = await Promise.all((matchesData || []).map(async (m: any) => {
-        const partnerId = m.user_a === currentUser.id ? m.user_b : m.user_a;
-        const partner = profilesMap.get(partnerId) || {};
-
-        // Fetch latest message
-        const { data: latestMsgs } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('match_id', m.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        const lastMessage = latestMsgs && latestMsgs.length > 0 ? latestMsgs[0] : null;
-
-        // Fetch unread count
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('match_id', m.id)
-          .eq('is_read', false)
-          .neq('sender_id', currentUser.id);
-
+      const mappedChats: ChatPreview[] = (rpcData || []).map((row: any) => {
+        const partner = row.partner_profile || {};
         return {
-          id: m.id,
+          id: row.match_id,
           partner: {
-            id: partnerId,
+            id: row.partner_id,
             anonymousId: partner.anonymous_id || 'Unknown',
             realName: partner.real_name || 'User',
             avatar: partner.avatar,
@@ -225,13 +188,13 @@ export const Matches: React.FC = () => {
             matchPercentage: 0,
             distance: 'Connected'
           },
-          lastMessage: lastMessage ? (lastMessage.text || '') : null,
-          lastMessageTime: lastMessage ? new Date(lastMessage.created_at).getTime() : null,
-          unreadCount: unreadCount || 0
+          lastMessage: row.last_message === 'New Match!' ? null : row.last_message,
+          lastMessageTime: row.last_message_time ? new Date(row.last_message_time).getTime() : null,
+          unreadCount: Number(row.unread_count) || 0
         };
-      }));
+      });
 
-      // Already sorted by RPC, but ensure client-side consistency
+      // Ensure client-side consistency sort by last message time
       mappedChats.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
 
       // Client-side deduplication safeguard: Keep only first match per unique partner
@@ -328,11 +291,12 @@ export const Matches: React.FC = () => {
 
   useEffect(() => {
     if (chats.length === 0) return;
-    chats.forEach(chat => subscribeToUser(chat.partner.id));
+    const partnerIds = chats.map(chat => chat.partner.id);
+    subscribeToUsers(partnerIds);
     return () => {
-      chats.forEach(chat => unsubscribeFromUser(chat.partner.id));
+      partnerIds.forEach(id => unsubscribeFromUser(id));
     };
-  }, [chats, subscribeToUser, unsubscribeFromUser]);
+  }, [chats, subscribeToUsers, unsubscribeFromUser]);
 
   if (loading) {
     return (
