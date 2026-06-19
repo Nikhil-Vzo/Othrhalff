@@ -1205,6 +1205,29 @@ $function$;
 
 ---
 
+## 5. Database Views
+```sql
+CREATE OR REPLACE VIEW public.glimpse_leaderboard 
+WITH (security_invoker = true) AS
+SELECT 
+  g.user_id,
+  g.university as glimpse_university,
+  COUNT(g.id)::int as count,
+  json_build_object(
+    'id', p.id,
+    'real_name', p.real_name,
+    'anonymous_id', p.anonymous_id,
+    'avatar', p.avatar,
+    'is_verified', p.is_verified,
+    'university', p.university
+  ) as profiles
+FROM public.glimpses g
+JOIN public.profiles p ON g.user_id = p.id
+GROUP BY g.user_id, g.university, p.id, p.real_name, p.anonymous_id, p.avatar, p.is_verified, p.university;
+```
+
+---
+
 ## 6. Custom Indexes
 ```sql
 CREATE INDEX idx_blocked_users_blocked ON public.blocked_users USING btree (blocked_id);
@@ -1218,7 +1241,10 @@ CREATE INDEX idx_confession_comments_user_id ON public.confession_comments USING
 CREATE INDEX idx_confession_reactions_user_id ON public.confession_reactions USING btree (user_id);
 CREATE INDEX idx_confessions_created_at ON public.confessions USING btree (created_at DESC);
 CREATE INDEX idx_confessions_user_id ON public.confessions USING btree (user_id);
+CREATE INDEX idx_glimpse_reactions_glimpse_id ON public.glimpse_reactions USING btree (glimpse_id);
 CREATE INDEX idx_glimpse_reactions_user_id ON public.glimpse_reactions USING btree (user_id);
+CREATE INDEX idx_glimpses_created_at ON public.glimpses USING btree (created_at DESC);
+CREATE INDEX idx_glimpses_university_lower ON public.glimpses USING btree (lower(university) text_pattern_ops);
 CREATE INDEX idx_glimpses_user_id ON public.glimpses USING btree (user_id);
 CREATE INDEX idx_matches_user_a ON public.matches USING btree (user_a) INCLUDE (user_b, created_at);
 CREATE INDEX idx_matches_user_b ON public.matches USING btree (user_b) INCLUDE (user_a, created_at);
