@@ -717,10 +717,9 @@ export const Profile: React.FC = () => {
 
                                 {/* Academics Box */}
                                 <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-colors">
-                                    <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
                                     <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-indigo-400 font-black tracking-widest uppercase">Academics</span>
-                                        <GraduationCap className="w-4 h-4 text-indigo-400" />
+                                        <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Academics</span>
+                                        <GraduationCap className="w-4 h-4 text-neon" />
                                     </div>
                                     <h4 className="text-sm font-bold text-white mb-2 leading-snug">{profileUser.university}</h4>
                                     <div className="space-y-1 text-xs text-zinc-400 font-medium">
@@ -731,15 +730,15 @@ export const Profile: React.FC = () => {
 
                                 {/* Verification Card */}
                                 {profileUser.isVerified ? (
-                                    <div className="bg-gradient-to-br from-blue-950/25 to-zinc-900/30 border border-blue-500/20 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-blue-500/30 transition-all flex flex-col justify-between min-h-[160px]">
-                                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all flex flex-col justify-between min-h-[160px]">
+                                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className="text-[10px] text-blue-400 font-black tracking-widest uppercase">Student Verification</span>
-                                                <Shield className="w-4 h-4 text-blue-400" />
+                                                <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Student Verification</span>
+                                                <Shield className="w-4 h-4 text-neon" />
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-blue-400 font-bold text-sm mb-1.5">
-                                                <BadgeCheck className="w-4 h-4 fill-blue-500/10" /> Verified
+                                            <div className="flex items-center gap-1.5 text-emerald-450 font-bold text-sm mb-1.5">
+                                                <BadgeCheck className="w-4 h-4 text-emerald-450 fill-emerald-500/10" /> Verified
                                             </div>
                                             <p className="text-[11px] text-zinc-400 leading-normal">
                                                 Your student credentials are authenticated and active.
@@ -747,15 +746,15 @@ export const Profile: React.FC = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="bg-gradient-to-br from-amber-950/20 to-zinc-900/30 border border-amber-500/30 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-amber-500/40 transition-all flex flex-col justify-between min-h-[160px]">
-                                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all flex flex-col justify-between min-h-[160px]">
+                                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className="text-[10px] text-amber-400 font-black tracking-widest uppercase">Student Verification</span>
-                                                <Shield className="w-4 h-4 text-amber-400" />
+                                                <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Student Verification</span>
+                                                <Shield className="w-4 h-4 text-neon" />
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-amber-400 font-bold text-sm mb-1.5">
-                                                <X className="w-4 h-4 text-amber-500" /> Unverified
+                                            <div className="flex items-center gap-1.5 text-amber-500 font-bold text-sm mb-1.5">
+                                                <X className="w-4 h-4 text-amber-500" /> Action Required
                                             </div>
                                             <p className="text-[11px] text-zinc-400 leading-normal mb-4">
                                                 Verify your college email to access campus channels & glimpses.
@@ -764,7 +763,7 @@ export const Profile: React.FC = () => {
                                         {isSelf && (
                                             <button 
                                                 onClick={() => setShowVerification(true)} 
-                                                className="w-full py-2.5 rounded-xl bg-amber-500 text-black hover:bg-amber-400 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] text-center"
+                                                className="w-full py-2.5 rounded-xl bg-neon text-white hover:bg-neon/90 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,0,127,0.2)] hover:shadow-[0_0_20px_rgba(255,0,127,0.4)] text-center animate-pulse-slow"
                                             >
                                                 Verify Now
                                             </button>
@@ -775,13 +774,13 @@ export const Profile: React.FC = () => {
                                 {/* Passions Box (Spans 2 cols on desktop) */}
                                 <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md hover:border-white/10 transition-colors">
                                     <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-teal-400 font-black tracking-widest uppercase">Interests & Passions</span>
-                                        <Heart className="w-4 h-4 text-teal-400" />
+                                        <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Interests & Passions</span>
+                                        <Heart className="w-4 h-4 text-neon" />
                                     </div>
                                     {profileUser.interests && profileUser.interests.length > 0 ? (
                                         <div className="flex flex-wrap gap-2">
                                             {profileUser.interests.map(interest => (
-                                                <span key={interest} className="px-3 py-1.5 bg-teal-500/10 border border-teal-500/20 hover:border-teal-400/50 hover:text-teal-300 rounded-2xl text-xs font-semibold text-teal-400/90 transition-colors">
+                                                <span key={interest} className="px-3 py-1.5 bg-white/[0.03] border border-white/10 hover:border-neon/30 hover:text-neon rounded-2xl text-xs font-semibold text-zinc-300 transition-colors">
                                                     #{interest}
                                                 </span>
                                             ))}
@@ -794,13 +793,13 @@ export const Profile: React.FC = () => {
                                 {/* Looking For Box (Spans 2 cols on desktop) */}
                                 <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md hover:border-white/10 transition-colors">
                                     <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-pink-400 font-black tracking-widest uppercase">Looking For</span>
-                                        <Search className="w-4 h-4 text-pink-400" />
+                                        <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Looking For</span>
+                                        <Search className="w-4 h-4 text-neon" />
                                     </div>
                                     {profileUser.lookingFor && profileUser.lookingFor.length > 0 ? (
                                         <div className="flex flex-wrap gap-2">
                                             {profileUser.lookingFor.map(option => (
-                                                <span key={option} className="px-3 py-1.5 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-xs font-semibold text-pink-400/95">
+                                                <span key={option} className="px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded-2xl text-xs font-semibold text-zinc-300">
                                                     {option}
                                                 </span>
                                             ))}
