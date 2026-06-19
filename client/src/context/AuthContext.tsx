@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserProfile } from '../types';
 import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
@@ -17,6 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     if (typeof window !== 'undefined') {
       return authService.getCurrentUser();
@@ -197,7 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearAllCaches();
     clearSWToken();
     authService.logout();
-  }, [clearAllCaches, clearSWToken]);
+    router.push('/login');
+  }, [clearAllCaches, clearSWToken, router]);
 
   const logout = () => {
     setCurrentUser(null);

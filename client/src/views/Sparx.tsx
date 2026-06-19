@@ -692,14 +692,14 @@ export const Sparx: React.FC = () => {
                         </div>
 
                         {/* Details */}
-                        <div className="min-w-0">
-                          <h4 className={`text-sm font-bold truncate flex items-center gap-1.5 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
-                            {user.profile.real_name || 'Anonymous'}
+                        <div className="min-w-0 flex-1">
+                          <h4 className={`text-sm font-bold flex items-center gap-1.5 min-w-0 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
+                            <span className="truncate">{user.profile.real_name || 'Anonymous'}</span>
                             {isCurrentUser && (
-                              <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)]">You</span>
+                              <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)] flex-shrink-0">You</span>
                             )}
                             {user.profile.is_verified && (
-                              <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
+                              <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)] flex-shrink-0" fill="currentColor" stroke="black" strokeWidth={1.5} />
                             )}
                           </h4>
                           <span className="text-[10px] text-gray-500 block truncate mt-0.5 font-medium">
@@ -709,7 +709,7 @@ export const Sparx: React.FC = () => {
                       </div>
 
                       {/* Glimpse Count */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-4">
                         <span className="text-sm font-black text-rose-500 font-mono">
                           {user.count}
                         </span>

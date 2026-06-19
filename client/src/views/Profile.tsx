@@ -529,9 +529,6 @@ export const Profile: React.FC = () => {
                                             <label className="text-[10px] text-zinc-500 font-bold block mb-2 uppercase">Branch / Major</label>
                                             <NeonInput value={editForm.branch || ''} onChange={e => setEditForm({ ...editForm, branch: e.target.value })} />
                                         </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
                                             <label className="text-[10px] text-zinc-500 font-bold block mb-2 uppercase">Year of Study</label>
                                             <div className="relative">
@@ -544,14 +541,6 @@ export const Profile: React.FC = () => {
                                                 </select>
                                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                                             </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-zinc-500 font-bold block mb-2 uppercase">Date of Birth</label>
-                                            <NeonInput
-                                                type="date"
-                                                value={editForm.dob || ''}
-                                                onChange={e => setEditForm({ ...editForm, dob: e.target.value })}
-                                            />
                                         </div>
                                     </div>
 
@@ -652,48 +641,54 @@ export const Profile: React.FC = () => {
 
                                 {/* Verification Card (Spans 2 cols) */}
                                 {profileUser.isVerified ? (
-                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all">
+                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-5 md:p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all">
                                         <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-neon">
+                                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
+                                            <div className="flex items-start gap-3.5">
+                                                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-neon flex-shrink-0 mt-0.5">
                                                     <Shield className="w-5 h-5" />
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h3>
-                                                    <p className="text-xs text-zinc-400 mt-0.5">Your student credentials are authenticated and active.</p>
+                                                <div className="space-y-1.5 min-w-0">
+                                                    <h4 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h4>
+                                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                                        Your student credentials are authenticated and active.
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-emerald-450 font-bold text-xs bg-emerald-950/20 border border-emerald-500/20 py-2 px-4 rounded-xl self-start sm:self-center">
+                                            <div className="flex items-center justify-center gap-1.5 text-emerald-450 font-bold text-xs bg-emerald-950/20 border border-emerald-500/20 py-2 px-4 rounded-xl self-stretch md:self-center">
                                                 <BadgeCheck className="w-4 h-4 text-emerald-450 fill-emerald-500/10" /> Verified Student
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all">
+                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-5 md:p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all">
                                         <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-neon">
+                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+                                            <div className="flex items-start gap-3.5 w-full">
+                                                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-neon flex-shrink-0 mt-0.5">
                                                     <Shield className="w-5 h-5" />
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <h3 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h3>
-                                                        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/25 rounded-full text-[9px] font-bold text-amber-500 uppercase">Action Required</span>
+                                                <div className="space-y-1.5 min-w-0 flex-1">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                                                        <h4 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h4>
+                                                        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/25 rounded-full text-[9px] font-bold text-amber-500 uppercase tracking-wider whitespace-nowrap w-fit">
+                                                            Action Required
+                                                        </span>
                                                     </div>
-                                                    <p className="text-xs text-zinc-400 mt-0.5">Verify your college email to access campus channels & glimpses.</p>
+                                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                                        Verify your college email to access campus channels & glimpses.
+                                                    </p>
                                                 </div>
                                             </div>
                                             {isSelf ? (
                                                 <button 
                                                     onClick={() => setShowVerification(true)} 
-                                                    className="px-6 py-2.5 rounded-xl bg-neon text-white hover:bg-neon/90 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,0,127,0.2)] hover:shadow-[0_0_20px_rgba(255,0,127,0.4)] hover:-translate-y-0.5 active:translate-y-0 self-start sm:self-center text-center whitespace-nowrap"
+                                                    className="w-full md:w-auto px-6 py-3 rounded-xl bg-neon text-white hover:bg-neon/90 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,0,127,0.2)] hover:shadow-[0_0_20px_rgba(255,0,127,0.4)] text-center whitespace-nowrap self-stretch md:self-center"
                                                 >
                                                     Verify Now
                                                 </button>
                                             ) : (
-                                                <div className="flex items-center gap-1.5 text-zinc-500 font-bold text-xs bg-zinc-950/40 border border-white/5 py-2 px-4 rounded-xl self-start sm:self-center">
+                                                <div className="flex items-center justify-center gap-1.5 text-zinc-500 font-bold text-xs bg-zinc-950/40 border border-white/5 py-2 px-4 rounded-xl self-stretch md:self-center">
                                                     <X className="w-4 h-4 text-zinc-600" /> Unverified Student
                                                 </div>
                                             )}

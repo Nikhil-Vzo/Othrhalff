@@ -697,7 +697,8 @@ create policy "Allow read own swipes" on public.swipes
 create policy "Allow upsert own swipes" on public.swipes
   for all
   to public
-  with check ((( SELECT auth.uid() AS uid) = liker_id))
+  using ((auth.uid() = liker_id))
+  with check ((auth.uid() = liker_id))
 ;
 
 -- Policy: Allow read all presence on user_presence
@@ -711,7 +712,8 @@ create policy "Allow read all presence" on public.user_presence
 create policy "Allow upsert own presence" on public.user_presence
   for all
   to public
-  with check ((( SELECT auth.uid() AS uid) = user_id))
+  using ((auth.uid() = user_id))
+  with check ((auth.uid() = user_id))
 ;
 
 -- Policy: Users can insert their own verification requests on verification_requests
@@ -1058,19 +1060,11 @@ BEGIN
       WHERE b.blocker_id = p.id 
       AND b.blocked_id = get_potential_matches.user_id
     )
-    -- MODE FILTERING (Fuzzy Matching)
+    -- MODE FILTERING (Cleaned split-part comparison)
     AND (
-        (match_mode = 'campus' AND (
-            LOWER(p.university) = LOWER(user_university) 
-            OR LOWER(p.university) LIKE '%' || LOWER(user_university) || '%'
-            OR LOWER(user_university) LIKE '%' || LOWER(p.university) || '%'
-        ))
+        (match_mode = 'campus' AND LOWER(TRIM(split_part(p.university, ',', 1))) = LOWER(TRIM(split_part(user_university, ',', 1))))
         OR
-        (match_mode = 'global' AND (
-            LOWER(p.university) != LOWER(user_university) 
-            AND NOT (LOWER(p.university) LIKE '%' || LOWER(user_university) || '%')
-            AND NOT (LOWER(user_university) LIKE '%' || LOWER(p.university) || '%')
-        ))
+        (match_mode = 'global' AND LOWER(TRIM(split_part(p.university, ',', 1))) != LOWER(TRIM(split_part(user_university, ',', 1))))
     )
   ORDER BY random()
   LIMIT limit_count;
@@ -1157,19 +1151,11 @@ BEGIN
   INNER JOIN swipes s ON p.id = s.target_id
   WHERE s.liker_id = current_user_id
   AND s.action = 'pass'
-  -- MODE FILTERING (Fuzzy Matching)
+  -- MODE FILTERING (Cleaned split-part comparison)
   AND (
-      (match_mode = 'campus' AND (
-          LOWER(p.university) = LOWER(user_university) 
-          OR LOWER(p.university) LIKE '%' || LOWER(user_university) || '%'
-          OR LOWER(user_university) LIKE '%' || LOWER(p.university) || '%'
-      ))
+      (match_mode = 'campus' AND LOWER(TRIM(split_part(p.university, ',', 1))) = LOWER(TRIM(split_part(user_university, ',', 1))))
       OR
-      (match_mode = 'global' AND (
-          LOWER(p.university) != LOWER(user_university) 
-          AND NOT (LOWER(p.university) LIKE '%' || LOWER(user_university) || '%')
-          AND NOT (LOWER(user_university) LIKE '%' || LOWER(p.university) || '%')
-      ))
+      (match_mode = 'global' AND LOWER(TRIM(split_part(p.university, ',', 1))) != LOWER(TRIM(split_part(user_university, ',', 1))))
   )
   ORDER BY s.created_at ASC -- Oldest passes first
   LIMIT 20;
@@ -1260,6 +1246,8 @@ CREATE INDEX idx_poll_votes_user_id ON public.poll_votes USING btree (user_id);
 CREATE INDEX idx_profiles_id ON public.profiles USING btree (id);
 CREATE INDEX idx_profiles_is_verified ON public.profiles USING btree (is_verified);
 CREATE INDEX idx_profiles_university ON public.profiles USING btree (university);
+CREATE INDEX idx_profiles_university_lower ON public.profiles USING btree (lower(university));
+CREATE INDEX idx_profiles_university_clean ON public.profiles USING btree (lower(trim(split_part(university, ',', 1))));
 CREATE INDEX idx_support_tickets_user_id ON public.support_tickets USING btree (user_id);
 CREATE INDEX idx_swipes_action ON public.swipes USING btree (action);
 CREATE INDEX idx_swipes_liker_action_created ON public.swipes USING btree (liker_id, action, created_at);
