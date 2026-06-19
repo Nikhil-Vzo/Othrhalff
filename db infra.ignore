@@ -328,42 +328,42 @@ create policy "Allow public update access to active_rooms" on public.active_room
 create policy "Users can create blocks" on public.blocked_users
   for insert
   to public
-  with check ((auth.uid() = blocker_id))
+  with check ((( SELECT auth.uid() AS uid) = blocker_id))
 ;
 
 -- Policy: Users can delete their blocks on blocked_users
 create policy "Users can delete their blocks" on public.blocked_users
   for delete
   to public
-  using ((auth.uid() = blocker_id))
+  using ((( SELECT auth.uid() AS uid) = blocker_id))
 ;
 
 -- Policy: Users can view blocks they created on blocked_users
 create policy "Users can view blocks they created" on public.blocked_users
   for select
   to public
-  using ((auth.uid() = blocker_id))
+  using ((( SELECT auth.uid() AS uid) = blocker_id))
 ;
 
 -- Policy: Callers can create call sessions on call_sessions
 create policy "Callers can create call sessions" on public.call_sessions
   for insert
   to public
-  with check ((auth.uid() = caller_id))
+  with check ((( SELECT auth.uid() AS uid) = caller_id))
 ;
 
 -- Policy: Users can update their call sessions on call_sessions
 create policy "Users can update their call sessions" on public.call_sessions
   for update
   to public
-  using (((auth.uid() = caller_id) OR (auth.uid() = receiver_id)))
+  using (((( SELECT auth.uid() AS uid) = caller_id) OR (( SELECT auth.uid() AS uid) = receiver_id)))
 ;
 
 -- Policy: Users can view their own call sessions on call_sessions
 create policy "Users can view their own call sessions" on public.call_sessions
   for select
   to public
-  using (((auth.uid() = caller_id) OR (auth.uid() = receiver_id)))
+  using (((( SELECT auth.uid() AS uid) = caller_id) OR (( SELECT auth.uid() AS uid) = receiver_id)))
 ;
 
 -- Policy: Anyone can submit career inquiry on career_inquiries
@@ -377,7 +377,7 @@ create policy "Anyone can submit career inquiry" on public.career_inquiries
 create policy "Comment" on public.confession_comments
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Read comments on confession_comments
@@ -391,14 +391,14 @@ create policy "Read comments" on public.confession_comments
 create policy "Users can insert comments" on public.confession_comments
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: React on confession_reactions
 create policy "React" on public.confession_reactions
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Read reactions on confession_reactions
@@ -419,7 +419,7 @@ create policy "Authenticated users can view all confessions" on public.confessio
 create policy "Insert confessions" on public.confessions
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Read all confessions on confessions
@@ -440,7 +440,7 @@ create policy "Reactions are viewable by authenticated users" on public.glimpse_
 create policy "Users can insert reactions" on public.glimpse_reactions
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Glimpses are viewable by authenticated users on glimpses
@@ -454,44 +454,44 @@ create policy "Glimpses are viewable by authenticated users" on public.glimpses
 create policy "Users can delete their own glimpses" on public.glimpses
   for delete
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can insert their own glimpses on glimpses
 create policy "Users can insert their own glimpses" on public.glimpses
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can insert matches on matches
 create policy "Users can insert matches" on public.matches
   for insert
   to public
-  with check (((auth.uid() = user_a) OR (auth.uid() = user_b)))
+  with check (((( SELECT auth.uid() AS uid) = user_a) OR (( SELECT auth.uid() AS uid) = user_b)))
 ;
 
 -- Policy: Users can trigger match creation on matches
 create policy "Users can trigger match creation" on public.matches
   for insert
   to public
-  with check (((auth.uid() = user_a) AND (EXISTS ( SELECT 1
+  with check (((( SELECT auth.uid() AS uid) = user_a) AND (EXISTS ( SELECT 1
    FROM swipes s
-  WHERE ((s.liker_id = matches.user_b) AND (s.target_id = auth.uid()) AND (s.action = 'like'::text))))))
+  WHERE ((s.liker_id = matches.user_b) AND (s.target_id = ( SELECT auth.uid() AS uid)) AND (s.action = 'like'::text))))))
 ;
 
 -- Policy: Users can view their own matches on matches
 create policy "Users can view their own matches" on public.matches
   for select
   to public
-  using (((auth.uid() = user_a) OR (auth.uid() = user_b)))
+  using (((( SELECT auth.uid() AS uid) = user_a) OR (( SELECT auth.uid() AS uid) = user_b)))
 ;
 
 -- Policy: Users can delete messages they sent on messages
 create policy "Users can delete messages they sent" on public.messages
   for delete
   to public
-  using ((auth.uid() = sender_id))
+  using ((( SELECT auth.uid() AS uid) = sender_id))
 ;
 
 -- Policy: Users can insert messages in their matches on messages
@@ -500,25 +500,25 @@ create policy "Users can insert messages in their matches" on public.messages
   to public
   with check ((EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid()))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
 ;
 
 -- Policy: Users can insert messages into their matches on messages
 create policy "Users can insert messages into their matches" on public.messages
   for insert
   to public
-  with check (((sender_id = auth.uid()) AND (EXISTS ( SELECT 1
+  with check (((sender_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid())))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid))))))))
 ;
 
 -- Policy: Users can insert messages to their matches on messages
 create policy "Users can insert messages to their matches" on public.messages
   for insert
   to public
-  with check (((sender_id = auth.uid()) AND (EXISTS ( SELECT 1
+  with check (((sender_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid())))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid))))))))
 ;
 
 -- Policy: Users can read messages in their matches on messages
@@ -532,9 +532,9 @@ create policy "Users can read messages in their matches" on public.messages
 create policy "Users can send messages to their matches" on public.messages
   for insert
   to public
-  with check (((sender_id = auth.uid()) AND (EXISTS ( SELECT 1
+  with check (((sender_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid())))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid))))))))
 ;
 
 -- Policy: Users can update their own received messages on messages
@@ -543,7 +543,7 @@ create policy "Users can update their own received messages" on public.messages
   to public
   using ((EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid()))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
 ;
 
 -- Policy: Users can view messages for their matches on messages
@@ -552,7 +552,7 @@ create policy "Users can view messages for their matches" on public.messages
   to public
   using ((EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid()))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
 ;
 
 -- Policy: Users can view messages from their matches on messages
@@ -561,7 +561,7 @@ create policy "Users can view messages from their matches" on public.messages
   to public
   using ((EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid()))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
 ;
 
 -- Policy: Users can view messages in their matches on messages
@@ -570,49 +570,49 @@ create policy "Users can view messages in their matches" on public.messages
   to public
   using ((EXISTS ( SELECT 1
    FROM matches
-  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = auth.uid()) OR (matches.user_b = auth.uid()))))))
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
 ;
 
 -- Policy: Users can delete their own notifications on notifications
 create policy "Users can delete their own notifications" on public.notifications
   for delete
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can insert own notifications on notifications
 create policy "Users can insert own notifications" on public.notifications
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can insert their own notifications on notifications
 create policy "Users can insert their own notifications" on public.notifications
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can read own notifications on notifications
 create policy "Users can read own notifications" on public.notifications
   for select
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can update their own notifications on notifications
 create policy "Users can update their own notifications" on public.notifications
   for update
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can view their own notifications on notifications
 create policy "Users can view their own notifications" on public.notifications
   for select
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Insert options on poll_options
@@ -621,7 +621,7 @@ create policy "Insert options" on public.poll_options
   to public
   with check ((EXISTS ( SELECT 1
    FROM confessions
-  WHERE ((confessions.id = poll_options.confession_id) AND (confessions.user_id = auth.uid())))))
+  WHERE ((confessions.id = poll_options.confession_id) AND (confessions.user_id = ( SELECT auth.uid() AS uid))))))
 ;
 
 -- Policy: Read options on poll_options
@@ -642,7 +642,7 @@ create policy "Read votes" on public.poll_votes
 create policy "Vote" on public.poll_votes
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Public profiles are viewable by authenticated users on profiles
@@ -663,43 +663,42 @@ create policy "Public profiles are viewable by everyone" on public.profiles
 create policy "Users can insert their own profile" on public.profiles
   for insert
   to public
-  with check ((auth.uid() = id))
+  with check ((( SELECT auth.uid() AS uid) = id))
 ;
 
 -- Policy: Users can update their own profile on profiles
 create policy "Users can update their own profile" on public.profiles
   for update
   to public
-  using ((auth.uid() = id))
+  using ((( SELECT auth.uid() AS uid) = id))
 ;
 
 -- Policy: Users can insert their own support tickets on support_tickets
 create policy "Users can insert their own support tickets" on public.support_tickets
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can view their own support tickets on support_tickets
 create policy "Users can view their own support tickets" on public.support_tickets
   for select
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Allow read own swipes on swipes
 create policy "Allow read own swipes" on public.swipes
   for select
   to public
-  using ((auth.uid() = liker_id))
+  using ((( SELECT auth.uid() AS uid) = liker_id))
 ;
 
 -- Policy: Allow upsert own swipes on swipes
 create policy "Allow upsert own swipes" on public.swipes
   for all
   to public
-  using (true)
-  with check ((auth.uid() = liker_id))
+  with check ((( SELECT auth.uid() AS uid) = liker_id))
 ;
 
 -- Policy: Allow read all presence on user_presence
@@ -713,22 +712,21 @@ create policy "Allow read all presence" on public.user_presence
 create policy "Allow upsert own presence" on public.user_presence
   for all
   to public
-  using (true)
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can insert their own verification requests on verification_requests
 create policy "Users can insert their own verification requests" on public.verification_requests
   for insert
   to public
-  with check ((auth.uid() = user_id))
+  with check ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 -- Policy: Users can view their own verification requests on verification_requests
 create policy "Users can view their own verification requests" on public.verification_requests
   for select
   to public
-  using ((auth.uid() = user_id))
+  using ((( SELECT auth.uid() AS uid) = user_id))
 ;
 
 ```
@@ -1214,27 +1212,41 @@ CREATE INDEX idx_blocked_users_blocked ON public.blocked_users USING btree (bloc
 CREATE INDEX idx_blocked_users_blocker ON public.blocked_users USING btree (blocker_id);
 CREATE INDEX idx_call_sessions_caller ON public.call_sessions USING btree (caller_id);
 CREATE INDEX idx_call_sessions_created ON public.call_sessions USING btree (created_at DESC);
+CREATE INDEX idx_call_sessions_match_id ON public.call_sessions USING btree (match_id);
 CREATE INDEX idx_call_sessions_receiver ON public.call_sessions USING btree (receiver_id);
 CREATE INDEX idx_call_sessions_status ON public.call_sessions USING btree (status);
 CREATE INDEX idx_confession_comments_confession_id ON public.confession_comments USING btree (confession_id);
+CREATE INDEX idx_confession_comments_user_id ON public.confession_comments USING btree (user_id);
+CREATE INDEX idx_confession_reactions_user_id ON public.confession_reactions USING btree (user_id);
 CREATE INDEX idx_confessions_created_at ON public.confessions USING btree (created_at DESC);
+CREATE INDEX idx_confessions_user_id ON public.confessions USING btree (user_id);
+CREATE INDEX idx_glimpse_reactions_user_id ON public.glimpse_reactions USING btree (user_id);
+CREATE INDEX idx_glimpses_user_id ON public.glimpses USING btree (user_id);
 CREATE INDEX idx_matches_user_a ON public.matches USING btree (user_a) INCLUDE (user_b, created_at);
 CREATE INDEX idx_matches_user_b ON public.matches USING btree (user_b) INCLUDE (user_a, created_at);
 CREATE INDEX idx_messages_created_at ON public.messages USING btree (created_at DESC);
 CREATE INDEX idx_messages_match_created ON public.messages USING btree (match_id, created_at DESC);
 CREATE INDEX idx_messages_match_created_at ON public.messages USING btree (match_id, created_at DESC);
 CREATE INDEX idx_messages_match_id ON public.messages USING btree (match_id);
+CREATE INDEX idx_messages_sender_id ON public.messages USING btree (sender_id);
 CREATE INDEX idx_messages_unread ON public.messages USING btree (match_id, sender_id, is_read) WHERE (is_read = false);
+CREATE INDEX idx_notifications_from_user_id ON public.notifications USING btree (from_user_id);
 CREATE INDEX idx_notifications_user_created ON public.notifications USING btree (user_id, created_at DESC);
+CREATE INDEX idx_poll_options_confession_id ON public.poll_options USING btree (confession_id);
+CREATE INDEX idx_poll_votes_option_id ON public.poll_votes USING btree (option_id);
+CREATE INDEX idx_poll_votes_user_id ON public.poll_votes USING btree (user_id);
 CREATE INDEX idx_profiles_id ON public.profiles USING btree (id);
 CREATE INDEX idx_profiles_is_verified ON public.profiles USING btree (is_verified);
 CREATE INDEX idx_profiles_university ON public.profiles USING btree (university);
+CREATE INDEX idx_support_tickets_user_id ON public.support_tickets USING btree (user_id);
 CREATE INDEX idx_swipes_action ON public.swipes USING btree (action);
 CREATE INDEX idx_swipes_liker ON public.swipes USING btree (liker_id);
 CREATE INDEX idx_swipes_liker_action_created ON public.swipes USING btree (liker_id, action, created_at);
 CREATE INDEX idx_swipes_liker_target ON public.swipes USING btree (liker_id, target_id);
+CREATE INDEX idx_swipes_target_id ON public.swipes USING btree (target_id);
 CREATE INDEX idx_user_presence_online ON public.user_presence USING btree (is_online);
 CREATE INDEX idx_user_presence_updated ON public.user_presence USING btree (updated_at);
+CREATE INDEX idx_verification_requests_user_id ON public.verification_requests USING btree (user_id);
 ```
 
 ---
