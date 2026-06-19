@@ -106,7 +106,7 @@ const ForceLogoutCountdown: React.FC<ForceLogoutCountdownProps> = ({ onComplete 
                     fontFamily: 'Inter, system-ui, sans-serif',
                     letterSpacing: '-0.02em',
                 }}>
-                    Cupid Update Ready
+                    Session Expired
                 </h2>
 
                 {/* Subtitle */}
@@ -117,7 +117,7 @@ const ForceLogoutCountdown: React.FC<ForceLogoutCountdownProps> = ({ onComplete 
                     lineHeight: 1.6,
                     fontFamily: 'Inter, system-ui, sans-serif',
                 }}>
-                    We are performing a quick refresh to apply the latest upgrades. Your data is perfectly safe.
+                    Your session has expired. Logging you out for security.
                 </p>
 
                 {/* Circular Progress Countdown */}
