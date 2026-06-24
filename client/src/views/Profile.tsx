@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase'; // Changed: Import Supabase
+import { authService } from '../services/auth';
 import { UserProfile } from '../types';
 import { NeonButton, NeonInput } from '../components/Common';
 import {
@@ -330,16 +331,22 @@ export const Profile: React.FC = () => {
         }
     };
 
-    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                // In production, we should upload to Supabase Storage and get a URL.
-                // For now, base64 string works for small images but isn't scalable.
-                setEditForm(prev => ({ ...prev, avatar: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        const MAX_SIZE = 2 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            alert("Please upload an image smaller than 2MB.");
+            return;
+        }
+
+        try {
+            const compressed = await authService.uploadAvatar(file);
+            setEditForm(prev => ({ ...prev, avatar: compressed }));
+        } catch (err) {
+            console.error("Error processing avatar:", err);
+            alert("Failed to process image. Please try another one.");
         }
     };
 
@@ -380,9 +387,10 @@ export const Profile: React.FC = () => {
                                 <div className="relative flex-shrink-0">
                                     <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-zinc-950 shadow-[0_15px_30px_rgba(0,0,0,0.5)] overflow-hidden bg-zinc-800 relative group/avatar">
                                         <img
-                                            src={getOptimizedUrl(profileUser.avatar || AVATAR_PRESETS[0], 384)}
+                                            src={getOptimizedUrl(profileUser.avatar || AVATAR_PRESETS[0], 1024)}
                                             alt="Avatar"
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover/avatar:scale-105"
+                                            referrerPolicy="no-referrer"
                                         />
                                     </div>
                                     {profileUser.isVerified && (
@@ -491,6 +499,7 @@ export const Profile: React.FC = () => {
                                                     src={getOptimizedUrl(editForm.avatar || profileUser.avatar || AVATAR_PRESETS[0], 192)}
                                                     alt="Edit Avatar"
                                                     className="w-full h-full object-cover"
+                                                    referrerPolicy="no-referrer"
                                                 />
                                             </div>
                                             <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center cursor-pointer opacity-0 group-hover/edit-avatar:opacity-100 transition-opacity duration-300">
@@ -510,7 +519,7 @@ export const Profile: React.FC = () => {
                                                             editForm.avatar === avatar ? 'border-neon scale-105' : 'border-zinc-800 opacity-60 hover:opacity-100'
                                                         }`}
                                                     >
-                                                        <img src={getOptimizedUrl(avatar, 40)} alt="" className="w-full h-full bg-zinc-800 rounded-full" />
+                                                        <img src={getOptimizedUrl(avatar, 40)} alt="" className="w-full h-full bg-zinc-800 rounded-full" referrerPolicy="no-referrer" />
                                                     </button>
                                                 ))}
                                             </div>

@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseKey) {
 // (e.g., switching between supabase.co and jiobase.com proxy)
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    storageKey: 'sb-htepqqigtzmllailykas-auth-token',
+    storageKey: 'sb-cthyiegohnvqtepzoqjf-auth-token',
     experimental: {
       passkey: true,
     },

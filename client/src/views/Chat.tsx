@@ -291,6 +291,7 @@ export const Chat: React.FC = () => {
         }
 
         let partnerId = initialPartner?.id;
+        let activePartner: MatchProfile | null = initialPartner;
 
         // Fetch partner ID if totally missing (direct link load)
         if (!partnerId) {
@@ -299,7 +300,7 @@ export const Chat: React.FC = () => {
           // Retrieve from local cache or Supabase
           const profile = await getCachedProfile(partnerId as string);
           if (profile) {
-            const newPartner: MatchProfile = {
+            activePartner = {
               id: profile.id,
               anonymousId: profile.anonymous_id,
               realName: profile.real_name || 'Anonymous',
@@ -315,9 +316,9 @@ export const Chat: React.FC = () => {
               matchPercentage: 0,
               distance: 'Connected'
             };
-            setPartner(newPartner);
+            setPartner(activePartner);
             subscribeToUser(partnerId!);
-            partnerId = newPartner.id;
+            partnerId = activePartner.id;
           }
         } else {
           // We have a partner (from State/Cache). 
@@ -398,9 +399,8 @@ export const Chat: React.FC = () => {
           }
 
           // Update cache with latest partner (possibly updated)
-          const currentPartner = partnerRef.current || initialPartner;
-          if (currentPartner) {
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, timestamp: Date.now() })); } catch (e) { }
+          if (activePartner) {
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: activePartner, timestamp: Date.now() })); } catch (e) { }
           }
         }
 
@@ -938,7 +938,7 @@ export const Chat: React.FC = () => {
           // Pass back the latest message to update the list instantly
           const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
           navigate.push('/matches');
-        }} aria-label="Back to matches" className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" aria-hidden="true" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" alt={`${partner.realName || partner.anonymousId}'s avatar`} /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} aria-hidden="true" />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
+        }} aria-label="Back to matches" className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" aria-hidden="true" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" alt={`${partner.realName || partner.anonymousId}'s avatar`} referrerPolicy="no-referrer" /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} aria-hidden="true" />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
         <div className="flex items-center gap-1"><button onClick={() => startVideoCall('video')} disabled={isStartingCall || isBlocked || isBlockedByThem} aria-label="Start video call" className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-neon'}`}><Video className="w-5 h-5" aria-hidden="true" /></button><button onClick={() => startVideoCall('audio')} disabled={isStartingCall || isBlocked || isBlockedByThem} aria-label="Start voice call" className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-green-400'}`}><Phone className="w-5 h-5" aria-hidden="true" /></button>
           <div className="relative">
             <button onClick={() => setShowMenu(!showMenu)} aria-label="More options" aria-expanded={showMenu} className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full"><MoreVertical className="w-5 h-5" aria-hidden="true" /></button>
@@ -1308,7 +1308,7 @@ export const Chat: React.FC = () => {
           return (
             <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                {!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" />}</div>}
+                {!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" referrerPolicy="no-referrer" />}</div>}
                 <div 
                   onDoubleClick={() => handleMessageDoubleClick(msg.id, msg.reaction)}
                   className={`relative px-4 py-2.5 rounded-2xl text-sm break-words break-all min-w-0 select-none cursor-pointer transition-all active:scale-[0.98] duration-300 group ${

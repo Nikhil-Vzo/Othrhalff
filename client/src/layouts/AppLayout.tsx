@@ -238,7 +238,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 <div className="relative shrink-0">
                   <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-neon transition-colors duration-300">
                     {currentUser?.avatar ? (
-                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" />
+                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                         <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>

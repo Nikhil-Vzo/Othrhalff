@@ -4,6 +4,7 @@ import { UserProfile } from '../types';
 import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
 import ForceLogoutCountdown from '../components/ForceLogoutCountdown';
+import { db } from '../lib/db';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -165,14 +166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (user: UserProfile) => {
+    clearAllCaches();
     setCurrentUser(user);
     setNeedsOnboarding(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('otherhalf_confessions_campus_v4');
-      localStorage.removeItem('otherhalf_confessions_global_v4');
-      localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
-      localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
-    }
     // Non-blocking sync
     authService.login(user).catch(err => console.error("Background sync error:", err));
     // Sync token to SW for background push notification handling
@@ -197,6 +193,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem(key);
           }
         }
+      }
+
+      // 3. Clear IndexedDB tables
+      try {
+        db.messages.clear();
+        db.profiles.clear();
+      } catch (e) {
+        console.error('Failed to clear IndexedDB:', e);
       }
     }
   }, []);

@@ -682,6 +682,7 @@ export const Sparx: React.FC = () => {
                                 src={getOptimizedUrl(user.profile.avatar, 64)} 
                                 alt="Avatar" 
                                 className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
@@ -790,6 +791,7 @@ export const Sparx: React.FC = () => {
                               src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
                               alt="Avatar" 
                               className="w-full h-full object-cover" 
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">

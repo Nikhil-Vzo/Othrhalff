@@ -187,6 +187,11 @@ export const Onboarding: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const MAX_SIZE = 2 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        alert("Please upload an image smaller than 2MB.");
+        return;
+      }
       const base64 = await authService.uploadAvatar(file);
       setTempProfile(prev => ({ ...prev, avatar: base64 }));
     }

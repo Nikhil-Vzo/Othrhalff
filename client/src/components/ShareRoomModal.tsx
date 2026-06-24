@@ -244,7 +244,7 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden border border-gray-600">
                         {match.avatar ? (
-                          <img src={getOptimizedUrl(match.avatar, 64)} alt="Avatar" className="w-full h-full object-cover" />
+                          <img src={getOptimizedUrl(match.avatar, 64)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-lg font-bold text-gray-400">
                             {(match.realName || match.anonymousId)[0].toUpperCase()}
