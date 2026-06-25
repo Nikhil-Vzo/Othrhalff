@@ -23,16 +23,7 @@ No friction. Just flow.
 
 ---
 
-##  Future Scope
 
-
-- Sentiment analysis for campus mood
-- Private anonymous chats
-- Community-based channels
-- Gamification (badges, streaks)
-
----
-<img src="scorecard.png" width="100%">
 
 
 
