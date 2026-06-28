@@ -118,12 +118,10 @@ export const Sparx: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isLobbyOpen) {
-      fetchActiveRooms();
-      const interval = setInterval(fetchActiveRooms, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isLobbyOpen]);
+    fetchActiveRooms();
+    const interval = setInterval(fetchActiveRooms, 8000);
+    return () => clearInterval(interval);
+  }, []);
 
   const parseRoomDetails = (roomId: string) => {
     const parts = roomId.split('_');
@@ -514,6 +512,102 @@ export const Sparx: React.FC = () => {
     };
   }, [feedMode, currentUser]);
 
+  const renderLiveRoomsTray = () => {
+    if (feedMode === 'leaderboard') return null;
+
+    return (
+      <div className="w-full bg-black/40 border-b border-gray-900/40 backdrop-blur-md px-4 py-3 select-none animate-fade-in">
+        <div className="max-w-xl mx-auto flex flex-col gap-2">
+          {/* Section Header */}
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-500">
+            <span>Active Vibe Rooms</span>
+            {activeRooms.length > 0 && (
+              <span className="flex items-center gap-1 text-cyan-400 font-mono text-[9px] lowercase">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+                </span>
+                {activeRooms.length} active
+              </span>
+            )}
+          </div>
+
+          {/* Horizontal scroll container */}
+          <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1">
+            {/* Create Room Card */}
+            <button
+              onClick={() => setIsLobbyOpen(true)}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/30 hover:border-pink-500/60 hover:from-pink-500/20 hover:to-purple-600/20 transition-all duration-300 shadow-[0_0_15px_rgba(255,0,127,0.05)] active:scale-95 text-left"
+            >
+              <div className="w-7 h-7 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-400">
+                <Plus className="w-4 h-4 stroke-[3px]" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-gray-200">Start Vibe</span>
+                <span className="text-[9px] text-pink-400 font-medium">Create room</span>
+              </div>
+            </button>
+
+            {/* Active Rooms */}
+            {activeRooms.length === 0 ? (
+              <div className="text-[11px] text-gray-600 font-medium italic py-2">
+                No active vibe rooms right now.
+              </div>
+            ) : (
+              activeRooms.map((room) => {
+                const details = parseRoomDetails(room.room_id);
+                const isCinema = details.type === 'cinema';
+                
+                return (
+                  <button
+                    key={room.room_id}
+                    onClick={() => {
+                      if (room.is_private) {
+                        setPendingJoinRoom(room);
+                        setShowPasscodePrompt(true);
+                      } else {
+                        router.push(`/sparx/${details.type}?room=${encodeURIComponent(room.room_id)}`);
+                      }
+                    }}
+                    className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 hover:border-cyan-500/40 hover:bg-zinc-900/60 transition-all duration-300 active:scale-95 text-left group"
+                  >
+                    {/* Room Type Icon */}
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors
+                      ${isCinema 
+                        ? 'bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20' 
+                        : 'bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20'
+                      }`}
+                    >
+                      {isCinema ? (
+                        <Tv className="w-4 h-4" />
+                      ) : (
+                        <Music className="w-4 h-4" />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col min-w-0 max-w-[110px]">
+                      <span className="text-xs font-bold text-gray-200 truncate flex items-center gap-1">
+                        {details.name}
+                        {room.is_private && <Lock className="w-2.5 h-2.5 text-gray-500" />}
+                      </span>
+                      <span className="text-[9px] text-gray-500 font-semibold flex items-center gap-1 mt-0.5">
+                        <span className="relative flex h-1 w-1">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1 w-1 bg-emerald-500"></span>
+                        </span>
+                        {room.participant_count || 1} online
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleOpenUpload = () => {
     if (!currentUser) {
       setShowAuthModal(true);
@@ -758,29 +852,32 @@ export const Sparx: React.FC = () => {
           </div>
         </div>
       ) : glimpses.length === 0 ? (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in">
-          {/* Mascot Circle */}
-          <div className="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700 mx-auto shadow-2xl">
-            <Ghost className="w-10 h-10 text-gray-600" />
+        <div className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none flex flex-col">
+          {renderLiveRoomsTray()}
+          <div className="flex-1 flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in mt-12">
+            {/* Mascot Circle */}
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700 mx-auto shadow-2xl">
+              <Ghost className="w-10 h-10 text-gray-600" />
+            </div>
+
+            <h2 className="text-xl font-black text-white mb-3 uppercase tracking-tight">
+              No Glimpses Yet
+            </h2>
+            
+            <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
+              {feedMode === 'campus'
+                ? 'Be the first to share a highlight of your day on campus!'
+                : 'Nobody has shared global glimpses in the last 24 hours.'}
+            </p>
+
+            <button
+              onClick={handleOpenUpload}
+              className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 mx-auto"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Share a Glimpse</span>
+            </button>
           </div>
-
-          <h2 className="text-xl font-black text-white mb-3 uppercase tracking-tight">
-            No Glimpses Yet
-          </h2>
-          
-          <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
-            {feedMode === 'campus'
-              ? 'Be the first to share a highlight of your day on campus!'
-              : 'Nobody has shared global glimpses in the last 24 hours.'}
-          </p>
-
-          <button
-            onClick={handleOpenUpload}
-            className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 mx-auto"
-          >
-            <Camera className="w-4 h-4" />
-            <span>Share a Glimpse</span>
-          </button>
         </div>
       ) : (
         /* Glimpse Thread List View */
@@ -789,6 +886,7 @@ export const Sparx: React.FC = () => {
           onScroll={handleScroll}
           className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none divide-y divide-gray-900/50"
         >
+          {renderLiveRoomsTray()}
           <div className="max-w-xl mx-auto bg-black">
             {glimpses.map((glimpse, index) => {
               const isViewed = viewedIds.includes(glimpse.id);
@@ -960,15 +1058,6 @@ export const Sparx: React.FC = () => {
       {/* Floating Action Buttons (FAB) */}
       {feedMode !== 'leaderboard' && activeStoryIndex === null && (
         <div className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-30 flex flex-col gap-4 items-center">
-          {/* Duo Dates Lobby FAB */}
-          <button
-            onClick={() => setIsLobbyOpen(true)}
-            className="p-4 bg-cyan-500/90 hover:bg-cyan-500 text-white rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.8)] border border-white/10 transition-all duration-300 active:scale-90"
-            aria-label="Open lobby"
-          >
-            <Tv className="w-6 h-6 text-white" />
-          </button>
-
           {/* Upload FAB */}
           <button
             onClick={handleOpenUpload}
