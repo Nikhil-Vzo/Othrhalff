@@ -5,6 +5,8 @@
 ## Air Hockey Date Duel
 
 A fast 1v1 air hockey game for matched users. Each match can have themed tables like campus canteen, fest night, library after-hours, or hostel common room.
+(It varies what's best and what suites us)
+
 
 Why it fits:
 - Easy to understand instantly.
