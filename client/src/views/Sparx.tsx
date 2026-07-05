@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { GlimpseCard } from '../components/GlimpseCard';
 import { GlimpseUploadModal } from '../components/GlimpseUploadModal';
 import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lock, Users } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
 import { getOptimizedUrl } from '../utils/image';
@@ -73,6 +73,7 @@ const GlimpseProgressBar: React.FC<GlimpseProgressBarProps> = ({ idx, activeStor
 export const Sparx: React.FC = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Feeds and states
@@ -91,7 +92,7 @@ export const Sparx: React.FC = () => {
 
   // Modals and overlays
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [isLobbyOpen, setIsLobbyOpen] = useState(false);
+  const [isLobbyOpen, setIsLobbyOpen] = useState(() => searchParams?.get('openLobby') === 'true');
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [creatingType, setCreatingType] = useState<'cinema' | 'music' | null>(null);
   const [newRoomName, setNewRoomName] = useState('');

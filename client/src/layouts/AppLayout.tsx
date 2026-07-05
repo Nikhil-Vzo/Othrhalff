@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
@@ -40,6 +40,52 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   }, [mounted, needsOnboarding, pathname, router]);
 
+  // Fetch real-time unread messages count for the chat badge
+  useEffect(() => {
+    if (!currentUser || !supabase) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        // First get active matches for the user
+        const { data: matches } = await supabase
+          .from('matches')
+          .select('id')
+          .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
+
+        if (matches && matches.length > 0) {
+          const matchIds = matches.map(m => m.id);
+          const { count, error } = await supabase
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .in('match_id', matchIds)
+            .neq('sender_id', currentUser.id)
+            .eq('is_read', false);
+
+          if (!error && count !== null) {
+            setUnreadMessageCount(count);
+          }
+        } else {
+          setUnreadMessageCount(0);
+        }
+      } catch (err) {
+        console.error('Error fetching unread messages count:', err);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Listen for changes in messages to update badge live
+    const uniqueChannelName = `unread-messages-count-layout-${Math.random().toString(36).substring(7)}`;
+    const channel = supabase.channel(uniqueChannelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        fetchUnreadCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const isActive = (path: string) => pathname === path;
@@ -227,61 +273,107 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
         {showStars && <StarField />}
+        
+        {/* Mobile Top-Left Profile Picture */}
+        {isHome && currentUser && (
+          <div className="md:hidden absolute top-4 left-4 z-50">
+            <button 
+              onClick={() => handleNavClick('/profile')} 
+              className="relative block rounded-full shadow-lg"
+              aria-label="Go to your profile"
+            >
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 active:scale-95 transition-transform duration-200 bg-gray-900">
+                {currentUser?.avatar ? (
+                  <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>
+                  </div>
+                )}
+              </div>
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-black rounded-full shadow-md"></div>
+            </button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-hidden relative w-full h-full z-10 bg-transparent layout-content-wrapper">
           {children}
         </div>
 
         {/* Mobile Bottom Nav */}
         {!pathname.includes('/chat/') && (
-          <nav className="md:hidden h-20 bg-black/90 backdrop-blur border-t border-gray-900 flex justify-around items-center px-2 z-40 fixed bottom-0 left-0 right-0 pb-safe">
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe pointer-events-none">
+            {/* The main bar background */}
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/95 backdrop-blur-md border-t-[1.5px] border-gray-800 pointer-events-auto" />
+            
+            {/* The center bump */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 h-20 bg-black/95 backdrop-blur-md rounded-full border-t-[1.5px] border-gray-800 pointer-events-auto flex items-center justify-center overflow-hidden">
+               {/* Inner glow for the bump */}
+               <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent opacity-30" />
+            </div>
+
+            {/* Glowing arc line over the bump */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full border-t-2 border-neon/50 shadow-[0_-5px_15px_rgba(255,0,127,0.3)] pointer-events-none" />
+            
+            {/* Nav Items Container */}
+            <div className="relative z-10 grid grid-cols-5 h-16 w-full items-center pointer-events-auto">
+              
+              {/* 1. Confess */}
+              <button
+                onClick={() => handleNavClick('/confessions')}
+                className={`flex flex-col items-center justify-center gap-1 ${isActive('/confessions') ? 'text-white' : 'text-gray-500'}`}
+              >
+                <MessageSquarePlus className={`w-5 h-5 transition-transform ${isActive('/confessions') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/confessions') ? 2.5 : 2} />
+                <span className="text-[9px] font-bold tracking-wider">CONFESS</span>
+              </button>
+
+              {/* 2. Playground */}
+              <button
+                onClick={() => handleNavClick('/playground')}
+                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/playground') ? 'text-white' : 'text-gray-500'}`}
+              >
+                <Gamepad2 className={`w-5 h-5 transition-transform ${isActive('/playground') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/playground') ? 2.5 : 2} />
+                <span className="text-[9px] font-bold tracking-wider uppercase">PLAYGROUND</span>
+              </button>
+
+              {/* 3. Center Spacer */}
+              <div className="w-full h-full" />
+
+              {/* 4. Sparx */}
+              <button
+                onClick={() => handleNavClick('/sparx')}
+                className={`flex flex-col items-center justify-center gap-1 ${isActive('/sparx') ? 'text-white' : 'text-gray-500'}`}
+              >
+                <Zap className={`w-5 h-5 transition-transform ${isActive('/sparx') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/sparx') ? 2.5 : 2} />
+                <span className="text-[9px] font-bold tracking-wider">SPARX</span>
+              </button>
+
+              {/* 5. Chats */}
+              <button
+                onClick={() => handleNavClick('/matches')}
+                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/matches') ? 'text-white' : 'text-gray-500'}`}
+              >
+                <div className="relative">
+                  <MessageCircle className={`w-5 h-5 transition-transform ${isActive('/matches') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/matches') ? 2.5 : 2} />
+                  {unreadMessageCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] flex items-center justify-center bg-neon text-white text-[8px] font-bold rounded-full px-1 shadow-[0_0_5px_rgba(255,0,127,0.5)]">
+                      {unreadMessageCount}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] font-bold tracking-wider">CHATS</span>
+              </button>
+            </div>
+
+            {/* Center Floating Button (Discover/Home) */}
             <button
               onClick={() => handleNavClick('/home')}
-              className={`p-2 flex flex-col items-center gap-1 ${isActive('/home') ? 'text-neon' : 'text-gray-600'}`}
+              className="absolute left-1/2 -translate-x-1/2 bottom-8 w-14 h-14 flex flex-col items-center justify-center rounded-full z-20 transition-transform active:scale-95 pointer-events-auto"
             >
-              <div className={`p-1 rounded-xl ${isActive('/home') ? 'bg-neon/10' : ''}`}>
-                <Search className="w-6 h-6" />
+              <div className={`w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr ${isActive('/home') ? 'from-neon to-purple-600 shadow-[0_0_20px_rgba(255,0,127,0.8)]' : 'from-gray-800 to-gray-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'}`}>
+                <Search className={`w-6 h-6 ${isActive('/home') ? 'text-white' : 'text-gray-300'}`} strokeWidth={2.5} />
               </div>
-              <span className="text-[10px] font-bold tracking-wider">DISCOVER</span>
-            </button>
-
-            <button
-              onClick={() => handleNavClick('/matches')}
-              className={`p-2 flex flex-col items-center gap-1 ${isActive('/matches') ? 'text-neon' : 'text-gray-600'}`}
-            >
-              <div className={`p-1 rounded-xl ${isActive('/matches') ? 'bg-neon/10' : ''}`}>
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <span className="text-[10px] font-bold tracking-wider">CHATS</span>
-            </button>
-
-            <button
-              onClick={() => handleNavClick('/confessions')}
-              className={`p-2 flex flex-col items-center gap-1 ${isActive('/confessions') ? 'text-neon' : 'text-gray-600'}`}
-            >
-              <div className={`p-1 rounded-xl ${isActive('/confessions') ? 'bg-neon/10' : ''}`}>
-                <MessageSquarePlus className="w-6 h-6" />
-              </div>
-              <span className="text-[10px] font-bold tracking-wider">CONFESS</span>
-            </button>
-
-            <button
-              onClick={() => handleNavClick('/sparx')}
-              className={`p-2 flex flex-col items-center gap-1 ${isActive('/sparx') ? 'text-neon' : 'text-gray-600'}`}
-            >
-              <div className={`p-1 rounded-xl ${isActive('/sparx') ? 'bg-neon/10' : ''}`}>
-                <Zap className="w-6 h-6" />
-              </div>
-              <span className="text-[10px] font-bold tracking-wider">SPARX</span>
-            </button>
-
-            <button
-              onClick={() => handleNavClick('/profile')}
-              className={`p-2 flex flex-col items-center gap-1 ${isActive('/profile') ? 'text-neon' : 'text-gray-600'}`}
-            >
-              <div className={`p-1 rounded-xl ${isActive('/profile') ? 'bg-neon/10' : ''}`}>
-                <User className="w-6 h-6" />
-              </div>
-              <span className="text-[10px] font-bold tracking-wider">ME</span>
+              {isActive('/home') && <span className="absolute -bottom-5 text-[10px] font-bold text-neon tracking-wider drop-shadow-[0_0_4px_rgba(255,0,127,0.8)]">DISCOVER</span>}
             </button>
           </nav>
         )}

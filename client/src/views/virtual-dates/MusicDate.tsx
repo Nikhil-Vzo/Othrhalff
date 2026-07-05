@@ -409,7 +409,21 @@ export const MusicDate = () => {
             const queryPrivate = searchParams.get('private');
             const queryPasscode = searchParams.get('passcode');
             
+            const queryCreateName = searchParams.get('createName');
+            
             if (queryRoom && mode === 'landing') {
+                if (queryCreateName) {
+                    setRoomCode(queryRoom);
+                    setRoomName(queryCreateName);
+                    setIsHost(true);
+                    setMode('select');
+                    if (queryPrivate === 'true') setIsPrivateRoom(true);
+                    if (queryPasscode) setRoomPasscode(queryPasscode);
+                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
+                    setError(null);
+                    return;
+                }
+                
                 setRoomCode(queryRoom);
                 setRoomName(parseRoomName(queryRoom));
                 
