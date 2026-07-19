@@ -307,6 +307,14 @@ export const Landing: React.FC = () => {
         />
       </div>
 
+      {/* Top Navigation Scrim for Contrast */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-[140px] z-[1] pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)'
+        }}
+      />
+
       {/* Atmospheric Fog/Mist Layer behind text */}
       <div 
         className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none opacity-40 mix-blend-screen"
@@ -325,7 +333,7 @@ export const Landing: React.FC = () => {
             OtherHalff
           </span>
         </div>
-        <div className="hidden md:flex gap-10 text-[13px] font-medium text-white/60 tracking-normal">
+        <div className="hidden md:flex gap-10 text-[13px] font-semibold text-white/90 tracking-normal" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
           <a href="#features" className="hover:text-white transition-colors">
             Features
           </a>
@@ -341,7 +349,7 @@ export const Landing: React.FC = () => {
         </div>
         <button 
           onClick={onEnter} 
-          className="text-xs font-medium text-white/80 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 px-4 py-2 rounded-full transition-all duration-300"
+          className="text-xs font-semibold text-gray-900 bg-white/95 hover:bg-white px-5 py-2.5 rounded-full transition-all duration-300 border-none shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
         >
           Log In
         </button>
@@ -350,16 +358,25 @@ export const Landing: React.FC = () => {
       {/* 1. HERO SECTION */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-24 sm:py-36 max-w-7xl mx-auto w-full">
         <div className="relative z-10 max-w-3xl flex flex-col items-center">
+          {/* Soft radial scrim behind text block */}
+          <div 
+            className="absolute inset-[-40px_-60px] pointer-events-none z-[-1]"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, transparent 70%)'
+            }}
+          />
+
           <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight text-white mb-6 leading-[1.1] font-display max-w-2xl">
             <AnimatedText text="Find your people." delay={200} />
           </h1>
 
           <p
-            className="text-base sm:text-lg text-white/70 max-w-xl mb-10 leading-relaxed font-normal"
+            className="text-base sm:text-lg text-white/95 max-w-xl mb-10 leading-relaxed font-medium"
             style={{
               opacity: textRevealed ? 1 : 0,
               transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
               transition: 'all 0.8s ease-out 0.8s',
+              textShadow: '0 2px 6px rgba(0,0,0,0.6)'
             }}
           >
             Meet students you'll naturally cross paths with every day.
