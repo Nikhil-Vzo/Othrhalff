@@ -91,6 +91,101 @@ const TiltedPhone = ({
   );
 };
 
+const CherryBlossomPetals: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const petals: Array<{
+      x: number;
+      y: number;
+      size: number;
+      speedX: number;
+      speedY: number;
+      angle: number;
+      spin: number;
+      opacity: number;
+    }> = [];
+
+    for (let i = 0; i < 20; i++) {
+      petals.push({
+        x: Math.random() * width,
+        y: Math.random() * height - height,
+        size: Math.random() * 5 + 3,
+        speedX: Math.random() * 1.0 - 0.3,
+        speedY: Math.random() * 0.8 + 0.6,
+        angle: Math.random() * Math.PI * 2,
+        spin: Math.random() * 0.015 - 0.0075,
+        opacity: Math.random() * 0.35 + 0.15,
+      });
+    }
+
+    const drawPetal = (
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      size: number,
+      angle: number,
+      opacity: number
+    ) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-size, -size / 2, -size, size, 0, size * 1.4);
+      ctx.bezierCurveTo(size, size, size, -size / 2, 0, 0);
+      ctx.fillStyle = `rgba(255, 150, 180, ${opacity})`;
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const update = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      petals.forEach((p) => {
+        p.y += p.speedY;
+        p.x += p.speedX;
+        p.angle += p.spin;
+
+        if (p.y > height) {
+          p.y = -20;
+          p.x = Math.random() * width;
+          p.speedY = Math.random() * 0.8 + 0.6;
+          p.speedX = Math.random() * 1.0 - 0.3;
+        }
+
+        drawPetal(ctx, p.x, p.y, p.size, p.angle, p.opacity);
+      });
+
+      animationFrameId = requestAnimationFrame(update);
+    };
+
+    const handleResize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener('resize', handleResize);
+    update();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[2]" />;
+};
+
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
@@ -119,6 +214,17 @@ export const Landing: React.FC = () => {
     const timer = setTimeout(() => setTextRevealed(true), 100);
     const loaderTimer = setTimeout(() => setPageLoaded(true), 1600);
     return () => { clearTimeout(timer); clearTimeout(loaderTimer); };
+  }, []);
+
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth) - 0.5;
+      const y = (e.clientY / window.innerHeight) - 0.5;
+      setMousePos({ x, y });
+    };
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   // Letter-by-letter animation component
@@ -187,17 +293,33 @@ export const Landing: React.FC = () => {
       </div>
 
       {/* Full-Bleed Hero Background Image */}
-      <div className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none">
+      <div 
+        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none transition-transform duration-1000 ease-out"
+        style={{
+          transform: `translate3d(${mousePos.x * -15}px, ${mousePos.y * -15}px, 0) scale(1.03)`,
+        }}
+      >
         <img 
           src="/landing_hero-bg.png" 
           alt="Hero Background" 
           className="w-full h-full object-cover object-bottom opacity-95"
-          style={{ imageRendering: '-webkit-optimize-contrast' }}
+          style={{ 
+            imageRendering: '-webkit-optimize-contrast',
+            filter: 'brightness(1.1) contrast(1.05)'
+          }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/5 via-[#07030d]/30 to-[#07030d] z-10" />
+        <div 
+          className="absolute inset-0 z-10" 
+          style={{
+            background: 'linear-gradient(180deg, rgba(10,10,15,0.15) 0%, rgba(10,10,15,0.35) 50%, rgba(10,10,15,0.55) 100%)'
+          }}
+        />
       </div>
 
-      <nav className="relative z-20 px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
+      {/* Cherry Blossom falling petals animation */}
+      <CherryBlossomPetals />
+
+      <nav className="relative z-20 px-4 sm:px-6 pt-12 sm:pt-14 pb-4 sm:pb-6 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate.push('/')}>
           <Ghost className="w-6 h-6 sm:w-8 sm:h-8 text-neon group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
           <span className="text-xl sm:text-2xl font-black tracking-tighter">
@@ -205,7 +327,7 @@ export const Landing: React.FC = () => {
             <span className="text-neon group-hover:text-white transition-colors">HALFF</span>
           </span>
         </div>
-        <div className="hidden md:flex gap-8 text-sm font-bold text-gray-400 uppercase tracking-widest">
+        <div className="hidden md:flex gap-8 text-sm font-medium text-gray-400/75 uppercase tracking-[0.08em]">
           <a href="#features" className="hover:text-neon transition-colors relative group">
             Features
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
@@ -236,7 +358,7 @@ export const Landing: React.FC = () => {
 
         <div className="relative z-10 max-w-3xl flex flex-col items-center">
           <div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-12 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
             style={{
               opacity: textRevealed ? 1 : 0,
               transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
@@ -250,11 +372,14 @@ export const Landing: React.FC = () => {
             <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-none font-display text-white">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-[0.95] font-display text-white">
             <AnimatedText text="FIND YOUR" delay={200} />
             <br />
-            <span className="drop-shadow-[0_0_30px_rgba(255,0,127,0.5)]">
-              <AnimatedText text="OTHRHALFF" delay={600} isGradient />
+            <span className="text-white">
+              <AnimatedText text="OTHR" delay={600} />
+            </span>
+            <span className="text-neon drop-shadow-[0_0_25px_rgba(255,0,127,0.45)]">
+              <AnimatedText text="HALFF" delay={800} />
             </span>
           </h1>
 
@@ -279,7 +404,7 @@ export const Landing: React.FC = () => {
           >
             <button
               onClick={onEnter}
-              className="group px-10 py-5 bg-gradient-to-r from-neon to-purple-600 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.4)] hover:shadow-[0_0_60px_rgba(255,0,127,0.6)]"
+              className="group px-12 py-6 bg-gradient-to-r from-neon to-purple-600 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_15px_35px_rgba(255,0,127,0.25)] hover:shadow-[0_20px_50px_rgba(255,0,127,0.4)]"
             >
               <span className="flex items-center gap-2 sm:gap-3">
                 <span>Enter the space</span>
