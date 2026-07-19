@@ -187,13 +187,14 @@ export const Landing: React.FC = () => {
       </div>
 
       {/* Full-Bleed Hero Background Image */}
-      <div className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-0 overflow-hidden pointer-events-none">
+      <div className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none">
         <img 
           src="/landing_hero-bg.png" 
           alt="Hero Background" 
-          className="w-full h-full object-cover object-bottom opacity-90"
+          className="w-full h-full object-cover object-bottom opacity-95"
+          style={{ imageRendering: '-webkit-optimize-contrast' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/10 via-[#07030d]/50 to-[#07030d] z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/5 via-[#07030d]/30 to-[#07030d] z-10" />
       </div>
 
       <nav className="relative z-20 px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
