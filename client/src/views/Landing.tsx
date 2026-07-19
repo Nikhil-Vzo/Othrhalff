@@ -283,133 +283,100 @@ export const Landing: React.FC = () => {
       </div>
 
       {/* Subtle noise overlay */}
-      <div className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none z-[1]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }}></div>
-      
-      {/* Premium Cinematic Background Gradients */}
-      <div className="fixed inset-0 pointer-events-none z-[0] overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-neon/10 blur-[150px] rounded-full mix-blend-screen animate-pulse-slow" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-purple-600/10 blur-[150px] rounded-full mix-blend-screen" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-[40%] left-[20%] w-[40vw] h-[40vw] bg-blue-600/5 blur-[150px] rounded-full mix-blend-screen animate-pulse-slow" style={{ animationDelay: '4s' }} />
-      </div>
+      <div className="absolute inset-0 opacity-5 mix-blend-overlay pointer-events-none z-[1]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }}></div>
 
       {/* Full-Bleed Hero Background Image */}
       <div 
-        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none transition-transform duration-1000 ease-out"
+        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[0] overflow-hidden pointer-events-none transition-transform duration-1000 ease-out"
         style={{
-          transform: `translate3d(${mousePos.x * -15}px, ${mousePos.y * -15}px, 0) scale(1.03)`,
+          transform: `translate3d(${mousePos.x * -10}px, ${mousePos.y * -10}px, 0) scale(1.02)`,
         }}
       >
         <img 
           src="/landing_hero-bg.png" 
           alt="Hero Background" 
-          className="w-full h-full object-cover object-bottom opacity-95"
-          style={{ 
-            imageRendering: '-webkit-optimize-contrast',
-            filter: 'brightness(1.1) contrast(1.05)'
-          }}
+          className="w-full h-full object-cover object-bottom"
+          style={{ imageRendering: '-webkit-optimize-contrast' }}
         />
+        {/* Soft sky-matching mist gradient instead of dark overlay */}
         <div 
           className="absolute inset-0 z-10" 
           style={{
-            background: 'linear-gradient(180deg, rgba(10,10,15,0.15) 0%, rgba(10,10,15,0.35) 50%, rgba(10,10,15,0.55) 100%)'
+            background: 'linear-gradient(to bottom, rgba(7,3,13,0.02) 0%, rgba(7,3,13,0.12) 60%, rgba(7,3,13,0.92) 100%)'
           }}
         />
       </div>
 
+      {/* Atmospheric Fog/Mist Layer behind text */}
+      <div 
+        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none opacity-40 mix-blend-screen"
+        style={{
+          background: 'radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%)'
+        }}
+      />
+
       {/* Cherry Blossom falling petals animation */}
       <CherryBlossomPetals />
 
-      <nav className="relative z-20 px-4 sm:px-6 pt-12 sm:pt-14 pb-4 sm:pb-6 flex justify-between items-center max-w-7xl mx-auto w-full">
+      <nav className="relative z-20 px-4 sm:px-6 pt-14 sm:pt-16 pb-4 sm:pb-6 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate.push('/')}>
-          <Ghost className="w-6 h-6 sm:w-8 sm:h-8 text-neon group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
-          <span className="text-xl sm:text-2xl font-black tracking-tighter">
-            <span className="group-hover:text-neon transition-colors">OTHR</span>
-            <span className="text-neon group-hover:text-white transition-colors">HALFF</span>
+          <Ghost className="w-5 h-5 text-[#F45D9B] transition-transform duration-300" />
+          <span className="text-xl font-bold tracking-tight text-white/95">
+            OtherHalff
           </span>
         </div>
-        <div className="hidden md:flex gap-8 text-sm font-medium text-gray-400/75 uppercase tracking-[0.08em]">
-          <a href="#features" className="hover:text-neon transition-colors relative group">
+        <div className="hidden md:flex gap-10 text-[13px] font-medium text-white/60 tracking-normal">
+          <a href="#features" className="hover:text-white transition-colors">
             Features
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
           </a>
-          <Link href="/blog" className="hover:text-neon transition-colors relative group">
-            Blog
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
+          <Link href="/blog" className="hover:text-white transition-colors">
+            Stories
           </Link>
-          <Link href="/developers" className="hover:text-neon transition-colors relative group">
-            Meet the Developers
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
+          <Link href="/developers" className="hover:text-white transition-colors">
+            Community
           </Link>
-          <Link href="/safety" className="hover:text-neon transition-colors relative group">
+          <Link href="/safety" className="hover:text-white transition-colors">
             Safety
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-neon group-hover:w-full transition-all duration-300" />
           </Link>
         </div>
-        <NeonButton onClick={onEnter} variant="secondary" className="text-xs px-4 sm:px-6 hover:shadow-[0_0_20px_rgba(255,0,127,0.5)] transition-shadow">
+        <button 
+          onClick={onEnter} 
+          className="text-xs font-medium text-white/80 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 px-4 py-2 rounded-full transition-all duration-300"
+        >
           Log In
-        </NeonButton>
+        </button>
       </nav>
 
       {/* 1. HERO SECTION */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-20 sm:py-32 max-w-7xl mx-auto w-full">
-        {/* Subtle glow elements */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-neon/5 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
-
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-24 sm:py-36 max-w-7xl mx-auto w-full">
         <div className="relative z-10 max-w-3xl flex flex-col items-center">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-12 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
-            style={{
-              opacity: textRevealed ? 1 : 0,
-              transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
-              transition: 'all 0.5s ease-out',
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="text-xs font-bold text-gray-300 uppercase tracking-wider group-hover:text-white transition-colors">
-              Exclusively for University Students
-            </span>
-            <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-[0.95] font-display text-white">
-            <AnimatedText text="FIND YOUR" delay={200} />
-            <br />
-            <span className="text-white">
-              <AnimatedText text="OTHR" delay={600} />
-            </span>
-            <span className="text-neon drop-shadow-[0_0_25px_rgba(255,0,127,0.45)]">
-              <AnimatedText text="HALFF" delay={800} />
-            </span>
+          <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight text-white mb-6 leading-[1.1] font-display max-w-2xl">
+            <AnimatedText text="Find your people." delay={200} />
           </h1>
 
           <p
-            className="text-base sm:text-lg md:text-xl text-gray-400 max-w-xl mb-8 sm:mb-12 leading-relaxed"
+            className="text-base sm:text-lg text-white/70 max-w-xl mb-10 leading-relaxed font-normal"
             style={{
               opacity: textRevealed ? 1 : 0,
               transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
-              transition: 'all 0.8s ease-out 1.2s',
+              transition: 'all 0.8s ease-out 0.8s',
             }}
           >
-            The exclusive network mapped to your exact campus.
-            <span className="text-gray-300"> Connect with the people who pass you every day. No randoms. Just chemistry.</span>
+            Meet students you'll naturally cross paths with every day.
           </p>
 
           <div
             style={{
               opacity: textRevealed ? 1 : 0,
               transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.9)',
-              transition: 'all 0.6s ease-out 1.5s',
+              transition: 'all 0.6s ease-out 1.2s',
             }}
           >
             <button
               onClick={onEnter}
-              className="group px-12 py-6 bg-gradient-to-r from-neon to-purple-600 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_15px_35px_rgba(255,0,127,0.25)] hover:shadow-[0_20px_50px_rgba(255,0,127,0.4)]"
+              className="px-8 py-3.5 bg-white text-black font-semibold text-sm rounded-full hover:bg-white/95 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_10px_25px_rgba(255,255,255,0.08)]"
             >
-              <span className="flex items-center gap-2 sm:gap-3">
-                <span>Enter the space</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300" />
-              </span>
+              Join Your Campus
             </button>
           </div>
         </div>
