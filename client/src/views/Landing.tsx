@@ -186,6 +186,16 @@ export const Landing: React.FC = () => {
         <div className="absolute top-[40%] left-[20%] w-[40vw] h-[40vw] bg-blue-600/5 blur-[150px] rounded-full mix-blend-screen animate-pulse-slow" style={{ animationDelay: '4s' }} />
       </div>
 
+      {/* Full-Bleed Hero Background Image */}
+      <div 
+        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-0 overflow-hidden pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(circle at center, rgba(7, 3, 13, 0.1) 0%, rgba(7, 3, 13, 0.85) 85%), url('/landing_hero-bg.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+        }}
+      />
+
       <nav className="relative z-20 px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate.push('/')}>
           <Ghost className="w-6 h-6 sm:w-8 sm:h-8 text-neon group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
@@ -218,72 +228,63 @@ export const Landing: React.FC = () => {
       </nav>
 
       {/* 1. HERO SECTION */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12 sm:py-20 max-w-7xl mx-auto w-full">
-        <div 
-          className="relative w-full rounded-[40px] overflow-hidden border border-white/5 py-24 px-6 md:px-12 flex flex-col items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
-          style={{
-            backgroundImage: "radial-gradient(circle at center, rgba(7, 3, 13, 0.4) 0%, rgba(7, 3, 13, 0.95) 100%), url('/landing_hero-bg.png')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        >
-          {/* Subtle glow elements inside the hero card */}
-          <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-neon/5 blur-[120px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-20 sm:py-32 max-w-7xl mx-auto w-full">
+        {/* Subtle glow elements */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-neon/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
 
-          <div className="relative z-10 max-w-3xl flex flex-col items-center">
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
-              style={{
-                opacity: textRevealed ? 1 : 0,
-                transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
-                transition: 'all 0.5s ease-out',
-              }}
+        <div className="relative z-10 max-w-3xl flex flex-col items-center">
+          <div
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
+            style={{
+              opacity: textRevealed ? 1 : 0,
+              transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
+              transition: 'all 0.5s ease-out',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            <span className="text-xs font-bold text-gray-300 uppercase tracking-wider group-hover:text-white transition-colors">
+              Exclusively for University Students
+            </span>
+            <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-none font-display text-white">
+            <AnimatedText text="FIND YOUR" delay={200} />
+            <br />
+            <span className="drop-shadow-[0_0_30px_rgba(255,0,127,0.5)]">
+              <AnimatedText text="OTHRHALFF" delay={600} isGradient />
+            </span>
+          </h1>
+
+          <p
+            className="text-base sm:text-lg md:text-xl text-gray-400 max-w-xl mb-8 sm:mb-12 leading-relaxed"
+            style={{
+              opacity: textRevealed ? 1 : 0,
+              transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
+              transition: 'all 0.8s ease-out 1.2s',
+            }}
+          >
+            The exclusive network mapped to your exact campus.
+            <span className="text-gray-300"> Connect with the people who pass you every day. No randoms. Just chemistry.</span>
+          </p>
+
+          <div
+            style={{
+              opacity: textRevealed ? 1 : 0,
+              transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.9)',
+              transition: 'all 0.6s ease-out 1.5s',
+            }}
+          >
+            <button
+              onClick={onEnter}
+              className="group px-10 py-5 bg-gradient-to-r from-neon to-purple-600 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.4)] hover:shadow-[0_0_60px_rgba(255,0,127,0.6)]"
             >
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider group-hover:text-white transition-colors">
-                Exclusively for University Students
+              <span className="flex items-center gap-2 sm:gap-3">
+                <span>Enter the space</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300" />
               </span>
-              <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-none font-display text-white">
-              <AnimatedText text="FIND YOUR" delay={200} />
-              <br />
-              <span className="drop-shadow-[0_0_30px_rgba(255,0,127,0.5)]">
-                <AnimatedText text="OTHRHALFF" delay={600} isGradient />
-              </span>
-            </h1>
-
-            <p
-              className="text-base sm:text-lg md:text-xl text-gray-400 max-w-xl mb-8 sm:mb-12 leading-relaxed"
-              style={{
-                opacity: textRevealed ? 1 : 0,
-                transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
-                transition: 'all 0.8s ease-out 1.2s',
-              }}
-            >
-              The exclusive network mapped to your exact campus.
-              <span className="text-gray-300"> Connect with the people who pass you every day. No randoms. Just chemistry.</span>
-            </p>
-
-            <div
-              style={{
-                opacity: textRevealed ? 1 : 0,
-                transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.9)',
-                transition: 'all 0.6s ease-out 1.5s',
-              }}
-            >
-              <button
-                onClick={onEnter}
-                className="group px-10 py-5 bg-gradient-to-r from-neon to-purple-600 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.4)] hover:shadow-[0_0_60px_rgba(255,0,127,0.6)]"
-              >
-                <span className="flex items-center gap-2 sm:gap-3">
-                  <span>Enter the space</span>
-                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300" />
-                </span>
-              </button>
-            </div>
+            </button>
           </div>
         </div>
 
