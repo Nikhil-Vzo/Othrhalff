@@ -21,7 +21,7 @@
 ## Page Layout & Agenda
 
 ### 01 / Hero Section
-- **Visuals:** Grid layout. Left side houses the main titles and a primary CTA. Right side showcases the generated `hero_mascot_valley.png` centerpiece inside a glowing border frame.
+- **Visuals:** Centered layout. Title, tagline, description, and "Enter the space" CTA button are all centered. The background displays `landing_hero-bg.png` with a radial gradient overlay to maintain text readability.
 
 ### 02 / The Campus Pulse & Tagline
 - **Copy:** "Find the right that fits right." / "जो फिट बैठे, वही सही।"
