@@ -222,6 +222,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             </div>
           </div>
         </div>
+        </div>
       </aside>
 
       {/* Main Content Area */}
