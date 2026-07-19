@@ -5,6 +5,17 @@ import { Ghost, Heart, ArrowRight, Instagram, Twitter } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
+import {
+  Navbar,
+  NavBody,
+  NavItems,
+  MobileNav,
+  NavbarLogo,
+  NavbarButton,
+  MobileNavHeader,
+  MobileNavToggle,
+  MobileNavMenu,
+} from "@/components/ui/resizable-navbar";
 
 const CherryBlossomPetals: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -112,6 +123,15 @@ export const Landing: React.FC = () => {
       navigate.push('/home');
     }
   }, [isAuthenticated, isLoading, navigate]);
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { name: "Features", link: "#features" },
+    { name: "Stories", link: "/blog" },
+    { name: "Community", link: "/developers" },
+    { name: "Safety", link: "/safety" },
+  ];
 
   const [textRevealed, setTextRevealed] = useState(false);
   const [pageLoaded, setPageLoaded] = useState(false);
@@ -226,34 +246,66 @@ export const Landing: React.FC = () => {
       {/* Cherry Blossom falling petals animation */}
       <CherryBlossomPetals />
 
-      <nav className="relative z-20 px-4 sm:px-6 pt-14 sm:pt-16 pb-4 sm:pb-6 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate.push('/')}>
-          <Ghost className="w-5 h-5 text-[#F45D9B] transition-transform duration-300" />
-          <span className="text-xl font-bold tracking-tight text-white/95">
-            OtherHalff
-          </span>
-        </div>
-        <div className="hidden md:flex gap-10 text-[13px] font-semibold text-white/90 tracking-normal" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-          <a href="#features" className="hover:text-white transition-colors">
-            Features
-          </a>
-          <Link href="/blog" className="hover:text-white transition-colors">
-            Stories
-          </Link>
-          <Link href="/developers" className="hover:text-white transition-colors">
-            Community
-          </Link>
-          <Link href="/safety" className="hover:text-white transition-colors">
-            Safety
-          </Link>
-        </div>
-        <button 
-          onClick={onEnter} 
-          className="text-xs font-semibold text-gray-900 bg-white/95 hover:bg-white px-5 py-2.5 rounded-full transition-all duration-300 border-none shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
-        >
-          Log In
-        </button>
-      </nav>
+      <Navbar>
+        {/* Desktop Navigation */}
+        <NavBody>
+          <NavbarLogo />
+          <NavItems items={navItems} />
+          <div className="flex items-center gap-4">
+            <NavbarButton variant="secondary" onClick={onEnter}>Log In</NavbarButton>
+            <NavbarButton variant="primary" onClick={onEnter}>Join Campus</NavbarButton>
+          </div>
+        </NavBody>
+
+        {/* Mobile Navigation */}
+        <MobileNav>
+          <MobileNavHeader>
+            <NavbarLogo />
+            <MobileNavToggle
+              isOpen={isMobileMenuOpen}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            />
+          </MobileNavHeader>
+
+          <MobileNavMenu
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+          >
+            {navItems.map((item, idx) => (
+              <a
+                key={`mobile-link-${idx}`}
+                href={item.link}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="relative text-white/80 hover:text-white transition-colors py-2 text-sm font-semibold"
+              >
+                <span className="block">{item.name}</span>
+              </a>
+            ))}
+            <div className="flex w-full flex-col gap-4 mt-4">
+              <NavbarButton
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onEnter();
+                }}
+                variant="secondary"
+                className="w-full text-center"
+              >
+                Log In
+              </NavbarButton>
+              <NavbarButton
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onEnter();
+                }}
+                variant="primary"
+                className="w-full text-center"
+              >
+                Join Campus
+              </NavbarButton>
+            </div>
+          </MobileNavMenu>
+        </MobileNav>
+      </Navbar>
 
       {/* 1. HERO SECTION */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-24 sm:py-36 max-w-7xl mx-auto w-full">
