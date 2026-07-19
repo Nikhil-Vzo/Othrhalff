@@ -191,9 +191,9 @@ export const Landing: React.FC = () => {
         <img 
           src="/landing_hero-bg.png" 
           alt="Hero Background" 
-          className="w-full h-full object-contain object-top opacity-90"
+          className="w-full h-full object-cover object-bottom opacity-90"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/10 via-[#07030d]/60 to-[#07030d] z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/10 via-[#07030d]/50 to-[#07030d] z-10" />
       </div>
 
       <nav className="relative z-20 px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
