@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Ghost, Heart, Shield, ArrowRight, Instagram, Twitter, Sparkles, MessageSquarePlus, Zap, MapPin, Users, PlaySquare, Music } from 'lucide-react';
+import { 
+  Ghost, Heart, Shield, ArrowRight, Instagram, Twitter, 
+  Sparkles, MessageSquarePlus, Zap, MapPin, Users, PlaySquare, Music, Video, Star 
+} from 'lucide-react';
 import { NeonButton } from '../components/Common';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
@@ -27,6 +30,67 @@ const ScrollReveal = ({ children, className = '' }: { children: React.ReactNode,
   );
 };
 
+/* Asymmetric 3D Tilted Smartphone Mockup Component */
+const TiltedPhone = ({ 
+  children, 
+  tiltDirection = 'left', 
+  title 
+}: { 
+  children: React.ReactNode; 
+  tiltDirection?: 'left' | 'right'; 
+  title: string;
+}) => {
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: x * 15, y: -y * 15 });
+  };
+  
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+  };
+
+  const initialY = tiltDirection === 'left' ? 12 : -12;
+  const transformStyle = `rotateY(${initialY + tilt.x}deg) rotateX(${6 + tilt.y}deg) scale(${tilt.x !== 0 ? 1.03 : 1})`;
+
+  return (
+    <div 
+      className="group relative transition-all duration-500 ease-out flex flex-col items-center z-10" 
+      style={{ perspective: '1000px' }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div 
+        className="relative w-[280px] h-[520px] bg-black/90 rounded-[45px] border-2 border-white/10 p-3 shadow-2xl transition-all duration-300 ease-out"
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: transformStyle,
+          boxShadow: tiltDirection === 'left' 
+            ? '0 20px 40px rgba(0,0,0,0.6), 0 0 35px rgba(255,0,127,0.2)' 
+            : '0 20px 40px rgba(0,0,0,0.6), 0 0 35px rgba(168,85,247,0.2)'
+        }}
+      >
+        {/* Notch */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-50 flex items-center justify-center border border-white/5">
+          <div className="w-8 h-1 bg-gray-800 rounded-full" />
+        </div>
+        
+        {/* Screen */}
+        <div className="w-full h-full bg-[#05000a] rounded-[36px] overflow-hidden border border-white/5 relative flex flex-col justify-center items-center">
+          {children}
+        </div>
+      </div>
+      {/* Label */}
+      <div className="mt-4 text-center">
+        <span className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500">{title}</span>
+      </div>
+    </div>
+  );
+};
+
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
@@ -39,39 +103,22 @@ export const Landing: React.FC = () => {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
-  // Scroll-triggered animations for feature cards
-  const [featuresVisible, setFeaturesVisible] = useState(false);
-  const featuresRef = useRef<HTMLDivElement>(null);
+  // Load ASCII art text
+  const [asciiArt, setAsciiArt] = useState('');
+  useEffect(() => {
+    fetch('/ascii-art.txt')
+      .then(res => res.text())
+      .then(data => setAsciiArt(data))
+      .catch(err => console.error('Failed to load ASCII art:', err));
+  }, []);
 
-  // Text reveal animation
   const [textRevealed, setTextRevealed] = useState(false);
-  
-  // Page loader
   const [pageLoaded, setPageLoaded] = useState(false);
 
   useEffect(() => {
-    // Trigger text reveal after mount
     const timer = setTimeout(() => setTextRevealed(true), 100);
-    // Dismiss loader after a brief branded reveal
     const loaderTimer = setTimeout(() => setPageLoaded(true), 1600);
     return () => { clearTimeout(timer); clearTimeout(loaderTimer); };
-  }, []);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setFeaturesVisible(true);
-        }
-      },
-      { threshold: 0.2 }
-    );
-
-    if (featuresRef.current) {
-      observer.observe(featuresRef.current);
-    }
-
-    return () => observer.disconnect();
   }, []);
 
   // Letter-by-letter animation component
@@ -98,7 +145,7 @@ export const Landing: React.FC = () => {
   );
 
   return (
-    <div className="h-screen bg-black text-white font-sans selection:bg-neon selection:text-white relative overflow-y-auto overflow-x-hidden flex flex-col">
+    <div className="h-screen bg-[#07030d] text-white font-sans selection:bg-neon selection:text-white relative overflow-y-auto overflow-x-hidden flex flex-col">
       {/* WebGL Liquid Background */}
       <LiquidBackground />
 
@@ -170,71 +217,85 @@ export const Landing: React.FC = () => {
         </NeonButton>
       </nav>
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12 sm:py-20">
-        <div
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
-          style={{
-            opacity: textRevealed ? 1 : 0,
-            transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
-            transition: 'all 0.5s ease-out',
-          }}
-        >
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-          <span className="text-xs font-bold text-gray-300 uppercase tracking-wider group-hover:text-white transition-colors">
-            Exclusively for University Students
-          </span>
-          <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
+      {/* 1. HERO SECTION */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12 sm:py-20 max-w-7xl mx-auto w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full text-left">
+          <div className="lg:col-span-7 flex flex-col justify-center">
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group max-w-max"
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
+                transition: 'all 0.5s ease-out',
+              }}
+            >
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider group-hover:text-white transition-colors">
+                Exclusively for University Students
+              </span>
+              <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-4 sm:mb-6 tracking-tighter leading-none font-display text-white">
+              <AnimatedText text="FIND YOUR" delay={200} />
+              <br />
+              <span className="drop-shadow-[0_0_30px_rgba(255,0,127,0.5)]">
+                <AnimatedText text="OTHRHALFF" delay={600} isGradient />
+              </span>
+            </h1>
+
+            <p
+              className="text-base sm:text-lg md:text-xl text-gray-400 max-w-xl mb-8 sm:mb-12 leading-relaxed"
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
+                transition: 'all 0.8s ease-out 1.2s',
+              }}
+            >
+              The exclusive network mapped to your exact campus.
+              <span className="text-gray-300"> Connect with the people who pass you every day. No randoms. Just chemistry.</span>
+            </p>
+
+            <div
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.9)',
+                transition: 'all 0.6s ease-out 1.5s',
+              }}
+            >
+              <button
+                onClick={onEnter}
+                className="group px-6 py-4 md:px-12 md:py-6 bg-neon text-white font-black text-sm sm:text-base md:text-xl uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.6)] hover:shadow-[0_0_80px_rgba(255,0,127,0.9)] max-w-max"
+              >
+                <span className="flex items-center gap-2 sm:gap-3">
+                  <span>Find Your Othrhalff</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300" />
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Hero Mascot Visual Centerpiece */}
+          <div className="lg:col-span-5 flex justify-center">
+            <ScrollReveal className="w-full max-w-md">
+              <div className="relative rounded-[32px] overflow-hidden border border-neon/30 shadow-[0_0_50px_rgba(255,0,127,0.25)] bg-[#0b0714] p-2 hover:border-neon/60 transition-all duration-500">
+                <img 
+                  src="/hero_mascot_valley.png" 
+                  alt="Mascot Valley Hero" 
+                  className="w-full h-auto rounded-[24px] object-cover"
+                />
+              </div>
+            </ScrollReveal>
+          </div>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-6 tracking-tighter leading-none perspective-1000">
-          <AnimatedText text="FIND YOUR" delay={200} />
-          <br />
-          <span className="drop-shadow-[0_0_30px_rgba(255,0,127,0.5)]">
-            <AnimatedText text="OTHRHALFF" delay={600} isGradient />
-          </span>
-        </h1>
-
-        <p
-          className="text-base sm:text-lg md:text-xl text-gray-400 max-w-2xl mb-8 sm:mb-12 leading-relaxed px-2"
-          style={{
-            opacity: textRevealed ? 1 : 0,
-            transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
-            transition: 'all 0.8s ease-out 1.2s',
-          }}
-        >
-          The exclusive network mapped to your exact campus.
-          <br className="hidden sm:block" />
-          <span className="text-gray-300"> Connect with the people who pass you every day. No randoms. Just chemistry.</span>
-        </p>
-
-        <div
-          style={{
-            opacity: textRevealed ? 1 : 0,
-            transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.9)',
-            transition: 'all 0.6s ease-out 1.5s',
-          }}
-        >
-          <button
-            onClick={onEnter}
-            className="group px-5 py-3 sm:px-6 sm:py-4 md:px-16 md:py-8 bg-neon text-white font-black text-base sm:text-lg md:text-3xl uppercase tracking-wider sm:tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.6)] hover:shadow-[0_0_80px_rgba(255,0,127,0.9)]"
-          >
-            <span className="flex items-center gap-2 sm:gap-3">
-              <span className="hidden sm:inline">Find Your Othrhalff</span>
-              <span className="sm:hidden">Find Your Match</span>
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-8 md:h-8 group-hover:translate-x-2 transition-transform duration-300" />
-            </span>
-          </button>
-        </div>
-
+        {/* PAGE FLOW CONTAINER */}
         <div className="mt-16 sm:mt-32 md:mt-48 w-full relative z-10 flex flex-col gap-24 sm:gap-32 md:gap-48 pb-16 md:pb-32">
           
           {/* Main Video Reveal */}
           <ScrollReveal>
             <div className="max-w-[100rem] mx-auto px-4 sm:px-6 w-full relative">
-              <div 
-                className="relative w-full aspect-[4/5] sm:aspect-video lg:aspect-[2.5/1] group"
-              >
-                
+              <div className="relative w-full aspect-[4/5] sm:aspect-video lg:aspect-[2.5/1] group">
                 <video 
                   autoPlay 
                   loop 
@@ -249,89 +310,189 @@ export const Landing: React.FC = () => {
             </div>
           </ScrollReveal>
 
-          {/* Creative Layout 1: Sticky Typography + Campus Radar (The Pulse) */}
-          <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-24 flex flex-col md:flex-row items-center justify-between gap-12 md:gap-16">
-            <div className="w-full md:w-1/2 md:pr-12 pointer-events-none">
-              <h3 className="text-[clamp(3rem,6vw,5rem)] font-black text-white leading-none tracking-tighter relative z-20">
-                <span className="text-neon block text-lg sm:text-2xl mb-4 font-bold tracking-widest uppercase">01 / The Pulse</span>
-                Campus <br/>Heatmap.
+          {/* 2. TAGLINE & STATS SECTION (Who We Are) */}
+          <div id="features" className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-24 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div className="flex flex-col text-left">
+              <span className="text-neon block text-lg sm:text-2xl mb-4 font-bold tracking-widest uppercase">01 / Connection</span>
+              <h2 className="text-4xl sm:text-5xl font-black text-white leading-tight font-display mb-6">
+                "Find the right<br/>that fits right."
+              </h2>
+              <h3 className="text-2xl sm:text-3.5xl font-bold leading-normal font-display text-transparent bg-clip-text bg-gradient-to-r from-neon to-purple-500 mb-6" style={{ fontFamily: 'Teko, sans-serif', letterSpacing: '0.05em' }}>
+                जो फिट बैठे, वही सही।
               </h3>
-              <p className="mt-8 text-xl md:text-2xl text-gray-400 font-light max-w-md leading-relaxed">
-                Know exactly what's buzzing on the ground in real-time. Live event streams, anonymous confessions, and dynamic campus polls.
+              <p className="text-xl text-gray-400 font-light leading-relaxed max-w-md">
+                No awkward bios or endless questionnaire pages. We simplify peer networking by matching you with college mates based on immediate vibes, schedules, and active student channels.
               </p>
             </div>
             
-            <div className="w-full md:w-1/2 flex justify-center items-center">
-              <ScrollReveal className="w-full">
-                <div className="relative w-full aspect-square max-w-md mx-auto rounded-full border border-white/10 bg-black/60 backdrop-blur-2xl flex items-center justify-center overflow-hidden shadow-[0_0_80px_rgba(59,130,246,0.15)] group">
-                  {/* Radar Sweep Effect */}
-                  <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.3)_100%)] animate-[spin_4s_linear_infinite] rounded-full opacity-50" />
-                  <div className="absolute w-full h-[1px] bg-blue-500/20 top-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                  <div className="absolute h-full w-[1px] bg-blue-500/20 left-1/2 -translate-x-1/2 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+            <div className="flex justify-center">
+              <ScrollReveal className="w-full max-w-md">
+                <div className="relative bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 p-8 rounded-3xl backdrop-blur-2xl shadow-[0_0_80px_rgba(255,0,127,0.05)] text-center overflow-hidden group">
+                  {/* Floating mascot space placeholder */}
+                  <div className="absolute -top-4 -right-4 w-24 h-24 bg-neon/5 rounded-full blur-xl pointer-events-none" />
                   
-                  {/* Concentric circles */}
-                  <div className="absolute w-3/4 h-3/4 rounded-full border border-blue-500/10" />
-                  <div className="absolute w-1/2 h-1/2 rounded-full border border-blue-500/10" />
-                  
-                  <MapPin className="w-10 h-10 text-blue-400 relative z-10 animate-pulse drop-shadow-[0_0_20px_rgba(59,130,246,1)]" />
-                  
-                  {/* Pings */}
-                  <div className="absolute w-4 h-4 rounded-full bg-neon/80 top-[20%] left-[30%] animate-ping" style={{ animationDelay: '0s', animationDuration: '3s' }} />
-                  <div className="absolute w-3 h-3 rounded-full bg-purple-500/80 bottom-[30%] right-[20%] animate-ping" style={{ animationDelay: '1.5s', animationDuration: '3s' }} />
-                  <div className="absolute w-5 h-5 rounded-full bg-blue-400/80 top-[60%] right-[15%] animate-ping" style={{ animationDelay: '2.5s', animationDuration: '3s' }} />
-                </div>
-              </ScrollReveal>
-            </div>
-          </div>
-
-          {/* Creative Layout 2: Massive Background Typography (Ghost Mode) */}
-          <div className="relative w-full py-20 md:py-32 overflow-hidden flex items-center justify-center min-h-[500px] isolate">
-            {/* Gigantic BG Text */}
-            <h2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[clamp(5rem,20vw,30rem)] font-black text-white/[0.06] tracking-tighter leading-none select-none pointer-events-none whitespace-nowrap z-0">
-              GHOST
-            </h2>
-            
-            <ScrollReveal className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 flex flex-col items-center">
-              <div className="w-full max-w-3xl backdrop-blur-3xl bg-purple-900/5 border border-purple-500/10 p-6 sm:p-12 md:p-24 rounded-3xl md:rounded-[3rem] text-center shadow-[0_0_100px_rgba(168,85,247,0.1)] hover:bg-purple-900/10 transition-colors duration-700 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                <Ghost className="w-16 h-16 sm:w-20 sm:h-20 text-purple-400 mx-auto mb-8 sm:mb-12 drop-shadow-[0_0_30px_rgba(168,85,247,0.8)] group-hover:-translate-y-4 transition-transform duration-700 relative z-10" />
-                <h3 className="text-[clamp(2.5rem,5vw,4.5rem)] font-black text-white tracking-tight leading-none mb-6 relative z-10">
-                  Chemistry <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">First.</span>
-                </h3>
-                <p className="text-gray-400 text-lg sm:text-2xl font-light leading-relaxed relative z-10">
-                  Identity locked. Visuals hidden. Connect strictly through shared aesthetics and raw conversation. Reveal your face only when the trust is truly earned.
-                </p>
-              </div>
-            </ScrollReveal>
-          </div>
-
-          {/* Creative Layout 3: Horizontal Asymmetry (Virtual Dates) */}
-          <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32 md:py-48">
-            <div className="flex flex-col md:flex-row items-center gap-16 md:gap-8">
-              <ScrollReveal className="w-full md:w-5/12 z-20">
-                <div className="relative border-l-4 border-neon pl-8 md:pl-12">
-                  <span className="text-neon block text-lg sm:text-2xl mb-4 font-bold tracking-widest uppercase">03 / Experience</span>
-                  <h3 className="text-[clamp(3rem,6vw,5rem)] font-black text-white tracking-tighter leading-none mb-8">
-                    Virtual <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-neon to-purple-500">Dates.</span>
-                  </h3>
-                  <p className="text-gray-400 text-xl md:text-2xl font-light leading-relaxed max-w-md">
-                    Don't just text into the void. Step into synchronized virtual auditoriums. Share a cinematic movie night or a high-fidelity music stream right in the app.
+                  <div className="font-display font-black text-7xl text-white tracking-tighter mb-2 group-hover:scale-105 transition-transform duration-500">
+                    300+
+                  </div>
+                  <div className="text-neon font-black tracking-widest uppercase text-xs sm:text-sm mb-4">
+                    Active Campus Peers
+                  </div>
+                  <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                    Connect dynamically in real-time with students currently active in local campus circles.
                   </p>
+                  
+                  {/* Glowing line pulse */}
+                  <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-neon/40 to-transparent relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400 to-transparent w-1/3 animate-[shimmer_2s_infinite]" />
+                  </div>
+                  <style>{`
+                    @keyframes shimmer {
+                      0% { transform: translateX(-100%); }
+                      100% { transform: translateX(300%); }
+                    }
+                  `}</style>
                 </div>
               </ScrollReveal>
-              
-              <div className="w-full md:w-7/12 relative min-h-[400px] sm:min-h-[500px]">
-                <ScrollReveal className="absolute right-0 bottom-0 w-[80%] aspect-[4/3] rounded-2xl md:rounded-[2rem] bg-gradient-to-br from-purple-900/40 to-[#05000a] border border-purple-500/30 backdrop-blur-xl flex items-center justify-center overflow-hidden z-10 shadow-[0_20px_80px_rgba(168,85,247,0.3)] transform sm:translate-y-12 transition-transform hover:scale-105 duration-700">
-                  <PlaySquare className="w-20 h-20 text-purple-400 drop-shadow-xl" />
-                </ScrollReveal>
-                <ScrollReveal className="absolute left-0 top-0 w-[60%] aspect-square rounded-3xl md:rounded-[3rem] bg-gradient-to-tr from-neon/40 to-[#05000a] border border-neon/40 backdrop-blur-2xl flex items-center justify-center overflow-hidden z-20 shadow-[0_20px_80px_rgba(255,0,127,0.3)] hover:-translate-y-4 hover:-rotate-3 transition-transform duration-700">
-                  <Music className="w-20 h-20 text-white drop-shadow-2xl" />
-                </ScrollReveal>
-              </div>
             </div>
           </div>
 
-          {/* Creative Layout 4: Double Opposing Infinite Marquees (True Edge-to-Edge) */}
+          {/* 3. GHOST MODE & INTERACTIVE SWIPING (Asymmetric Left Phone) */}
+          <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+            {/* 3D phone mockup */}
+            <div className="md:col-span-5 flex justify-center order-last md:order-first">
+              <ScrollReveal>
+                <TiltedPhone tiltDirection="left" title="Swipe & Match Screen">
+                  <div className="w-full h-full p-4 flex flex-col justify-between relative bg-dots-pattern pt-12">
+                    <div className="flex justify-between items-center w-full px-2">
+                      <div className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Delhi University</div>
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    </div>
+                    
+                    <div className="flex-1 my-4 bg-gray-950/80 rounded-2xl border border-neon/30 p-4 flex flex-col justify-between shadow-[0_0_20px_rgba(255,0,127,0.15)] relative overflow-hidden">
+                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-neon/10 border border-neon/30 text-[9px] font-bold text-neon">
+                        98% Vibe Match
+                      </div>
+                      
+                      <div className="flex flex-col gap-2 mt-4">
+                        <div className="w-8 h-8 rounded-full bg-gray-900 border border-white/10 flex items-center justify-center">
+                          <Ghost className="w-4 h-4 text-gray-400" />
+                        </div>
+                        <div className="text-[11px] font-medium text-gray-300">"Looking for someone to argue about Christopher Nolan movies with."</div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <span className="px-2 py-0.5 rounded bg-gray-900 border border-white/5 text-[9px] text-gray-400">Cinema</span>
+                        <span className="px-2 py-0.5 rounded bg-gray-900 border border-white/5 text-[9px] text-gray-400">Indie Rock</span>
+                        <span className="px-2 py-0.5 rounded bg-gray-900 border border-white/5 text-[9px] text-gray-400">Late Night</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-center gap-4 pb-2">
+                      <div className="w-10 h-10 rounded-full bg-gray-900 border border-white/10 flex items-center justify-center cursor-pointer hover:border-red-500/50 hover:bg-red-950/15 transition-all">
+                        <Heart className="w-4 h-4 text-red-500" />
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-neon border border-neon/30 flex items-center justify-center cursor-pointer hover:scale-105 transition-all">
+                        <ArrowRight className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                </TiltedPhone>
+              </ScrollReveal>
+            </div>
+            
+            <div className="md:col-span-7 flex flex-col text-left justify-center">
+              <span className="text-purple-400 block text-lg sm:text-2xl mb-4 font-bold tracking-widest uppercase">02 / Ghost Mode</span>
+              <h3 className="text-4xl sm:text-5xl font-black text-white leading-tight font-display mb-6">
+                Chemistry First,<br/>Identity Second.
+              </h3>
+              <p className="text-xl text-gray-400 font-light leading-relaxed mb-6">
+                Identity is locked. Visuals are hidden. Connect strictly through shared aesthetics, interests, and raw conversation. Choose to reveal your face only when the vibe is fully verified.
+              </p>
+              <ul className="space-y-3 text-gray-400 font-light text-base">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neon"></span>
+                  Interactive campus radar matching.
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neon"></span>
+                  Direct, fluid text matching.
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neon"></span>
+                  Strict university credential checks.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* 4. VIRTUAL DATE AUDITORIUMS (Asymmetric Right Phone) */}
+          <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-24 grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+            <div className="md:col-span-7 flex flex-col text-left justify-center">
+              <span className="text-neon block text-lg sm:text-2xl mb-4 font-bold tracking-widest uppercase">03 / Experience</span>
+              <h3 className="text-4xl sm:text-5xl font-black text-white leading-tight font-display mb-6">
+                Synchronized<br/>Virtual Dates.
+              </h3>
+              <p className="text-xl text-gray-400 font-light leading-relaxed mb-6">
+                Don't just text into the void. Step into synchronized virtual auditoriums. Share a cinematic movie watch party or stream audio tracks side-by-side with dynamic, floating live chat.
+              </p>
+              <ul className="space-y-3 text-gray-400 font-light text-base">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                  Synchronous cinema playback.
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                  Shared music playlists.
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                  Floating live overlay chat.
+                </li>
+              </ul>
+            </div>
+            
+            {/* 3D phone mockup 2 */}
+            <div className="md:col-span-5 flex justify-center">
+              <ScrollReveal>
+                <TiltedPhone tiltDirection="right" title="Cinema Watch Party">
+                  <div className="w-full h-full flex flex-col justify-between relative bg-black pt-12">
+                    <div className="h-[45%] w-full bg-gray-950 border-b border-white/5 relative flex items-center justify-center overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-950/50 to-transparent z-0" />
+                      <PlaySquare className="w-12 h-12 text-purple-400 relative z-10 animate-pulse" />
+                      <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/60 text-[8px] text-white">
+                        Interstellar watch party
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 p-3 flex flex-col justify-between overflow-hidden bg-gray-950/50">
+                      <div className="flex flex-col gap-2 overflow-y-auto max-h-[140px] pt-2 text-left">
+                        <div className="bg-gray-900/80 border border-white/5 p-2 rounded-xl rounded-tl-none self-start max-w-[85%]">
+                          <div className="text-[8px] text-purple-400 font-bold mb-0.5">DU Peer</div>
+                          <p className="text-[10px] text-gray-300">this movie is mindbending</p>
+                        </div>
+                        <div className="bg-neon/10 border border-neon/20 p-2 rounded-xl rounded-tr-none self-end max-w-[85%]">
+                          <div className="text-[8px] text-neon font-bold mb-0.5">You</div>
+                          <p className="text-[10px] text-gray-300">the black hole scene is legendary</p>
+                        </div>
+                      </div>
+                      
+                      <div className="w-full mt-2">
+                        <div className="flex justify-between items-center text-[8px] text-gray-500 mb-1">
+                          <span>01:42:15</span>
+                          <span>02:49:00</span>
+                        </div>
+                        <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-neon to-purple-500 rounded-full" style={{ width: '60%' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TiltedPhone>
+              </ScrollReveal>
+            </div>
+          </div>
+
+          {/* Marquees */}
           <div className="relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] pb-12 overflow-hidden flex flex-col items-center">
             <style>{`
               @keyframes marquee-left {
@@ -387,18 +548,53 @@ export const Landing: React.FC = () => {
             </div>
           </div>
 
-          {/* Massive Final Call To Action */}
+          {/* 5. ASCII ART BRAND BRANDING SECTION */}
+          {asciiArt && (
+            <ScrollReveal className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-12 md:py-24 text-center">
+              <div className="bg-black/80 border border-white/5 p-6 sm:p-10 rounded-3xl shadow-[0_0_100px_rgba(255,0,127,0.05)] relative overflow-hidden group">
+                <div className="absolute top-4 left-4 flex gap-1.5">
+                  <span className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/40" />
+                  <span className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/40" />
+                </div>
+                <div className="text-right text-[10px] text-neon font-mono select-none tracking-widest opacity-60 mb-6 uppercase">
+                  Console Viewer // Mascot ASCII
+                </div>
+                
+                <pre className="font-mono text-[7px] sm:text-[9px] md:text-[11px] text-neon text-left overflow-x-auto leading-tight bg-[#040108] p-6 rounded-2xl border border-neon/15 shadow-inner drop-shadow-neon select-all whitespace-pre">
+                  {asciiArt}
+                </pre>
+                
+                <div className="mt-6 text-xs text-gray-500 font-mono tracking-wider">
+                  Rooted in old-school internet heritage. Redefined for campus synergy.
+                </div>
+              </div>
+            </ScrollReveal>
+          )}
+
+          {/* 6. FINAL CALL TO ACTION & CONVERSION */}
           <ScrollReveal className="mt-4">
             <div className="max-w-3xl mx-auto px-4 w-full flex flex-col items-center justify-center pb-16">
               
-              {/* Ticket Asset — hero centerpiece */}
+              {/* Custom Winking Ghost Mascot Video */}
+              <div className="relative w-40 h-40 rounded-[28px] overflow-hidden border border-neon/30 mb-8 shadow-[0_0_40px_rgba(255,0,127,0.3)] bg-black">
+                <video 
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline
+                  src="/ghost_wink.mp4" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Ticket Asset Rip */}
               <div className="relative w-full max-w-md mx-auto mb-2 z-10">
                 <ChromaKeyVideo 
                   src="/blog/ticket-rip.webm" 
                   className="w-full h-auto"
                   rThreshold={100}
                 />
-                {/* Subtle glow behind the ticket */}
                 <div className="absolute inset-0 bg-neon/10 blur-[80px] rounded-full pointer-events-none -z-10" />
               </div>
 
@@ -410,7 +606,7 @@ export const Landing: React.FC = () => {
                 Our biggest, baddest & loveliest updates are yet to arrive.
               </p>
               
-              {/* CTA Button — brand-matched */}
+              {/* CTA Button */}
               <button
                 onClick={onEnter}
                 className="group relative px-10 py-4 sm:px-14 sm:py-5 bg-gradient-to-r from-neon to-purple-600 text-white font-bold text-base sm:text-lg uppercase tracking-[0.2em] rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.35)] hover:shadow-[0_0_60px_rgba(255,0,127,0.5)] overflow-hidden"
