@@ -4,8 +4,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Ghost, Heart, ArrowRight, Instagram, Twitter } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
-import { LiquidBackground } from '../components/LiquidBackground';
-import { HeartCursor } from '../components/HeartCursor';
 import { useAuth } from '../context/AuthContext';
 
 const CherryBlossomPetals: React.FC = () => {
@@ -159,13 +157,7 @@ export const Landing: React.FC = () => {
   );
 
   return (
-    <div className="h-screen bg-[#07030d] text-white font-sans selection:bg-neon selection:text-white relative overflow-y-auto overflow-x-hidden flex flex-col">
-      {/* WebGL Liquid Background */}
-      <LiquidBackground />
-
-      {/* Heart Cursor */}
-      <HeartCursor />
-
+    <div className="h-screen bg-[#07030d] text-white font-sans selection:bg-[#F45D9B] selection:text-white relative overflow-y-auto overflow-x-hidden flex flex-col">
       {/* Branded Loader */}
       <div 
         className={`fixed inset-0 z-[9999] bg-[#05000a] flex flex-col items-center justify-center transition-all duration-700 ${
@@ -173,13 +165,13 @@ export const Landing: React.FC = () => {
         }`}
       >
         <div className="flex items-center gap-2 mb-6">
-          <Ghost className="w-8 h-8 text-neon animate-pulse" />
-          <span className="font-black tracking-tighter text-3xl text-white">
-            <span>OTHR</span><span className="text-neon">HALFF</span>
+          <Ghost className="w-6 h-6 text-[#F45D9B] animate-pulse" />
+          <span className="font-bold tracking-tight text-2xl text-white/95">
+            OtherHalff
           </span>
         </div>
         <div className="w-48 h-[2px] bg-gray-800 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-neon to-purple-500 rounded-full animate-[loading_1.4s_ease-in-out_infinite]" />
+          <div className="h-full bg-[#F45D9B] rounded-full animate-[loading_1.4s_ease-in-out_infinite]" />
         </div>
         <style>{`
           @keyframes loading {
