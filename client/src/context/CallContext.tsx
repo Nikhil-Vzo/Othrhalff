@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { subscribeToIncomingCalls, CallSession, answerCall as answerCallAPI, rejectCall as rejectCallAPI, endCall as endCallAPI } from '../services/callSignaling';
 import { supabase } from '../lib/supabase';
@@ -183,7 +183,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [currentUser]);
 
-  const startCall = (name: string, avatar: string, appIdParam: string, channelNameParam: string, tokenParam: string, type: 'audio' | 'video' = 'video', sessionId: string) => {
+  const startCall = useCallback((name: string, avatar: string, appIdParam: string, channelNameParam: string, tokenParam: string, type: 'audio' | 'video' = 'video', sessionId: string) => {
     setPartnerName(name);
     setPartnerAvatar(avatar);
     setAppId(appIdParam);
@@ -193,9 +193,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCallSessionId(sessionId);
     setIsCallActive(true);
     setOutgoingCall(null); // Clear outgoing call modal
-  };
+  }, []);
 
-  const endCall = () => {
+  const endCall = useCallback(() => {
     setIsCallActive(false);
     setAppId('');
     setChannelName('');
@@ -205,18 +205,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCallSessionId('');
     setOutgoingCall(null);
     setOutgoingCallSessionId('');
-  };
+  }, []);
 
   // Cancel outgoing call — clears UI AND updates DB
-  const cancelOutgoingCall = async () => {
+  const cancelOutgoingCall = useCallback(async () => {
     if (outgoingCallSessionId) {
       await endCallAPI(outgoingCallSessionId);
     }
     setOutgoingCall(null);
     setOutgoingCallSessionId('');
-  };
+  }, [outgoingCallSessionId]);
 
-  const acceptCall = async () => {
+  const acceptCall = useCallback(async () => {
     if (!incomingCall) return;
 
     // If we only have broadcast signal but no DB session yet,
@@ -248,9 +248,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     setIncomingCall(null);
-  };
+  }, [incomingCall, startCall]);
 
-  const handleRejectCall = async (callSessionId: string) => {
+  const handleRejectCall = useCallback(async (callSessionId: string) => {
     // If we only have broadcast signal but no DB session yet
     if (!callSessionId) {
       setIncomingCall(null);
@@ -268,37 +268,54 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     pendingAcceptRef.current = false;
     setIncomingCall(null);
-  };
+  }, []);
 
-  const rejectCallWrapper = () => {
+  const rejectCallWrapper = useCallback(() => {
     if (incomingCall) {
       handleRejectCall(incomingCall.callSessionId);
     }
-  };
+  }, [incomingCall, handleRejectCall]);
+
+  const callContextValue = useMemo(() => ({
+    isCallActive,
+    appId,
+    channelName,
+    token,
+    partnerName,
+    partnerAvatar,
+    callType,
+    callSessionId,
+    incomingCall,
+    outgoingCall,
+    outgoingCallSessionId,
+    setOutgoingCallSessionId,
+    cancelOutgoingCall,
+    startCall,
+    endCall,
+    acceptCall,
+    rejectCall: rejectCallWrapper,
+    setOutgoingCall
+  }), [
+    isCallActive,
+    appId,
+    channelName,
+    token,
+    partnerName,
+    partnerAvatar,
+    callType,
+    callSessionId,
+    incomingCall,
+    outgoingCall,
+    outgoingCallSessionId,
+    cancelOutgoingCall,
+    startCall,
+    endCall,
+    acceptCall,
+    rejectCallWrapper
+  ]);
 
   return (
-    <CallContext.Provider
-      value={{
-        isCallActive,
-        appId,
-        channelName,
-        token,
-        partnerName,
-        partnerAvatar,
-        callType,
-        callSessionId,
-        incomingCall,
-        outgoingCall,
-        outgoingCallSessionId,
-        setOutgoingCallSessionId,
-        cancelOutgoingCall,
-        startCall,
-        endCall,
-        acceptCall,
-        rejectCall: rejectCallWrapper,
-        setOutgoingCall
-      }}
-    >
+    <CallContext.Provider value={callContextValue}>
       {children}
     </CallContext.Provider>
   );

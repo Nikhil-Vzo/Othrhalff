@@ -8,513 +8,1195 @@ If the database is ever deleted, running this entire SQL script will recreate th
 
 ## 1. Enable Extensions
 ```sql
--- Required for UUID generation
 create extension if not exists "uuid-ossp";
 ```
 
 ## 2. Table Definitions
-
 ```sql
--- 1. Profiles (Core user data linked to Supabase Auth)
-create table public.profiles (
-  id uuid references auth.users on delete cascade primary key,
-  anonymous_id text not null unique,
-  real_name text not null,
-  gender text not null,
-  university text not null,
-  university_email text,
-  branch text,
-  year text,
-  interests text[] default '{}',
-  looking_for text[] default '{}',
-  bio text,
-  dob date,
-  avatar text,
-  is_verified boolean default false,
-  is_premium boolean default false,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 2. User Presence (Online/Offline status)
-create table public.user_presence (
-  id uuid references public.profiles(id) on delete cascade primary key,
-  status text check (status in ('online', 'offline', 'in-call')) default 'offline',
-  last_seen timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now())
-);
-
--- 3. Blocked Users (Privacy & Moderation)
-create table public.blocked_users (
-  id uuid default uuid_generate_v4() primary key,
-  blocker_id uuid references public.profiles(id) on delete cascade not null,
-  blocked_id uuid references public.profiles(id) on delete cascade not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(blocker_id, blocked_id)
-);
-
--- 4. Swipes (Matching algorithm base)
-create table public.swipes (
-  id uuid default uuid_generate_v4() primary key,
-  liker_id uuid references public.profiles(id) on delete cascade not null,
-  target_id uuid references public.profiles(id) on delete cascade not null,
-  action text check (action in ('like', 'pass')) not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(liker_id, target_id)
-);
-
--- 5. Matches (Successful mutual likes)
-create table public.matches (
-  id uuid default uuid_generate_v4() primary key,
-  user1_id uuid references public.profiles(id) on delete cascade not null,
-  user2_id uuid references public.profiles(id) on delete cascade not null,
-  status text check (status in ('matched', 'unmatched')) default 'matched',
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(user1_id, user2_id)
-);
-
--- 6. Messages (Chat functionality)
-create table public.messages (
-  id uuid default uuid_generate_v4() primary key,
-  match_id uuid references public.matches(id) on delete cascade not null,
-  sender_id uuid references public.profiles(id) on delete cascade not null,
-  content text not null,
-  type text check (type in ('text', 'image', 'system')) default 'text',
-  is_read boolean default false,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 7. Call Sessions (Video/Audio Calls)
-create table public.call_sessions (
-  id uuid default uuid_generate_v4() primary key,
-  caller_id uuid references public.profiles(id) on delete cascade not null,
-  receiver_id uuid references public.profiles(id) on delete cascade not null,
-  status text check (status in ('initiating', 'ringing', 'accepted', 'rejected', 'ended', 'missed')) default 'initiating',
-  type text check (type in ('video', 'audio')) not null,
-  started_at timestamp with time zone,
-  ended_at timestamp with time zone,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 8. Notifications (In-app alerts)
-create table public.notifications (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  type text not null,
-  title text not null,
-  message text not null,
-  data jsonb default '{}',
-  is_read boolean default false,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 9. Confessions (Anonymous feed)
-create table public.confessions (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  anonymous_name text not null,
-  content text not null,
-  color text default 'gray',
-  theme text default 'default',
-  likes_count integer default 0,
-  comments_count integer default 0,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 10. Confession Reactions (Likes on confessions)
-create table public.confession_reactions (
-  id uuid default uuid_generate_v4() primary key,
-  confession_id uuid references public.confessions(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  emoji text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(confession_id, user_id)
-);
-
--- 11. Confession Comments
-create table public.confession_comments (
-  id uuid default uuid_generate_v4() primary key,
-  confession_id uuid references public.confessions(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  anonymous_name text not null,
-  content text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 12. Poll Options (For confessions with polls)
-create table public.poll_options (
-  id uuid default uuid_generate_v4() primary key,
-  confession_id uuid references public.confessions(id) on delete cascade not null,
-  text text not null,
-  votes integer default 0,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 13. Poll Votes (Tracking user votes)
-create table public.poll_votes (
-  id uuid default uuid_generate_v4() primary key,
-  option_id uuid references public.poll_options(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  -- A user can only vote once per option (or optionally once per confession handled via RPC/Trigger)
-  unique(option_id, user_id) 
-);
-
--- 14. Verification Requests (.edu email verification)
-create table public.verification_requests (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  email text not null,
-  status text check (status in ('pending', 'approved', 'rejected')) default 'pending',
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 15. Support Tickets (Contact us form)
-create table public.support_tickets (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete set null,
-  email text not null,
-  category text not null,
-  message text not null,
-  status text default 'open',
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 16. Career Inquiries (Jobs page)
-create table public.career_inquiries (
-  id uuid default uuid_generate_v4() primary key,
-  role text not null,
-  full_name text not null,
-  email text not null,
-  phone text not null,
-  college text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- 17. Active Rooms (Virtual Dates WebRTC Signaling)
+-- Table: public.active_rooms
 create table public.active_rooms (
-  room_id text primary key,
-  host_peer_id text not null,
-  host_user_id uuid references auth.users(id) on delete cascade,
+  room_id text not null,
+  host_peer_id text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
   is_private boolean default false,
   passcode text,
   participant_count integer default 1,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  constraint active_rooms_pkey PRIMARY KEY (room_id)
 );
 
-create index idx_active_rooms_passcode on public.active_rooms (passcode) where is_private = true;
+-- Table: public.blocked_users
+create table public.blocked_users (
+  id uuid not null default gen_random_uuid(),
+  blocker_id uuid,
+  blocked_id uuid,
+  created_at timestamp with time zone default now(),
+  constraint blocked_users_blocked_id_fkey FOREIGN KEY (blocked_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint blocked_users_blocker_id_blocked_id_key UNIQUE (blocker_id, blocked_id),
+  constraint blocked_users_blocker_id_fkey FOREIGN KEY (blocker_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint blocked_users_pkey PRIMARY KEY (id)
+);
+
+-- Table: public.call_sessions
+create table public.call_sessions (
+  id uuid not null default gen_random_uuid(),
+  caller_id uuid,
+  receiver_id uuid,
+  match_id uuid,
+  channel_name text,
+  token text,
+  app_id text,
+  status USER-DEFINED default 'ringing'::call_status,
+  created_at timestamp with time zone default now(),
+  answered_at timestamp with time zone,
+  ended_at timestamp with time zone,
+  call_type text default 'video'::text,
+  constraint call_sessions_caller_id_fkey FOREIGN KEY (caller_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint call_sessions_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+  constraint call_sessions_pkey PRIMARY KEY (id),
+  constraint call_sessions_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.career_inquiries
+create table public.career_inquiries (
+  id uuid not null default gen_random_uuid(),
+  role text,
+  full_name text,
+  phone text,
+  email text,
+  college text,
+  created_at timestamp with time zone default now(),
+  status text default 'pending'::text,
+  constraint career_inquiries_pkey PRIMARY KEY (id)
+);
+
+-- Table: public.confession_comments
+create table public.confession_comments (
+  id uuid not null default gen_random_uuid(),
+  confession_id uuid,
+  user_id uuid,
+  text text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint confession_comments_confession_id_fkey FOREIGN KEY (confession_id) REFERENCES confessions(id) ON DELETE CASCADE,
+  constraint confession_comments_pkey PRIMARY KEY (id),
+  constraint confession_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.confession_reactions
+create table public.confession_reactions (
+  id uuid not null default gen_random_uuid(),
+  confession_id uuid,
+  user_id uuid,
+  emoji text,
+  constraint confession_reactions_confession_id_fkey FOREIGN KEY (confession_id) REFERENCES confessions(id) ON DELETE CASCADE,
+  constraint confession_reactions_pkey PRIMARY KEY (id),
+  constraint confession_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint one_reaction_per_user_per_confession UNIQUE (confession_id, user_id)
+);
+
+-- Table: public.confessions
+create table public.confessions (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid,
+  university text,
+  text text,
+  image_url text,
+  type text default 'text'::text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint confessions_pkey PRIMARY KEY (id),
+  constraint confessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.glimpse_reactions
+create table public.glimpse_reactions (
+  id uuid not null default gen_random_uuid(),
+  glimpse_id uuid,
+  user_id uuid,
+  reaction_type text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint glimpse_reactions_glimpse_id_fkey FOREIGN KEY (glimpse_id) REFERENCES glimpses(id) ON DELETE CASCADE,
+  constraint glimpse_reactions_glimpse_id_user_id_reaction_type_key UNIQUE (glimpse_id, user_id, reaction_type),
+  constraint glimpse_reactions_pkey PRIMARY KEY (id),
+  constraint glimpse_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.glimpses
+create table public.glimpses (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid,
+  image_path text,
+  caption text,
+  university text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  is_anonymous boolean default false,
+  constraint glimpses_pkey PRIMARY KEY (id),
+  constraint glimpses_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.matches
+create table public.matches (
+  id uuid not null default gen_random_uuid(),
+  user_a uuid,
+  user_b uuid,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  is_revealed boolean default false,
+  constraint matches_pkey PRIMARY KEY (id),
+  constraint matches_user_a_fkey FOREIGN KEY (user_a) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint matches_user_a_user_b_key UNIQUE (user_a, user_b),
+  constraint matches_user_b_fkey FOREIGN KEY (user_b) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.messages
+create table public.messages (
+  id uuid not null default gen_random_uuid(),
+  match_id uuid,
+  sender_id uuid,
+  text text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  is_read boolean default false,
+  constraint messages_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+  constraint messages_pkey PRIMARY KEY (id),
+  constraint messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.notifications
+create table public.notifications (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid,
+  from_user_id uuid,
+  type text,
+  title text,
+  message text,
+  read boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  action_url text,
+  constraint notifications_from_user_id_fkey FOREIGN KEY (from_user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint notifications_pkey PRIMARY KEY (id),
+  constraint notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.poll_options
+create table public.poll_options (
+  id uuid not null default gen_random_uuid(),
+  confession_id uuid,
+  text text,
+  vote_count integer default 0,
+  constraint poll_options_confession_id_fkey FOREIGN KEY (confession_id) REFERENCES confessions(id) ON DELETE CASCADE,
+  constraint poll_options_pkey PRIMARY KEY (id)
+);
+
+-- Table: public.poll_votes
+create table public.poll_votes (
+  id uuid not null default gen_random_uuid(),
+  confession_id uuid,
+  option_id uuid,
+  user_id uuid,
+  constraint poll_votes_confession_id_fkey FOREIGN KEY (confession_id) REFERENCES confessions(id) ON DELETE CASCADE,
+  constraint poll_votes_confession_id_user_id_key UNIQUE (confession_id, user_id),
+  constraint poll_votes_option_id_fkey FOREIGN KEY (option_id) REFERENCES poll_options(id) ON DELETE CASCADE,
+  constraint poll_votes_pkey PRIMARY KEY (id),
+  constraint poll_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.profiles
+create table public.profiles (
+  id uuid not null,
+  anonymous_id text,
+  real_name text,
+  gender text,
+  university text,
+  university_email text,
+  branch text,
+  year text,
+  interests text[],
+  bio text,
+  dob text,
+  is_verified boolean default false,
+  avatar text,
+  is_premium boolean default false,
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  looking_for text[],
+  username text,
+  constraint profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE,
+  constraint profiles_pkey PRIMARY KEY (id),
+  constraint profiles_username_key UNIQUE (username)
+);
+
+-- Table: public.support_tickets
+create table public.support_tickets (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid,
+  email text,
+  category text,
+  message text,
+  status text default 'open'::text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint support_tickets_pkey PRIMARY KEY (id),
+  constraint support_tickets_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.swipes
+create table public.swipes (
+  id uuid not null default gen_random_uuid(),
+  liker_id uuid,
+  target_id uuid,
+  action text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint swipes_liker_id_fkey FOREIGN KEY (liker_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  constraint swipes_liker_id_target_id_key UNIQUE (liker_id, target_id),
+  constraint swipes_pkey PRIMARY KEY (id),
+  constraint swipes_target_id_fkey FOREIGN KEY (target_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.user_presence
+create table public.user_presence (
+  user_id uuid not null,
+  is_online boolean default false,
+  last_seen timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  constraint user_presence_pkey PRIMARY KEY (user_id),
+  constraint user_presence_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+-- Table: public.verification_requests
+create table public.verification_requests (
+  id uuid not null default gen_random_uuid(),
+  user_id uuid,
+  email text,
+  status text default 'pending'::text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  constraint verification_requests_pkey PRIMARY KEY (id),
+  constraint verification_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
 ```
 
 ---
 
 ## 3. Row Level Security (RLS) Policies
-
 ```sql
--- Enable RLS on all tables
-alter table public.profiles enable row level security;
 alter table public.user_presence enable row level security;
 alter table public.blocked_users enable row level security;
+alter table public.profiles enable row level security;
 alter table public.swipes enable row level security;
 alter table public.matches enable row level security;
 alter table public.messages enable row level security;
-alter table public.call_sessions enable row level security;
-alter table public.notifications enable row level security;
 alter table public.confessions enable row level security;
-alter table public.confession_reactions enable row level security;
 alter table public.confession_comments enable row level security;
+alter table public.confession_reactions enable row level security;
 alter table public.poll_options enable row level security;
 alter table public.poll_votes enable row level security;
+alter table public.glimpses enable row level security;
+alter table public.glimpse_reactions enable row level security;
+alter table public.notifications enable row level security;
+alter table public.call_sessions enable row level security;
+alter table public.active_rooms enable row level security;
 alter table public.verification_requests enable row level security;
 alter table public.support_tickets enable row level security;
 alter table public.career_inquiries enable row level security;
-alter table public.active_rooms enable row level security;
 
--- PROFILES
-create policy "Public profiles are viewable by everyone" on public.profiles for select using (true);
-create policy "Users can insert their own profile" on public.profiles for insert with check (auth.uid() = id);
-create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
+-- Policy: Allow public delete access to active_rooms on active_rooms
+create policy "Allow public delete access to active_rooms" on public.active_rooms
+  for delete
+  to public
+  using (true)
+;
 
--- USER PRESENCE
-create policy "Allow read all presence" on public.user_presence for select using (true);
-create policy "Allow upsert own presence" on public.user_presence for all using (true) with check (auth.uid() = id);
+-- Policy: Allow public insert access to active_rooms on active_rooms
+create policy "Allow public insert access to active_rooms" on public.active_rooms
+  for insert
+  to public
+  with check (true)
+;
 
--- BLOCKED USERS
-create policy "Users can view their blocks" on public.blocked_users for select using (auth.uid() = blocker_id or auth.uid() = blocked_id);
-create policy "Users can insert blocks" on public.blocked_users for insert with check (auth.uid() = blocker_id);
-create policy "Users can delete their blocks" on public.blocked_users for delete using (auth.uid() = blocker_id);
+-- Policy: Allow public read access to active_rooms on active_rooms
+create policy "Allow public read access to active_rooms" on public.active_rooms
+  for select
+  to public
+  using (true)
+;
 
--- SWIPES
-create policy "Allow read own swipes" on public.swipes for select using (auth.uid() = liker_id);
-create policy "Allow upsert own swipes" on public.swipes for all using (true) with check (auth.uid() = liker_id);
+-- Policy: Allow public update access to active_rooms on active_rooms
+create policy "Allow public update access to active_rooms" on public.active_rooms
+  for update
+  to public
+  using (true)
+;
 
--- MATCHES
-create policy "Users can view their matches" on public.matches for select using (auth.uid() = user1_id or auth.uid() = user2_id);
-create policy "Users can update their matches" on public.matches for update using (auth.uid() = user1_id or auth.uid() = user2_id);
-create policy "Users can trigger match creation" on public.matches for insert with check (auth.uid() = user1_id or auth.uid() = user2_id);
+-- Policy: Users can create blocks on blocked_users
+create policy "Users can create blocks" on public.blocked_users
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = blocker_id))
+;
 
--- MESSAGES
-create policy "Users can view messages of their matches" on public.messages for select using (
-  exists (
-    select 1 from public.matches 
-    where matches.id = messages.match_id 
-    and (matches.user1_id = auth.uid() or matches.user2_id = auth.uid())
-  )
-);
-create policy "Users can insert messages to their matches" on public.messages for insert with check (auth.uid() = sender_id);
-create policy "Users can update (mark as read) their received messages" on public.messages for update using (auth.uid() != sender_id);
-create policy "Users can delete messages they sent" on public.messages for delete using (auth.uid() = sender_id);
+-- Policy: Users can delete their blocks on blocked_users
+create policy "Users can delete their blocks" on public.blocked_users
+  for delete
+  to public
+  using ((( SELECT auth.uid() AS uid) = blocker_id))
+;
 
--- CALL SESSIONS
-create policy "Users can view their calls" on public.call_sessions for select using (auth.uid() = caller_id or auth.uid() = receiver_id);
-create policy "Users can insert calls" on public.call_sessions for insert with check (auth.uid() = caller_id);
-create policy "Users can update their calls" on public.call_sessions for update using (auth.uid() = caller_id or auth.uid() = receiver_id);
+-- Policy: Users can view blocks they created on blocked_users
+create policy "Users can view blocks they created" on public.blocked_users
+  for select
+  to public
+  using ((( SELECT auth.uid() AS uid) = blocker_id))
+;
 
--- NOTIFICATIONS
-create policy "Users can view own notifications" on public.notifications for select using (auth.uid() = user_id);
-create policy "Users can update own notifications" on public.notifications for update using (auth.uid() = user_id);
-create policy "System can insert notifications" on public.notifications for insert with check (true); -- Usually restricted to triggers/RPCs in hardened environments
+-- Policy: Callers can create call sessions on call_sessions
+create policy "Callers can create call sessions" on public.call_sessions
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = caller_id))
+;
 
--- CONFESSIONS (Anonymous feed)
-create policy "Confessions are viewable by everyone" on public.confessions for select using (true);
-create policy "Users can insert confessions" on public.confessions for insert with check (auth.uid() = user_id);
-create policy "Users can update their own confessions" on public.confessions for update using (auth.uid() = user_id);
-create policy "Users can delete their own confessions" on public.confessions for delete using (auth.uid() = user_id);
+-- Policy: Users can update their call sessions on call_sessions
+create policy "Users can update their call sessions" on public.call_sessions
+  for update
+  to public
+  using (((( SELECT auth.uid() AS uid) = caller_id) OR (( SELECT auth.uid() AS uid) = receiver_id)))
+;
 
--- CONFESSION REACTIONS
-create policy "Reactions are viewable by everyone" on public.confession_reactions for select using (true);
-create policy "Users can insert own reactions" on public.confession_reactions for insert with check (auth.uid() = user_id);
-create policy "Users can delete own reactions" on public.confession_reactions for delete using (auth.uid() = user_id);
+-- Policy: Users can view their own call sessions on call_sessions
+create policy "Users can view their own call sessions" on public.call_sessions
+  for select
+  to public
+  using (((( SELECT auth.uid() AS uid) = caller_id) OR (( SELECT auth.uid() AS uid) = receiver_id)))
+;
 
--- CONFESSION COMMENTS
-create policy "Comments are viewable by everyone" on public.confession_comments for select using (true);
-create policy "Users can insert comments" on public.confession_comments for insert with check (auth.uid() = user_id);
+-- Policy: Anyone can submit career inquiry on career_inquiries
+create policy "Anyone can submit career inquiry" on public.career_inquiries
+  for insert
+  to public
+  with check (true)
+;
 
--- POLLS
-create policy "Poll options are viewable by everyone" on public.poll_options for select using (true);
-create policy "Users can insert poll options" on public.poll_options for insert with check (true);
-create policy "Poll votes are viewable by everyone" on public.poll_votes for select using (true);
-create policy "Users can cast votes" on public.poll_votes for insert with check (auth.uid() = user_id);
+-- Policy: Comment on confession_comments
+create policy "Comment" on public.confession_comments
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
 
--- SUPPORT / CAREERS / VERIFICATION
-create policy "Users can view own verification requests" on public.verification_requests for select using (auth.uid() = user_id);
-create policy "Users can insert verification requests" on public.verification_requests for insert with check (auth.uid() = user_id);
-create policy "Anyone can insert support tickets" on public.support_tickets for insert with check (true);
-create policy "Anyone can insert career inquiries" on public.career_inquiries for insert with check (true);
+-- Policy: Read comments on confession_comments
+create policy "Read comments" on public.confession_comments
+  for select
+  to public
+  using (true)
+;
 
--- ACTIVE ROOMS
-create policy "Anyone can read active rooms" on public.active_rooms for select using (true);
-create policy "Users can manage active rooms" on public.active_rooms for all using (auth.uid() = host_user_id) with check (auth.uid() = host_user_id);
+-- Policy: Users can insert comments on confession_comments
+create policy "Users can insert comments" on public.confession_comments
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: React on confession_reactions
+create policy "React" on public.confession_reactions
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Read reactions on confession_reactions
+create policy "Read reactions" on public.confession_reactions
+  for select
+  to public
+  using (true)
+;
+
+-- Policy: Authenticated users can view all confessions on confessions
+create policy "Authenticated users can view all confessions" on public.confessions
+  for select
+  to authenticated
+  using (true)
+;
+
+-- Policy: Insert confessions on confessions
+create policy "Insert confessions" on public.confessions
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Read all confessions on confessions
+create policy "Read all confessions" on public.confessions
+  for select
+  to public
+  using (true)
+;
+
+-- Policy: Reactions are viewable by authenticated users on glimpse_reactions
+create policy "Reactions are viewable by authenticated users" on public.glimpse_reactions
+  for select
+  to public
+  using ((auth.role() = 'authenticated'::text))
+;
+
+-- Policy: Users can insert reactions on glimpse_reactions
+create policy "Users can insert reactions" on public.glimpse_reactions
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Glimpses are viewable by authenticated users on glimpses
+create policy "Glimpses are viewable by authenticated users" on public.glimpses
+  for select
+  to public
+  using ((auth.role() = 'authenticated'::text))
+;
+
+-- Policy: Users can delete their own glimpses on glimpses
+create policy "Users can delete their own glimpses" on public.glimpses
+  for delete
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can insert their own glimpses on glimpses
+create policy "Users can insert their own glimpses" on public.glimpses
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can insert matches on matches
+create policy "Users can insert matches" on public.matches
+  for insert
+  to public
+  with check (((( SELECT auth.uid() AS uid) = user_a) OR (( SELECT auth.uid() AS uid) = user_b)))
+;
+
+-- Policy: Users can trigger match creation on matches
+create policy "Users can trigger match creation" on public.matches
+  for insert
+  to public
+  with check (((( SELECT auth.uid() AS uid) = user_a) AND (EXISTS ( SELECT 1
+   FROM swipes s
+  WHERE ((s.liker_id = matches.user_b) AND (s.target_id = ( SELECT auth.uid() AS uid)) AND (s.action = 'like'::text))))))
+;
+
+-- Policy: Users can view their own matches on matches
+create policy "Users can view their own matches" on public.matches
+  for select
+  to public
+  using (((( SELECT auth.uid() AS uid) = user_a) OR (( SELECT auth.uid() AS uid) = user_b)))
+;
+
+-- Policy: allow_select_messages on messages
+create policy "allow_select_messages" on public.messages
+  for select
+  to authenticated
+  using ((EXISTS ( SELECT 1
+   FROM matches
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
+;
+
+-- Policy: allow_insert_messages on messages
+create policy "allow_insert_messages" on public.messages
+  for insert
+  to authenticated
+  with check (((sender_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM matches
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid))))))))
+;
+
+-- Policy: allow_update_messages on messages
+create policy "allow_update_messages" on public.messages
+  for update
+  to authenticated
+  using ((EXISTS ( SELECT 1
+   FROM matches
+  WHERE ((matches.id = messages.match_id) AND ((matches.user_a = ( SELECT auth.uid() AS uid)) OR (matches.user_b = ( SELECT auth.uid() AS uid)))))))
+;
+
+-- Policy: allow_delete_messages on messages
+create policy "allow_delete_messages" on public.messages
+  for delete
+  to authenticated
+  using ((( SELECT auth.uid() AS uid) = sender_id))
+;
+
+-- Policy: Users can delete their own notifications on notifications
+create policy "Users can delete their own notifications" on public.notifications
+  for delete
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can insert own notifications on notifications
+create policy "Users can insert own notifications" on public.notifications
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can insert their own notifications on notifications
+create policy "Users can insert their own notifications" on public.notifications
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can read own notifications on notifications
+create policy "Users can read own notifications" on public.notifications
+  for select
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can update their own notifications on notifications
+create policy "Users can update their own notifications" on public.notifications
+  for update
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can view their own notifications on notifications
+create policy "Users can view their own notifications" on public.notifications
+  for select
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Insert options on poll_options
+create policy "Insert options" on public.poll_options
+  for insert
+  to public
+  with check ((EXISTS ( SELECT 1
+   FROM confessions
+  WHERE ((confessions.id = poll_options.confession_id) AND (confessions.user_id = ( SELECT auth.uid() AS uid))))))
+;
+
+-- Policy: Read options on poll_options
+create policy "Read options" on public.poll_options
+  for select
+  to public
+  using (true)
+;
+
+-- Policy: Read votes on poll_votes
+create policy "Read votes" on public.poll_votes
+  for select
+  to public
+  using (true)
+;
+
+-- Policy: Vote on poll_votes
+create policy "Vote" on public.poll_votes
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Public profiles are viewable by authenticated users on profiles
+create policy "Public profiles are viewable by authenticated users" on public.profiles
+  for select
+  to authenticated
+  using (true)
+;
+
+-- Policy: Public profiles are viewable by everyone on profiles
+create policy "Public profiles are viewable by everyone" on public.profiles
+  for select
+  to public
+  using (true)
+;
+
+-- Policy: Users can insert their own profile on profiles
+create policy "Users can insert their own profile" on public.profiles
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = id))
+;
+
+-- Policy: Users can update their own profile on profiles
+create policy "Users can update their own profile" on public.profiles
+  for update
+  to public
+  using ((( SELECT auth.uid() AS uid) = id))
+;
+
+-- Policy: Users can insert their own support tickets on support_tickets
+create policy "Users can insert their own support tickets" on public.support_tickets
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can view their own support tickets on support_tickets
+create policy "Users can view their own support tickets" on public.support_tickets
+  for select
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Allow read own swipes on swipes
+create policy "Allow read own swipes" on public.swipes
+  for select
+  to public
+  using ((( SELECT auth.uid() AS uid) = liker_id))
+;
+
+-- Policy: Allow upsert own swipes on swipes
+create policy "Allow upsert own swipes" on public.swipes
+  for all
+  to public
+  using ((auth.uid() = liker_id))
+  with check ((auth.uid() = liker_id))
+;
+
+-- Policy: Allow read all presence on user_presence
+create policy "Allow read all presence" on public.user_presence
+  for select
+  to public
+  using (true)
+;
+
+-- Policy: Allow upsert own presence on user_presence
+create policy "Allow upsert own presence" on public.user_presence
+  for all
+  to public
+  using ((auth.uid() = user_id))
+  with check ((auth.uid() = user_id))
+;
+
+-- Policy: Users can insert their own verification requests on verification_requests
+create policy "Users can insert their own verification requests" on public.verification_requests
+  for insert
+  to public
+  with check ((( SELECT auth.uid() AS uid) = user_id))
+;
+
+-- Policy: Users can view their own verification requests on verification_requests
+create policy "Users can view their own verification requests" on public.verification_requests
+  for select
+  to public
+  using ((( SELECT auth.uid() AS uid) = user_id))
+;
+
 ```
 
 ---
 
 ## 4. PostgreSQL Triggers & Functions (Automation)
-
 ```sql
--- Trigger to update "updated_at" timestamp automatically
-create or replace function public.handle_updated_at()
-returns trigger as $$
+CREATE OR REPLACE FUNCTION public.handle_new_like()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
 begin
-  new.updated_at = now();
+  -- Only create notification if the action is 'like'
+  if new.action = 'like' then
+    insert into public.notifications (user_id, from_user_id, type, title, message)
+    values (
+      new.target_id,
+      new.liker_id,
+      'like',
+      'Someone likes you! 💖',
+      'A student from your campus is interested. Accept to start chatting!'
+    );
+  end if;
   return new;
 end;
-$$ language plpgsql;
+$function$;
 
-create trigger on_profiles_updated
-  before update on public.profiles
-  for each row execute procedure public.handle_updated_at();
+CREATE OR REPLACE FUNCTION public.handle_new_match()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  -- Now it is safe to check NEW.action because we added the column above
+  IF NEW.action = 'like' THEN
+  
+    -- Check if the other person also liked us
+    IF EXISTS (
+      SELECT 1 FROM swipes 
+      WHERE liker_id = NEW.target_id 
+      AND target_id = NEW.liker_id 
+      AND action = 'like'
+    ) THEN
+      
+      -- Avoid creating duplicate matches
+      IF NOT EXISTS (
+        SELECT 1 FROM matches 
+        WHERE (user_a = NEW.liker_id AND user_b = NEW.target_id) 
+           OR (user_a = NEW.target_id AND user_b = NEW.liker_id)
+      ) THEN
+        
+        -- Create the Match
+        INSERT INTO matches (user_a, user_b)
+        VALUES (NEW.liker_id, NEW.target_id);
+        
+        -- Send Notifications
+        INSERT INTO notifications (user_id, type, title, message, from_user_id)
+        VALUES 
+          (NEW.liker_id, 'match', 'It''s a Match!', 'You have a new match!', NEW.target_id),
+          (NEW.target_id, 'match', 'It''s a Match!', 'You have a new match!', NEW.liker_id);
+          
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
 
-create trigger on_matches_updated
-  before update on public.matches
-  for each row execute procedure public.handle_updated_at();
+CREATE OR REPLACE FUNCTION public.handle_new_swipe()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  mutual_like boolean;
+BEGIN
+  -- We only care about 'like' actions
+  IF NEW.action = 'like' THEN
+    
+    -- Check if the target has already liked the liker (Mutual Like)
+    SELECT EXISTS (
+      SELECT 1 FROM public.swipes 
+      WHERE liker_id = NEW.target_id 
+      AND target_id = NEW.liker_id 
+      AND action = 'like'
+    ) INTO mutual_like;
 
--- Trigger to increment confession comment/reaction counts
-create or replace function public.increment_confession_stats()
-returns trigger as $$
+    IF mutual_like THEN
+      -- A. IT'S A MATCH!
+      
+      -- 1. Create the Match Record (if not exists)
+      INSERT INTO public.matches (user_a, user_b)
+      VALUES (LEAST(NEW.liker_id, NEW.target_id), GREATEST(NEW.liker_id, NEW.target_id))
+      ON CONFLICT DO NOTHING;
+      
+      -- 2. Notify the Liker (The person who just swiped/accepted)
+      -- "the one who like receives a notification that you like this user"
+      INSERT INTO public.notifications (user_id, type, title, message, from_user_id)
+      VALUES (
+        NEW.liker_id,
+        'match',
+        'It''s a Match! 💖',
+        'You matched with them! Start chatting now.',
+        NEW.target_id
+      );
+
+      -- 3. Notify the Target (The person who liked FIRST)
+      -- "other person... they have been liked back"
+      INSERT INTO public.notifications (user_id, type, title, message, from_user_id)
+      VALUES (
+        NEW.target_id,
+        'match',
+        'It''s a Match! 🎉',
+        'They liked you back! Start chatting now.',
+        NEW.liker_id
+      );
+
+    ELSE
+      -- B. ONE-WAY LIKE (Notify the target)
+      INSERT INTO public.notifications (user_id, type, title, message, from_user_id)
+      VALUES (
+        NEW.target_id,
+        'like',
+        'Someone likes you! 👀',
+        'A student from your campus is interested. Accept to start chatting!',
+        NEW.liker_id
+      );
+      
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.handle_new_vote()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
 begin
-  if TG_TABLE_NAME = 'confession_comments' then
-    if TG_OP = 'INSERT' then
-      update public.confessions set comments_count = comments_count + 1 where id = new.confession_id;
-    elsif TG_OP = 'DELETE' then
-      update public.confessions set comments_count = comments_count - 1 where id = old.confession_id;
-    end if;
-  elsif TG_TABLE_NAME = 'confession_reactions' then
-    if TG_OP = 'INSERT' then
-      update public.confessions set likes_count = likes_count + 1 where id = new.confession_id;
-    elsif TG_OP = 'DELETE' then
-      update public.confessions set likes_count = likes_count - 1 where id = old.confession_id;
-    end if;
-  end if;
-  return null;
+  update public.poll_options
+  set vote_count = vote_count + 1
+  where id = new.option_id;
+  return new;
 end;
-$$ language plpgsql;
+$function$;
 
-create trigger on_comment_added
-  after insert or delete on public.confession_comments
-  for each row execute procedure public.increment_confession_stats();
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$function$;
 
-create trigger on_reaction_added
-  after insert or delete on public.confession_reactions
-  for each row execute procedure public.increment_confession_stats();
+-- Trigger: update_user_presence_updated_at on user_presence
+CREATE TRIGGER update_user_presence_updated_at BEFORE UPDATE ON public.user_presence FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger: on_vote on poll_votes
+CREATE TRIGGER on_vote AFTER INSERT OR UPDATE ON public.poll_votes FOR EACH ROW EXECUTE FUNCTION handle_new_vote();
+
+-- Trigger: on_match_created on swipes
+CREATE TRIGGER on_match_created AFTER INSERT OR UPDATE ON public.swipes FOR EACH ROW EXECUTE FUNCTION handle_new_match();
+
+-- Trigger: on_new_like on swipes
+CREATE TRIGGER on_new_like AFTER INSERT OR UPDATE ON public.swipes FOR EACH ROW EXECUTE FUNCTION handle_new_like();
+
+-- Trigger: on_swipe_created on swipes
+CREATE TRIGGER on_swipe_created AFTER INSERT OR UPDATE ON public.swipes FOR EACH ROW EXECUTE FUNCTION handle_new_swipe();
+
+-- Trigger: handle_updated_at on profiles
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION moddatetime('updated_at');
+
 ```
 
 ---
 
 ## 5. Required RPCs (Edge Functions as Postgres Procedures)
-
 ```sql
--- 1. Get Potential Matches (Profiles the user hasn't swiped on yet and aren't blocked, filtered by Campus/Global mode)
-create or replace function public.get_potential_matches(
-  user_id uuid,
-  match_mode text,
-  user_university text,
-  display_limit integer default 20
-)
-returns setof public.profiles
-language plpgsql
-security definer -- Runs with elevated privileges to bypass strict match view limits safely
-as $$
+CREATE OR REPLACE FUNCTION public.cleanup_old_messages()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
 begin
-  if match_mode = 'campus' then
-    return query
-    select p.*
-    from public.profiles p
-    where p.id != user_id
-      and p.university = user_university
-      -- Exclude people they've already swiped on
-      and not exists (
-        select 1 from public.swipes s 
-        where s.liker_id = user_id and s.target_id = p.id
-      )
-      -- Exclude blocked users (both directions)
-      and not exists (
-        select 1 from public.blocked_users b
-        where (b.blocker_id = user_id and b.blocked_id = p.id)
-           or (b.blocker_id = p.id and b.blocked_id = user_id)
-      )
-    order by p.created_at desc
-    limit display_limit;
-  else -- Global mode
-    return query
-    select p.*
-    from public.profiles p
-    where p.id != user_id
-      and p.university != user_university
-      -- Exclude people they've already swiped on
-      and not exists (
-        select 1 from public.swipes s 
-        where s.liker_id = user_id and s.target_id = p.id
-      )
-      -- Exclude blocked users (both directions)
-      and not exists (
-        select 1 from public.blocked_users b
-        where (b.blocker_id = user_id and b.blocked_id = p.id)
-           or (b.blocker_id = p.id and b.blocked_id = user_id)
-      )
-    order by p.created_at desc
-    limit display_limit;
-  end if;
+  delete from public.messages
+  where created_at < (now() - interval '10 days');
 end;
-$$;
+$function$;
 
--- 2. Get Skipped Profiles (Users the current user has 'passed' on, filtered by Campus/Global mode)
-create or replace function public.get_skipped_profiles(
-  current_user_id uuid,
-  match_mode text,
-  user_university text
-)
-returns setof public.profiles
-language plpgsql
-security definer
-as $$
+CREATE OR REPLACE FUNCTION public.cleanup_stale_presence()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
 begin
-  if match_mode = 'campus' then
-    return query
-    select p.*
-    from public.profiles p
-    join public.swipes s on s.target_id = p.id
-    where s.liker_id = current_user_id
-      and s.action = 'pass'
-      and p.university = user_university
-    order by s.created_at desc;
-  else -- Global mode
-    return query
-    select p.*
-    from public.profiles p
-    join public.swipes s on s.target_id = p.id
-    where s.liker_id = current_user_id
-      and s.action = 'pass'
-      and p.university != user_university
-    order by s.created_at desc;
-  end if;
+  update public.user_presence
+  set is_online = false,
+      updated_at = now()
+  where is_online = true
+    and last_seen < (now() - interval '5 minutes');
 end;
-$$;
+$function$;
 
--- 3. Get Matches With Preview (The heavily optimized RPC for the Matches page)
-create or replace function public.get_matches_with_preview(current_user_id uuid)
-returns table (
-  match_id uuid,
-  partner_id uuid,
-  partner_profile json,
-  last_message json,
-  last_message_time timestamp with time zone,
-  unread_count bigint
-) 
-language plpgsql
-security definer
-as $$
+CREATE OR REPLACE FUNCTION public.get_matches_with_preview()
+ RETURNS TABLE(match_id uuid, partner_id uuid, partner_profile json, last_message json, last_message_time timestamp with time zone, unread_count bigint)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
 begin
   return query
-  select 
+  select
     m.id as match_id,
-    -- Determine who the partner is
-    case 
-      when m.user1_id = current_user_id then m.user2_id 
-      else m.user1_id 
-    end as partner_id,
-    
-    -- Bundle the partner's profile as JSON
+    case when m.user_a = auth.uid() then m.user_b else m.user_a end as partner_id,
     row_to_json(p.*) as partner_profile,
-    
-    -- Bundle the last message as JSON
-    (
-      select row_to_json(msg.*)
-      from public.messages msg
-      where msg.match_id = m.id
-      order by msg.created_at desc
-      limit 1
-    ) as last_message,
-    
-    -- Extract the timestamp of the last message for sorting
-    (
-      select msg.created_at
-      from public.messages msg
-      where msg.match_id = m.id
-      order by msg.created_at desc
-      limit 1
-    ) as last_message_time,
-    
-    -- Count unread messages sent by the partner
-    (
-      select count(*)
-      from public.messages msg
-      where msg.match_id = m.id 
-      and msg.sender_id != current_user_id 
-      and msg.is_read = false
-    ) as unread_count
-    
+    row_to_json(lm.*) as last_message,
+    lm.created_at as last_message_time,
+    coalesce(unread.count, 0) as unread_count
   from public.matches m
   join public.profiles p on p.id = (
-    case 
-      when m.user1_id = current_user_id then m.user2_id 
-      else m.user1_id 
-    end
+    case when m.user_a = auth.uid() then m.user_b else m.user_a end
   )
-  where (m.user1_id = current_user_id or m.user2_id = current_user_id)
-  and m.status = 'matched';
+  left join lateral (
+    select msg.*
+    from public.messages msg
+    where msg.match_id = m.id
+    order by msg.created_at desc
+    limit 1
+  ) lm on true
+  left join lateral (
+    select count(*) as count
+    from public.messages msg
+    where msg.match_id = m.id
+      and msg.sender_id != auth.uid()
+      and msg.is_read = false
+  ) unread on true
+  where (m.user_a = auth.uid() or m.user_b = auth.uid());
 end;
-$$;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_matches_with_preview(current_user_id uuid)
+ RETURNS TABLE(match_id uuid, partner_id uuid, partner_profile jsonb, last_message text, last_message_time timestamp with time zone, unread_count bigint)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    RETURN QUERY
+    WITH user_matches AS (
+        SELECT m.id AS m_id, m.user_b AS p_id, m.created_at AS m_created_at
+        FROM public.matches m
+        WHERE m.user_a = current_user_id
+        UNION ALL
+        SELECT m.id AS m_id, m.user_a AS p_id, m.created_at AS m_created_at
+        FROM public.matches m
+        WHERE m.user_b = current_user_id
+    )
+    SELECT 
+        um.m_id AS match_id,
+        um.p_id AS partner_id,
+        to_jsonb(p.*) AS partner_profile,
+        COALESCE(lm.text, 'New Match!') AS last_message,
+        COALESCE(lm.created_at, um.m_created_at) AS last_message_time,
+        COALESCE(unread.count, 0)::bigint AS unread_count
+    FROM user_matches um
+    JOIN public.profiles p ON p.id = um.p_id
+    LEFT JOIN LATERAL (
+        SELECT msg.text, msg.created_at
+        FROM public.messages msg
+        WHERE msg.match_id = um.m_id
+        ORDER BY msg.created_at DESC
+        LIMIT 1
+    ) lm ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS count
+        FROM public.messages msg
+        WHERE msg.match_id = um.m_id
+          AND msg.sender_id = um.p_id
+          AND msg.is_read = FALSE
+    ) unread ON TRUE
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM public.blocked_users bu 
+        WHERE (bu.blocker_id = current_user_id AND bu.blocked_id = um.p_id)
+           OR (bu.blocked_id = current_user_id AND bu.blocker_id = um.p_id)
+    )
+    ORDER BY COALESCE(lm.created_at, um.m_created_at) DESC;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_potential_matches(user_id uuid, match_mode text, user_university text, limit_count integer DEFAULT 50, offset_count integer DEFAULT 0)
+ RETURNS SETOF profiles
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT p.*
+  FROM profiles p
+  WHERE p.id != user_id
+    -- Exclude users already swiped by this user
+    AND NOT EXISTS (
+      SELECT 1 FROM swipes s 
+      WHERE s.liker_id = get_potential_matches.user_id 
+      AND s.target_id = p.id
+    )
+    -- Exclude users blocked by this user
+    AND NOT EXISTS (
+      SELECT 1 FROM blocked_users b 
+      WHERE b.blocker_id = get_potential_matches.user_id 
+      AND b.blocked_id = p.id
+    )
+    -- Exclude users who blocked this user
+    AND NOT EXISTS (
+      SELECT 1 FROM blocked_users b 
+      WHERE b.blocker_id = p.id 
+      AND b.blocked_id = get_potential_matches.user_id
+    )
+    -- MODE FILTERING (Cleaned split-part comparison)
+    AND (
+        (match_mode = 'campus' AND LOWER(TRIM(split_part(p.university, ',', 1))) = LOWER(TRIM(split_part(user_university, ',', 1))))
+        OR
+        (match_mode = 'global' AND LOWER(TRIM(split_part(p.university, ',', 1))) != LOWER(TRIM(split_part(user_university, ',', 1))))
+    )
+  ORDER BY random()
+  LIMIT limit_count;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_potential_matches_v2(user_id uuid, recycle_mode boolean DEFAULT false, query_limit integer DEFAULT 20)
+ RETURNS SETOF profiles
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  user_looking_for text[];
+BEGIN
+  -- Get the current user's "looking for" preferences
+  SELECT looking_for INTO user_looking_for FROM profiles WHERE id = user_id;
+
+  IF recycle_mode THEN
+    -- RECYCLE MODE: Return ANYONE NOT LIKED (Likely to retry/second chance)
+    RETURN QUERY
+    SELECT p.*
+    FROM profiles p
+    WHERE p.id != user_id
+    AND p.id NOT IN (
+      SELECT target_id FROM swipes WHERE liker_id = user_id AND action = 'like'
+    )
+    AND p.id NOT IN (
+      SELECT CASE WHEN user_a = user_id THEN user_b ELSE user_a END
+      FROM matches
+      WHERE user_a = user_id OR user_b = user_id
+    )
+    -- Order by overlap count (descending), then random
+    ORDER BY
+        (
+            SELECT COUNT(*)
+            FROM unnest(p.looking_for) as target_intent
+            WHERE target_intent = ANY(user_looking_for)
+        ) DESC,
+        random()
+    LIMIT query_limit;
+  ELSE
+    -- NORMAL MODE: New profiles only
+    RETURN QUERY
+    SELECT p.*
+    FROM profiles p
+    WHERE p.id != user_id
+    AND p.id NOT IN (
+      SELECT target_id FROM swipes WHERE liker_id = user_id
+    )
+    -- Order by overlap count (descending), then random
+    ORDER BY
+        (
+            SELECT COUNT(*)
+            FROM unnest(p.looking_for) as target_intent
+            WHERE target_intent = ANY(user_looking_for)
+        ) DESC,
+        random()
+    LIMIT query_limit;
+  END IF;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_skipped_profiles(current_user_id uuid, match_mode text, user_university text)
+ RETURNS TABLE(id uuid, anonymous_id text, real_name text, gender text, university text, branch text, year text, interests text[], bio text, dob text, is_verified boolean, avatar text, looking_for text[])
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  -- Security check: users can only fetch their own skipped profiles
+  IF auth.uid() != current_user_id THEN
+    RAISE EXCEPTION 'Access denied. You can only view your own skipped profiles.';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    p.id,
+    p.anonymous_id,
+    p.real_name,
+    p.gender,
+    p.university,
+    p.branch,
+    p.year,
+    p.interests,
+    p.bio,
+    p.dob,
+    p.is_verified,
+    p.avatar,
+    p.looking_for
+  FROM profiles p
+  INNER JOIN swipes s ON p.id = s.target_id
+  WHERE s.liker_id = current_user_id
+  AND s.action = 'pass'
+  -- MODE FILTERING (Cleaned split-part comparison)
+  AND (
+      (match_mode = 'campus' AND LOWER(TRIM(split_part(p.university, ',', 1))) = LOWER(TRIM(split_part(user_university, ',', 1))))
+      OR
+      (match_mode = 'global' AND LOWER(TRIM(split_part(p.university, ',', 1))) != LOWER(TRIM(split_part(user_university, ',', 1))))
+  )
+  ORDER BY s.created_at ASC -- Oldest passes first
+  LIMIT 20;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.is_user_blocked(p_blocker_id uuid, p_blocked_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ SECURITY DEFINER
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM blocked_users
+    WHERE blocker_id = p_blocker_id
+    AND blocked_id = p_blocked_id
+  );
+$function$;
+
+CREATE OR REPLACE FUNCTION public.timeout_missed_calls()
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  UPDATE call_sessions
+  SET status = 'missed',
+      ended_at = now()
+  WHERE status = 'ringing'
+    AND created_at < now() - INTERVAL '30 seconds';
+END;
+$function$;
+
+```
+
+---
+
+## 5. Database Views
+```sql
+CREATE OR REPLACE VIEW public.glimpse_leaderboard 
+WITH (security_invoker = true) AS
+SELECT 
+  g.user_id,
+  g.university as glimpse_university,
+  COUNT(g.id)::int as count,
+  json_build_object(
+    'id', p.id,
+    'real_name', p.real_name,
+    'anonymous_id', p.anonymous_id,
+    'avatar', p.avatar,
+    'is_verified', p.is_verified,
+    'university', p.university
+  ) as profiles
+FROM public.glimpses g
+JOIN public.profiles p ON g.user_id = p.id
+GROUP BY g.user_id, g.university, p.id, p.real_name, p.anonymous_id, p.avatar, p.is_verified, p.university;
+```
+
+---
+
+## 6. Custom Indexes
+```sql
+CREATE INDEX idx_blocked_users_blocked ON public.blocked_users USING btree (blocked_id);
+CREATE INDEX idx_call_sessions_caller ON public.call_sessions USING btree (caller_id);
+CREATE INDEX idx_call_sessions_created ON public.call_sessions USING btree (created_at DESC);
+CREATE INDEX idx_call_sessions_match_id ON public.call_sessions USING btree (match_id);
+CREATE INDEX idx_call_sessions_receiver ON public.call_sessions USING btree (receiver_id);
+CREATE INDEX idx_call_sessions_status ON public.call_sessions USING btree (status);
+CREATE INDEX idx_confession_comments_confession_id ON public.confession_comments USING btree (confession_id);
+CREATE INDEX idx_confession_comments_user_id ON public.confession_comments USING btree (user_id);
+CREATE INDEX idx_confession_reactions_user_id ON public.confession_reactions USING btree (user_id);
+CREATE INDEX idx_confessions_created_at ON public.confessions USING btree (created_at DESC);
+CREATE INDEX idx_confessions_user_id ON public.confessions USING btree (user_id);
+CREATE INDEX idx_glimpse_reactions_glimpse_id ON public.glimpse_reactions USING btree (glimpse_id);
+CREATE INDEX idx_glimpse_reactions_user_id ON public.glimpse_reactions USING btree (user_id);
+CREATE INDEX idx_glimpses_created_at ON public.glimpses USING btree (created_at DESC);
+CREATE INDEX idx_glimpses_university_lower ON public.glimpses USING btree (lower(university) text_pattern_ops);
+CREATE INDEX idx_glimpses_user_id ON public.glimpses USING btree (user_id);
+CREATE INDEX idx_matches_user_a ON public.matches USING btree (user_a) INCLUDE (user_b, created_at);
+CREATE INDEX idx_matches_user_b ON public.matches USING btree (user_b) INCLUDE (user_a, created_at);
+CREATE INDEX idx_messages_created_at ON public.messages USING btree (created_at DESC);
+CREATE INDEX idx_messages_match_created ON public.messages USING btree (match_id, created_at DESC);
+CREATE INDEX idx_messages_sender_id ON public.messages USING btree (sender_id);
+CREATE INDEX idx_messages_unread ON public.messages USING btree (match_id, sender_id, is_read) WHERE (is_read = false);
+CREATE INDEX idx_notifications_from_user_id ON public.notifications USING btree (from_user_id);
+CREATE INDEX idx_notifications_user_created ON public.notifications USING btree (user_id, created_at DESC);
+CREATE INDEX idx_poll_options_confession_id ON public.poll_options USING btree (confession_id);
+CREATE INDEX idx_poll_votes_option_id ON public.poll_votes USING btree (option_id);
+CREATE INDEX idx_poll_votes_user_id ON public.poll_votes USING btree (user_id);
+CREATE INDEX idx_profiles_id ON public.profiles USING btree (id);
+CREATE INDEX idx_profiles_is_verified ON public.profiles USING btree (is_verified);
+CREATE INDEX idx_profiles_university ON public.profiles USING btree (university);
+CREATE INDEX idx_profiles_university_lower ON public.profiles USING btree (lower(university));
+CREATE INDEX idx_profiles_university_clean ON public.profiles USING btree (lower(trim(split_part(university, ',', 1))));
+CREATE INDEX idx_support_tickets_user_id ON public.support_tickets USING btree (user_id);
+CREATE INDEX idx_swipes_action ON public.swipes USING btree (action);
+CREATE INDEX idx_swipes_liker_action_created ON public.swipes USING btree (liker_id, action, created_at);
+CREATE INDEX idx_swipes_target_id ON public.swipes USING btree (target_id);
+CREATE INDEX idx_user_presence_online ON public.user_presence USING btree (is_online);
+CREATE INDEX idx_user_presence_updated ON public.user_presence USING btree (updated_at);
+CREATE INDEX idx_verification_requests_user_id ON public.verification_requests USING btree (user_id);
 ```
 
 ---

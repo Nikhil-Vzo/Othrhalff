@@ -16,6 +16,8 @@ import { getOptimizedUrl } from '../utils/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, LocalMessage } from '../lib/db';
 import Dexie from 'dexie';
+import { getCachedProfile } from '../services/profileCache';
+import { useNotifications } from '../context/NotificationContext';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 import { 
@@ -73,17 +75,393 @@ const mapSupabaseMessageToLocal = (msg: any, matchId: string): LocalMessage => {
   };
 };
 
+interface MessageRowProps {
+  msg: Message & { parsedGame?: any };
+  isMe: boolean;
+  partner: MatchProfile;
+  showAvatar: boolean;
+  currentUser: any;
+  partnerIsOnline: boolean;
+  handleGuess2TL: (msgId: string, state: TwoTruthsLieState, guess: string) => void;
+  handleVoteWYR: (msgId: string, state: WouldYouRatherState, option: 'A' | 'B') => void;
+  handleMessageDoubleClick: (msgId: string, reaction?: string) => void;
+  handleDeleteMessage: (msgId: string) => void;
+}
+
+const MessageRow = React.memo<MessageRowProps>(({
+  msg,
+  isMe,
+  partner,
+  showAvatar,
+  currentUser,
+  partnerIsOnline,
+  handleGuess2TL,
+  handleVoteWYR,
+  handleMessageDoubleClick,
+  handleDeleteMessage
+}) => {
+  if (msg.isSystem && msg.parsedGame?.type === 'INVITE') {
+    const inviteData = msg.parsedGame.state;
+    const isCinema = inviteData.type === 'cinema';
+    const Icon = isCinema ? Tv : Music;
+    const buttonText = isCinema ? 'Join Watch Party' : 'Join Music Session';
+    const inviteTitle = isCinema ? 'Cinema Date Watch Party' : 'Music Jam Session';
+    
+    const shadowClass = isCinema 
+      ? 'shadow-[0_0_15px_rgba(244,63,94,0.15)] hover:shadow-[0_0_20px_rgba(244,63,94,0.3)] border-rose-500/30 hover:border-rose-400/60'
+      : 'shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] border-cyan-500/30 hover:border-cyan-400/60';
+    const glowBg = isCinema ? 'bg-rose-500/10' : 'bg-cyan-500/10';
+    const textClass = isCinema ? 'text-rose-400 font-mono' : 'text-cyan-400 font-mono';
+    const iconBgClass = isCinema ? 'bg-rose-500/15 border border-rose-500/20' : 'bg-cyan-500/15 border border-cyan-500/20';
+    const iconColorClass = isCinema ? 'text-rose-400' : 'text-cyan-400';
+    const btnClass = isCinema
+      ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 shadow-[0_0_10px_rgba(244,63,94,0.3)] hover:shadow-[0_0_15px_rgba(244,63,94,0.5)]'
+      : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]';
+
+    return (
+      <div className="flex justify-center w-full my-4">
+        <div className={`w-full max-w-sm bg-gradient-to-br from-[#0e0717]/85 to-[#030107]/95 border rounded-2xl p-4 backdrop-blur-md relative overflow-hidden transition-all duration-300 ${shadowClass}`}>
+          <div className={`absolute -right-8 -top-8 w-20 h-20 rounded-full blur-xl pointer-events-none ${glowBg}`} />
+          
+          <h4 className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${textClass}`}>
+            <Sparkles className="w-3 h-3 text-current" />
+            <span>{inviteTitle}</span>
+          </h4>
+          
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-2.5 rounded-xl ${iconBgClass}`}>
+              <Icon className={`w-5 h-5 ${iconColorClass}`} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-300">
+                {isMe ? `You invited your partner to join a ${isCinema ? 'watch party' : 'music session'}!` : `Your partner invited you to join their ${isCinema ? 'watch party' : 'music session'}!`}
+              </p>
+            </div>
+          </div>
+          
+          <a
+            href={inviteData.url}
+            className={`w-full py-2.5 px-4 text-xs font-bold rounded-xl text-white transition-all active:scale-[0.98] duration-200 flex items-center justify-center gap-2 ${btnClass}`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            <span>{buttonText}</span>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (msg.isSystem) {
+    return (
+      <div className="flex justify-center w-full my-4">
+        <span className="text-[10px] uppercase text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800/50 flex items-center gap-2">
+          {msg.text.replace('📞', '').trim()}
+        </span>
+      </div>
+    );
+  }
+
+  if (msg.parsedGame?.type === '2TL') {
+    const gameState = msg.parsedGame.state;
+    const isMeCreator = gameState.creatorId === currentUser?.id;
+    return (
+      <div className="flex justify-center w-full my-4">
+        <div className="w-full max-w-sm bg-gradient-to-br from-[#1c0d2b]/60 to-[#08020f]/95 border border-purple-500/35 rounded-2xl p-4 backdrop-blur-md shadow-2xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
+          <div className="absolute -right-8 -top-8 w-20 h-20 bg-purple-500/10 rounded-full blur-xl pointer-events-none" />
+          
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5 font-mono">
+            <Gamepad2 className="w-3.5 h-3.5 text-purple-400" />
+            <span>2 Truths & a Lie</span>
+          </h4>
+          
+          {gameState.status === 'active' && !isMeCreator && !gameState.guess && (
+            <div className="space-y-2.5">
+              <p className="text-xs text-gray-300 mb-1">Guess which one is the <span className="text-red-400 font-semibold">LIE</span>:</p>
+              {gameState.options.map((opt: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => handleGuess2TL(msg.id, gameState, opt)}
+                  className="w-full text-left px-3.5 py-2.5 text-xs bg-purple-900/20 hover:bg-purple-800/30 border border-purple-500/20 hover:border-purple-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {gameState.status === 'active' && isMeCreator && !gameState.guess && (
+            <div className="space-y-2">
+              <p className="text-[11px] text-gray-400 mb-2">
+                You set up these options. Waiting for partner to guess {partnerIsOnline ? (
+                  <span className="text-green-400 font-semibold inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Online</span>
+                ) : (
+                  <span className="text-gray-500 font-medium inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-500" /> Offline</span>
+                )}:
+              </p>
+              {gameState.options.map((opt: string, idx: number) => {
+                const isLie = hashString(opt) === gameState.lieHash;
+                return (
+                  <div
+                    key={idx}
+                    className={`px-3 py-2 text-xs border rounded-xl flex items-center justify-between ${
+                      isLie ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-gray-950/40 border-gray-900 text-gray-400'
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    {isLie && <span className="text-[9px] font-bold text-red-500 uppercase tracking-wide">Lie</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {gameState.guess && (
+            <div className="space-y-3">
+              <div className="text-[11px] text-gray-400 mb-1">
+                {isMeCreator ? <span>Partner guessed:</span> : <span>You guessed:</span>}
+              </div>
+              
+              <div className="space-y-2">
+                {gameState.options.map((opt: string, idx: number) => {
+                  const isLie = hashString(opt) === gameState.lieHash;
+                  const wasGuessed = opt === gameState.guess;
+                  let bgBorderClass = 'bg-gray-950/40 border-gray-900 text-gray-500';
+                  
+                  if (isLie) {
+                    bgBorderClass = 'bg-green-500/15 border-green-500/35 text-green-300';
+                  } else if (wasGuessed && !isLie) {
+                    bgBorderClass = 'bg-red-500/15 border-red-500/35 text-red-300';
+                  }
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className={`px-3 py-2.5 text-xs border rounded-xl flex items-center justify-between ${bgBorderClass}`}
+                    >
+                      <span className={!isLie && !wasGuessed ? 'opacity-50' : ''}>{opt}</span>
+                      <div className="flex gap-1.5 items-center">
+                        {isLie && <span className="text-[9px] font-bold text-green-400 uppercase tracking-wider">Lie</span>}
+                        {wasGuessed && (
+                          <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/30 font-medium font-mono uppercase">
+                            Guess
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className={`text-xs font-bold text-center mt-3 pt-2 border-t border-purple-500/10 ${gameState.guessedCorrectly ? 'text-green-400' : 'text-red-400'}`}>
+                {gameState.guessedCorrectly ? (
+                  <span className="flex items-center justify-center gap-1.5 text-green-400"><Trophy className="w-4 h-4 text-yellow-400" /> Correct! The lie was spotted!</span>
+                ) : (
+                  <span className="flex items-center justify-center gap-1.5 text-red-400"><AlertTriangle className="w-4 h-4 text-red-400" /> Wrong! The lie was successfully hidden.</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (msg.parsedGame?.type === 'WYR') {
+    const gameState = msg.parsedGame.state;
+    const myVote = gameState.votes[currentUser?.id || ''];
+    const partnerId = partner?.id;
+    const partnerVote = gameState.votes[partnerId || ''];
+    
+    const totalVotes = Object.keys(gameState.votes).length;
+    const bothVoted = totalVotes >= 2;
+    
+    let countA = 0;
+    let countB = 0;
+    Object.values(gameState.votes).forEach(v => {
+      if (v === 'A') countA++;
+      if (v === 'B') countB++;
+    });
+    
+    const pctA = totalVotes > 0 ? Math.round((countA / totalVotes) * 100) : 0;
+    const pctB = totalVotes > 0 ? Math.round((countB / totalVotes) * 100) : 0;
+
+    return (
+      <div className="flex justify-center w-full my-4">
+        <div className="w-full max-w-sm bg-gradient-to-br from-[#0c1a24]/60 to-[#02070d]/95 border border-cyan-500/35 rounded-2xl p-4 backdrop-blur-md shadow-2xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
+          <div className="absolute -right-8 -top-8 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
+          
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 mb-3 flex items-center gap-1.5 font-mono">
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Would You Rather</span>
+          </h4>
+          
+          <p className="text-xs text-gray-200 font-medium mb-3.5 line-clamp-3 leading-relaxed">{gameState.question}</p>
+          
+          {!bothVoted && !myVote && (
+            <div className="space-y-2">
+              <button
+                onClick={() => handleVoteWYR(msg.id, gameState, 'A')}
+                className="w-full text-center px-4 py-3 text-xs bg-cyan-900/20 hover:bg-cyan-800/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
+              >
+                {gameState.optionA}
+              </button>
+              <div className="text-center text-[9px] text-gray-600 font-mono tracking-widest uppercase my-1">— OR —</div>
+              <button
+                onClick={() => handleVoteWYR(msg.id, gameState, 'B')}
+                className="w-full text-center px-4 py-3 text-xs bg-cyan-900/20 hover:bg-cyan-800/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
+              >
+                {gameState.optionB}
+              </button>
+            </div>
+          )}
+          
+          {!bothVoted && myVote && (
+            <div className="space-y-3">
+              <p className="text-[11px] text-gray-400">
+                You voted. Waiting for partner to vote {partnerIsOnline ? (
+                  <span className="text-cyan-400 font-semibold inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" /> Online</span>
+                ) : (
+                  <span className="text-gray-500 font-medium inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-500" /> Offline</span>
+                )}...
+              </p>
+              <div className="px-4 py-3 text-xs bg-cyan-950/40 border border-cyan-900/30 rounded-xl text-gray-300 font-medium text-center font-mono">
+                Selected: {myVote === 'A' ? gameState.optionA : gameState.optionB}
+              </div>
+            </div>
+          )}
+          
+          {bothVoted && (
+            <div className="space-y-3.5">
+              {/* Option A Results */}
+              <div className="space-y-1.5 relative">
+                <div className="flex justify-between text-xs font-semibold px-1 text-gray-200">
+                  <span className="truncate max-w-[80%]">{gameState.optionA}</span>
+                  <span>{pctA}%</span>
+                </div>
+                <div className="h-7 w-full bg-gray-950/80 rounded-lg overflow-hidden border border-gray-900 relative flex items-center">
+                  <div 
+                    className="h-full bg-cyan-500/20 border-r border-cyan-500/40 transition-all duration-700" 
+                    style={{ width: `${pctA}%` }} 
+                  />
+                  <div className="absolute right-2 flex gap-1 items-center">
+                    {myVote === 'A' && (
+                      <span className="text-[8px] bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 rounded px-1 font-mono uppercase font-bold">
+                        You
+                      </span>
+                    )}
+                    {partnerVote === 'A' && (
+                      <span className="text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 font-mono uppercase font-bold">
+                        Partner
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Option B Results */}
+              <div className="space-y-1.5 relative">
+                <div className="flex justify-between text-xs font-semibold px-1 text-gray-200">
+                  <span className="truncate max-w-[80%]">{gameState.optionB}</span>
+                  <span>{pctB}%</span>
+                </div>
+                <div className="h-7 w-full bg-gray-950/80 rounded-lg overflow-hidden border border-gray-900 relative flex items-center">
+                  <div 
+                    className="h-full bg-pink-500/20 border-r border-pink-500/40 transition-all duration-700" 
+                    style={{ width: `${pctB}%` }} 
+                  />
+                  <div className="absolute right-2 flex gap-1 items-center">
+                    {myVote === 'B' && (
+                      <span className="text-[8px] bg-pink-400/20 text-pink-300 border border-pink-400/30 rounded px-1 font-mono uppercase font-bold">
+                        You
+                      </span>
+                    )}
+                    {partnerVote === 'B' && (
+                      <span className="text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 font-mono uppercase font-bold">
+                        Partner
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+        {!isMe && (
+          <div className="w-8 h-8 flex-shrink-0">
+            {showAvatar && (
+              <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" referrerPolicy="no-referrer" />
+            )}
+          </div>
+        )}
+        <div 
+          onDoubleClick={() => handleMessageDoubleClick(msg.id, msg.reaction)}
+          className={`relative px-4 py-2.5 rounded-2xl text-sm break-words break-all min-w-0 select-none cursor-pointer transition-all active:scale-[0.98] duration-300 group ${
+            isMe 
+              ? 'bg-gradient-to-r from-neon to-[#d6006b] border border-white/10 text-white rounded-br-none shadow-[0_4px_12px_rgba(255,0,127,0.3)]' 
+              : 'bg-white/5 backdrop-blur-md border border-white/10 text-gray-100 rounded-bl-none shadow-[0_4px_30px_rgba(0,0,0,0.15)] hover:bg-white/10 hover:border-white/20'
+          }`}
+        >
+          {msg.text}
+          {msg.reaction && (
+            <div className="absolute -bottom-2.5 right-3 bg-gray-950 border border-gray-700/80 rounded-full px-1.5 py-0.5 text-[9px] flex items-center justify-center shadow-lg shadow-black/80 animate-[scaleIn_0.2s_ease-out]">
+              {msg.reaction}
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-1 mt-1">
+            <span className={`text-[9px] opacity-60 ${isMe ? 'text-white' : 'text-gray-400'}`}>
+              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            {isMe && (
+              msg.status === 'sending' ? (
+                <Clock className="w-2.5 h-2.5 text-white/55 animate-pulse" />
+              ) : msg.status === 'failed' ? (
+                <AlertTriangle className="w-3 h-3 text-red-500" />
+              ) : msg.isRead ? (
+                <CheckCheck className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_3px_rgba(0,255,255,0.8)]" />
+              ) : (
+                <CheckCheck className="w-3 h-3 text-white/60" />
+              )
+            )}
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+            className={`opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 ${isMe ? '-left-8' : '-right-8'} p-1.5 bg-gray-900/80 hover:bg-red-500/20 hover:text-red-400 rounded-full border border-gray-700 backdrop-blur-md text-gray-400 z-10`}
+            title="Delete Message"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+MessageRow.displayName = 'MessageRow';
+
 export const Chat: React.FC = () => {
   const params = useParams();
   const id = params?.id as string;
   const matchId = id!; // Guaranteed by route
-  const cacheKey = `otherhalf_chat_${matchId}_v3`;
+  const cacheKey = `otherhalf_chat_${matchId}_cupid`;
 
   const [partner, setPartner] = useState<MatchProfile | null>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const liveMessages = useLiveQuery(
-    () => db.messages.where('[match_id+created_at]').between([matchId, Dexie.minKey], [matchId, Dexie.maxKey]).toArray(),
-    [matchId]
+    () => db.messages
+      .where('[match_id+created_at]')
+      .between([matchId, Dexie.minKey], [matchId, Dexie.maxKey])
+      .reverse()
+      .limit(visibleCount)
+      .toArray()
+      .then(msgs => msgs.reverse()),
+    [matchId, visibleCount]
   );
 
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => {
@@ -109,40 +487,63 @@ export const Chat: React.FC = () => {
         const msgTime = new Date(m.created_at).getTime();
         return msgTime > clearedAt && !deletedIds.has(m.id);
       })
-      .map(m => ({
-      id: m.id,
-      senderId: m.sender_id,
-      text: m.text,
-      timestamp: m.created_at,
-      isSystem: m.is_system,
-      isRead: m.is_read,
-      status: m.status,
-      reaction: m.reaction
-    }));
+      .map(m => {
+        let parsedGame = undefined;
+        if (m.text.startsWith('[GAME:2TL:v1]')) {
+          try {
+            parsedGame = {
+              type: '2TL' as const,
+              state: JSON.parse(m.text.replace('[GAME:2TL:v1] ', ''))
+            };
+          } catch (e) {
+            console.error('Error parsing 2TL game state:', e);
+          }
+        } else if (m.text.startsWith('[GAME:WYR:v1]')) {
+          try {
+            parsedGame = {
+              type: 'WYR' as const,
+              state: JSON.parse(m.text.replace('[GAME:WYR:v1] ', ''))
+            };
+          } catch (e) {
+            console.error('Error parsing WYR game state:', e);
+          }
+        } else if (m.text.startsWith('[INVITE:v1]')) {
+          try {
+            parsedGame = {
+              type: 'INVITE' as const,
+              state: JSON.parse(m.text.replace('[INVITE:v1] ', ''))
+            };
+          } catch (e) {
+            console.error('Error parsing invite state:', e);
+          }
+        }
+        
+        return {
+          id: m.id,
+          senderId: m.sender_id,
+          text: m.text,
+          timestamp: m.created_at,
+          isSystem: m.is_system,
+          isRead: m.is_read,
+          status: m.status,
+          reaction: m.reaction,
+          parsedGame
+        };
+      });
   }, [liveMessages, clearedAt, deletedIds]);
 
   const activeGame = React.useMemo(() => {
     if (!messages || messages.length === 0) return null;
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
-      if (msg.text.startsWith('[GAME:2TL:v1]')) {
-        try {
-          const state: TwoTruthsLieState = JSON.parse(msg.text.replace('[GAME:2TL:v1] ', ''));
-          if (state.status === 'active') {
-            return { type: '2TL' as const, messageId: msg.id, state };
-          }
-        } catch (e) {
-          console.error("Error parsing 2TL active state:", e);
+      if (msg.parsedGame?.type === '2TL') {
+        if (msg.parsedGame.state.status === 'active') {
+          return { type: '2TL' as const, messageId: msg.id, state: msg.parsedGame.state };
         }
-      } else if (msg.text.startsWith('[GAME:WYR:v1]')) {
-        try {
-          const state: WouldYouRatherState = JSON.parse(msg.text.replace('[GAME:WYR:v1] ', ''));
-          const totalVotes = Object.keys(state.votes).length;
-          if (totalVotes < 2) {
-            return { type: 'WYR' as const, messageId: msg.id, state };
-          }
-        } catch (e) {
-          console.error("Error parsing WYR active state:", e);
+      } else if (msg.parsedGame?.type === 'WYR') {
+        const totalVotes = Object.keys(msg.parsedGame.state.votes).length;
+        if (totalVotes < 2) {
+          return { type: 'WYR' as const, messageId: msg.id, state: msg.parsedGame.state };
         }
       }
     }
@@ -167,6 +568,7 @@ export const Chat: React.FC = () => {
   const { startCall, setOutgoingCall, setOutgoingCallSessionId, isCallActive } = useCall();
   const { subscribeToUser, unsubscribeFromUser, isUserOnline, getLastSeen } = usePresence();
   const { showToast } = useToast();
+  const { setUnreadMessageCount } = useNotifications();
   const navigate = useNavigate();
 
   const [newMessage, setNewMessage] = useState('');
@@ -219,6 +621,8 @@ export const Chat: React.FC = () => {
   const [customWyrB, setCustomWyrB] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
+  const typingSentRef = useRef(false);
+  const lastTypingSentTimeRef = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -290,52 +694,59 @@ export const Chat: React.FC = () => {
         }
 
         let partnerId = initialPartner?.id;
+        let activePartner: MatchProfile | null = initialPartner;
 
         // Fetch partner ID if totally missing (direct link load)
         if (!partnerId) {
           partnerId = matchData.user_a === currentUser.id ? matchData.user_b : matchData.user_a;
 
-          // If we had to fetch ID, we must fetch profile to show anything
-          const { data: profile } = await supabase.from('profiles').select('id, real_name, anonymous_id, avatar, is_verified').eq('id', partnerId).single();
+          // Retrieve from local cache or Supabase
+          const profile = await getCachedProfile(partnerId as string);
           if (profile) {
-            const newPartner = {
-              id: profile.id, anonymousId: profile.anonymous_id, realName: profile.real_name,
-              gender: '', university: '', branch: '',
-              year: '', interests: [], bio: '',
-              dob: '', isVerified: profile.is_verified, avatar: profile.avatar,
-              matchPercentage: 0, distance: 'Connected'
+            activePartner = {
+              id: profile.id,
+              anonymousId: profile.anonymous_id,
+              realName: profile.real_name || 'Anonymous',
+              gender: '',
+              university: profile.university || '',
+              branch: '',
+              year: '',
+              interests: [],
+              bio: '',
+              dob: '',
+              isVerified: profile.is_verified,
+              avatar: profile.avatar || undefined,
+              matchPercentage: 0,
+              distance: 'Connected'
             };
-            setPartner(newPartner);
+            setPartner(activePartner);
             subscribeToUser(partnerId!);
-            partnerId = newPartner.id;
+            partnerId = activePartner.id;
           }
         } else {
           // We have a partner (from State/Cache). 
-          // Refresh profile in BACKGROUND (Fire & Forget) to keep clear of stale data if cache is > 5 mins old
-          const shouldRefreshProfile = !cacheTime || (Date.now() - cacheTime > 5 * 60 * 1000);
-          
-          if (shouldRefreshProfile) {
-            supabase.from('profiles').select('id, real_name, anonymous_id, avatar, is_verified').eq('id', partnerId).single().then(({ data: profile }) => {
-              if (profile) {
-                setPartner(prev => {
-                  if (!prev) return prev;
-                  const updated = {
-                    ...prev,
-                    realName: profile.real_name,
-                    anonymousId: profile.anonymous_id,
-                    avatar: profile.avatar,
-                    isVerified: profile.is_verified
-                  };
-                  // Only update if changed (simple check)
-                  if (JSON.stringify(prev) !== JSON.stringify(updated)) {
-                    try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: updated, timestamp: Date.now() })); } catch (e) { }
-                    return updated;
-                  }
-                  return prev;
-                });
-              }
-            });
-          }
+          // Refresh profile in BACKGROUND (Fire & Forget) using our cached profile check
+          getCachedProfile(partnerId!).then((profile) => {
+            if (profile) {
+              setPartner(prev => {
+                if (!prev) return prev;
+                const updated: MatchProfile = {
+                  ...prev,
+                  realName: profile.real_name || 'Anonymous',
+                  anonymousId: profile.anonymous_id,
+                  avatar: profile.avatar || undefined,
+                  isVerified: profile.is_verified,
+                  university: profile.university || prev.university
+                };
+                // Only update if changed (simple check)
+                if (JSON.stringify(prev) !== JSON.stringify(updated)) {
+                  try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: updated, timestamp: Date.now() })); } catch (e) { }
+                  return updated;
+                }
+                return prev;
+              });
+            }
+          });
         }
 
         // Parallel Fetch: Messages + Block Status
@@ -391,9 +802,8 @@ export const Chat: React.FC = () => {
           }
 
           // Update cache with latest partner (possibly updated)
-          const currentPartner = partnerRef.current || initialPartner;
-          if (currentPartner) {
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: currentPartner, timestamp: Date.now() })); } catch (e) { }
+          if (activePartner) {
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ partner: activePartner, timestamp: Date.now() })); } catch (e) { }
           }
         }
 
@@ -408,6 +818,27 @@ export const Chat: React.FC = () => {
   // This prevents stale closure in the realtime listener
   const markMessagesRead = async () => {
     if (!matchId || !currentUser) return;
+    try {
+      // Count unread local messages from partner
+      const unreadCount = await db.messages
+        .where('[match_id+created_at]')
+        .between([matchId, Dexie.minKey], [matchId, Dexie.maxKey])
+        .filter(m => m.sender_id !== currentUser.id && !m.is_read)
+        .count();
+
+      if (unreadCount > 0) {
+        setUnreadMessageCount(prev => Math.max(0, prev - unreadCount));
+        
+        await db.messages
+          .where('[match_id+created_at]')
+          .between([matchId, Dexie.minKey], [matchId, Dexie.maxKey])
+          .filter(m => m.sender_id !== currentUser.id && !m.is_read)
+          .modify({ is_read: true });
+      }
+    } catch (err) {
+      console.error('Error marking local messages read:', err);
+    }
+
     await supabase
       .from('messages')
       .update({ is_read: true })
@@ -426,29 +857,54 @@ export const Chat: React.FC = () => {
   }, [matchId, currentUser?.id]);
 
   const loadMoreMessages = async () => {
-    if (!hasMoreMessages || isLoadingMore || !matchId || oldestLoaded === null) return;
+    if (!hasMoreMessages || isLoadingMore || !matchId) return;
     setIsLoadingMore(true);
     try {
-      const { data: msgData } = await supabase.from('messages')
-        .select('id, sender_id, text, created_at, is_read')
-        .eq('match_id', matchId)
-        .lt('created_at', new Date(oldestLoaded).toISOString())
-        .order('created_at', { ascending: false })
-        .limit(MESSAGES_PER_PAGE);
+      // Find oldest visible message
+      const oldestVisibleTime = liveMessages && liveMessages.length > 0
+        ? liveMessages[0].created_at
+        : (oldestLoaded ?? Date.now());
 
-      if (msgData && msgData.length > 0) {
-        const localMsgs: LocalMessage[] = msgData.map((m: any) =>
-          mapSupabaseMessageToLocal(m, matchId)
-        );
-        try {
-          await db.messages.bulkPut(localMsgs);
-        } catch (dbErr) {
-          console.error('Failed to sync paginated messages to local DB:', dbErr);
+      // Check if we have older messages locally in Dexie
+      const localOlderCount = await db.messages
+        .where('[match_id+created_at]')
+        .between([matchId, Dexie.minKey], [matchId, oldestVisibleTime], true, false)
+        .count();
+
+      if (localOlderCount > 0) {
+        // We have older messages locally, just increase visibleCount
+        setVisibleCount(prev => prev + 50);
+      } else {
+        // No older messages locally, query Supabase
+        const { data: msgData } = await supabase.from('messages')
+          .select('id, sender_id, text, created_at, is_read')
+          .eq('match_id', matchId)
+          .lt('created_at', new Date(oldestVisibleTime).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(MESSAGES_PER_PAGE);
+
+        if (msgData && msgData.length > 0) {
+          const localMsgs: LocalMessage[] = msgData.map((m: any) =>
+            mapSupabaseMessageToLocal(m, matchId)
+          );
+          try {
+            await db.messages.bulkPut(localMsgs);
+          } catch (dbErr) {
+            console.error('Failed to sync paginated messages to local DB:', dbErr);
+          }
+          const oldestTime = new Date(msgData[msgData.length - 1].created_at).getTime();
+          setOldestLoaded(oldestTime);
+          setHasMoreMessages(msgData.length === MESSAGES_PER_PAGE);
+          setVisibleCount(prev => prev + 50);
+        } else {
+          setHasMoreMessages(false);
         }
-        setOldestLoaded(new Date(msgData[msgData.length - 1].created_at).getTime());
-        setHasMoreMessages(msgData.length === MESSAGES_PER_PAGE);
-      } else setHasMoreMessages(false);
-    } catch (err) { console.error(err); } finally { setIsLoadingMore(false); }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -494,6 +950,7 @@ export const Chat: React.FC = () => {
           // Block enforcement: ignore messages from blocked users
           if (newMsg.sender_id !== currentUser?.id) {
             if (isBlocked || isBlockedByThem) return; // Don't show messages if blocked
+            localMsg.is_read = true;
             markMessagesReadRef.current();
           }
 
@@ -510,7 +967,12 @@ export const Chat: React.FC = () => {
       })
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.userId === partnerRef.current?.id) {
-          setPartnerIsTyping(payload.payload.isTyping);
+          setPartnerIsTyping((prev) => {
+            if (prev !== payload.payload.isTyping) {
+              return payload.payload.isTyping;
+            }
+            return prev;
+          });
         }
       })
       .subscribe();
@@ -527,12 +989,19 @@ export const Chat: React.FC = () => {
     setNewMessage(val);
     if (!channelRef.current || !currentUser || channelRef.current.state !== 'joined') return;
 
-    // Send typing: true
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'typing',
-      payload: { userId: currentUser.id, isTyping: true }
-    });
+    const now = Date.now();
+    const shouldSend = !typingSentRef.current || (now - lastTypingSentTimeRef.current > 2500);
+
+    if (shouldSend) {
+      // Send typing: true
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: currentUser.id, isTyping: true }
+      });
+      typingSentRef.current = true;
+      lastTypingSentTimeRef.current = now;
+    }
 
     // Reset timeout to broadcast typing = false after 1.5s
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -543,6 +1012,7 @@ export const Chat: React.FC = () => {
           event: 'typing',
           payload: { userId: currentUser.id, isTyping: false }
         });
+        typingSentRef.current = false;
       }
     }, 1500);
   };
@@ -613,6 +1083,7 @@ export const Chat: React.FC = () => {
         payload: { userId: currentUser.id, isTyping: false }
       });
     }
+    typingSentRef.current = false;
 
     const textToSend = newMessage.trim(); setNewMessage('');
     
@@ -931,7 +1402,7 @@ export const Chat: React.FC = () => {
           // Pass back the latest message to update the list instantly
           const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
           navigate.push('/matches');
-        }} aria-label="Back to matches" className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" aria-hidden="true" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" alt={`${partner.realName || partner.anonymousId}'s avatar`} /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} aria-hidden="true" />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
+        }} aria-label="Back to matches" className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" aria-hidden="true" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" alt={`${partner.realName || partner.anonymousId}'s avatar`} referrerPolicy="no-referrer" /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} aria-hidden="true" />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
         <div className="flex items-center gap-1"><button onClick={() => startVideoCall('video')} disabled={isStartingCall || isBlocked || isBlockedByThem} aria-label="Start video call" className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-neon'}`}><Video className="w-5 h-5" aria-hidden="true" /></button><button onClick={() => startVideoCall('audio')} disabled={isStartingCall || isBlocked || isBlockedByThem} aria-label="Start voice call" className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-green-400'}`}><Phone className="w-5 h-5" aria-hidden="true" /></button>
           <div className="relative">
             <button onClick={() => setShowMenu(!showMenu)} aria-label="More options" aria-expanded={showMenu} className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full"><MoreVertical className="w-5 h-5" aria-hidden="true" /></button>
@@ -973,7 +1444,7 @@ export const Chat: React.FC = () => {
       </div>
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4" onScroll={handleScroll}>
         {isLoadingMore && <div className="flex justify-center"><Loader2 className="w-5 h-5 text-gray-500 animate-spin" /></div>}
-        <div className="mb-4 bg-gradient-to-r from-blue-900/10 to-purple-900/10 border border-blue-800/20 rounded-2xl p-3 backdrop-blur-sm flex gap-3"><div className="p-2 bg-blue-600/10 rounded-full h-fit"><Shield className="w-4 h-4 text-blue-400" /></div><div><h4 className="text-xs font-bold text-blue-400 flex items-center gap-2"><Clock className="w-3 h-3" /> Privacy Active</h4><p className="text-[11px] text-gray-400">Messages deleted after 3 days. Screenshots disabled.</p></div></div>
+        <div className="mb-4 bg-gradient-to-r from-blue-900/10 to-purple-900/10 border border-blue-800/20 rounded-2xl p-3 backdrop-blur-sm flex gap-3"><div className="p-2 bg-blue-600/10 rounded-full h-fit"><Shield className="w-4 h-4 text-blue-400" /></div><div><h4 className="text-xs font-bold text-blue-400 flex items-center gap-2"><Clock className="w-3 h-3" /> Privacy Active</h4><p className="text-[11px] text-gray-400">Messages deleted after 10 days. Screenshots disabled.</p></div></div>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-[50vh] opacity-75 text-center px-4">
             <Ghost className="w-10 h-10 text-gray-600 mb-3" />
@@ -988,360 +1459,23 @@ export const Chat: React.FC = () => {
         )}
         {messages.map((msg, i) => {
           const isMe = msg.senderId === currentUser?.id;
-          if (msg.isSystem && msg.text.startsWith('[INVITE:v1]')) {
-            try {
-              const inviteData = JSON.parse(msg.text.replace('[INVITE:v1] ', ''));
-              
-              // Validate that invite type is whitelisted and URL pattern is safe
-              const isValidType = inviteData.type === 'cinema' || inviteData.type === 'music';
-              const isValidUrl = typeof inviteData.url === 'string' && (
-                inviteData.url.startsWith('/sparx/cinema') || 
-                inviteData.url.startsWith('/sparx/music')
-              );
-              
-              if (!isValidType || !isValidUrl) {
-                throw new Error('Invalid invite message type or URL');
-              }
-
-              const isCinema = inviteData.type === 'cinema';
-              const Icon = isCinema ? Tv : Music;
-              const buttonText = isCinema ? 'Join Watch Party' : 'Join Music Session';
-              const inviteTitle = isCinema ? 'Cinema Date Watch Party' : 'Music Jam Session';
-              
-              const shadowClass = isCinema 
-                ? 'shadow-[0_0_15px_rgba(244,63,94,0.15)] hover:shadow-[0_0_20px_rgba(244,63,94,0.3)] border-rose-500/30 hover:border-rose-400/60'
-                : 'shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] border-cyan-500/30 hover:border-cyan-400/60';
-              const glowBg = isCinema ? 'bg-rose-500/10' : 'bg-cyan-500/10';
-              const textClass = isCinema ? 'text-rose-400 font-mono' : 'text-cyan-400 font-mono';
-              const iconBgClass = isCinema ? 'bg-rose-500/15 border border-rose-500/20' : 'bg-cyan-500/15 border border-cyan-500/20';
-              const iconColorClass = isCinema ? 'text-rose-400' : 'text-cyan-400';
-              const btnClass = isCinema
-                ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 shadow-[0_0_10px_rgba(244,63,94,0.3)] hover:shadow-[0_0_15px_rgba(244,63,94,0.5)]'
-                : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]';
-
-              return (
-                <div key={msg.id} className="flex justify-center w-full my-4">
-                  <div className={`w-full max-w-sm bg-gradient-to-br from-[#0e0717]/85 to-[#030107]/95 border rounded-2xl p-4 backdrop-blur-md relative overflow-hidden transition-all duration-300 ${shadowClass}`}>
-                    <div className={`absolute -right-8 -top-8 w-20 h-20 rounded-full blur-xl pointer-events-none ${glowBg}`} />
-                    
-                    <h4 className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5 ${textClass}`}>
-                      <Sparkles className="w-3 h-3 text-current" />
-                      <span>{inviteTitle}</span>
-                    </h4>
-                    
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`p-2.5 rounded-xl ${iconBgClass}`}>
-                        <Icon className={`w-5 h-5 ${iconColorClass}`} />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-300">
-                          {isMe ? `You invited your partner to join a ${isCinema ? 'watch party' : 'music session'}!` : `Your partner invited you to join their ${isCinema ? 'watch party' : 'music session'}!`}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => navigate.push(inviteData.url)}
-                      className={`w-full py-2.5 px-4 text-xs font-bold rounded-xl text-white transition-all active:scale-[0.98] duration-200 flex items-center justify-center gap-2 ${btnClass}`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{buttonText}</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            } catch (e) {
-              console.error('Failed to render invitation card:', e);
-            }
-          }
-          if (msg.isSystem) return <div key={msg.id} className="flex justify-center w-full my-4"><span className="text-[10px] uppercase text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800/50 flex items-center gap-2">{msg.text.replace('📞', '').trim()}</span></div>;
+          const showAvatar = !isMe && (!messages[i - 1] || messages[i - 1].senderId !== msg.senderId);
+          const partnerIsOnline = partner ? isUserOnline(partner.id) : false;
           
-          if (msg.text.startsWith('[GAME:2TL:v1]')) {
-            try {
-              const gameState: TwoTruthsLieState = JSON.parse(msg.text.replace('[GAME:2TL:v1] ', ''));
-              const isMeCreator = gameState.creatorId === currentUser?.id;
-              
-              return (
-                <div key={msg.id} className="flex justify-center w-full my-4">
-                  <div className="w-full max-w-sm bg-gradient-to-br from-[#1c0d2b]/60 to-[#08020f]/95 border border-purple-500/35 rounded-2xl p-4 backdrop-blur-md shadow-2xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
-                    <div className="absolute -right-8 -top-8 w-20 h-20 bg-purple-500/10 rounded-full blur-xl pointer-events-none" />
-                    
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5 font-mono">
-                      <Gamepad2 className="w-3.5 h-3.5 text-purple-400" />
-                      <span>2 Truths & a Lie</span>
-                    </h4>
-                    
-                    {gameState.status === 'active' && !isMeCreator && !gameState.guess && (
-                      <div className="space-y-2.5">
-                        <p className="text-xs text-gray-300 mb-1">Guess which one is the <span className="text-red-400 font-semibold">LIE</span>:</p>
-                        {gameState.options.map((opt, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleGuess2TL(msg.id, gameState, opt)}
-                            className="w-full text-left px-3.5 py-2.5 text-xs bg-purple-900/20 hover:bg-purple-800/30 border border-purple-500/20 hover:border-purple-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {gameState.status === 'active' && isMeCreator && !gameState.guess && (
-                      <div className="space-y-2">
-                        <p className="text-[11px] text-gray-400 mb-2">
-                          You set up these options. Waiting for partner to guess {isUserOnline(partner.id) ? (
-                            <span className="text-green-400 font-semibold inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Online</span>
-                          ) : (
-                            <span className="text-gray-500 font-medium inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-500" /> Offline</span>
-                          )}:
-                        </p>
-                        {gameState.options.map((opt, idx) => {
-                          const isLie = hashString(opt) === gameState.lieHash;
-                          return (
-                            <div
-                              key={idx}
-                              className={`px-3 py-2 text-xs border rounded-xl flex items-center justify-between ${
-                                isLie ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-gray-950/40 border-gray-900 text-gray-400'
-                              }`}
-                            >
-                              <span>{opt}</span>
-                              {isLie && <span className="text-[9px] font-bold text-red-500 uppercase tracking-wide">Lie</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    
-                    {gameState.guess && (
-                      <div className="space-y-3">
-                        <div className="text-[11px] text-gray-400 mb-1">
-                          {isMeCreator ? (
-                            <span>Partner guessed:</span>
-                          ) : (
-                            <span>You guessed:</span>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {gameState.options.map((opt, idx) => {
-                            const isLie = hashString(opt) === gameState.lieHash;
-                            const wasGuessed = opt === gameState.guess;
-                            let bgBorderClass = 'bg-gray-950/40 border-gray-900 text-gray-500';
-                            
-                            if (isLie) {
-                              bgBorderClass = 'bg-green-500/15 border-green-500/35 text-green-300';
-                            } else if (wasGuessed && !isLie) {
-                              bgBorderClass = 'bg-red-500/15 border-red-500/35 text-red-300';
-                            }
-                            
-                            return (
-                              <div
-                                key={idx}
-                                className={`px-3 py-2.5 text-xs border rounded-xl flex items-center justify-between ${bgBorderClass}`}
-                              >
-                                <span className={!isLie && !wasGuessed ? 'opacity-50' : ''}>{opt}</span>
-                                <div className="flex gap-1.5 items-center">
-                                  {isLie && <span className="text-[9px] font-bold text-green-400 uppercase tracking-wider">Lie</span>}
-                                  {wasGuessed && (
-                                    <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/30 font-medium font-mono uppercase">
-                                      Guess
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        <div className={`text-xs font-bold text-center mt-3 pt-2 border-t border-purple-500/10 ${gameState.guessedCorrectly ? 'text-green-400' : 'text-red-400'}`}>
-                          {gameState.guessedCorrectly ? (
-                            <span className="flex items-center justify-center gap-1.5 text-green-400"><Trophy className="w-4 h-4 text-yellow-400" /> Correct! The lie was spotted!</span>
-                          ) : (
-                            <span className="flex items-center justify-center gap-1.5 text-red-400"><AlertTriangle className="w-4 h-4 text-red-400" /> Wrong! The lie was successfully hidden.</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            } catch (e) {
-              console.error("Error rendering 2TL message card:", e);
-            }
-          }
-          
-          if (msg.text.startsWith('[GAME:WYR:v1]')) {
-            try {
-              const gameState: WouldYouRatherState = JSON.parse(msg.text.replace('[GAME:WYR:v1] ', ''));
-              const myVote = gameState.votes[currentUser?.id || ''];
-              const partnerId = partner?.id;
-              const partnerVote = gameState.votes[partnerId || ''];
-              
-              const totalVotes = Object.keys(gameState.votes).length;
-              const bothVoted = totalVotes >= 2;
-              
-              let countA = 0;
-              let countB = 0;
-              Object.values(gameState.votes).forEach(v => {
-                if (v === 'A') countA++;
-                if (v === 'B') countB++;
-              });
-              
-              const pctA = totalVotes > 0 ? Math.round((countA / totalVotes) * 100) : 0;
-              const pctB = totalVotes > 0 ? Math.round((countB / totalVotes) * 100) : 0;
-              
-              return (
-                <div key={msg.id} className="flex justify-center w-full my-4">
-                  <div className="w-full max-w-sm bg-gradient-to-br from-[#0c1a24]/60 to-[#02070d]/95 border border-cyan-500/35 rounded-2xl p-4 backdrop-blur-md shadow-2xl relative overflow-hidden transition-transform hover:scale-[1.01] duration-300">
-                    <div className="absolute -right-8 -top-8 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
-                    
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 mb-3 flex items-center gap-1.5 font-mono">
-                      <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Would You Rather</span>
-                    </h4>
-                    
-                    <p className="text-xs text-gray-200 font-medium mb-3.5 line-clamp-3 leading-relaxed">{gameState.question}</p>
-                    
-                    {!bothVoted && !myVote && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => handleVoteWYR(msg.id, gameState, 'A')}
-                          className="w-full text-center px-4 py-3 text-xs bg-cyan-900/20 hover:bg-cyan-800/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
-                        >
-                          {gameState.optionA}
-                        </button>
-                        <div className="text-center text-[9px] text-gray-600 font-mono tracking-widest uppercase my-1">— OR —</div>
-                        <button
-                          onClick={() => handleVoteWYR(msg.id, gameState, 'B')}
-                          className="w-full text-center px-4 py-3 text-xs bg-cyan-900/20 hover:bg-cyan-800/30 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl text-gray-200 transition-all active:scale-[0.98] duration-200"
-                        >
-                          {gameState.optionB}
-                        </button>
-                      </div>
-                    )}
-                    
-                    {!bothVoted && myVote && (
-                      <div className="space-y-3">
-                        <p className="text-[11px] text-gray-400">
-                          You voted. Waiting for partner to vote {isUserOnline(partner.id) ? (
-                            <span className="text-cyan-400 font-semibold inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" /> Online</span>
-                          ) : (
-                            <span className="text-gray-500 font-medium inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-500" /> Offline</span>
-                          )}...
-                        </p>
-                        <div className="px-4 py-3 text-xs bg-cyan-950/40 border border-cyan-900/30 rounded-xl text-gray-300 font-medium text-center font-mono">
-                          Selected: {myVote === 'A' ? gameState.optionA : gameState.optionB}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {bothVoted && (
-                      <div className="space-y-3.5">
-                        {/* Option A Results */}
-                        <div className="space-y-1.5 relative">
-                          <div className="flex justify-between text-xs font-semibold px-1 text-gray-200">
-                            <span className="truncate max-w-[80%]">{gameState.optionA}</span>
-                            <span>{pctA}%</span>
-                          </div>
-                          <div className="h-7 w-full bg-gray-950/80 rounded-lg overflow-hidden border border-gray-900 relative flex items-center">
-                            <div 
-                              className="h-full bg-cyan-500/20 border-r border-cyan-500/40 transition-all duration-700" 
-                              style={{ width: `${pctA}%` }} 
-                            />
-                            <div className="absolute right-2 flex gap-1 items-center">
-                              {myVote === 'A' && (
-                                <span className="text-[8px] bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 rounded px-1 font-mono uppercase font-bold">
-                                  You
-                                </span>
-                              )}
-                              {partnerVote === 'A' && (
-                                <span className="text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 font-mono uppercase font-bold">
-                                  Partner
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Option B Results */}
-                        <div className="space-y-1.5 relative">
-                          <div className="flex justify-between text-xs font-semibold px-1 text-gray-200">
-                            <span className="truncate max-w-[80%]">{gameState.optionB}</span>
-                            <span>{pctB}%</span>
-                          </div>
-                          <div className="h-7 w-full bg-gray-950/80 rounded-lg overflow-hidden border border-gray-900 relative flex items-center">
-                            <div 
-                              className="h-full bg-pink-500/20 border-r border-pink-500/40 transition-all duration-700" 
-                              style={{ width: `${pctB}%` }} 
-                            />
-                            <div className="absolute right-2 flex gap-1 items-center">
-                              {myVote === 'B' && (
-                                <span className="text-[8px] bg-pink-400/20 text-pink-300 border border-pink-400/30 rounded px-1 font-mono uppercase font-bold">
-                                  You
-                                </span>
-                              )}
-                              {partnerVote === 'B' && (
-                                <span className="text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 font-mono uppercase font-bold">
-                                  Partner
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            } catch (e) {
-              console.error("Error rendering WYR message card:", e);
-            }
-          }
-
           return (
-            <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`flex max-w-[80%] md:max-w-[60%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                {!isMe && <div className="w-8 h-8 flex-shrink-0">{(!messages[i - 1] || messages[i - 1].senderId !== msg.senderId) && <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" />}</div>}
-                <div 
-                  onDoubleClick={() => handleMessageDoubleClick(msg.id, msg.reaction)}
-                  className={`relative px-4 py-2.5 rounded-2xl text-sm break-words break-all min-w-0 select-none cursor-pointer transition-all active:scale-[0.98] duration-300 group ${
-                    isMe 
-                      ? 'bg-gradient-to-r from-neon to-[#d6006b] border border-white/10 text-white rounded-br-none shadow-[0_4px_12px_rgba(255,0,127,0.3)]' 
-                      : 'bg-white/5 backdrop-blur-md border border-white/10 text-gray-100 rounded-bl-none shadow-[0_4px_30px_rgba(0,0,0,0.15)] hover:bg-white/10 hover:border-white/20'
-                  }`}
-                >
-                  {msg.text}
-                  {msg.reaction && (
-                    <div className="absolute -bottom-2.5 right-3 bg-gray-950 border border-gray-700/80 rounded-full px-1.5 py-0.5 text-[9px] flex items-center justify-center shadow-lg shadow-black/80 animate-[scaleIn_0.2s_ease-out]">
-                      {msg.reaction}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className={`text-[9px] opacity-60 ${isMe ? 'text-white' : 'text-gray-400'}`}>
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {isMe && (
-                      msg.status === 'sending' ? (
-                        <Clock className="w-2.5 h-2.5 text-white/55 animate-pulse" />
-                      ) : msg.status === 'failed' ? (
-                        <AlertTriangle className="w-3 h-3 text-red-500" />
-                      ) : msg.isRead ? (
-                        <CheckCheck className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_3px_rgba(0,255,255,0.8)]" />
-                      ) : (
-                        <CheckCheck className="w-3 h-3 text-white/60" />
-                      )
-                    )}
-                  </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
-                    className={`opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 ${isMe ? '-left-8' : '-right-8'} p-1.5 bg-gray-900/80 hover:bg-red-500/20 hover:text-red-400 rounded-full border border-gray-700 backdrop-blur-md text-gray-400 z-10`}
-                    title="Delete Message"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <MessageRow
+              key={msg.id}
+              msg={msg}
+              isMe={isMe}
+              partner={partner!}
+              showAvatar={showAvatar}
+              currentUser={currentUser}
+              partnerIsOnline={partnerIsOnline}
+              handleGuess2TL={handleGuess2TL}
+              handleVoteWYR={handleVoteWYR}
+              handleMessageDoubleClick={handleMessageDoubleClick}
+              handleDeleteMessage={handleDeleteMessage}
+            />
           );
         })}
         {partnerIsTyping && (

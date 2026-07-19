@@ -37,6 +37,39 @@ interface Glimpse {
   glimpse_reactions: GlimpseReaction[];
 }
 
+interface GlimpseProgressBarProps {
+  idx: number;
+  activeStoryIndex: number;
+}
+
+const GlimpseProgressBar: React.FC<GlimpseProgressBarProps> = ({ idx, activeStoryIndex }) => {
+  const [animate, setAnimate] = useState(false);
+
+  useEffect(() => {
+    if (idx === activeStoryIndex) {
+      setAnimate(false);
+      // Wait for next frame/tick so browser registers the 0% state reset
+      const t = setTimeout(() => setAnimate(true), 20);
+      return () => clearTimeout(t);
+    }
+  }, [idx, activeStoryIndex]);
+
+  let width = '0%';
+  if (idx < activeStoryIndex) width = '100%';
+  else if (idx === activeStoryIndex && animate) width = '100%';
+
+  return (
+    <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+      <div
+        className={`h-full bg-white ${
+          idx === activeStoryIndex && animate ? 'transition-all duration-[6000ms] ease-linear' : ''
+        }`}
+        style={{ width }}
+      />
+    </div>
+  );
+};
+
 export const Sparx: React.FC = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
@@ -85,12 +118,10 @@ export const Sparx: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isLobbyOpen) {
-      fetchActiveRooms();
-      const interval = setInterval(fetchActiveRooms, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isLobbyOpen]);
+    fetchActiveRooms();
+    const interval = setInterval(fetchActiveRooms, 8000);
+    return () => clearInterval(interval);
+  }, []);
 
   const parseRoomDetails = (roomId: string) => {
     const parts = roomId.split('_');
@@ -144,7 +175,6 @@ export const Sparx: React.FC = () => {
 
   // Active index of the currently viewed Glimpse card in the full-screen story viewer
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
-  const [storyProgress, setStoryProgress] = useState(0);
 
   // Viewed glimpses tracker
   const [viewedIds, setViewedIds] = useState<string[]>([]);
@@ -181,31 +211,22 @@ export const Sparx: React.FC = () => {
     }
   }, [activeStoryIndex, glimpses]);
 
-  // Auto-advance logic for story overlay
+  // Auto-advance logic for story overlay (single setTimeout instead of 100ms interval)
   useEffect(() => {
-    if (activeStoryIndex === null) {
-      setStoryProgress(0);
-      return;
-    }
+    if (activeStoryIndex === null) return;
 
-    setStoryProgress(0);
-
-    const interval = setInterval(() => {
-      setStoryProgress(prev => {
-        if (prev >= 100) {
-          // Trigger next story
-          if (activeStoryIndex < glimpses.length - 1) {
-            setActiveStoryIndex(activeStoryIndex + 1);
-          } else {
-            setActiveStoryIndex(null);
-          }
-          return 0;
+    const timer = setTimeout(() => {
+      setActiveStoryIndex(prev => {
+        if (prev === null) return null;
+        if (prev < glimpses.length - 1) {
+          return prev + 1;
+        } else {
+          return null;
         }
-        return prev + (100 / 60); // 60 ticks of 100ms = 6000ms (6 seconds)
       });
-    }, 100);
+    }, 6000);
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timer);
   }, [activeStoryIndex, glimpses.length]);
 
   const fetchLeaderboard = async () => {
@@ -214,44 +235,27 @@ export const Sparx: React.FC = () => {
     setError(null);
     try {
       let query = supabase
-        .from('glimpses')
-        .select(`
-          user_id,
-          university,
-          profiles:user_id (
-            id,
-            real_name,
-            anonymous_id,
-            avatar,
-            is_verified,
-            university
-          )
-        `);
+        .from('glimpse_leaderboard')
+        .select('profiles, count, glimpse_university');
         
       const targetUniv = currentUser?.university?.trim();
       if (leaderboardScope === 'campus' && targetUniv) {
-        query = query.ilike('university', `${targetUniv}%`);
+        query = query.ilike('glimpse_university', `${targetUniv}%`);
       }
+      
+      query = query
+        .order('count', { ascending: false })
+        .limit(20);
       
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
       
-      const countsMap: { [uid: string]: { count: number; profile: GlimpseProfile } } = {};
+      const formatted = (data || []).map((row: any) => ({
+        profile: row.profiles as GlimpseProfile,
+        count: row.count
+      }));
       
-      data?.forEach((row: any) => {
-        if (!row.profiles) return;
-        const uid = row.user_id;
-        if (!countsMap[uid]) {
-          countsMap[uid] = { count: 0, profile: row.profiles };
-        }
-        countsMap[uid].count += 1;
-      });
-      
-      const sorted = Object.values(countsMap)
-        .map(item => ({ profile: item.profile, count: item.count }))
-        .sort((a, b) => b.count - a.count);
-        
-      setLeaderboardUsers(sorted);
+      setLeaderboardUsers(formatted);
     } catch (err: any) {
       console.error('Error fetching leaderboard:', err);
       setError(err.message || 'Failed to load leaderboard');
@@ -468,28 +472,37 @@ export const Sparx: React.FC = () => {
       // Listen for updates on reactions in memory to avoid full-feed network fetches
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'glimpse_reactions' }, (payload) => {
         const newReaction = payload.new;
-        setGlimpses(prev => prev.map(g => {
-          if (g.id === newReaction.glimpse_id) {
-            const exists = g.glimpse_reactions?.some((r: any) => r.user_id === newReaction.user_id && r.reaction_type === newReaction.reaction_type);
-            if (!exists) {
-              return {
-                ...g,
-                glimpse_reactions: [...(g.glimpse_reactions || []), { id: newReaction.id, reaction_type: newReaction.reaction_type, user_id: newReaction.user_id }]
-              };
+        setGlimpses(prev => {
+          const exists = prev.some(g => g.id === newReaction.glimpse_id);
+          if (!exists) return prev;
+          return prev.map(g => {
+            if (g.id === newReaction.glimpse_id) {
+              const existsRx = g.glimpse_reactions?.some((r: any) => r.user_id === newReaction.user_id && r.reaction_type === newReaction.reaction_type);
+              if (!existsRx) {
+                return {
+                  ...g,
+                  glimpse_reactions: [...(g.glimpse_reactions || []), { id: newReaction.id, reaction_type: newReaction.reaction_type, user_id: newReaction.user_id }]
+                };
+              }
             }
-          }
-          return g;
-        }));
+            return g;
+          });
+        });
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'glimpse_reactions' }, (payload) => {
         const oldReaction = payload.old;
         if (oldReaction?.id) {
-          setGlimpses(prev => prev.map(g => {
-            return {
-              ...g,
-              glimpse_reactions: (g.glimpse_reactions || []).filter((r: any) => r.id !== oldReaction.id)
-            };
-          }));
+          setGlimpses(prev => {
+            const affectedGlimpse = prev.find(g => (g.glimpse_reactions || []).some((r: any) => r.id === oldReaction.id));
+            if (!affectedGlimpse) return prev;
+            return prev.map(g => {
+              if (g.id !== affectedGlimpse.id) return g;
+              return {
+                ...g,
+                glimpse_reactions: (g.glimpse_reactions || []).filter((r: any) => r.id !== oldReaction.id)
+              };
+            });
+          });
         }
       })
       .subscribe();
@@ -498,6 +511,102 @@ export const Sparx: React.FC = () => {
       supabase.removeChannel(glimpseChannel);
     };
   }, [feedMode, currentUser]);
+
+  const renderLiveRoomsTray = () => {
+    if (feedMode === 'leaderboard') return null;
+
+    return (
+      <div className="w-full bg-black/40 border-b border-gray-900/40 backdrop-blur-md px-4 py-3 select-none animate-fade-in">
+        <div className="max-w-xl mx-auto flex flex-col gap-2">
+          {/* Section Header */}
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-500">
+            <span>Active Vibe Rooms</span>
+            {activeRooms.length > 0 && (
+              <span className="flex items-center gap-1 text-cyan-400 font-mono text-[9px] lowercase">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+                </span>
+                {activeRooms.length} active
+              </span>
+            )}
+          </div>
+
+          {/* Horizontal scroll container */}
+          <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1">
+            {/* Create Room Card */}
+            <button
+              onClick={() => setIsLobbyOpen(true)}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/30 hover:border-pink-500/60 hover:from-pink-500/20 hover:to-purple-600/20 transition-all duration-300 shadow-[0_0_15px_rgba(255,0,127,0.05)] active:scale-95 text-left"
+            >
+              <div className="w-7 h-7 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-400">
+                <Plus className="w-4 h-4 stroke-[3px]" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-gray-200">Start Vibe</span>
+                <span className="text-[9px] text-pink-400 font-medium">Create room</span>
+              </div>
+            </button>
+
+            {/* Active Rooms */}
+            {activeRooms.length === 0 ? (
+              <div className="text-[11px] text-gray-600 font-medium italic py-2">
+                No active vibe rooms right now.
+              </div>
+            ) : (
+              activeRooms.map((room) => {
+                const details = parseRoomDetails(room.room_id);
+                const isCinema = details.type === 'cinema';
+                
+                return (
+                  <button
+                    key={room.room_id}
+                    onClick={() => {
+                      if (room.is_private) {
+                        setPendingJoinRoom(room);
+                        setShowPasscodePrompt(true);
+                      } else {
+                        router.push(`/sparx/${details.type}?room=${encodeURIComponent(room.room_id)}`);
+                      }
+                    }}
+                    className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 hover:border-cyan-500/40 hover:bg-zinc-900/60 transition-all duration-300 active:scale-95 text-left group"
+                  >
+                    {/* Room Type Icon */}
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors
+                      ${isCinema 
+                        ? 'bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20' 
+                        : 'bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20'
+                      }`}
+                    >
+                      {isCinema ? (
+                        <Tv className="w-4 h-4" />
+                      ) : (
+                        <Music className="w-4 h-4" />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col min-w-0 max-w-[110px]">
+                      <span className="text-xs font-bold text-gray-200 truncate flex items-center gap-1">
+                        {details.name}
+                        {room.is_private && <Lock className="w-2.5 h-2.5 text-gray-500" />}
+                      </span>
+                      <span className="text-[9px] text-gray-500 font-semibold flex items-center gap-1 mt-0.5">
+                        <span className="relative flex h-1 w-1">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1 w-1 bg-emerald-500"></span>
+                        </span>
+                        {room.participant_count || 1} online
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const handleOpenUpload = () => {
     if (!currentUser) {
@@ -699,6 +808,7 @@ export const Sparx: React.FC = () => {
                                 src={getOptimizedUrl(user.profile.avatar, 64)} 
                                 alt="Avatar" 
                                 className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
@@ -709,14 +819,14 @@ export const Sparx: React.FC = () => {
                         </div>
 
                         {/* Details */}
-                        <div className="min-w-0">
-                          <h4 className={`text-sm font-bold truncate flex items-center gap-1.5 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
-                            {user.profile.real_name || 'Anonymous'}
+                        <div className="min-w-0 flex-1">
+                          <h4 className={`text-sm font-bold flex items-center gap-1.5 min-w-0 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
+                            <span className="truncate">{user.profile.real_name || 'Anonymous'}</span>
                             {isCurrentUser && (
-                              <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)]">You</span>
+                              <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)] flex-shrink-0">You</span>
                             )}
                             {user.profile.is_verified && (
-                              <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
+                              <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)] flex-shrink-0" fill="currentColor" stroke="black" strokeWidth={1.5} />
                             )}
                           </h4>
                           <span className="text-[10px] text-gray-500 block truncate mt-0.5 font-medium">
@@ -726,7 +836,7 @@ export const Sparx: React.FC = () => {
                       </div>
 
                       {/* Glimpse Count */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-4">
                         <span className="text-sm font-black text-rose-500 font-mono">
                           {user.count}
                         </span>
@@ -742,29 +852,32 @@ export const Sparx: React.FC = () => {
           </div>
         </div>
       ) : glimpses.length === 0 ? (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in">
-          {/* Mascot Circle */}
-          <div className="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700 mx-auto shadow-2xl">
-            <Ghost className="w-10 h-10 text-gray-600" />
+        <div className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none flex flex-col">
+          {renderLiveRoomsTray()}
+          <div className="flex-1 flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in mt-12">
+            {/* Mascot Circle */}
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700 mx-auto shadow-2xl">
+              <Ghost className="w-10 h-10 text-gray-600" />
+            </div>
+
+            <h2 className="text-xl font-black text-white mb-3 uppercase tracking-tight">
+              No Glimpses Yet
+            </h2>
+            
+            <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
+              {feedMode === 'campus'
+                ? 'Be the first to share a highlight of your day on campus!'
+                : 'Nobody has shared global glimpses in the last 24 hours.'}
+            </p>
+
+            <button
+              onClick={handleOpenUpload}
+              className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 mx-auto"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Share a Glimpse</span>
+            </button>
           </div>
-
-          <h2 className="text-xl font-black text-white mb-3 uppercase tracking-tight">
-            No Glimpses Yet
-          </h2>
-          
-          <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
-            {feedMode === 'campus'
-              ? 'Be the first to share a highlight of your day on campus!'
-              : 'Nobody has shared global glimpses in the last 24 hours.'}
-          </p>
-
-          <button
-            onClick={handleOpenUpload}
-            className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 mx-auto"
-          >
-            <Camera className="w-4 h-4" />
-            <span>Share a Glimpse</span>
-          </button>
         </div>
       ) : (
         /* Glimpse Thread List View */
@@ -773,6 +886,7 @@ export const Sparx: React.FC = () => {
           onScroll={handleScroll}
           className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none divide-y divide-gray-900/50"
         >
+          {renderLiveRoomsTray()}
           <div className="max-w-xl mx-auto bg-black">
             {glimpses.map((glimpse, index) => {
               const isViewed = viewedIds.includes(glimpse.id);
@@ -807,6 +921,7 @@ export const Sparx: React.FC = () => {
                               src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
                               alt="Avatar" 
                               className="w-full h-full object-cover" 
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
@@ -921,22 +1036,11 @@ export const Sparx: React.FC = () => {
           {/* Glimpse Progress Indicators at the Top */}
           <div className="absolute top-4 left-4 md:left-[104px] right-12 z-50 flex gap-1">
             {glimpses.map((_, idx) => (
-              <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full bg-white ${
-                    (idx === activeStoryIndex && storyProgress > 0) 
-                      ? 'transition-all duration-100 ease-linear' 
-                      : ''
-                  }`}
-                  style={{
-                    width: idx < activeStoryIndex 
-                      ? '100%' 
-                      : idx === activeStoryIndex 
-                        ? `${storyProgress}%` 
-                        : '0%'
-                  }}
-                />
-              </div>
+              <GlimpseProgressBar
+                key={idx}
+                idx={idx}
+                activeStoryIndex={activeStoryIndex!}
+              />
             ))}
           </div>
 
@@ -954,15 +1058,6 @@ export const Sparx: React.FC = () => {
       {/* Floating Action Buttons (FAB) */}
       {feedMode !== 'leaderboard' && activeStoryIndex === null && (
         <div className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-30 flex flex-col gap-4 items-center">
-          {/* Duo Dates Lobby FAB */}
-          <button
-            onClick={() => setIsLobbyOpen(true)}
-            className="p-4 bg-cyan-500/90 hover:bg-cyan-500 text-white rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.8)] border border-white/10 transition-all duration-300 active:scale-90"
-            aria-label="Open lobby"
-          >
-            <Tv className="w-6 h-6 text-white" />
-          </button>
-
           {/* Upload FAB */}
           <button
             onClick={handleOpenUpload}

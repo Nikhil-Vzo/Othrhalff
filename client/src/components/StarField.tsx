@@ -41,6 +41,10 @@ export const StarField: React.FC = () => {
             'rgba(255, 253, 240,',     // Warm white
         ];
 
+        // Check for reduced motion preference
+        const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) return;
+
         const resize = () => {
             const dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
@@ -91,6 +95,11 @@ export const StarField: React.FC = () => {
         };
 
         const draw = (time: number) => {
+            if (document.hidden) {
+                // If page is hidden, pause drawing loop but keep requestAnimationFrame going
+                animationFrameId = requestAnimationFrame(draw);
+                return;
+            }
             const width = window.innerWidth;
             const height = window.innerHeight;
             ctx.clearRect(0, 0, width, height);

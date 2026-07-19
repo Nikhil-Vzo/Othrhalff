@@ -28,9 +28,10 @@ export const calculateMatchPercentage = (
   const jaccardIndex = union.size === 0 ? 0 : intersection.length / union.size;
   const interestScore = jaccardIndex * 100;
 
-  // 2. University Match
-  // We prioritize matches within the same campus
-  const universityScore = user.university === candidate.university ? 100 : 0;
+  // 2. University Match - normalize to ignore city suffixes (e.g. 'Amity University, Raipur')
+  const normalizeUniversity = (u?: string) =>
+    (u ?? '').split(',')[0].trim().toLowerCase();
+  const universityScore = normalizeUniversity(user.university) === normalizeUniversity(candidate.university) ? 100 : 0;
 
   // 3. Weighted Final Score
   // Weights: Interests (70%), University (30%)

@@ -32,6 +32,7 @@ export interface Message {
   isRead?: boolean;
   status?: 'sent' | 'sending' | 'failed';
   reaction?: string;
+  parsedGame?: any;
 }
 
 export interface ChatSession {

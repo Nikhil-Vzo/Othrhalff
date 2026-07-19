@@ -115,8 +115,8 @@ export const authService = {
 
   uploadAvatar: async (file: File): Promise<string> => {
     try {
-      // Compress image before returning
-      return await authService.compressImage(file);
+      // Compress image to 1024px and 0.85 quality before returning
+      return await authService.compressImage(file, 1024, 0.85);
     } catch (err) {
       console.error('Image compression failed, using original:', err);
       // Fallback to original (uncompressed) if compression fails

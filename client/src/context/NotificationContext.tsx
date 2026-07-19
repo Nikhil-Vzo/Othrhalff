@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { getCachedProfilesBulk } from '../services/profileCache';
+import { buildRealtimeIdFilter, chunkIds, uniqueValidUuids } from '../utils/realtime';
 
 interface NotificationItem {
     id: string;
@@ -27,6 +29,8 @@ interface NotificationContextType {
     markAsRead: (id: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
     deleteNotification: (id: string) => Promise<void>;
+    unreadMessageCount: number;
+    setUnreadMessageCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -35,6 +39,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const { currentUser } = useAuth();
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [unreadMessageCount, setUnreadMessageCount] = useState(0);
     const [loading, setLoading] = useState(false);
 
     // Debounce Ref to prevent "Thundering Herd" of fetches
@@ -58,17 +63,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             const rawUserIds = (data || []).map(n => n.from_user_id || n.data?.from_user_id).filter(Boolean);
             const userIds = rawUserIds.filter((val, idx, self) => self.indexOf(val) === idx);
             
-            // Fetch profiles in a separate query
-            let profilesMap = new Map();
-            if (userIds.length > 0) {
-                const { data: profiles, error: profError } = await supabase
-                    .from('profiles')
-                    .select('id, anonymous_id, avatar, university')
-                    .in('id', userIds);
-                if (profiles && !profError) {
-                    profiles.forEach(p => profilesMap.set(p.id, p));
-                }
-            }
+            // Fetch profiles using the caching layer
+            const profilesMap = await getCachedProfilesBulk(userIds);
 
             const mapped: NotificationItem[] = (data || []).map((n: any) => {
                 const fromUserId = n.from_user_id || n.data?.from_user_id;
@@ -86,8 +82,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     fromUser: fromUser ? {
                         id: fromUser.id,
                         anonymousId: fromUser.anonymous_id,
-                        avatar: fromUser.avatar,
-                        university: fromUser.university
+                        avatar: fromUser.avatar || '',
+                        university: fromUser.university || ''
                     } : undefined
                 };
             });
@@ -176,6 +172,121 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         };
     }, [currentUser, debouncedFetch]);
 
+    // Fetch real-time unread messages count for the chat badge without subscribing to the global messages table.
+    useEffect(() => {
+        if (!currentUser || !supabase) {
+            setUnreadMessageCount(0);
+            return;
+        }
+
+        let debounceTimeout: NodeJS.Timeout | null = null;
+        let isActive = true;
+        let messageChannels: ReturnType<typeof supabase.channel>[] = [];
+        let matchChannels: ReturnType<typeof supabase.channel>[] = [];
+        const channelNonce = Math.random().toString(36).slice(2);
+        const matchIdsRef = { current: [] as string[] };
+
+        const removeMessageChannels = () => {
+            messageChannels.forEach(channel => supabase.removeChannel(channel));
+            messageChannels = [];
+        };
+
+        const fetchMatchIds = async () => {
+            const { data, error } = await supabase
+                .from('matches')
+                .select('id')
+                .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
+
+            if (error) {
+                console.error('Error fetching match ids for unread count:', error);
+                return matchIdsRef.current;
+            }
+
+            return uniqueValidUuids((data || []).map(match => match.id));
+        };
+
+        const fetchUnreadCount = async (matchIds = matchIdsRef.current) => {
+            try {
+                if (matchIds.length === 0) {
+                    if (isActive) setUnreadMessageCount(0);
+                    return;
+                }
+
+                const countResults = await Promise.all(
+                    chunkIds(matchIds).map(ids =>
+                        supabase
+                            .from('messages')
+                            .select('id', { count: 'exact', head: true })
+                            .in('match_id', ids)
+                            .neq('sender_id', currentUser.id)
+                            .eq('is_read', false)
+                    )
+                );
+
+                const firstError = countResults.find(result => result.error)?.error;
+                if (firstError) {
+                    console.error('Error fetching unread messages count:', firstError);
+                    return;
+                }
+
+                const count = countResults.reduce((total, result) => total + (result.count || 0), 0);
+
+                if (isActive) {
+                    setUnreadMessageCount(count);
+                }
+            } catch (err) {
+                console.error('Error fetching unread messages count:', err);
+            }
+        };
+
+        const debouncedFetch = () => {
+            if (debounceTimeout) clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                fetchUnreadCount();
+            }, 300);
+        };
+
+        const refreshMessageSubscriptions = async () => {
+            const matchIds = await fetchMatchIds();
+            if (!isActive) return;
+
+            matchIdsRef.current = matchIds;
+            await fetchUnreadCount(matchIds);
+            removeMessageChannels();
+
+            messageChannels = chunkIds(matchIds).map((ids, index) =>
+                supabase
+                    .channel(`unread-messages-count-context-${currentUser.id}-${channelNonce}-${index}`)
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'messages', filter: buildRealtimeIdFilter('match_id', ids) },
+                        debouncedFetch
+                    )
+                    .subscribe()
+            );
+        };
+
+        refreshMessageSubscriptions();
+
+        matchChannels = [
+            supabase
+                .channel(`context-matches-user-a-${currentUser.id}-${channelNonce}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches', filter: `user_a=eq.${currentUser.id}` }, refreshMessageSubscriptions)
+                .subscribe(),
+            supabase
+                .channel(`context-matches-user-b-${currentUser.id}-${channelNonce}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches', filter: `user_b=eq.${currentUser.id}` }, refreshMessageSubscriptions)
+                .subscribe()
+        ];
+
+        return () => {
+            isActive = false;
+            if (debounceTimeout) clearTimeout(debounceTimeout);
+            removeMessageChannels();
+            matchChannels.forEach(channel => supabase.removeChannel(channel));
+        };
+    }, [currentUser]);
+
     const markAsRead = async (id: string) => {
         // 1. Optimistic Update
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -243,16 +354,29 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
     };
 
+    const providerValue = React.useMemo(() => ({
+        notifications,
+        unreadCount,
+        loading,
+        fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+        deleteNotification,
+        unreadMessageCount,
+        setUnreadMessageCount
+    }), [
+        notifications,
+        unreadCount,
+        loading,
+        fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+        deleteNotification,
+        unreadMessageCount
+    ]);
+
     return (
-        <NotificationContext.Provider value={{
-            notifications,
-            unreadCount,
-            loading,
-            fetchNotifications,
-            markAsRead,
-            markAllAsRead,
-            deleteNotification
-        }}>
+        <NotificationContext.Provider value={providerValue}>
             {children}
         </NotificationContext.Provider>
     );

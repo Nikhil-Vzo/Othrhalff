@@ -12,16 +12,31 @@ export interface LocalMessage {
   reaction?: string;
 }
 
+export interface LocalProfile {
+  id: string;
+  real_name: string | null;
+  anonymous_id: string;
+  avatar: string | null;
+  is_verified: boolean;
+  university: string | null;
+  last_fetched: number; // Storing as timestamp number for TTL checks
+}
+
 export class ChatDatabase extends Dexie {
   messages!: Table<LocalMessage, string>;
+  profiles!: Table<LocalProfile, string>;
 
   constructor() {
-    super('OthrhalffChatDB');
+    super('OthrhalffCupidDB');
     this.version(1).stores({
       messages: 'id, match_id, created_at, status'
     });
     this.version(2).stores({
       messages: 'id, match_id, created_at, status, [match_id+created_at]'
+    });
+    this.version(3).stores({
+      messages: 'id, match_id, created_at, status, [match_id+created_at]',
+      profiles: 'id'
     });
   }
 }

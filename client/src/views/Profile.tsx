@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase'; // Changed: Import Supabase
+import { authService } from '../services/auth';
 import { UserProfile } from '../types';
 import { NeonButton, NeonInput } from '../components/Common';
 import {
@@ -9,7 +10,7 @@ import {
     LogOut, ChevronDown, Settings, Lock, ShieldBan,
     MessageCircle, Mail, Phone, Loader2, Heart, Search,
     Download, Smartphone, ExternalLink, Code, Scale, FileText,
-    Shield, Info, Briefcase, Users, Rocket, Sparkles
+    Shield, Info, Briefcase, Users, Rocket, Sparkles, Fingerprint
 } from 'lucide-react';
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS, MOCK_INTERESTS } from '../constants';
 import { getOptimizedUrl } from '../utils/image';
@@ -153,30 +154,7 @@ export const Profile: React.FC = () => {
     // Resolve which profile to show
     const profileUser = isSelf ? currentUser : fetchedProfile;
 
-    // Profile completeness computation
-    const getProfileCompleteness = (user: UserProfile) => {
-        let score = 0;
-        if (user.avatar) score += 25;
-        if (user.bio && user.bio.trim().length > 0) score += 25;
-        if (user.interests && user.interests.length >= 3) score += 20;
-        else if (user.interests && user.interests.length > 0) score += 10;
-        if (user.lookingFor && user.lookingFor.length >= 1) score += 15;
-        if (user.isVerified) score += 15;
-        return Math.min(100, score);
-    };
 
-    const getCompletenessRecommendations = (user: UserProfile) => {
-        const recs: string[] = [];
-        if (!user.avatar) recs.push("Add a profile photo");
-        if (!user.bio || user.bio.trim().length === 0) recs.push("Write a bio about yourself");
-        if (!user.interests || user.interests.length < 3) recs.push("Add at least 3 interests");
-        if (!user.lookingFor || user.lookingFor.length === 0) recs.push("Choose what you're looking for");
-        if (!user.isVerified) recs.push("Verify your student email");
-        return recs;
-    };
-
-    const completeness = profileUser ? getProfileCompleteness(profileUser) : 0;
-    const recommendations = profileUser ? getCompletenessRecommendations(profileUser) : [];
 
     // Fetch Profile Data (if not self)
     useEffect(() => {
@@ -337,16 +315,38 @@ export const Profile: React.FC = () => {
         }
     };
 
-    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleRegisterPasskey = async () => {
+        try {
+            if (!supabase) throw new Error("Supabase is not initialized.");
+            const { data, error } = await supabase.auth.registerPasskey();
+            if (error) throw error;
+            alert("Passkey registered successfully! You can now use it to sign in next time.");
+        } catch (err: any) {
+            console.error('Passkey registration error:', err);
+            if (err.name === 'NotAllowedError') {
+                alert("Passkey registration canceled or timed out.");
+            } else {
+                alert(err.message || "Failed to register passkey. Ensure your browser/device supports WebAuthn.");
+            }
+        }
+    };
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                // In production, we should upload to Supabase Storage and get a URL.
-                // For now, base64 string works for small images but isn't scalable.
-                setEditForm(prev => ({ ...prev, avatar: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        const MAX_SIZE = 2 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            alert("Please upload an image smaller than 2MB.");
+            return;
+        }
+
+        try {
+            const compressed = await authService.uploadAvatar(file);
+            setEditForm(prev => ({ ...prev, avatar: compressed }));
+        } catch (err) {
+            console.error("Error processing avatar:", err);
+            alert("Failed to process image. Please try another one.");
         }
     };
 
@@ -387,9 +387,10 @@ export const Profile: React.FC = () => {
                                 <div className="relative flex-shrink-0">
                                     <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-zinc-950 shadow-[0_15px_30px_rgba(0,0,0,0.5)] overflow-hidden bg-zinc-800 relative group/avatar">
                                         <img
-                                            src={getOptimizedUrl(profileUser.avatar || AVATAR_PRESETS[0], 384)}
+                                            src={getOptimizedUrl(profileUser.avatar || AVATAR_PRESETS[0], 1024)}
                                             alt="Avatar"
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover/avatar:scale-105"
+                                            referrerPolicy="no-referrer"
                                         />
                                     </div>
                                     {profileUser.isVerified && (
@@ -471,49 +472,7 @@ export const Profile: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Completeness Ring directly in Hero Card for Self */}
-                            {(isSelf && !isEditing) && (
-                                <div className="flex-shrink-0 flex items-center gap-4 p-4 bg-zinc-950/40 border border-white/5 rounded-3xl backdrop-blur-md self-stretch md:self-center">
-                                    <div className="relative flex-shrink-0 w-16 h-16 flex items-center justify-center">
-                                        <svg className="w-full h-full transform -rotate-90">
-                                            <circle
-                                                cx="32"
-                                                cy="32"
-                                                r="26"
-                                                className="stroke-zinc-800"
-                                                strokeWidth="4"
-                                                fill="transparent"
-                                            />
-                                            <circle
-                                                cx="32"
-                                                cy="32"
-                                                r="26"
-                                                className="stroke-neon transition-all duration-500 ease-out"
-                                                strokeWidth="4"
-                                                fill="transparent"
-                                                strokeDasharray={2 * Math.PI * 26}
-                                                strokeDashoffset={2 * Math.PI * 26 - (completeness / 100) * (2 * Math.PI * 26)}
-                                                strokeLinecap="round"
-                                            />
-                                        </svg>
-                                        <span className="absolute text-xs font-black text-white">{completeness}%</span>
-                                    </div>
-                                    <div className="min-w-0 text-left">
-                                        <h4 className="font-bold text-[10px] uppercase tracking-widest text-zinc-500 mb-0.5">Profile Strength</h4>
-                                        {completeness === 100 ? (
-                                            <p className="text-[11px] text-green-400 font-semibold">100% Set Up</p>
-                                        ) : (
-                                            <p className="text-[11px] text-zinc-400 leading-snug">
-                                                {recommendations.length > 0 ? (
-                                                    <span>Add <strong className="text-neon">{recommendations[0].toLowerCase().split(' ')[0]}...</strong></span>
-                                                ) : (
-                                                    "Improve setup"
-                                                )}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+
 
                         </div>
                     </div>
@@ -540,6 +499,7 @@ export const Profile: React.FC = () => {
                                                     src={getOptimizedUrl(editForm.avatar || profileUser.avatar || AVATAR_PRESETS[0], 192)}
                                                     alt="Edit Avatar"
                                                     className="w-full h-full object-cover"
+                                                    referrerPolicy="no-referrer"
                                                 />
                                             </div>
                                             <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center cursor-pointer opacity-0 group-hover/edit-avatar:opacity-100 transition-opacity duration-300">
@@ -559,7 +519,7 @@ export const Profile: React.FC = () => {
                                                             editForm.avatar === avatar ? 'border-neon scale-105' : 'border-zinc-800 opacity-60 hover:opacity-100'
                                                         }`}
                                                     >
-                                                        <img src={getOptimizedUrl(avatar, 40)} alt="" className="w-full h-full bg-zinc-800 rounded-full" />
+                                                        <img src={getOptimizedUrl(avatar, 40)} alt="" className="w-full h-full bg-zinc-800 rounded-full" referrerPolicy="no-referrer" />
                                                     </button>
                                                 ))}
                                             </div>
@@ -578,9 +538,6 @@ export const Profile: React.FC = () => {
                                             <label className="text-[10px] text-zinc-500 font-bold block mb-2 uppercase">Branch / Major</label>
                                             <NeonInput value={editForm.branch || ''} onChange={e => setEditForm({ ...editForm, branch: e.target.value })} />
                                         </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
                                             <label className="text-[10px] text-zinc-500 font-bold block mb-2 uppercase">Year of Study</label>
                                             <div className="relative">
@@ -593,14 +550,6 @@ export const Profile: React.FC = () => {
                                                 </select>
                                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                                             </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-zinc-500 font-bold block mb-2 uppercase">Date of Birth</label>
-                                            <NeonInput
-                                                type="date"
-                                                value={editForm.dob || ''}
-                                                onChange={e => setEditForm({ ...editForm, dob: e.target.value })}
-                                            />
                                         </div>
                                     </div>
 
@@ -699,58 +648,73 @@ export const Profile: React.FC = () => {
                                     </p>
                                 </div>
 
-                                {/* Academics Box */}
-                                <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-colors">
-                                    <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-indigo-400 font-black tracking-widest uppercase">Academics</span>
-                                        <GraduationCap className="w-4 h-4 text-indigo-400" />
-                                    </div>
-                                    <h4 className="text-sm font-bold text-white mb-2 leading-snug">{profileUser.university}</h4>
-                                    <div className="space-y-1 text-xs text-zinc-400 font-medium">
-                                        <p>{profileUser.branch}</p>
-                                        <p>{profileUser.year}</p>
-                                    </div>
-                                </div>
-
-                                {/* Verification Card */}
-                                <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-colors">
-                                    <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-blue-400 font-black tracking-widest uppercase">Student Verification</span>
-                                        <Shield className="w-4 h-4 text-blue-400" />
-                                    </div>
-                                    {profileUser.isVerified ? (
-                                        <div>
-                                            <div className="flex items-center gap-1.5 text-blue-400 font-bold text-sm mb-1">
-                                                <BadgeCheck className="w-4 h-4 fill-blue-500/10" /> Status: Verified
+                                {/* Verification Card (Spans 2 cols) */}
+                                {profileUser.isVerified ? (
+                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-5 md:p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all">
+                                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+                                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
+                                            <div className="flex items-start gap-3.5">
+                                                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-neon flex-shrink-0 mt-0.5">
+                                                    <Shield className="w-5 h-5" />
+                                                </div>
+                                                <div className="space-y-1.5 min-w-0">
+                                                    <h4 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h4>
+                                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                                        Your student credentials are authenticated and active.
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <p className="text-[11px] text-zinc-500">Your student credentials are authenticated.</p>
+                                            <div className="flex items-center justify-center gap-1.5 text-emerald-450 font-bold text-xs bg-emerald-950/20 border border-emerald-500/20 py-2 px-4 rounded-xl self-stretch md:self-center">
+                                                <BadgeCheck className="w-4 h-4 text-emerald-450 fill-emerald-500/10" /> Verified Student
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div>
-                                            <div className="flex items-center gap-1.5 text-zinc-400 font-bold text-sm mb-2">
-                                                <X className="w-4 h-4 text-zinc-500" /> Status: Unverified
+                                    </div>
+                                ) : (
+                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-5 md:p-6 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all">
+                                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+                                            <div className="flex items-start gap-3.5 w-full">
+                                                <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-neon flex-shrink-0 mt-0.5">
+                                                    <Shield className="w-5 h-5" />
+                                                </div>
+                                                <div className="space-y-1.5 min-w-0 flex-1">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                                                        <h4 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h4>
+                                                        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/25 rounded-full text-[9px] font-bold text-amber-500 uppercase tracking-wider whitespace-nowrap w-fit">
+                                                            Action Required
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                                        Verify your college email to access campus channels & glimpses.
+                                                    </p>
+                                                </div>
                                             </div>
-                                            {isSelf && (
-                                                <button onClick={() => setShowVerification(true)} className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 hover:underline">
-                                                    Submit Verification Request <ExternalLink className="w-3 h-3" />
+                                            {isSelf ? (
+                                                <button 
+                                                    onClick={() => setShowVerification(true)} 
+                                                    className="w-full md:w-auto px-6 py-3 rounded-xl bg-neon text-white hover:bg-neon/90 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,0,127,0.2)] hover:shadow-[0_0_20px_rgba(255,0,127,0.4)] text-center whitespace-nowrap self-stretch md:self-center"
+                                                >
+                                                    Verify Now
                                                 </button>
+                                            ) : (
+                                                <div className="flex items-center justify-center gap-1.5 text-zinc-500 font-bold text-xs bg-zinc-950/40 border border-white/5 py-2 px-4 rounded-xl self-stretch md:self-center">
+                                                    <X className="w-4 h-4 text-zinc-600" /> Unverified Student
+                                                </div>
                                             )}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
 
                                 {/* Passions Box (Spans 2 cols on desktop) */}
                                 <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md hover:border-white/10 transition-colors">
                                     <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-teal-400 font-black tracking-widest uppercase">Interests & Passions</span>
-                                        <Heart className="w-4 h-4 text-teal-400" />
+                                        <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Interests & Passions</span>
+                                        <Heart className="w-4 h-4 text-neon" />
                                     </div>
                                     {profileUser.interests && profileUser.interests.length > 0 ? (
                                         <div className="flex flex-wrap gap-2">
                                             {profileUser.interests.map(interest => (
-                                                <span key={interest} className="px-3 py-1.5 bg-teal-500/10 border border-teal-500/20 hover:border-teal-400/50 hover:text-teal-300 rounded-2xl text-xs font-semibold text-teal-400/90 transition-colors">
+                                                <span key={interest} className="px-3 py-1.5 bg-white/[0.03] border border-white/10 hover:border-neon/30 hover:text-neon rounded-2xl text-xs font-semibold text-zinc-300 transition-colors">
                                                     #{interest}
                                                 </span>
                                             ))}
@@ -763,13 +727,13 @@ export const Profile: React.FC = () => {
                                 {/* Looking For Box (Spans 2 cols on desktop) */}
                                 <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md hover:border-white/10 transition-colors">
                                     <div className="flex items-center justify-between mb-4">
-                                        <span className="text-[10px] text-pink-400 font-black tracking-widest uppercase">Looking For</span>
-                                        <Search className="w-4 h-4 text-pink-400" />
+                                        <span className="text-[10px] text-zinc-400 font-black tracking-widest uppercase">Looking For</span>
+                                        <Search className="w-4 h-4 text-neon" />
                                     </div>
                                     {profileUser.lookingFor && profileUser.lookingFor.length > 0 ? (
                                         <div className="flex flex-wrap gap-2">
                                             {profileUser.lookingFor.map(option => (
-                                                <span key={option} className="px-3 py-1.5 bg-pink-500/10 border border-pink-500/20 rounded-2xl text-xs font-semibold text-pink-400/95">
+                                                <span key={option} className="px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded-2xl text-xs font-semibold text-zinc-300">
                                                     {option}
                                                 </span>
                                             ))}
@@ -779,207 +743,138 @@ export const Profile: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Collapsible Settings Accordion Stack (Spans 2 cols) */}
-                                <div className="sm:col-span-2 space-y-4">
-                                    {/* 1. Account Center Dropdown */}
-                                    {isSelf && (
-                                        <div className="bg-zinc-900/30 border border-white/5 rounded-3xl backdrop-blur-md overflow-hidden hover:border-white/10 transition-colors">
-                                            <button
-                                                onClick={() => setShowAccount(!showAccount)}
-                                                className="w-full p-6 flex items-center justify-between text-left focus:outline-none"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2.5 bg-neon/10 rounded-xl text-neon">
-                                                        <Settings className="w-5 h-5" />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-black text-white uppercase tracking-widest text-sm">Account Center</h3>
-                                                        <p className="text-[10px] text-zinc-500 font-medium">Manage your security, credentials & session</p>
-                                                    </div>
-                                                </div>
-                                                <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showAccount ? 'rotate-180' : ''}`} />
-                                            </button>
-                                            
-                                            {showAccount && (
-                                                <div className="px-6 pb-6 pt-2 border-t border-white/5 animate-fade-in">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
-                                                        {!currentUser?.username ? (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setIsPasswordChangeOnly(false);
-                                                                    setCredForm({ username: '', password: '' });
-                                                                    setCredError(null);
-                                                                    setShowCredentialsModal(true);
-                                                                }}
-                                                                className="p-4 rounded-2xl bg-neon/10 border border-neon/30 hover:bg-neon/20 hover:border-neon/50 text-left transition-all flex items-center gap-3 animate-pulse"
-                                                            >
-                                                                <div className="p-2 bg-neon/20 rounded-lg text-neon flex-shrink-0">
-                                                                    <Lock className="w-4 h-4" />
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <span className="font-bold text-neon text-xs block">Set Username</span>
-                                                                    <span className="text-[10px] text-neon/70 font-light">Login credentials setup</span>
-                                                                </div>
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setIsPasswordChangeOnly(true);
-                                                                    setCredForm({ username: currentUser.username || '', password: '' });
-                                                                    setCredError(null);
-                                                                    setShowCredentialsModal(true);
-                                                                }}
-                                                                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left transition-all flex items-center gap-3"
-                                                            >
-                                                                <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400 flex-shrink-0">
-                                                                    <User className="w-4 h-4" />
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <span className="font-bold text-zinc-200 text-xs block truncate">Change Password</span>
-                                                                    <span className="text-[10px] text-zinc-500 truncate block">@{currentUser.username}</span>
-                                                                </div>
-                                                            </button>
-                                                        )}
-
-                                                        <button
-                                                            onClick={() => navigate.push('/contact')}
-                                                            className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left transition-all flex items-center gap-3"
-                                                        >
-                                                            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 flex-shrink-0">
-                                                                <Mail className="w-4 h-4" />
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <span className="font-bold text-zinc-200 text-xs block">Contact Support</span>
-                                                                <span className="text-[10px] text-zinc-500">Submit a support ticket</span>
-                                                            </div>
-                                                        </button>
-
-                                                        <button
-                                                            onClick={handleInstallPWA}
-                                                            className="p-4 rounded-2xl bg-gradient-to-r from-neon/15 to-purple-600/15 border border-neon/20 hover:border-neon/40 text-left transition-all flex items-center gap-3 animate-pulse"
-                                                        >
-                                                            <div className="p-2 bg-neon/15 rounded-lg text-neon flex-shrink-0">
-                                                                <Smartphone className="w-4 h-4" />
-                                                            </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <span className="font-bold text-zinc-200 text-xs block">Install App</span>
-                                                                <span className="text-[10px] text-zinc-500 block truncate">Add to your home screen</span>
-                                                            </div>
-                                                        </button>
-
-                                                        <button
-                                                            onClick={logout}
-                                                            className="p-4 rounded-2xl bg-red-950/20 border border-red-900/30 hover:bg-red-900/20 hover:border-red-500/50 text-left transition-all flex items-center gap-3 sm:col-span-2 md:col-span-1"
-                                                        >
-                                                            <div className="p-2 bg-red-500/10 rounded-lg text-red-500 flex-shrink-0">
-                                                                <LogOut className="w-4 h-4" />
-                                                            </div>
-                                                            <div>
-                                                                <span className="font-bold text-zinc-300 text-xs block">Log Out</span>
-                                                                <span className="text-[10px] text-zinc-500">Sign out of account</span>
-                                                            </div>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                {/* Account Settings Panel (Spans 2 cols) */}
+                                {isSelf && (
+                                    <div className="sm:col-span-2 bg-zinc-900/30 border border-white/5 rounded-3xl p-6 backdrop-blur-md hover:border-white/10 transition-colors">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="p-2.5 bg-neon/10 rounded-xl text-neon">
+                                                <Settings className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-black text-white uppercase tracking-widest text-sm">Account Settings</h3>
+                                                <p className="text-[10px] text-zinc-500 font-medium">Manage your security, credentials & session</p>
+                                            </div>
                                         </div>
-                                    )}
 
-                                    {/* 2. Safety & Legal Protection Dropdown */}
-                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl backdrop-blur-md overflow-hidden hover:border-white/10 transition-colors">
-                                        <button
-                                            onClick={() => setShowLegal(!showLegal)}
-                                            className="w-full p-6 flex items-center justify-between text-left focus:outline-none"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-400">
-                                                    <Shield className="w-5 h-5" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                            {/* Set Username or Change Password */}
+                                            {!currentUser?.username ? (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsPasswordChangeOnly(false);
+                                                        setCredForm({ username: '', password: '' });
+                                                        setCredError(null);
+                                                        setShowCredentialsModal(true);
+                                                    }}
+                                                    className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
+                                                >
+                                                    <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
+                                                        <Lock className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="font-bold text-zinc-200 text-xs block">Set Username</span>
+                                                        <span className="text-[10px] text-zinc-500 block">Login credentials setup</span>
+                                                    </div>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsPasswordChangeOnly(true);
+                                                        setCredForm({ username: currentUser.username || '', password: '' });
+                                                        setCredError(null);
+                                                        setShowCredentialsModal(true);
+                                                    }}
+                                                    className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
+                                                >
+                                                    <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
+                                                        <User className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="font-bold text-zinc-200 text-xs block truncate">Change Password</span>
+                                                        <span className="text-[10px] text-zinc-500 truncate block">@{currentUser.username}</span>
+                                                    </div>
+                                                </button>
+                                            )}
+
+                                            {/* Register Passkey */}
+                                            <button
+                                                onClick={handleRegisterPasskey}
+                                                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
+                                            >
+                                                <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
+                                                    <Fingerprint className="w-4 h-4" />
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-black text-white uppercase tracking-widest text-sm">Safety & Legal Protection</h3>
-                                                    <p className="text-[10px] text-zinc-500 font-medium">Essential pages that protect and secure your identity</p>
+                                                <div className="min-w-0">
+                                                    <span className="font-bold text-zinc-200 text-xs block">Register Passkey</span>
+                                                    <span className="text-[10px] text-zinc-500">Secure biometric login</span>
                                                 </div>
-                                            </div>
-                                            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showLegal ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        
-                                        {showLegal && (
-                                            <div className="px-6 pb-6 pt-2 border-t border-white/5 animate-fade-in">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-                                                    {[
-                                                        { label: 'Safety Hub', desc: 'Tips, reporting, & protection guidelines', icon: Shield, path: '/safety' },
-                                                        { label: 'Community Guidelines', desc: 'Rules & expectations for students', icon: FileText, path: '/guidelines' },
-                                                        { label: 'Privacy Policy', desc: 'How we guard your personal data', icon: Lock, path: '/privacy' },
-                                                        { label: 'Terms of Service', desc: 'Legal agreements & expectations', icon: Scale, path: '/terms' }
-                                                    ].map(item => (
-                                                        <button
-                                                            key={item.path}
-                                                            onClick={() => navigate.push(item.path)}
-                                                            className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 text-left transition-all flex flex-col gap-2 group/btn"
-                                                        >
-                                                            <div className="p-2 bg-zinc-950 border border-white/5 rounded-lg text-neon group-hover/btn:text-white group-hover/btn:border-neon/30 transition-colors w-fit">
-                                                                <item.icon className="w-4 h-4" />
-                                                            </div>
-                                                            <div>
-                                                                <span className="font-bold text-zinc-200 text-xs block group-hover/btn:text-white transition-colors">{item.label}</span>
-                                                                <span className="text-[10px] text-zinc-500 block leading-tight mt-0.5">{item.desc}</span>
-                                                            </div>
-                                                        </button>
-                                                    ))}
+                                            </button>
+
+                                            {/* Contact Support */}
+                                            <button
+                                                onClick={() => navigate.push('/contact')}
+                                                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
+                                            >
+                                                <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
+                                                    <Mail className="w-4 h-4" />
                                                 </div>
-                                            </div>
-                                        )}
+                                                <div className="min-w-0">
+                                                    <span className="font-bold text-zinc-200 text-xs block">Contact Support</span>
+                                                    <span className="text-[10px] text-zinc-500">Submit a support ticket</span>
+                                                </div>
+                                            </button>
+
+                                            {/* Install App */}
+                                            <button
+                                                onClick={handleInstallPWA}
+                                                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
+                                            >
+                                                <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
+                                                    <Smartphone className="w-4 h-4" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <span className="font-bold text-zinc-200 text-xs block">Install App</span>
+                                                    <span className="text-[10px] text-zinc-500 block truncate">Add to your home screen</span>
+                                                </div>
+                                            </button>
+                                        </div>
                                     </div>
+                                )}
 
-                                    {/* 3. Behind the Scenes & Extras Dropdown */}
-                                    <div className="bg-zinc-900/30 border border-white/5 rounded-3xl backdrop-blur-md overflow-hidden hover:border-white/10 transition-colors">
+                                {/* Standalone Log Out Button */}
+                                {isSelf && (
+                                    <div className="sm:col-span-2 pt-2">
                                         <button
-                                            onClick={() => setShowBehindScenes(!showBehindScenes)}
-                                            className="w-full p-6 flex items-center justify-between text-left focus:outline-none"
+                                            onClick={logout}
+                                            className="w-full p-4 rounded-2xl bg-red-950/20 border border-red-900/30 hover:bg-red-900/20 hover:border-red-500/50 text-center transition-all flex items-center justify-center gap-2 group"
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400">
-                                                    <Rocket className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-black text-white uppercase tracking-widest text-sm">Behind the Scenes & Extras</h3>
-                                                    <p className="text-[10px] text-zinc-500 font-medium">Read our startup story & meet the engineering team</p>
-                                                </div>
-                                            </div>
-                                            <ChevronDown className={`w-5 h-5 text-zinc-400 transition-transform duration-300 ${showBehindScenes ? 'rotate-180' : ''}`} />
+                                            <LogOut className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" />
+                                            <span className="font-bold text-red-400 text-sm group-hover:text-red-300">Log Out</span>
                                         </button>
-                                        
-                                        {showBehindScenes && (
-                                            <div className="px-6 pb-6 pt-2 border-t border-white/5 animate-fade-in">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 text-xs">
-                                                    <button
-                                                        onClick={() => navigate.push('/blog')}
-                                                        className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all flex items-center gap-3 group text-left w-full"
-                                                    >
-                                                        <div className="p-2.5 bg-neon/10 rounded-xl text-neon group-hover:scale-110 transition-transform">
-                                                            <Rocket className="w-5 h-5" />
-                                                        </div>
-                                                        <div>
-                                                            <span className="font-bold text-white text-xs block group-hover:text-neon transition-colors">The OthrHalff Story</span>
-                                                            <span className="text-[10px] text-zinc-500">Read our startup blog & journey</span>
-                                                        </div>
-                                                    </button>
+                                    </div>
+                                )}
 
-                                                    <button
-                                                        onClick={() => navigate.push('/developers')}
-                                                        className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all flex items-center gap-3 group text-left w-full"
-                                                    >
-                                                        <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-400 group-hover:scale-110 transition-transform">
-                                                            <Code className="w-5 h-5" />
-                                                        </div>
-                                                        <div>
-                                                            <span className="font-bold text-white text-xs block group-hover:text-blue-400 transition-colors">Meet the Devs</span>
-                                                            <span className="text-[10px] text-zinc-500">The engineering team building this</span>
-                                                        </div>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
+                                {/* Footer Links for Legal & Informational Pages */}
+                                <div className="sm:col-span-2 border-t border-white/5 pt-8 mt-8 pb-12">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+                                        <button onClick={() => navigate.push('/safety')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <Shield className="w-3.5 h-3.5" /> Safety Hub
+                                        </button>
+                                        <button onClick={() => navigate.push('/guidelines')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <FileText className="w-3.5 h-3.5" /> Guidelines
+                                        </button>
+                                        <button onClick={() => navigate.push('/privacy')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <Lock className="w-3.5 h-3.5" /> Privacy
+                                        </button>
+                                        <button onClick={() => navigate.push('/terms')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <Scale className="w-3.5 h-3.5" /> Terms
+                                        </button>
+                                        <button onClick={() => navigate.push('/blog')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <Rocket className="w-3.5 h-3.5" /> Our Story
+                                        </button>
+                                        <button onClick={() => navigate.push('/developers')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <Code className="w-3.5 h-3.5" /> Devs Team
+                                        </button>
                                     </div>
                                 </div>
                             </div>
