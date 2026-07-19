@@ -219,10 +219,21 @@ export const Landing: React.FC = () => {
 
       {/* 1. HERO SECTION */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12 sm:py-20 max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full text-left">
-          <div className="lg:col-span-7 flex flex-col justify-center">
+        <div 
+          className="relative w-full rounded-[40px] overflow-hidden border border-white/5 py-24 px-6 md:px-12 flex flex-col items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+          style={{
+            backgroundImage: "radial-gradient(circle at center, rgba(7, 3, 13, 0.4) 0%, rgba(7, 3, 13, 0.95) 100%), url('/landing_hero-bg.png')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          {/* Subtle glow elements inside the hero card */}
+          <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-neon/5 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
+
+          <div className="relative z-10 max-w-3xl flex flex-col items-center">
             <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group max-w-max"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900/80 border border-neon/30 mb-8 hover:border-neon/60 hover:bg-gray-900 transition-all duration-300 cursor-default group"
               style={{
                 opacity: textRevealed ? 1 : 0,
                 transform: textRevealed ? 'translateY(0)' : 'translateY(-20px)',
@@ -236,7 +247,7 @@ export const Landing: React.FC = () => {
               <Sparkles className="w-3 h-3 text-neon opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-4 sm:mb-6 tracking-tighter leading-none font-display text-white">
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-none font-display text-white">
               <AnimatedText text="FIND YOUR" delay={200} />
               <br />
               <span className="drop-shadow-[0_0_30px_rgba(255,0,127,0.5)]">
@@ -265,27 +276,14 @@ export const Landing: React.FC = () => {
             >
               <button
                 onClick={onEnter}
-                className="group px-6 py-4 md:px-12 md:py-6 bg-neon text-white font-black text-sm sm:text-base md:text-xl uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.6)] hover:shadow-[0_0_80px_rgba(255,0,127,0.9)] max-w-max"
+                className="group px-10 py-5 bg-gradient-to-r from-neon to-purple-600 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_40px_rgba(255,0,127,0.4)] hover:shadow-[0_0_60px_rgba(255,0,127,0.6)]"
               >
                 <span className="flex items-center gap-2 sm:gap-3">
-                  <span>Find Your Othrhalff</span>
+                  <span>Enter the space</span>
                   <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300" />
                 </span>
               </button>
             </div>
-          </div>
-
-          {/* Hero Mascot Visual Centerpiece */}
-          <div className="lg:col-span-5 flex justify-center">
-            <ScrollReveal className="w-full max-w-md">
-              <div className="relative rounded-[32px] overflow-hidden border border-neon/30 shadow-[0_0_50px_rgba(255,0,127,0.25)] bg-[#0b0714] p-2 hover:border-neon/60 transition-all duration-500">
-                <img 
-                  src="/hero_mascot_valley.png" 
-                  alt="Mascot Valley Hero" 
-                  className="w-full h-auto rounded-[24px] object-cover"
-                />
-              </div>
-            </ScrollReveal>
           </div>
         </div>
 
