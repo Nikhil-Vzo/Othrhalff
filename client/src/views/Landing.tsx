@@ -213,7 +213,7 @@ export const Landing: React.FC = () => {
         }}
       >
         <img 
-          src="/landing_hero-bg.png" 
+          src="/landing_hero-bg.png?v=2" 
           alt="Hero Background" 
           className="w-full h-full object-cover object-bottom"
           style={{ imageRendering: '-webkit-optimize-contrast' }}
