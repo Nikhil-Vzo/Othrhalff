@@ -191,7 +191,7 @@ export const Landing: React.FC = () => {
         <img 
           src="/landing_hero-bg.png" 
           alt="Hero Background" 
-          className="w-full h-full object-cover object-top opacity-90"
+          className="w-full h-full object-contain object-top opacity-90"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/10 via-[#07030d]/60 to-[#07030d] z-10" />
       </div>
