@@ -165,47 +165,28 @@ const Scene2PhoneReveal: React.FC = () => {
     <div ref={containerRef} className="relative h-[220vh] w-full my-12 sm:my-20">
       <div className="sticky top-16 sm:top-24 h-[80vh] sm:h-[85vh] w-full max-w-6xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden">
         {/* Ambient Rose Pink Glow behind phone */}
-        <div className="absolute w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-[#F45D9B]/15 blur-[130px] pointer-events-none z-0" />
+        <div className="absolute w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-[#F45D9B]/12 blur-[130px] pointer-events-none z-0" />
 
-        {/* Floating Glass Micro-Indicators (Desktop & Tablet) */}
-        <div 
-          className={`absolute left-4 sm:left-12 top-1/4 z-30 transition-all duration-700 hidden sm:block ${
-            activeStep === 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
-          }`}
-        >
-          <div className="bg-white/5 border border-white/10 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-semibold text-white/90">98% Vibe Match • Delhi University</span>
-          </div>
+        {/* Minimalist Capsule Mode Switcher */}
+        <div className="relative z-20 flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-xl mb-6 shadow-2xl">
+          {phoneScreens.map((screen, idx) => (
+            <button
+              key={`mode-btn-${idx}`}
+              onClick={() => setActiveStep(idx)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-500 flex items-center gap-2 ${
+                activeStep === idx
+                  ? 'bg-white/15 text-white shadow-[0_4px_15px_rgba(244,93,155,0.2)] border border-[#F45D9B]/30'
+                  : 'text-white/50 hover:text-white/80 border border-transparent'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${activeStep === idx ? 'bg-[#F45D9B]' : 'bg-white/20'}`} />
+              <span>{screen.tag.split('/ ')[1]}</span>
+            </button>
+          ))}
         </div>
 
-        <div 
-          className={`absolute right-4 sm:right-12 top-1/3 z-30 transition-all duration-700 hidden sm:block ${
-            activeStep === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'
-          }`}
-        >
-          <div className="bg-white/5 border border-purple-500/30 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-3">
-            <span className="text-xs font-semibold text-purple-300">🛡️ Ghost Mode • Identity Locked</span>
-          </div>
-        </div>
-
-        <div 
-          className={`absolute left-6 sm:left-16 bottom-1/4 z-30 transition-all duration-700 hidden sm:block ${
-            activeStep === 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'
-          }`}
-        >
-          <div className="bg-white/5 border border-cyan-500/30 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-3">
-            <span className="text-xs font-semibold text-cyan-300">💬 Active Campus Circle</span>
-          </div>
-        </div>
-
-        {/* Step Indicator & Copy */}
-        <div className="relative z-20 text-center max-w-xl mb-4 sm:mb-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/15 backdrop-blur-md mb-3">
-            <span className="text-[11px] font-mono tracking-widest text-[#F45D9B] font-bold">
-              {phoneScreens[activeStep].tag}
-            </span>
-          </div>
+        {/* Step Copy */}
+        <div className="relative z-20 text-center max-w-xl mb-4 sm:mb-6 min-h-[70px]">
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-2 font-display transition-all duration-500">
             {phoneScreens[activeStep].title}
           </h2>
