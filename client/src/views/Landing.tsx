@@ -126,12 +126,14 @@ const Scene2PhoneReveal: React.FC = () => {
       
       const currentProgress = Math.max(0, Math.min(1, -rect.top / totalHeight));
 
-      if (currentProgress < 0.33) {
+      if (currentProgress < 0.20) {
         setActiveStep(0);
-      } else if (currentProgress < 0.66) {
+      } else if (currentProgress < 0.45) {
         setActiveStep(1);
-      } else {
+      } else if (currentProgress < 0.70) {
         setActiveStep(2);
+      } else {
+        setActiveStep(3);
       }
     };
 
@@ -143,46 +145,63 @@ const Scene2PhoneReveal: React.FC = () => {
   const phoneScreens = [
     {
       img: '/mockups/phone-discover.png',
+      tag: '00 / STANDBY',
+      title: 'The Campus Experience',
+      subtitle: 'Scroll to explore how Othrhalff connects your daily college life.',
+      isOff: true,
+    },
+    {
+      img: '/mockups/phone-discover.png',
       tag: '01 / DISCOVER',
       title: 'Micro-Local Campus Radar',
       subtitle: 'Connect dynamically in real-time with students active in your campus circles.',
+      isOff: false,
     },
     {
       img: '/mockups/phone-confession.png',
       tag: '02 / CONFESSIONS & VIBES',
       title: 'Chemistry First, Identity Second',
       subtitle: 'Identity is locked. Visuals are hidden. Connect strictly through shared vibes and raw conversation.',
+      isOff: false,
     },
     {
       img: '/mockups/phone-notification.png',
       tag: '03 / NOTIFICATIONS & CIRCLES',
       title: 'Instant Campus Synergy',
       subtitle: 'Skip awkward bios. Match on immediate schedules, cinema taste, and late-night study routines.',
+      isOff: false,
     },
   ];
 
   return (
-    <div ref={containerRef} className="relative h-[220vh] w-full my-12 sm:my-20">
-      <div className="sticky top-16 sm:top-24 h-[80vh] sm:h-[85vh] w-full max-w-6xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden">
+    <div ref={containerRef} className="relative h-[320vh] w-full mt-32 sm:mt-48 mb-20">
+      <div className="sticky top-20 sm:top-28 h-[75vh] sm:h-[80vh] w-full max-w-6xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden">
         {/* Ambient Rose Pink Glow behind phone */}
-        <div className="absolute w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-[#F45D9B]/12 blur-[130px] pointer-events-none z-0" />
+        <div 
+          className={`absolute w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-[#F45D9B]/15 blur-[130px] pointer-events-none transition-all duration-700 ${
+            activeStep === 0 ? 'opacity-20 scale-75' : 'opacity-100 scale-100'
+          }`} 
+        />
 
         {/* Minimalist Capsule Mode Switcher */}
-        <div className="relative z-20 flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-xl mb-6 shadow-2xl">
-          {phoneScreens.map((screen, idx) => (
-            <button
-              key={`mode-btn-${idx}`}
-              onClick={() => setActiveStep(idx)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-500 flex items-center gap-2 ${
-                activeStep === idx
-                  ? 'bg-white/15 text-white shadow-[0_4px_15px_rgba(244,93,155,0.2)] border border-[#F45D9B]/30'
-                  : 'text-white/50 hover:text-white/80 border border-transparent'
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${activeStep === idx ? 'bg-[#F45D9B]' : 'bg-white/20'}`} />
-              <span>{screen.tag.split('/ ')[1]}</span>
-            </button>
-          ))}
+        <div className="relative z-20 flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-xl mb-4 sm:mb-6 shadow-2xl">
+          {phoneScreens.slice(1).map((screen, idx) => {
+            const stepIndex = idx + 1;
+            return (
+              <button
+                key={`mode-btn-${idx}`}
+                onClick={() => setActiveStep(stepIndex)}
+                className={`px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold tracking-wide transition-all duration-500 flex items-center gap-2 ${
+                  activeStep === stepIndex
+                    ? 'bg-white/15 text-white shadow-[0_4px_15px_rgba(244,93,155,0.2)] border border-[#F45D9B]/30'
+                    : 'text-white/50 hover:text-white/80 border border-transparent'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${activeStep === stepIndex ? 'bg-[#F45D9B]' : 'bg-white/20'}`} />
+                <span>{screen.tag.split('/ ')[1]}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Step Copy */}
@@ -196,19 +215,25 @@ const Scene2PhoneReveal: React.FC = () => {
         </div>
 
         {/* Master 3D Phone Render Stack */}
-        <div className="relative z-10 w-full max-w-[260px] sm:max-w-[320px] md:max-w-[360px] aspect-[9/19] flex items-center justify-center transition-transform duration-700 hover:scale-[1.01]">
+        <div className="relative z-10 w-full max-w-[250px] sm:max-w-[310px] md:max-w-[350px] aspect-[9/19] flex items-center justify-center transition-all duration-700 hover:scale-[1.01]">
           {phoneScreens.map((screen, idx) => (
-            <img
+            <div
               key={`phone-state-${idx}`}
-              src={screen.img}
-              alt={screen.title}
-              className={`absolute inset-0 w-full h-full object-contain drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] transition-all duration-700 ease-out ${
+              className={`absolute inset-0 w-full h-full transition-all duration-700 ease-out ${
                 activeStep === idx
                   ? 'opacity-100 scale-100 translate-y-0 z-20'
-                  : 'opacity-0 scale-95 translate-y-4 z-10 pointer-events-none'
+                  : 'opacity-0 scale-95 translate-y-6 z-10 pointer-events-none'
               }`}
-              style={{ imageRendering: '-webkit-optimize-contrast' }}
-            />
+            >
+              <img
+                src={screen.img}
+                alt={screen.title}
+                className={`w-full h-full object-contain drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] transition-all duration-700 ${
+                  screen.isOff ? 'brightness-[0.1] contrast-125' : 'brightness-100'
+                }`}
+                style={{ imageRendering: '-webkit-optimize-contrast' }}
+              />
+            </div>
           ))}
         </div>
 
