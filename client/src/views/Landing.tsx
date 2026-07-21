@@ -162,8 +162,8 @@ const Scene2PhoneReveal: React.FC = () => {
   ];
 
   return (
-    <div ref={containerRef} className="relative h-[160vh] w-full pt-12 pb-20">
-      <div className="sticky top-20 sm:top-28 h-[75vh] sm:h-[80vh] w-full max-w-6xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden">
+    <div ref={containerRef} className="relative h-[160vh] w-full pt-16 pb-20">
+      <div className="sticky top-32 sm:top-40 h-[70vh] sm:h-[75vh] w-full max-w-6xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden">
         {/* Ambient Rose Pink Glow behind phone */}
         <div className="absolute w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-[#F45D9B]/15 blur-[130px] pointer-events-none z-0" />
 
