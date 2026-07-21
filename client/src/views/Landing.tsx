@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Ghost, Heart, ArrowRight, Instagram, Twitter, MapPin, Clock, MessageSquare, ShieldCheck, Video } from 'lucide-react';
+import { Ghost, Heart, ArrowRight, Instagram, Twitter } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
@@ -110,6 +110,142 @@ const CherryBlossomPetals: React.FC = () => {
   }, []);
 
   return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[2]" />;
+};
+
+const Scene2PhoneReveal: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const totalHeight = rect.height - windowHeight;
+      if (totalHeight <= 0) return;
+      
+      const currentProgress = Math.max(0, Math.min(1, -rect.top / totalHeight));
+
+      if (currentProgress < 0.33) {
+        setActiveStep(0);
+      } else if (currentProgress < 0.66) {
+        setActiveStep(1);
+      } else {
+        setActiveStep(2);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const phoneScreens = [
+    {
+      img: '/mockups/phone-discover.png',
+      tag: '01 / DISCOVER',
+      title: 'Micro-Local Campus Radar',
+      subtitle: 'Connect dynamically in real-time with students active in your campus circles.',
+    },
+    {
+      img: '/mockups/phone-confession.png',
+      tag: '02 / CONFESSIONS & VIBES',
+      title: 'Chemistry First, Identity Second',
+      subtitle: 'Identity is locked. Visuals are hidden. Connect strictly through shared vibes and raw conversation.',
+    },
+    {
+      img: '/mockups/phone-notification.png',
+      tag: '03 / NOTIFICATIONS & CIRCLES',
+      title: 'Instant Campus Synergy',
+      subtitle: 'Skip awkward bios. Match on immediate schedules, cinema taste, and late-night study routines.',
+    },
+  ];
+
+  return (
+    <div ref={containerRef} className="relative h-[220vh] w-full my-12 sm:my-20">
+      <div className="sticky top-16 sm:top-24 h-[80vh] sm:h-[85vh] w-full max-w-6xl mx-auto flex flex-col items-center justify-center px-4 overflow-hidden">
+        {/* Ambient Rose Pink Glow behind phone */}
+        <div className="absolute w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-[#F45D9B]/15 blur-[130px] pointer-events-none z-0" />
+
+        {/* Floating Glass Micro-Indicators (Desktop & Tablet) */}
+        <div 
+          className={`absolute left-4 sm:left-12 top-1/4 z-30 transition-all duration-700 hidden sm:block ${
+            activeStep === 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
+          }`}
+        >
+          <div className="bg-white/5 border border-white/10 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold text-white/90">98% Vibe Match • Delhi University</span>
+          </div>
+        </div>
+
+        <div 
+          className={`absolute right-4 sm:right-12 top-1/3 z-30 transition-all duration-700 hidden sm:block ${
+            activeStep === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'
+          }`}
+        >
+          <div className="bg-white/5 border border-purple-500/30 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-3">
+            <span className="text-xs font-semibold text-purple-300">🛡️ Ghost Mode • Identity Locked</span>
+          </div>
+        </div>
+
+        <div 
+          className={`absolute left-6 sm:left-16 bottom-1/4 z-30 transition-all duration-700 hidden sm:block ${
+            activeStep === 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'
+          }`}
+        >
+          <div className="bg-white/5 border border-cyan-500/30 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-3">
+            <span className="text-xs font-semibold text-cyan-300">💬 Active Campus Circle</span>
+          </div>
+        </div>
+
+        {/* Step Indicator & Copy */}
+        <div className="relative z-20 text-center max-w-xl mb-4 sm:mb-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/15 backdrop-blur-md mb-3">
+            <span className="text-[11px] font-mono tracking-widest text-[#F45D9B] font-bold">
+              {phoneScreens[activeStep].tag}
+            </span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-2 font-display transition-all duration-500">
+            {phoneScreens[activeStep].title}
+          </h2>
+          <p className="text-xs sm:text-sm text-white/70 max-w-md mx-auto transition-all duration-500">
+            {phoneScreens[activeStep].subtitle}
+          </p>
+        </div>
+
+        {/* Master 3D Phone Render Stack */}
+        <div className="relative z-10 w-full max-w-[260px] sm:max-w-[320px] md:max-w-[360px] aspect-[9/19] flex items-center justify-center transition-transform duration-700 hover:scale-[1.01]">
+          {phoneScreens.map((screen, idx) => (
+            <img
+              key={`phone-state-${idx}`}
+              src={screen.img}
+              alt={screen.title}
+              className={`absolute inset-0 w-full h-full object-contain drop-shadow-[0_25px_60px_rgba(0,0,0,0.9)] transition-all duration-700 ease-out ${
+                activeStep === idx
+                  ? 'opacity-100 scale-100 translate-y-0 z-20'
+                  : 'opacity-0 scale-95 translate-y-4 z-10 pointer-events-none'
+              }`}
+              style={{ imageRendering: '-webkit-optimize-contrast' }}
+            />
+          ))}
+        </div>
+
+        {/* Step Navigation Dots */}
+        <div className="relative z-20 flex gap-2.5 mt-4 sm:mt-6">
+          {phoneScreens.map((_, idx) => (
+            <button
+              key={`dot-${idx}`}
+              onClick={() => setActiveStep(idx)}
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                activeStep === idx ? 'w-8 bg-[#F45D9B]' : 'w-2 bg-white/30 hover:bg-white/60'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export const Landing: React.FC = () => {
@@ -373,129 +509,8 @@ export const Landing: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. BEYOND DATING: PINTEREST ASYMMETRIC MASONRY SECTION */}
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32 relative z-10 text-left">
-          {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-[#F45D9B]/30 mb-6 backdrop-blur-md shadow-[0_0_20px_rgba(244,93,155,0.15)]">
-              <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-pulse" />
-              <span className="text-xs font-semibold text-white/90 uppercase tracking-widest">
-                Beyond Dating • Campus Synergy
-              </span>
-            </div>
-            
-            <h2 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-white mb-6 leading-[1.1] font-display">
-              Beyond Dating.<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F45D9B] via-pink-400 to-purple-400">
-                Built For Campus Life.
-              </span>
-            </h2>
-            
-            <p className="text-base sm:text-xl text-white/70 font-normal leading-relaxed">
-              Traditional apps put you on a 20-mile wild goose chase. Othrhalff connects you with the people in your actual lecture halls, gym sessions, and campus spots.
-            </p>
-          </div>
-
-          {/* Pinterest Asymmetric Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-start">
-            {/* COLUMN 1: Traditional Dating Apps (The Problem) */}
-            <div className="flex flex-col gap-6 sm:gap-8">
-              {/* Card 1: Swipe Fatigue */}
-              <div className="bg-red-950/10 border border-red-500/20 p-6 sm:p-8 rounded-3xl backdrop-blur-xl hover:border-red-500/40 transition-all duration-500 group">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono uppercase tracking-wider text-red-400/80 font-bold">Traditional Apps</span>
-                  <Clock className="w-4 h-4 text-red-400/60" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Swipe Fatigue & Distance</h3>
-                <p className="text-xs sm:text-sm text-white/60 mb-6 leading-relaxed">
-                  Trapped in endless swiping loops with profiles located 20 miles away. Zero campus relevance.
-                </p>
-                <div className="bg-black/40 border border-red-500/20 p-4 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-3 opacity-50 blur-[0.5px]">
-                    <div className="w-10 h-10 rounded-full bg-red-950/40 border border-red-500/20" />
-                    <div>
-                      <div className="text-xs font-semibold text-white">Stranger #482</div>
-                      <div className="text-[10px] text-red-400">22 Miles Away</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 font-medium">
-                    No Vibes
-                  </span>
-                </div>
-              </div>
-
-              {/* Card 2: Awkward Small Talk */}
-              <div className="bg-red-950/10 border border-red-500/20 p-6 sm:p-8 rounded-3xl backdrop-blur-xl hover:border-red-500/40 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono uppercase tracking-wider text-red-400/80 font-bold">The Friction</span>
-                  <MessageSquare className="w-4 h-4 text-red-400/60" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Dry Small Talk</h3>
-                <p className="text-xs sm:text-sm text-white/60 mb-4 leading-relaxed">
-                  Shallow greetings that lead nowhere. No common college context.
-                </p>
-                <div className="space-y-2">
-                  <div className="bg-red-950/30 border border-red-500/15 p-2.5 rounded-xl text-xs text-red-200/70 max-w-[70%]">
-                    "hey"
-                  </div>
-                  <div className="bg-red-950/30 border border-red-500/15 p-2.5 rounded-xl text-xs text-red-200/70 max-w-[70%] ml-auto text-right">
-                    "wyd"
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* COLUMN 2: The Othrhalff Way (The Solution) */}
-            <div className="flex flex-col gap-6 sm:gap-8 md:mt-12">
-              {/* Card 1: Row 2 Lecture Partner */}
-              <div className="bg-white/[0.03] border border-[#F45D9B]/30 p-6 sm:p-8 rounded-3xl backdrop-blur-xl hover:border-[#F45D9B]/60 hover:scale-[1.01] transition-all duration-500 shadow-[0_0_40px_rgba(244,93,155,0.1)] group">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono uppercase tracking-wider text-[#F45D9B] font-bold">The Othrhalff Way</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#F45D9B]/10 border border-[#F45D9B]/30 text-[10px] font-bold text-[#F45D9B]">
-                    98% Vibe Match
-                  </span>
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">Row 2 Lecture Partner</h3>
-                <p className="text-xs sm:text-sm text-white/70 mb-6 leading-relaxed">
-                  "Looking for someone to argue about Christopher Nolan movies with after class."
-                </p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/80">Cinema</span>
-                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/80">Indie Rock</span>
-                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/80">Late Night</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-white/50">
-                  <MapPin className="w-3.5 h-3.5 text-[#F45D9B]" />
-                  <span>Delhi University Campus • Active Now</span>
-                </div>
-              </div>
-
-              {/* Card 2: Ghost Mode Privacy */}
-              <div className="bg-white/[0.03] border border-purple-500/30 p-6 sm:p-8 rounded-3xl backdrop-blur-xl hover:border-purple-500/60 hover:scale-[1.01] transition-all duration-500 shadow-[0_0_40px_rgba(168,85,247,0.1)]">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono uppercase tracking-wider text-purple-400 font-bold">Privacy First</span>
-                  <ShieldCheck className="w-4 h-4 text-purple-400" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Ghost Mode Protection</h3>
-                <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
-                  Chemistry first, identity second. Reveal visuals only when the vibe is verified.
-                </p>
-              </div>
-
-              {/* Card 3: Synchronized Hangouts */}
-              <div className="bg-white/[0.03] border border-cyan-500/30 p-6 sm:p-8 rounded-3xl backdrop-blur-xl hover:border-cyan-500/60 hover:scale-[1.01] transition-all duration-500 shadow-[0_0_40px_rgba(6,182,212,0.1)]">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono uppercase tracking-wider text-cyan-400 font-bold">Virtual Auditorium</span>
-                  <Video className="w-4 h-4 text-cyan-400" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Synchronized Dates</h3>
-                <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
-                  Watch movies side-by-side or stream music tracks with dynamic live overlay chat.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* 2. PRODUCT REVEAL SCENERY: STICKY 3D PHONE SCROLLYTELLING */}
+        <Scene2PhoneReveal />
 
         {/* PAGE FLOW CONTAINER */}
         <div className="mt-16 sm:mt-24 w-full relative z-10 flex flex-col pb-16 md:pb-24">
