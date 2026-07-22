@@ -293,36 +293,10 @@ const Scene2PhoneReveal: React.FC = () => {
   );
 };
 
-/* VIRTUAL MEETUP GROUNDS SECTION WITH GAME CONSOLE MP4 & FLOATING HEARTS */
+/* VIRTUAL MEETUP GROUNDS SECTION WITH GAME CONSOLE MP4 */
 const VirtualMeetupSection: React.FC = () => {
   return (
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
-      <style>{`
-        @keyframes floatUpFade {
-          0% {
-            opacity: 0;
-            transform: translateY(0) scale(0.6) rotate(-6deg);
-          }
-          25% {
-            opacity: 0.95;
-            transform: translateY(-25px) scale(1.1) rotate(6deg);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-85px) scale(0.7) rotate(-12deg);
-          }
-        }
-        .animate-heart-1 {
-          animation: floatUpFade 4s ease-out infinite;
-        }
-        .animate-heart-2 {
-          animation: floatUpFade 4.5s ease-out infinite 1.4s;
-        }
-        .animate-heart-3 {
-          animation: floatUpFade 5s ease-out infinite 2.8s;
-        }
-      `}</style>
-
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
         
         {/* LEFT COLUMN: Clean Copy Hierarchy with Generous Spacing */}
@@ -331,7 +305,7 @@ const VirtualMeetupSection: React.FC = () => {
           {/* Release Tag */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07030d]/5 border border-gray-300/80 text-xs font-mono tracking-widest uppercase">
             <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-ping" />
-            <span className="font-semibold text-gray-700">COMING NEXT PATCH</span>
+            <span className="font-semibold text-gray-700">UPCOMING IN NEXT CUPID PATCH</span>
           </div>
 
           {/* Headline */}
@@ -356,18 +330,11 @@ const VirtualMeetupSection: React.FC = () => {
 
         </div>
 
-        {/* RIGHT COLUMN: Game Boy Console + Screen Glow + Nintendo Floating Pixel Hearts */}
+        {/* RIGHT COLUMN: Game Boy Console + Screen Glow */}
         <div className="lg:col-span-6 flex items-center justify-center relative">
           
           {/* Subtle Pink Screen Glow Emitting Underneath Console */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-[#F45D9B]/15 blur-3xl pointer-events-none" />
-
-          {/* Floating Pixel Hearts Escaping Screen */}
-          <div className="absolute top-[22%] left-[48%] -translate-x-1/2 pointer-events-none z-20 flex flex-col items-center">
-            <span className="animate-heart-1 text-xl sm:text-2xl drop-shadow-sm select-none absolute">💖</span>
-            <span className="animate-heart-2 text-lg sm:text-xl drop-shadow-sm select-none absolute left-4">💕</span>
-            <span className="animate-heart-3 text-xl sm:text-2xl drop-shadow-sm select-none absolute -left-4">💗</span>
-          </div>
 
           {/* Video — Seamless #FAF7EF Matched Console */}
           <video 
