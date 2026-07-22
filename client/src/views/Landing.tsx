@@ -16,6 +16,7 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
+import OptionWheel from '@/components/ui/OptionWheel';
 
 const CherryBlossomPetals: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -371,68 +372,78 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
-/* CAMPUS UNFILTERED ACCORDION SECTION */
+/* CAMPUS UNFILTERED SECTION WITH REACT BITS OPTIONWHEEL */
 const CampusEcosystemSection: React.FC = () => {
-  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   const accordionItems = [
     {
       title: "Stay Anonymous",
+      subtitle: "INC-01 / PRIVACY",
       description: "Post confessions, ask questions, or simply observe without revealing who you are.",
     },
     {
       title: "Spill Campus Tea",
+      subtitle: "GOS-02 / CHATTER",
       description: "The raw, unfiltered gossip and real-time dorm chatter from your college network.",
     },
     {
       title: "Movie Nights",
+      subtitle: "CIN-03 / STREAM",
       description: "Watch Netflix, anime or YouTube together without leaving your room.",
     },
     {
       title: "Walk The Campus Map",
+      subtitle: "MAP-04 / EXPLORE",
       description: "Drop into a live campus as your avatar and discover who's around.",
     },
     {
       title: "Cross-Campus Friends",
+      subtitle: "UNI-05 / NETWORK",
       description: "Break out of your campus bubble and connect with verified students nearby.",
     },
     {
       title: "Spotify Together",
+      subtitle: "AUD-06 / JAM",
       description: "Listen to live room jams, share playlists, and match on real music taste.",
     },
     {
       title: "Share Raw Glimpses",
+      subtitle: "RAW-07 / MOMENTS",
       description: "The coffee run. The 2 AM coding session. The moments Instagram never gets.",
     },
     {
       title: "Find Your Crowd",
+      subtitle: "VIB-08 / MATCH",
       description: "Connect on shared obsessions, dorm vibes, and real chemistry — zero pressure.",
     },
     {
       title: "Join Live Events",
+      subtitle: "EVT-09 / MEETUPS",
       description: "Discover pop-up campus hangouts, dorm parties, and impromptu meetups.",
     },
     {
       title: "Study Buddies",
+      subtitle: "ACD-10 / FOCUS",
       description: "Find row-2 lecture partners and late-night library study crews instantly.",
     },
     {
       title: "Gym Partners",
+      subtitle: "FIT-11 / SPOTTER",
       description: "Never lift alone. Match with gym spotters active on your schedule.",
     },
     {
       title: "Hidden Until You're Ready",
+      subtitle: "SEC-12 / GHOST",
       description: "Zero photos upfront. You control who unlocks your identity and when.",
     },
   ];
 
-  const toggleRow = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
+  const activeItem = accordionItems[selectedIndex] || accordionItems[0];
 
   return (
     <section className="relative z-10 w-full bg-[#07030d] text-white py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-[#2A2A2A]">
-      <div className="max-w-5xl mx-auto relative z-10 space-y-12 sm:space-y-16">
+      <div className="max-w-7xl mx-auto relative z-10 space-y-12 sm:space-y-16">
         
         {/* Header Section */}
         <div className="flex flex-col items-start text-left space-y-4 max-w-3xl">
@@ -450,45 +461,52 @@ const CampusEcosystemSection: React.FC = () => {
           </p>
         </div>
 
-        {/* Accordion List — Monochrome, No Cards, #2A2A2A Dividers */}
-        <div className="border-t border-[#2A2A2A] divide-y divide-[#2A2A2A]">
-          {accordionItems.map((item, index) => {
-            const isOpen = openIndex === index;
-            const isDimmed = openIndex !== null && !isOpen;
+        {/* OptionWheel Interactive Display Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[520px]">
+          
+          {/* Left Column: 3D OptionWheel */}
+          <div className="lg:col-span-7 h-[460px] sm:h-[520px] w-full relative overflow-hidden rounded-3xl bg-white/[0.02] border border-[#2A2A2A] p-2">
+            <OptionWheel
+              items={accordionItems.map(item => item.title)}
+              defaultSelected={0}
+              onChange={(index) => setSelectedIndex(index)}
+              textColor="#404040"
+              activeColor="#F45D9B"
+              side="left"
+              fontSize={1.85}
+              spacing={2.4}
+              curve={0.75}
+              tilt={7}
+              blur={1.4}
+              fade={0.35}
+              minOpacity={0.04}
+              smoothing={220}
+              inset={48}
+              loop={true}
+              draggable={true}
+            />
+          </div>
 
-            return (
-              <div
-                key={index}
-                onClick={() => toggleRow(index)}
-                className={`py-6 sm:py-8 cursor-pointer transition-all duration-300 group ${
-                  isDimmed ? 'opacity-30' : 'opacity-100'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-xl sm:text-3xl font-bold font-geist text-white group-hover:text-[#F45D9B] transition-colors duration-200">
-                    {item.title}
-                  </h3>
+          {/* Right Column: Active Selected Detail Display */}
+          <div className="lg:col-span-5 flex flex-col justify-center text-left space-y-6 p-8 sm:p-10 rounded-3xl bg-white/[0.03] border border-[#2A2A2A] relative overflow-hidden min-h-[260px]">
+            <div className="flex items-center justify-between">
+              <span className="font-departure text-xs text-[#F45D9B] tracking-widest uppercase">
+                {activeItem.subtitle}
+              </span>
+              <span className="font-departure text-xs text-gray-500">
+                [{String(selectedIndex + 1).padStart(2, '0')} / 12]
+              </span>
+            </div>
 
-                  <span className="font-departure text-2xl sm:text-3xl text-[#F45D9B] shrink-0 transition-transform duration-300">
-                    {isOpen ? "−" : "+"}
-                  </span>
-                </div>
+            <h3 className="text-3xl sm:text-4xl font-bold font-geist text-white leading-tight">
+              {activeItem.title}
+            </h3>
 
-                {/* Expanded Description */}
-                <div
-                  className={`grid transition-all duration-300 ease-in-out ${
-                    isOpen ? 'grid-rows-[1fr] opacity-100 pt-4 sm:pt-6' : 'grid-rows-[0fr] opacity-0'
-                  }`}
-                >
-                  <div className="overflow-hidden">
-                    <p className="text-base sm:text-xl text-gray-300 font-medium font-geist leading-relaxed max-w-2xl">
-                      {item.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+            <p className="text-base sm:text-lg text-gray-300 font-medium font-geist leading-relaxed">
+              {activeItem.description}
+            </p>
+          </div>
+
         </div>
 
       </div>
