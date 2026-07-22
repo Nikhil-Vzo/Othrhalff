@@ -302,12 +302,6 @@ const VirtualMeetupSection: React.FC = () => {
         {/* LEFT COLUMN: Clean Copy Hierarchy with Generous Spacing */}
         <div className="lg:col-span-6 flex flex-col items-start text-left space-y-8 sm:space-y-10">
           
-          {/* Release Tag */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07030d]/5 border border-gray-300/80 text-xs font-mono tracking-widest uppercase">
-            <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-ping" />
-            <span className="font-semibold text-gray-700">UPCOMING IN NEXT CUPID PATCH</span>
-          </div>
-
           {/* Headline */}
           <h2 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-gray-950 font-display leading-[1.02]">
             College <br />
