@@ -297,13 +297,22 @@ const Scene2PhoneReveal: React.FC = () => {
 const VirtualMeetupSection: React.FC = () => {
   return (
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap');
+        .font-unbounded {
+          font-family: 'Unbounded', sans-serif;
+        }
+        .font-bricolage {
+          font-family: 'Bricolage Grotesque', sans-serif;
+        }
+      `}</style>
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
         
         {/* LEFT COLUMN: Clean Copy Hierarchy with Generous Spacing */}
         <div className="lg:col-span-6 flex flex-col items-start text-left space-y-8 sm:space-y-10">
           
           {/* Headline */}
-          <h2 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-gray-950 font-display leading-[1.02]">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-950 font-unbounded leading-[1.1]">
             College <br />
             Just Got <br />
             <span className="text-[#F45D9B]">Multiplayer.</span>
