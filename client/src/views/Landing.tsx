@@ -375,40 +375,40 @@ const VirtualMeetupSection: React.FC = () => {
 const CampusEcosystemSection: React.FC = () => {
   const ecosystemPillars = [
     {
+      icon: "👻",
+      tag: "01 / GHOST MODE",
+      title: "Stay Hidden Until You Vibe",
+      description: "Browse 100% incognito. Zero photos upfront. Reveal your identity and photos only when mutual chemistry is proven.",
+    },
+    {
+      icon: "🤫",
+      tag: "02 / 100% ANONYMOUS",
+      title: "Stay Anonymous & Spill Tea",
+      description: "Complete anonymity. Share raw campus rumors, confess crushes, and chat freely without ever exposing your face or name.",
+    },
+    {
       icon: "🍿",
-      tag: "01 / STREAMING",
+      tag: "03 / STREAMING",
       title: "Stream Movies & Music",
       description: "Watch films together, binge series in virtual rooms, and share live Spotify playlists with your matches in real-time.",
     },
     {
-      icon: "🤫",
-      tag: "02 / ANONYMOUS",
-      title: "Campus Gossips & Confessions",
-      description: "Unfiltered campus tea. Confess crushes, share rumors, and converse anonymously with verified students from your university.",
-    },
-    {
       icon: "🌐",
-      tag: "03 / CROSS-CAMPUS",
+      tag: "04 / CROSS-CAMPUS",
       title: "Discover Other Colleges",
       description: "Break out of your campus bubble. Connect dynamically with verified students active across neighboring universities.",
     },
     {
       icon: "📸",
-      tag: "04 / DAILY GLIMPSES",
+      tag: "05 / DAILY GLIMPSES",
       title: "Share Unfiltered Glimpses",
       description: "Post low-key moments of your day — late-night study sessions, coffee runs, and raw dorm life without highlight-reel pressure.",
     },
     {
       icon: "🕹️",
-      tag: "05 / GAME MAP",
+      tag: "06 / GAME MAP",
       title: "Interactive Game Map",
-      description: "Drop onto a live interactive campus map as your player avatar. See active spots nearby and initiate instant 1v1 hangouts.",
-    },
-    {
-      icon: "⚡",
-      tag: "06 / MATCH VIBE",
-      title: "Find Your Exact Vibe",
-      description: "Connect on mutual class schedules, shared cinema taste, gym routines, and genuine energy — not just 3 curated photos.",
+      description: "Drop onto a live interactive campus map as your custom player avatar. See active spots nearby and initiate instant hangouts.",
     },
   ];
 
@@ -427,18 +427,18 @@ const CampusEcosystemSection: React.FC = () => {
           {/* Tag */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-departure tracking-widest text-[#F45D9B] uppercase">
             <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-pulse" />
-            <span>NOT ANOTHER DATING SITE</span>
+            <span>STAY HIDDEN • STAY ANONYMOUS</span>
           </div>
 
           {/* Headline */}
           <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white font-geist leading-[1.08]">
-            Othrhalff Isn’t A Dating App. <br />
+            Stay Hidden. Connect Naturally. <br />
             <span className="text-[#F45D9B] font-monument text-2xl sm:text-4xl md:text-5xl block pt-3 tracking-wide">IT’S YOUR CAMPUS UNIVERSE.</span>
           </h2>
 
           {/* Subtitle Statement */}
           <p className="text-base sm:text-xl text-gray-400 font-medium leading-relaxed font-geist max-w-2xl">
-            A digital playground built for college life. Stream movies, spill campus tea, drop into interactive maps, and connect with people you naturally vibe with.
+            A digital playground built for college life. Stay 100% anonymous, stream movies, spill campus tea, drop into interactive maps, and reveal yourself only when you feel the vibe.
           </p>
 
         </div>
@@ -470,6 +470,27 @@ const CampusEcosystemSection: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Dedicated Ghost Mode Banner */}
+        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-[#F45D9B]/10 via-purple-900/20 to-black border border-[#F45D9B]/30 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-left">
+            <h3 className="text-2xl font-bold text-white font-geist flex items-center gap-3">
+              <span>👻</span>
+              <span>100% Incognito & Ghost Mode Guarantee</span>
+            </h3>
+            <p className="text-sm text-gray-400 font-medium font-geist max-w-2xl">
+              No photo leaks, no public stalking. Your profile stays completely hidden until you decide to unlock it for people you trust.
+            </p>
+          </div>
+          <a
+            href="https://www.instagram.com/othrhalff/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-3 rounded-full bg-[#F45D9B] text-white font-departure text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300 shrink-0"
+          >
+            Explore Privacy →
+          </a>
         </div>
 
       </div>
