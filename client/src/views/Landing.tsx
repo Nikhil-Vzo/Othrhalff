@@ -371,6 +371,112 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
+/* CAMPUS ECOSYSTEM SECTION: WHAT OTHRHALFF ACTUALLY IS */
+const CampusEcosystemSection: React.FC = () => {
+  const ecosystemPillars = [
+    {
+      icon: "🍿",
+      tag: "01 / STREAMING",
+      title: "Stream Movies & Music",
+      description: "Watch films together, binge series in virtual rooms, and share live Spotify playlists with your matches in real-time.",
+    },
+    {
+      icon: "🤫",
+      tag: "02 / ANONYMOUS",
+      title: "Campus Gossips & Confessions",
+      description: "Unfiltered campus tea. Confess crushes, share rumors, and converse anonymously with verified students from your university.",
+    },
+    {
+      icon: "🌐",
+      tag: "03 / CROSS-CAMPUS",
+      title: "Discover Other Colleges",
+      description: "Break out of your campus bubble. Connect dynamically with verified students active across neighboring universities.",
+    },
+    {
+      icon: "📸",
+      tag: "04 / DAILY GLIMPSES",
+      title: "Share Unfiltered Glimpses",
+      description: "Post low-key moments of your day — late-night study sessions, coffee runs, and raw dorm life without highlight-reel pressure.",
+    },
+    {
+      icon: "🕹️",
+      tag: "05 / GAME MAP",
+      title: "Interactive Game Map",
+      description: "Drop onto a live interactive campus map as your player avatar. See active spots nearby and initiate instant 1v1 hangouts.",
+    },
+    {
+      icon: "⚡",
+      tag: "06 / MATCH VIBE",
+      title: "Find Your Exact Vibe",
+      description: "Connect on mutual class schedules, shared cinema taste, gym routines, and genuine energy — not just 3 curated photos.",
+    },
+  ];
+
+  return (
+    <section className="relative z-10 w-full bg-[#07030d] text-white py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-white/10">
+      
+      {/* Soft Ambient Background Glows */}
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#F45D9B]/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#9333EA]/10 rounded-full blur-[140px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10 space-y-16 sm:space-y-20">
+        
+        {/* Header Section */}
+        <div className="flex flex-col items-center text-center space-y-6 max-w-3xl mx-auto">
+          
+          {/* Tag */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-departure tracking-widest text-[#F45D9B] uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-pulse" />
+            <span>NOT ANOTHER DATING SITE</span>
+          </div>
+
+          {/* Headline */}
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white font-geist leading-[1.08]">
+            Othrhalff Isn’t A Dating App. <br />
+            <span className="text-[#F45D9B] font-monument text-2xl sm:text-4xl md:text-5xl block pt-3 tracking-wide">IT’S YOUR CAMPUS UNIVERSE.</span>
+          </h2>
+
+          {/* Subtitle Statement */}
+          <p className="text-base sm:text-xl text-gray-400 font-medium leading-relaxed font-geist max-w-2xl">
+            A digital playground built for college life. Stream movies, spill campus tea, drop into interactive maps, and connect with people you naturally vibe with.
+          </p>
+
+        </div>
+
+        {/* 6 Feature Pillars Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          {ecosystemPillars.map((pillar, i) => (
+            <div
+              key={i}
+              className="p-7 sm:p-8 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-[#F45D9B]/50 hover:bg-white/[0.06] hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform duration-300 inline-block">
+                    {pillar.icon}
+                  </span>
+                  <span className="font-departure text-[11px] text-[#F45D9B] tracking-wider uppercase opacity-80">
+                    {pillar.tag}
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-bold text-white font-geist group-hover:text-[#F45D9B] transition-colors">
+                  {pillar.title}
+                </h3>
+
+                <p className="text-sm text-gray-400 font-medium leading-relaxed font-geist">
+                  {pillar.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </section>
+  );
+};
+
 const MarqueeBar: React.FC = () => {
   return (
     <div className="relative w-full overflow-hidden flex flex-col items-center bg-[#07030d] py-0">
@@ -685,7 +791,10 @@ export const Landing: React.FC = () => {
       {/* 3. VIRTUAL MEETUP GROUNDS SECTION (GAME CONSOLE MP4 & #FAF7EE BG) */}
       <VirtualMeetupSection />
 
-      {/* 4. MARQUEE TICKER BAR */}
+      {/* 4. CAMPUS ECOSYSTEM SECTION: WHAT OTHRHALFF ACTUALLY IS */}
+      <CampusEcosystemSection />
+
+      {/* 5. MARQUEE TICKER BAR */}
       <MarqueeBar />
 
       {/* Footer Section */}
