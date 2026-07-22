@@ -671,7 +671,7 @@ export const Landing: React.FC = () => {
               onClick={onEnter}
               className="px-8 py-3.5 bg-white text-black font-semibold text-sm rounded-full hover:bg-white/95 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_10px_25px_rgba(255,255,255,0.08)]"
             >
-              Join Your Campus
+              Find Your Othrhalff
             </button>
           </div>
         </div>
