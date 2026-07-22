@@ -371,126 +371,124 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
-/* CAMPUS ECOSYSTEM SECTION: WHAT OTHRHALFF ACTUALLY IS */
+/* CAMPUS UNFILTERED ACCORDION SECTION */
 const CampusEcosystemSection: React.FC = () => {
-  const ecosystemPillars = [
+  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+
+  const accordionItems = [
     {
-      icon: "👻",
-      tag: "01 / GHOST MODE",
-      title: "Stay Hidden Until You Vibe",
-      description: "Browse 100% incognito. Zero photos upfront. Reveal your identity and photos only when mutual chemistry is proven.",
+      title: "Stay Anonymous",
+      description: "Post confessions, ask questions, or simply observe without revealing who you are.",
     },
     {
-      icon: "🤫",
-      tag: "02 / 100% ANONYMOUS",
-      title: "Stay Anonymous & Spill Tea",
-      description: "Complete anonymity. Share raw campus rumors, confess crushes, and chat freely without ever exposing your face or name.",
+      title: "Spill Campus Tea",
+      description: "The raw, unfiltered gossip and real-time dorm chatter from your college network.",
     },
     {
-      icon: "🍿",
-      tag: "03 / STREAMING",
-      title: "Stream Movies & Music",
-      description: "Watch films together, binge series in virtual rooms, and share live Spotify playlists with your matches in real-time.",
+      title: "Movie Nights",
+      description: "Watch Netflix, anime or YouTube together without leaving your room.",
     },
     {
-      icon: "🌐",
-      tag: "04 / CROSS-CAMPUS",
-      title: "Discover Other Colleges",
-      description: "Break out of your campus bubble. Connect dynamically with verified students active across neighboring universities.",
+      title: "Walk The Campus Map",
+      description: "Drop into a live campus as your avatar and discover who's around.",
     },
     {
-      icon: "📸",
-      tag: "05 / DAILY GLIMPSES",
-      title: "Share Unfiltered Glimpses",
-      description: "Post low-key moments of your day — late-night study sessions, coffee runs, and raw dorm life without highlight-reel pressure.",
+      title: "Cross-Campus Friends",
+      description: "Break out of your campus bubble and connect with verified students nearby.",
     },
     {
-      icon: "🕹️",
-      tag: "06 / GAME MAP",
-      title: "Interactive Game Map",
-      description: "Drop onto a live interactive campus map as your custom player avatar. See active spots nearby and initiate instant hangouts.",
+      title: "Spotify Together",
+      description: "Listen to live room jams, share playlists, and match on real music taste.",
+    },
+    {
+      title: "Share Raw Glimpses",
+      description: "The coffee run. The 2 AM coding session. The moments Instagram never gets.",
+    },
+    {
+      title: "Find Your Crowd",
+      description: "Connect on shared obsessions, dorm vibes, and real chemistry — zero pressure.",
+    },
+    {
+      title: "Join Live Events",
+      description: "Discover pop-up campus hangouts, dorm parties, and impromptu meetups.",
+    },
+    {
+      title: "Study Buddies",
+      description: "Find row-2 lecture partners and late-night library study crews instantly.",
+    },
+    {
+      title: "Gym Partners",
+      description: "Never lift alone. Match with gym spotters active on your schedule.",
+    },
+    {
+      title: "Hidden Until You're Ready",
+      description: "Zero photos upfront. You control who unlocks your identity and when.",
     },
   ];
 
-  return (
-    <section className="relative z-10 w-full bg-[#07030d] text-white py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-white/10">
-      
-      {/* Soft Ambient Background Glows */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#F45D9B]/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#9333EA]/10 rounded-full blur-[140px] pointer-events-none" />
+  const toggleRow = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
 
-      <div className="max-w-7xl mx-auto relative z-10 space-y-16 sm:space-y-20">
+  return (
+    <section className="relative z-10 w-full bg-[#07030d] text-white py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-[#2A2A2A]">
+      <div className="max-w-5xl mx-auto relative z-10 space-y-12 sm:space-y-16">
         
         {/* Header Section */}
-        <div className="flex flex-col items-center text-center space-y-6 max-w-3xl mx-auto">
-          
-          {/* Tag */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-departure tracking-widest text-[#F45D9B] uppercase">
-            <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-pulse" />
-            <span>STAY HIDDEN • STAY ANONYMOUS</span>
-          </div>
-
-          {/* Headline */}
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white font-geist leading-[1.08]">
-            Stay Hidden. Connect Naturally. <br />
-            <span className="text-[#F45D9B] font-monument text-2xl sm:text-4xl md:text-5xl block pt-3 tracking-wide">IT’S YOUR CAMPUS UNIVERSE.</span>
-          </h2>
-
-          {/* Subtitle Statement */}
-          <p className="text-base sm:text-xl text-gray-400 font-medium leading-relaxed font-geist max-w-2xl">
-            A digital playground built for college life. Stay 100% anonymous, stream movies, spill campus tea, drop into interactive maps, and reveal yourself only when you feel the vibe.
+        <div className="flex flex-col items-start text-left space-y-4 max-w-3xl">
+          <p className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase">
+            NOT JUST ANOTHER DATING APP.
           </p>
 
+          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-white font-monument leading-[1.02] tracking-tight">
+            COLLEGE, <br />
+            UNFILTERED.
+          </h2>
+
+          <p className="text-base sm:text-xl text-gray-400 font-medium font-geist pt-2">
+            Everything that actually happens on a college campus.
+          </p>
         </div>
 
-        {/* 6 Feature Pillars Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {ecosystemPillars.map((pillar, i) => (
-            <div
-              key={i}
-              className="p-7 sm:p-8 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-[#F45D9B]/50 hover:bg-white/[0.06] hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform duration-300 inline-block">
-                    {pillar.icon}
-                  </span>
-                  <span className="font-departure text-[11px] text-[#F45D9B] tracking-wider uppercase opacity-80">
-                    {pillar.tag}
+        {/* Accordion List — Monochrome, No Cards, #2A2A2A Dividers */}
+        <div className="border-t border-[#2A2A2A] divide-y divide-[#2A2A2A]">
+          {accordionItems.map((item, index) => {
+            const isOpen = openIndex === index;
+            const isDimmed = openIndex !== null && !isOpen;
+
+            return (
+              <div
+                key={index}
+                onClick={() => toggleRow(index)}
+                className={`py-6 sm:py-8 cursor-pointer transition-all duration-300 group ${
+                  isDimmed ? 'opacity-30' : 'opacity-100'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-xl sm:text-3xl font-bold font-geist text-white group-hover:text-[#F45D9B] transition-colors duration-200">
+                    {item.title}
+                  </h3>
+
+                  <span className="font-departure text-2xl sm:text-3xl text-[#F45D9B] shrink-0 transition-transform duration-300">
+                    {isOpen ? "−" : "+"}
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white font-geist group-hover:text-[#F45D9B] transition-colors">
-                  {pillar.title}
-                </h3>
-
-                <p className="text-sm text-gray-400 font-medium leading-relaxed font-geist">
-                  {pillar.description}
-                </p>
+                {/* Expanded Description */}
+                <div
+                  className={`grid transition-all duration-300 ease-in-out ${
+                    isOpen ? 'grid-rows-[1fr] opacity-100 pt-4 sm:pt-6' : 'grid-rows-[0fr] opacity-0'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <p className="text-base sm:text-xl text-gray-300 font-medium font-geist leading-relaxed max-w-2xl">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Dedicated Ghost Mode Banner */}
-        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-[#F45D9B]/10 via-purple-900/20 to-black border border-[#F45D9B]/30 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 text-left">
-            <h3 className="text-2xl font-bold text-white font-geist flex items-center gap-3">
-              <span>👻</span>
-              <span>100% Incognito & Ghost Mode Guarantee</span>
-            </h3>
-            <p className="text-sm text-gray-400 font-medium font-geist max-w-2xl">
-              No photo leaks, no public stalking. Your profile stays completely hidden until you decide to unlock it for people you trust.
-            </p>
-          </div>
-          <a
-            href="https://www.instagram.com/othrhalff/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 rounded-full bg-[#F45D9B] text-white font-departure text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300 shrink-0"
-          >
-            Explore Privacy →
-          </a>
+            );
+          })}
         </div>
 
       </div>
