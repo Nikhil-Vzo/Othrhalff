@@ -448,7 +448,7 @@ const CampusEcosystemSection: React.FC = () => {
         {/* Header Section */}
         <div className="flex flex-col items-start text-left space-y-4 max-w-3xl">
           <p className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase">
-            NOT JUST ANOTHER DATING APP.
+            WHAT UNLOCKS WHEN YOU SIGN UP
           </p>
 
           <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-white font-monument leading-[1.02] tracking-tight">
@@ -457,7 +457,7 @@ const CampusEcosystemSection: React.FC = () => {
           </h2>
 
           <p className="text-base sm:text-xl text-gray-400 font-medium font-geist pt-2">
-            Everything that actually happens on a college campus.
+            Here is everything you can do the moment you sign up with your campus handle.
           </p>
         </div>
 
@@ -507,6 +507,24 @@ const CampusEcosystemSection: React.FC = () => {
             </p>
           </div>
 
+        </div>
+
+        {/* Sign Up Unlock CTA Footer Card */}
+        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-[#F45D9B]/10 via-[#9333EA]/10 to-black border border-[#2A2A2A] flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-left">
+            <h3 className="text-2xl font-bold text-white font-geist">
+              Ready to experience your campus unfiltered?
+            </h3>
+            <p className="text-sm text-gray-400 font-medium font-geist max-w-xl">
+              Sign up today to claim your 100% anonymous handle and unlock your college map.
+            </p>
+          </div>
+          <Link
+            href="/auth"
+            className="px-8 py-4 rounded-full bg-[#F45D9B] text-white font-departure text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300 shrink-0 font-bold shadow-lg shadow-[#F45D9B]/20"
+          >
+            Sign Up Now →
+          </Link>
         </div>
 
       </div>
