@@ -293,33 +293,92 @@ const Scene2PhoneReveal: React.FC = () => {
   );
 };
 
-/* VIRTUAL MEETUP GROUNDS SECTION WITH GAME CONSOLE MP4 */
+/* VIRTUAL MEETUP GROUNDS SECTION WITH GAME CONSOLE MP4 & FLOATING HEARTS */
 const VirtualMeetupSection: React.FC = () => {
   return (
-    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-20 sm:py-32 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
+      <style>{`
+        @keyframes floatUpFade {
+          0% {
+            opacity: 0;
+            transform: translateY(0) scale(0.6) rotate(-6deg);
+          }
+          25% {
+            opacity: 0.95;
+            transform: translateY(-25px) scale(1.1) rotate(6deg);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-85px) scale(0.7) rotate(-12deg);
+          }
+        }
+        .animate-heart-1 {
+          animation: floatUpFade 4s ease-out infinite;
+        }
+        .animate-heart-2 {
+          animation: floatUpFade 4.5s ease-out infinite 1.4s;
+        }
+        .animate-heart-3 {
+          animation: floatUpFade 5s ease-out infinite 2.8s;
+        }
+      `}</style>
+
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
         
-        {/* Minimal High-Impact Headline */}
-        <div className="lg:col-span-6 flex flex-col items-start text-left space-y-4 sm:space-y-6">
+        {/* LEFT COLUMN: Clean Copy Hierarchy with Generous Spacing */}
+        <div className="lg:col-span-6 flex flex-col items-start text-left space-y-8 sm:space-y-10">
+          
+          {/* Release Tag */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07030d]/5 border border-gray-300/80 text-xs font-mono tracking-widest uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-ping" />
+            <span className="font-semibold text-gray-700">COMING NEXT PATCH</span>
+          </div>
+
+          {/* Headline */}
           <h2 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-gray-950 font-display leading-[1.02]">
-            Play Multiplayer <br />
-            <span className="text-[#F45D9B]">In Next Cupid Patch.</span>
+            College <br />
+            Just Got <br />
+            <span className="text-[#F45D9B]">Multiplayer.</span>
           </h2>
+
+          {/* Human Paragraph */}
           <p className="text-base sm:text-xl text-gray-600 font-medium max-w-md leading-relaxed">
-            Virtual meetup grounds coming live directly to your campus network.
+            Explore a shared virtual campus, hang out between classes, and bump into people naturally.
           </p>
+
+          {/* CTA Button */}
+          <div>
+            <button className="px-7 py-3.5 rounded-full bg-[#07030d] text-white font-bold text-sm tracking-wide shadow-lg hover:bg-[#F45D9B] hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2.5 group">
+              <span>Watch Preview</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </button>
+          </div>
+
         </div>
 
-        {/* Video — Floating 100% Seamlessly with Exact #FAF7EF Match */}
-        <div className="lg:col-span-6 flex items-center justify-center">
+        {/* RIGHT COLUMN: Game Boy Console + Screen Glow + Nintendo Floating Pixel Hearts */}
+        <div className="lg:col-span-6 flex items-center justify-center relative">
+          
+          {/* Subtle Pink Screen Glow Emitting Underneath Console */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-[#F45D9B]/15 blur-3xl pointer-events-none" />
+
+          {/* Floating Pixel Hearts Escaping Screen */}
+          <div className="absolute top-[22%] left-[48%] -translate-x-1/2 pointer-events-none z-20 flex flex-col items-center">
+            <span className="animate-heart-1 text-xl sm:text-2xl drop-shadow-sm select-none absolute">💖</span>
+            <span className="animate-heart-2 text-lg sm:text-xl drop-shadow-sm select-none absolute left-4">💕</span>
+            <span className="animate-heart-3 text-xl sm:text-2xl drop-shadow-sm select-none absolute -left-4">💗</span>
+          </div>
+
+          {/* Video — Seamless #FAF7EF Matched Console */}
           <video 
             src="/game.mp4" 
             autoPlay 
             loop 
             muted 
             playsInline
-            className="w-full max-w-[480px] h-auto object-contain"
+            className="w-full max-w-[460px] h-auto object-contain relative z-10"
           />
+
         </div>
 
       </div>
