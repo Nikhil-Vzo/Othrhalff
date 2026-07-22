@@ -333,12 +333,17 @@ const VirtualMeetupSection: React.FC = () => {
             Explore a shared virtual campus, hang out between classes, and bump into people naturally.
           </p>
 
-          {/* Departure Mono System Button */}
+          {/* Departure Mono System Link to Instagram */}
           <div>
-            <button className="px-7 py-3.5 rounded-full bg-[#07030d] text-white font-departure text-xs tracking-widest uppercase shadow-lg hover:bg-[#F45D9B] hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2.5 group">
+            <a 
+              href="https://www.instagram.com/othrhalff/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-7 py-3.5 rounded-full bg-[#07030d] text-white font-departure text-xs tracking-widest uppercase shadow-lg hover:bg-[#F45D9B] hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 inline-flex items-center gap-2.5 group"
+            >
               <span>Watch Preview</span>
               <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </button>
+            </a>
           </div>
 
         </div>
