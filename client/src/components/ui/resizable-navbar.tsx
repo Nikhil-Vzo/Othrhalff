@@ -23,6 +23,8 @@ export const Navbar = ({ children, className }: { children: React.ReactNode; cla
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
+    // Trigger scroll check on mount
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -30,8 +32,7 @@ export const Navbar = ({ children, className }: { children: React.ReactNode; cla
     <NavbarContext.Provider value={{ isScrolled }}>
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 w-full z-50 transition-all duration-500 ease-in-out py-4 px-4 sm:px-6",
-          isScrolled ? "top-2 sm:top-4" : "top-0",
+          "fixed top-3 left-0 right-0 w-full z-50 px-4 sm:px-6",
           className
         )}
       >
@@ -47,10 +48,10 @@ export const NavBody = ({ children, className }: { children: React.ReactNode; cl
   return (
     <div
       className={cn(
-        "hidden md:flex items-center justify-between mx-auto transition-all duration-500 ease-in-out border border-transparent",
+        "hidden md:flex items-center justify-between mx-auto transition-[background-color,border-color,box-shadow] duration-300 ease-in-out border px-8 py-3.5 rounded-full max-w-6xl w-full",
         isScrolled
-          ? "max-w-3xl bg-black/60 backdrop-blur-xl border-white/10 px-8 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
-          : "max-w-7xl px-4 py-2",
+          ? "bg-zinc-950/80 backdrop-blur-2xl border-[#F45D9B]/35 shadow-[0_10px_30px_rgba(244,93,155,0.15)] bg-gradient-to-r from-zinc-950/80 via-[#F45D9B]/10 to-zinc-950/80"
+          : "bg-transparent border-transparent shadow-none",
         className
       )}
     >
@@ -62,7 +63,7 @@ export const NavBody = ({ children, className }: { children: React.ReactNode; cl
 export const NavbarLogo = ({ className }: { className?: string }) => {
   return (
     <div className={cn("flex items-center gap-2 cursor-pointer group select-none", className)}>
-      <Ghost className="w-5 h-5 text-[#F45D9B] transition-transform duration-300" />
+      <Ghost className="w-5 h-5 text-[#F45D9B] transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
       <span className="text-lg font-bold tracking-tight text-white/95">
         OtherHalff
       </span>
@@ -78,7 +79,7 @@ export const NavItems = ({
   className?: string;
 }) => {
   return (
-    <div className={cn("flex items-center gap-8 text-[13px] font-semibold text-white/90 tracking-normal", className)}>
+    <div className={cn("flex items-center gap-8 text-[14px] font-semibold text-white/80 tracking-normal", className)}>
       {items.map((item, idx) => (
         <a
           key={`nav-item-${idx}`}
@@ -109,10 +110,10 @@ export const NavbarButton = ({
     <button
       onClick={onClick}
       className={cn(
-        "text-xs font-semibold px-5 py-2.5 rounded-full transition-all duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.15)]",
+        "text-xs sm:text-sm font-bold px-5 py-3 sm:px-6 rounded-full transition-all duration-300 active:scale-[0.96] select-none cursor-pointer shadow-[0_4px_15px_rgba(0,0,0,0.2)]",
         variant === "primary"
-          ? "bg-white text-gray-900 hover:bg-white/90"
-          : "bg-white/5 text-white/95 border border-white/10 hover:border-white/20 hover:bg-white/10",
+          ? "bg-white text-gray-950 hover:bg-white/95 hover:shadow-[0_8px_20px_rgba(255,255,255,0.15)]"
+          : "bg-white/10 text-white hover:bg-white/15 border border-white/10 hover:border-white/20",
         className
       )}
     >
@@ -127,10 +128,10 @@ export const MobileNav = ({ children, className }: { children: React.ReactNode; 
   return (
     <div
       className={cn(
-        "md:hidden flex flex-col mx-auto transition-all duration-500 ease-in-out border border-transparent w-full",
+        "md:hidden flex flex-col mx-auto transition-[background-color,border-color,box-shadow] duration-300 ease-in-out border rounded-full w-full max-w-[92%] px-5 py-3 relative",
         isScrolled
-          ? "bg-black/60 backdrop-blur-xl border-white/10 px-6 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)] max-w-[95%]"
-          : "px-4 py-2",
+          ? "bg-zinc-950/85 backdrop-blur-2xl border-[#F45D9B]/35 shadow-[0_10px_30px_rgba(244,93,155,0.15)] bg-gradient-to-r from-zinc-950/85 via-[#F45D9B]/10 to-zinc-950/85"
+          : "bg-transparent border-transparent shadow-none",
         className
       )}
     >
@@ -160,11 +161,11 @@ export const MobileNavToggle = ({
     <button
       onClick={onClick}
       className={cn(
-        "p-2 text-white/80 hover:text-white rounded-full bg-white/5 border border-white/10 transition-all",
+        "p-2.5 text-white/80 hover:text-white active:scale-95 rounded-full bg-white/5 border border-white/10 transition-all cursor-pointer select-none",
         className
       )}
     >
-      {isOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+      {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
     </button>
   );
 };
@@ -185,7 +186,7 @@ export const MobileNavMenu = ({
   return (
     <div
       className={cn(
-        "absolute top-full left-0 right-0 mt-4 mx-auto w-[95%] bg-black/90 backdrop-blur-2xl border border-white/15 rounded-3xl p-6 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 transition-all duration-300 animate-in fade-in-50 slide-in-from-top-5",
+        "absolute top-full left-0 right-0 mt-3 w-full bg-zinc-950/95 backdrop-blur-3xl border border-[#F45D9B]/30 rounded-[2rem] p-6 flex flex-col gap-5 shadow-[0_20px_50px_rgba(244,93,155,0.2)] z-50 transition-all duration-300 animate-in fade-in-50 slide-in-from-top-5",
         className
       )}
     >
