@@ -298,12 +298,22 @@ const VirtualMeetupSection: React.FC = () => {
   return (
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap');
-        .font-unbounded {
-          font-family: 'Unbounded', sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.cdnfonts.com/css/monument-extended');
+        @import url('https://fonts.cdnfonts.com/css/departure-mono');
+
+        .font-monument {
+          font-family: 'Monument Extended', 'Unbounded', sans-serif;
+          font-weight: 800;
+          text-transform: uppercase;
         }
-        .font-bricolage {
-          font-family: 'Bricolage Grotesque', sans-serif;
+
+        .font-departure {
+          font-family: 'Departure Mono', 'Space Mono', monospace;
+        }
+
+        .font-geist {
+          font-family: 'Geist', sans-serif;
         }
       `}</style>
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
@@ -312,20 +322,20 @@ const VirtualMeetupSection: React.FC = () => {
         <div className="lg:col-span-6 flex flex-col items-start text-left space-y-8 sm:space-y-10">
           
           {/* Headline */}
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-950 font-unbounded leading-[1.1]">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-950 font-geist leading-[1.08]">
             College <br />
             Just Got <br />
-            <span className="text-[#F45D9B]">Multiplayer.</span>
+            <span className="text-[#F45D9B] font-monument text-2xl sm:text-4xl md:text-5xl block pt-2 tracking-wide">MULTIPLAYER.</span>
           </h2>
 
-          {/* Human Paragraph */}
-          <p className="text-base sm:text-xl text-gray-600 font-medium max-w-md leading-relaxed">
+          {/* Geist Supporting Paragraph */}
+          <p className="text-base sm:text-xl text-gray-600 font-medium max-w-md leading-relaxed font-geist">
             Explore a shared virtual campus, hang out between classes, and bump into people naturally.
           </p>
 
-          {/* CTA Button */}
+          {/* Departure Mono System Button */}
           <div>
-            <button className="px-7 py-3.5 rounded-full bg-[#07030d] text-white font-bold text-sm tracking-wide shadow-lg hover:bg-[#F45D9B] hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2.5 group">
+            <button className="px-7 py-3.5 rounded-full bg-[#07030d] text-white font-departure text-xs tracking-widest uppercase shadow-lg hover:bg-[#F45D9B] hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2.5 group">
               <span>Watch Preview</span>
               <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
