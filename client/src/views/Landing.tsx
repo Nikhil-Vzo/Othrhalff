@@ -293,6 +293,40 @@ const Scene2PhoneReveal: React.FC = () => {
   );
 };
 
+/* VIRTUAL MEETUP GROUNDS SECTION WITH GAME CONSOLE MP4 */
+const VirtualMeetupSection: React.FC = () => {
+  return (
+    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-20 sm:py-32 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        
+        {/* Minimal High-Impact Headline */}
+        <div className="lg:col-span-6 flex flex-col items-start text-left space-y-4 sm:space-y-6">
+          <h2 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-gray-950 font-display leading-[1.02]">
+            Play Multiplayer <br />
+            <span className="text-[#F45D9B]">In Next Cupid Patch.</span>
+          </h2>
+          <p className="text-base sm:text-xl text-gray-600 font-medium max-w-md leading-relaxed">
+            Virtual meetup grounds coming live directly to your campus network.
+          </p>
+        </div>
+
+        {/* Video — Floating 100% Seamlessly with Exact #FAF7EF Match */}
+        <div className="lg:col-span-6 flex items-center justify-center">
+          <video 
+            src="/game.mp4" 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="w-full max-w-[480px] h-auto object-contain"
+          />
+        </div>
+
+      </div>
+    </section>
+  );
+};
+
 const MarqueeBar: React.FC = () => {
   return (
     <div className="relative w-full overflow-hidden flex flex-col items-center bg-[#07030d] py-0">
@@ -604,7 +638,10 @@ export const Landing: React.FC = () => {
         <Scene2PhoneReveal />
       </section>
 
-      {/* 3. MARQUEE TICKER BAR */}
+      {/* 3. VIRTUAL MEETUP GROUNDS SECTION (GAME CONSOLE MP4 & #FAF7EE BG) */}
+      <VirtualMeetupSection />
+
+      {/* 4. MARQUEE TICKER BAR */}
       <MarqueeBar />
 
       {/* Footer Section */}
