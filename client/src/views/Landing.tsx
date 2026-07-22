@@ -564,7 +564,7 @@ export const Landing: React.FC = () => {
           <NavItems items={navItems} />
           <div className="flex items-center gap-4">
             <NavbarButton variant="secondary" onClick={onEnter}>Log In</NavbarButton>
-            <NavbarButton variant="primary" onClick={onEnter}>Join Campus</NavbarButton>
+            <NavbarButton variant="primary" onClick={onEnter}>Sign Up</NavbarButton>
           </div>
         </NavBody>
 
@@ -614,7 +614,7 @@ export const Landing: React.FC = () => {
                 variant="primary"
                 className="w-full text-center py-3.5 text-sm"
               >
-                Join Campus
+                Sign Up
               </NavbarButton>
             </div>
           </MobileNavMenu>
