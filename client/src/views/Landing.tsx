@@ -452,25 +452,25 @@ const ManifestoSection: React.FC = () => {
         `}</style>
         
         {/* 1st Marquee Bar: Hot Pink Background, Black Text */}
-        <div className="w-full bg-[#F45D9B] text-black py-3 sm:py-4 overflow-hidden whitespace-nowrap border-b border-black/10">
-          <div className="animate-marquee-l font-mono font-black text-2xl sm:text-4xl md:text-5xl uppercase tracking-tighter items-center">
-            <span className="mx-6 flex items-center gap-4">
-              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
+        <div className="w-full bg-[#F45D9B] text-black py-6 sm:py-9 md:py-12 overflow-hidden whitespace-nowrap border-b border-black/10">
+          <div className="animate-marquee-l font-mono font-black text-4xl sm:text-7xl md:text-8xl lg:text-9xl uppercase tracking-tighter items-center">
+            <span className="mx-8 flex items-center gap-6 sm:gap-10">
+              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
             </span>
-            <span className="mx-6 flex items-center gap-4">
-              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
+            <span className="mx-8 flex items-center gap-6 sm:gap-10">
+              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
             </span>
           </div>
         </div>
 
         {/* 2nd Marquee Bar: Dark Matte Background, Hot Pink Text */}
-        <div className="w-full bg-[#07030d] text-[#F45D9B] py-3 sm:py-4 overflow-hidden whitespace-nowrap border-b border-white/10">
-          <div className="animate-marquee-r font-mono font-black text-2xl sm:text-4xl md:text-5xl uppercase tracking-tighter items-center">
-            <span className="mx-6 flex items-center gap-4">
-              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
+        <div className="w-full bg-[#07030d] text-[#F45D9B] py-6 sm:py-9 md:py-12 overflow-hidden whitespace-nowrap border-b border-white/10">
+          <div className="animate-marquee-r font-mono font-black text-4xl sm:text-7xl md:text-8xl lg:text-9xl uppercase tracking-tighter items-center">
+            <span className="mx-8 flex items-center gap-6 sm:gap-10">
+              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
             </span>
-            <span className="mx-6 flex items-center gap-4">
-              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
+            <span className="mx-8 flex items-center gap-6 sm:gap-10">
+              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
             </span>
           </div>
         </div>
