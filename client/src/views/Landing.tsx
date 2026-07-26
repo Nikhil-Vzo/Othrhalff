@@ -472,23 +472,23 @@ const ManifestoSection: React.FC = () => {
         {/* 1st Marquee Bar: Hot Pink Background, Jet Black Text */}
         <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[#F45D9B] text-black flex flex-row items-center overflow-hidden whitespace-nowrap border-b border-black/10">
           <div className="animate-marquee-l font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter flex flex-row items-center shrink-0">
-            <span className="flex items-center gap-4 pr-4">
-              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
+            <span className="flex items-center gap-6 pr-6">
+              GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span>
             </span>
-            <span className="flex items-center gap-4 pr-4">
-              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
+            <span className="flex items-center gap-6 pr-6">
+              GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span> GO BEYOND DATING <span className="text-black/30">•</span>
             </span>
           </div>
         </div>
 
-        {/* 2nd Marquee Bar: Deep Obsidian Background, Electric Lime Green Text + Pink ® Accents */}
-        <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[#07030d] text-[#00FF00] flex flex-row items-center overflow-hidden whitespace-nowrap border-b border-white/10">
+        {/* 2nd Marquee Bar: Deep Obsidian Background, Soft Light Pink Text */}
+        <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[#07030d] text-[#FBCFE8] flex flex-row items-center overflow-hidden whitespace-nowrap border-b border-white/10">
           <div className="animate-marquee-r font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter flex flex-row items-center shrink-0">
-            <span className="flex items-center gap-4 pr-4">
-              FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span>
+            <span className="flex items-center gap-6 pr-6">
+              FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span>
             </span>
-            <span className="flex items-center gap-4 pr-4">
-              FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">®</span>
+            <span className="flex items-center gap-6 pr-6">
+              FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span> FIND YOUR PEOPLE <span className="text-[#F45D9B]">•</span>
             </span>
           </div>
         </div>
