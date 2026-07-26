@@ -17,6 +17,7 @@ import {
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
 import OptionWheel from '@/components/ui/OptionWheel';
+import GlassSurface from '@/components/ui/GlassSurface';
 
 const CherryBlossomPetals: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -469,17 +470,35 @@ const CampusEcosystemSection: React.FC = () => {
             />
           </div>
 
-          {/* Right Column: Clean Active Content Display */}
-          <div className="lg:col-span-5 flex flex-col justify-center text-left space-y-4 border-l-2 border-[#F45D9B] pl-5 sm:pl-8 py-2 min-h-[140px] sm:min-h-[220px]">
-            
-            <h3 className="text-2xl sm:text-4xl md:text-5xl font-black font-geist text-gray-950 leading-tight tracking-tight">
-              {activeItem.title}
-            </h3>
+          {/* Right Column: Clean Active Content Display inside GlassSurface */}
+          <div className="lg:col-span-5 flex items-center justify-center w-full min-h-[220px]">
+            <GlassSurface
+              width="100%"
+              height="auto"
+              borderRadius={28}
+              brightness={65}
+              opacity={0.85}
+              blur={12}
+              displace={5}
+              distortionScale={-120}
+              backgroundOpacity={0.4}
+              saturation={1.2}
+              className="p-6 sm:p-8 border border-white/60 shadow-[0_20px_45px_rgba(244,93,155,0.08),0_4px_15px_rgba(0,0,0,0.03)]"
+            >
+              <div className="flex flex-col text-left space-y-3 w-full">
+                <span className="font-departure text-[11px] text-[#F45D9B] tracking-[0.2em] uppercase font-bold">
+                  [{String(selectedIndex + 1).padStart(2, '0')} / 12] ACTIVE FEATURE
+                </span>
+                
+                <h3 className="text-2xl sm:text-4xl md:text-5xl font-black font-geist text-gray-950 leading-tight tracking-tight">
+                  {activeItem.title}
+                </h3>
 
-            <p className="text-base sm:text-xl text-gray-600 font-medium font-geist leading-relaxed max-w-lg">
-              {activeItem.description}
-            </p>
-
+                <p className="text-base sm:text-xl text-gray-700 font-medium font-geist leading-relaxed">
+                  {activeItem.description}
+                </p>
+              </div>
+            </GlassSurface>
           </div>
 
         </div>
