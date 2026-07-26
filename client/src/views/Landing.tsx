@@ -428,43 +428,43 @@ const MarqueeBar: React.FC = () => {
 /* RIBBIT CAPITAL STYLE MANIFESTO SECTION */
 const ManifestoSection: React.FC = () => {
   return (
-    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-950 pt-0 pb-24 sm:pb-36 overflow-hidden border-t border-b border-gray-300/50">
+    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-950 pt-0 pb-20 sm:pb-32 overflow-hidden border-t border-b border-gray-300/40">
       
-      {/* High-Impact Neon Ticker Banner (Ribbit Capital Style) */}
-      <div className="w-full bg-[#F45D9B] text-black py-4 sm:py-5 overflow-hidden whitespace-nowrap shadow-md select-none border-b border-black/10">
+      {/* High-Impact Ticker Banner (Ribbit Capital Style: #00FF00 Neon Green) */}
+      <div className="w-full bg-[#00FF00] text-black py-4 sm:py-6 overflow-hidden whitespace-nowrap select-none border-b border-black/10">
         <style>{`
           @keyframes ribbon-scroll {
             0% { transform: translateX(0%); }
             100% { transform: translateX(-50%); }
           }
           .animate-ribbon {
-            animation: ribbon-scroll 25s linear infinite;
+            animation: ribbon-scroll 22s linear infinite;
             display: inline-flex;
           }
         `}</style>
-        <div className="animate-ribbon font-departure font-black text-2xl sm:text-4xl md:text-5xl uppercase tracking-tighter items-center">
+        <div className="animate-ribbon font-mono font-black text-3xl sm:text-5xl md:text-6xl uppercase tracking-tighter items-center">
           <span className="mx-6 flex items-center gap-4">
-            HYPERLOCAL CAMPUS NETWORK <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> BUILT FOR RAIPUR <span className="text-black/40">®</span> NIT • IIM • AIIMS • HNLU <span className="text-black/40">®</span>
+            HYPERLOCAL CAMPUS NETWORK <span className="text-black/50">®</span> GO BEYOND DATING <span className="text-black/50">®</span> BUILT FOR RAIPUR <span className="text-black/50">®</span> NIT • IIM • AIIMS • HNLU <span className="text-black/50">®</span>
           </span>
           <span className="mx-6 flex items-center gap-4">
-            HYPERLOCAL CAMPUS NETWORK <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> BUILT FOR RAIPUR <span className="text-black/40">®</span> NIT • IIM • AIIMS • HNLU <span className="text-black/40">®</span>
+            HYPERLOCAL CAMPUS NETWORK <span className="text-black/50">®</span> GO BEYOND DATING <span className="text-black/50">®</span> BUILT FOR RAIPUR <span className="text-black/50">®</span> NIT • IIM • AIIMS • HNLU <span className="text-black/50">®</span>
           </span>
         </div>
       </div>
 
-      {/* Editorial Text Statement Block (Ribbit Capital Manifesto Style) */}
-      <div className="max-w-4xl mx-auto px-6 sm:px-12 pt-20 sm:pt-28 space-y-8 sm:space-y-12 text-left font-departure">
+      {/* Pure Monospace Editorial Text Block (Ribbit Capital 1:1 Style) */}
+      <div className="max-w-3xl mx-auto px-6 sm:px-12 pt-16 sm:pt-24 space-y-8 sm:space-y-12 text-left font-mono">
         
-        <p className="text-lg sm:text-2xl md:text-3xl text-gray-900 leading-relaxed sm:leading-[1.6] font-medium tracking-tight">
+        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
           College social life didn't break because students stopped wanting to connect. It broke because generic dating apps turned real campus interactions into a shallow, transactional swipe game.
         </p>
 
-        <p className="text-base sm:text-xl md:text-2xl text-gray-700 leading-relaxed sm:leading-[1.65] font-normal">
-          From late-night study crews to dorm tea, from spontaneous campus cinema streams to raw anonymous confessions — the real college experience happens between classes, across campuses, and far beyond simple dating.
+        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
+          From late-night study crews to dorm tea, from spontaneous campus cinema streams to raw anonymous confessions, the greatest breakthroughs in campus life happen between classes, across campuses, and far beyond simple dating.
         </p>
 
-        <p className="text-base sm:text-xl md:text-2xl text-gray-950 leading-relaxed sm:leading-[1.65] font-semibold border-l-4 border-[#F45D9B] pl-5 sm:pl-8 py-1">
-          Othrhalff is a hyper-localized campus ecosystem built specifically for Raipur — NIT Raipur, IIM Raipur, AIIMS Raipur, HNLU, ITM & beyond. Designed for genuine chemistry, shared obsessions, and real student connections without the pressure.
+        <p className="text-base sm:text-xl text-gray-950 leading-[1.85] font-medium">
+          At Othrhalff, we built a hyper-localized campus connection network specifically for Raipur — NIT Raipur, IIM Raipur, AIIMS Raipur, HNLU, ITM & beyond. Designed for genuine chemistry, shared obsessions, and real student connections.
         </p>
 
       </div>
@@ -728,13 +728,13 @@ export const Landing: React.FC = () => {
         </div>
       </main>
 
-      {/* 2. PRODUCT REVEAL SCENERY: STICKY 3D PHONE SCROLLYTELLING */}
+      {/* 2. RIBBIT CAPITAL STYLE MANIFESTO STATEMENT (RIGHT BELOW HERO) */}
+      <ManifestoSection />
+
+      {/* 3. PRODUCT REVEAL SCENERY: STICKY 3D PHONE SCROLLYTELLING */}
       <section className="relative z-10 w-full bg-[#07030d] pt-12">
         <Scene2PhoneReveal />
       </section>
-
-      {/* 3. RIBBIT CAPITAL STYLE MANIFESTO STATEMENT */}
-      <ManifestoSection />
 
       {/* 4. VIRTUAL MEETUP GROUNDS SECTION (GAME CONSOLE MP4 & #FAF7EE BG) */}
       <VirtualMeetupSection />
