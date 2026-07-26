@@ -775,24 +775,11 @@ export const Landing: React.FC = () => {
           <div 
             className="absolute inset-[-40px_-60px] pointer-events-none z-[-1]"
             style={{
-              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, transparent 70%)'
+              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, transparent 70%)'
             }}
           />
 
-          {/* Pill Badge Above Headline */}
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-mono tracking-[0.2em] uppercase mb-6 shadow-xl"
-            style={{
-              opacity: textRevealed ? 1 : 0,
-              transform: textRevealed ? 'translateY(0)' : 'translateY(15px)',
-              transition: 'all 0.6s ease-out 0.1s',
-            }}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#F45D9B]" />
-            <span>Go Beyond Dating</span>
-          </div>
-
-          <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight text-white mb-6 leading-[1.1] font-display max-w-2xl">
+          <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight text-white mb-6 leading-[1.04] font-geist max-w-3xl drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
             {"Find your people.".split(' ').map((word, i) => (
               <span
                 key={i}
@@ -809,15 +796,15 @@ export const Landing: React.FC = () => {
           </h1>
 
           <p
-            className="text-base sm:text-lg text-white/95 max-w-xl mb-10 leading-relaxed font-medium"
+            className="text-lg sm:text-2xl text-white/95 max-w-2xl mb-10 leading-relaxed font-medium font-geist"
             style={{
               opacity: textRevealed ? 1 : 0,
               transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
               transition: 'all 0.8s ease-out 0.8s',
-              textShadow: '0 2px 6px rgba(0,0,0,0.6)'
+              textShadow: '0 2px 10px rgba(0,0,0,0.8)'
             }}
           >
-            Meet students you'll naturally cross paths with every day.
+            Go beyond dating. Meet students you'll naturally cross paths with every day.
           </p>
 
           <div
