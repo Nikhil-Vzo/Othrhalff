@@ -372,7 +372,7 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
-/* CAMPUS UNFILTERED SECTION WITH REACT BITS OPTIONWHEEL */
+/* CAMPUS UNFILTERED SECTION — AWWWARDS EDITORIAL SHOWCASE */
 const CampusEcosystemSection: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
@@ -380,12 +380,12 @@ const CampusEcosystemSection: React.FC = () => {
     {
       title: "Stay Anonymous",
       subtitle: "INC-01 / PRIVACY",
-      description: "Post confessions, ask questions, or simply observe without revealing who you are.",
+      description: "Post confessions, ask questions, or observe without revealing identity.",
     },
     {
       title: "Spill Campus Tea",
       subtitle: "GOS-02 / CHATTER",
-      description: "The raw, unfiltered gossip and real-time dorm chatter from your college network.",
+      description: "Raw gossip and real-time dorm chatter from your verified college network.",
     },
     {
       title: "Movie Nights",
@@ -395,12 +395,12 @@ const CampusEcosystemSection: React.FC = () => {
     {
       title: "Walk The Campus Map",
       subtitle: "MAP-04 / EXPLORE",
-      description: "Drop into a live campus as your avatar and discover who's around.",
+      description: "Drop into a live campus map as your avatar and discover who is active.",
     },
     {
       title: "Cross-Campus Friends",
       subtitle: "UNI-05 / NETWORK",
-      description: "Break out of your campus bubble and connect with verified students nearby.",
+      description: "Break out of your bubble and connect with verified students nearby.",
     },
     {
       title: "Spotify Together",
@@ -410,12 +410,12 @@ const CampusEcosystemSection: React.FC = () => {
     {
       title: "Share Raw Glimpses",
       subtitle: "RAW-07 / MOMENTS",
-      description: "The coffee run. The 2 AM coding session. The moments Instagram never gets.",
+      description: "Coffee runs, 2 AM study sessions, and raw moments Instagram never gets.",
     },
     {
       title: "Find Your Crowd",
       subtitle: "VIB-08 / MATCH",
-      description: "Connect on shared obsessions, dorm vibes, and real chemistry — zero pressure.",
+      description: "Connect on shared obsessions, dorm vibes, and real chemistry.",
     },
     {
       title: "Join Live Events",
@@ -433,7 +433,7 @@ const CampusEcosystemSection: React.FC = () => {
       description: "Never lift alone. Match with gym spotters active on your schedule.",
     },
     {
-      title: "Hidden Until You're Ready",
+      title: "Hidden Until Ready",
       subtitle: "SEC-12 / GHOST",
       description: "Zero photos upfront. You control who unlocks your identity and when.",
     },
@@ -445,70 +445,71 @@ const CampusEcosystemSection: React.FC = () => {
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
       <div className="max-w-7xl mx-auto relative z-10 space-y-12 sm:space-y-16">
         
-        {/* Header Section */}
-        <div className="flex flex-col items-start text-left space-y-4 max-w-3xl">
-          <p className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase font-bold">
-            WHAT UNLOCKS WHEN YOU SIGN UP
-          </p>
-
-          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-gray-950 font-geist leading-[1.05] tracking-tight">
-            College, <br />
-            <span className="text-[#F45D9B]">Unfiltered.</span>
-          </h2>
-
-          <p className="text-base sm:text-xl text-gray-600 font-medium font-geist pt-1 leading-relaxed max-w-2xl">
-            Here is everything you can do the moment you sign up with your campus handle.
-          </p>
+        {/* Editorial Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-300/50 pb-8">
+          <div className="space-y-2">
+            <span className="font-departure text-xs text-gray-400 tracking-[0.25em] uppercase font-bold">
+              [ 02 / ECOSYSTEM ]
+            </span>
+            <h2 className="text-5xl sm:text-7xl md:text-8xl font-black text-gray-950 font-geist tracking-tighter leading-none">
+              College, <span className="text-[#F45D9B] font-light italic font-serif">unfiltered.</span>
+            </h2>
+          </div>
+          <span className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase font-semibold">
+            INTERACTIVE SPECS — SCROLL TO DISCOVER
+          </span>
         </div>
 
-        {/* OptionWheel & Active Card Showcase */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[520px]">
+        {/* Minimal Editorial Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[480px]">
           
           {/* Left Column: 3D Rolling OptionWheel */}
-          <div className="lg:col-span-7 h-[460px] sm:h-[520px] w-full relative overflow-hidden">
+          <div className="lg:col-span-7 h-[440px] sm:h-[480px] w-full relative overflow-hidden">
             <OptionWheel
               items={accordionItems.map(item => item.title)}
               defaultSelected={0}
               onChange={(index) => setSelectedIndex(index)}
-              textColor="#71717a"
+              textColor="#a1a1aa"
               activeColor="#F45D9B"
               side="left"
-              fontSize={2.4}
-              spacing={2.1}
+              fontSize={2.5}
+              spacing={2.0}
               curve={0.85}
-              tilt={7.5}
-              blur={1.5}
-              fade={0.35}
-              minOpacity={0.12}
+              tilt={6}
+              blur={1.2}
+              fade={0.3}
+              minOpacity={0.15}
               smoothing={200}
-              inset={16}
+              inset={12}
               loop={true}
               draggable={true}
             />
           </div>
 
-          {/* Right Column: Clean Architectural Light Card */}
-          <div className="lg:col-span-5 relative">
-            <div className="p-8 sm:p-12 rounded-3xl bg-white border border-gray-200/90 relative min-h-[300px] flex flex-col justify-center space-y-6 shadow-[0_15px_45px_rgba(0,0,0,0.04)] transition-all duration-300">
-              
-              <div className="flex items-center justify-between">
-                <span className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase font-bold">
-                  {activeItem.subtitle}
-                </span>
-                <span className="font-departure text-xs text-gray-400 font-medium">
-                  [{String(selectedIndex + 1).padStart(2, '0')} / 12]
-                </span>
-              </div>
+          {/* Right Column: Pure Architectural Editorial Display (No Box Container) */}
+          <div className="lg:col-span-5 flex flex-col justify-between relative min-h-[320px] py-4">
+            
+            {/* Watermark Index Number */}
+            <div className="text-7xl sm:text-8xl md:text-9xl font-black text-gray-200/60 font-departure select-none tracking-tighter leading-none pointer-events-none -mb-8">
+              {String(selectedIndex + 1).padStart(2, '0')}
+            </div>
 
-              <h3 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-geist text-gray-950 leading-tight tracking-tight">
+            <div className="space-y-4 relative z-10">
+              <span className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase font-bold block">
+                — {activeItem.subtitle}
+              </span>
+
+              <h3 className="text-4xl sm:text-5xl md:text-6xl font-black font-geist text-gray-950 leading-[1.05] tracking-tight">
                 {activeItem.title}
               </h3>
 
-              <p className="text-base sm:text-xl text-gray-600 font-medium font-geist leading-relaxed">
+              <div className="w-12 h-[2px] bg-[#F45D9B] my-4" />
+
+              <p className="text-lg sm:text-xl text-gray-600 font-medium font-geist leading-relaxed max-w-md">
                 {activeItem.description}
               </p>
-
             </div>
+
           </div>
 
         </div>
