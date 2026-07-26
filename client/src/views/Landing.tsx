@@ -373,140 +373,7 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
-/* CAMPUS UNFILTERED SECTION WITH REACT BITS OPTIONWHEEL */
-const CampusEcosystemSection: React.FC = () => {
-  const [selectedIndex, setSelectedIndex] = React.useState(0);
 
-  const accordionItems = [
-    {
-      title: "Stay Anonymous",
-      description: "Post confessions, ask questions, or observe without revealing identity.",
-    },
-    {
-      title: "Spill Campus Tea",
-      description: "Raw gossip and real-time dorm chatter from your verified college network.",
-    },
-    {
-      title: "Movie Nights",
-      description: "Watch Netflix, anime or YouTube together without leaving your room.",
-    },
-    {
-      title: "Walk The Campus Map",
-      description: "Drop into a live campus map as your avatar and discover who is active.",
-    },
-    {
-      title: "Cross-Campus Friends",
-      description: "Break out of your bubble and connect with verified students nearby.",
-    },
-    {
-      title: "Spotify Together",
-      description: "Listen to live room jams, share playlists, and match on real music taste.",
-    },
-    {
-      title: "Share Raw Glimpses",
-      description: "Coffee runs, 2 AM study sessions, and raw moments Instagram never gets.",
-    },
-    {
-      title: "Find Your Crowd",
-      description: "Connect on shared obsessions, dorm vibes, and real chemistry.",
-    },
-    {
-      title: "Join Live Events",
-      description: "Discover pop-up campus hangouts, dorm parties, and impromptu meetups.",
-    },
-    {
-      title: "Study Buddies",
-      description: "Find row-2 lecture partners and late-night library study crews instantly.",
-    },
-    {
-      title: "Gym Partners",
-      description: "Never lift alone. Match with gym spotters active on your schedule.",
-    },
-    {
-      title: "Hidden Until Ready",
-      description: "Zero photos upfront. You control who unlocks your identity and when.",
-    },
-  ];
-
-  const activeItem = accordionItems[selectedIndex] || accordionItems[0];
-
-  return (
-    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-16 sm:py-28 px-4 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
-      <div className="max-w-7xl mx-auto relative z-10 space-y-8 sm:space-y-12">
-        
-        {/* Section Header */}
-        <div className="flex flex-col items-start text-left space-y-2">
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-gray-950 font-geist tracking-tight leading-tight">
-            College, <span className="text-[#F45D9B]">Unfiltered.</span>
-          </h2>
-          <p className="text-sm sm:text-lg text-gray-500 font-medium font-geist">
-            Everything active on your campus the moment you sign up.
-          </p>
-        </div>
-
-        {/* Clean Responsive Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-16 items-center min-h-[380px] sm:min-h-[460px]">
-          
-          {/* Left Column: 3D Rolling OptionWheel */}
-          <div className="lg:col-span-7 h-[320px] sm:h-[420px] w-full relative overflow-hidden">
-            <OptionWheel
-              items={accordionItems.map(item => item.title)}
-              defaultSelected={0}
-              onChange={(index) => setSelectedIndex(index)}
-              textColor="#71717a"
-              activeColor="#F45D9B"
-              side="left"
-              fontSize={2.2}
-              spacing={1.9}
-              curve={0.8}
-              tilt={5}
-              blur={1.0}
-              fade={0.3}
-              minOpacity={0.2}
-              smoothing={200}
-              inset={12}
-              loop={true}
-              draggable={true}
-            />
-          </div>
-
-          {/* Right Column: Clean Active Content Display inside GlassSurface */}
-          <div className="lg:col-span-5 flex items-center justify-center w-full min-h-[220px]">
-            <GlassSurface
-              width="100%"
-              height="auto"
-              borderRadius={28}
-              brightness={65}
-              opacity={0.85}
-              blur={12}
-              displace={5}
-              distortionScale={-120}
-              backgroundOpacity={0.4}
-              saturation={1.2}
-              className="p-6 sm:p-8 border border-white/60 shadow-[0_20px_45px_rgba(244,93,155,0.08),0_4px_15px_rgba(0,0,0,0.03)]"
-            >
-              <div className="flex flex-col text-left space-y-3 w-full">
-                <span className="font-departure text-[11px] text-[#F45D9B] tracking-[0.2em] uppercase font-bold">
-                  [{String(selectedIndex + 1).padStart(2, '0')} / 12] ACTIVE FEATURE
-                </span>
-                
-                <h3 className="text-2xl sm:text-4xl md:text-5xl font-black font-geist text-gray-950 leading-tight tracking-tight">
-                  {activeItem.title}
-                </h3>
-
-                <p className="text-base sm:text-xl text-gray-700 font-medium font-geist leading-relaxed">
-                  {activeItem.description}
-                </p>
-              </div>
-            </GlassSurface>
-          </div>
-
-        </div>
-
-      </div>
-    </section>
-  );
-};
 
 const MarqueeBar: React.FC = () => {
   return (
@@ -822,10 +689,7 @@ export const Landing: React.FC = () => {
       {/* 3. VIRTUAL MEETUP GROUNDS SECTION (GAME CONSOLE MP4 & #FAF7EE BG) */}
       <VirtualMeetupSection />
 
-      {/* 4. CAMPUS ECOSYSTEM SECTION: WHAT OTHRHALFF ACTUALLY IS */}
-      <CampusEcosystemSection />
-
-      {/* 5. MARQUEE TICKER BAR */}
+      {/* 4. MARQUEE TICKER BAR */}
       <MarqueeBar />
 
       {/* Footer Section */}
