@@ -489,19 +489,27 @@ const ManifestoSection: React.FC = () => {
 
       </div>
 
-      {/* Raw Unapologetic Monospace Editorial Text Block */}
+      {/* Editorial Monospace Manifesto Text Block */}
       <div className="max-w-3xl mx-auto px-6 sm:px-12 pt-16 sm:pt-24 space-y-8 sm:space-y-12 text-left font-mono">
         
         <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          College social life is broken because generic dating apps turned real campus connections into a shallow, transactional swipe meat market. We threw all of that out the window.
+          College isn't meant to be lonely. Somewhere along the way, campus life became endless swipes, fake personas, and conversations that never went anywhere. We built Othrhalff to bring back real student connections, where people meet naturally instead of being reduced to another profile.
         </p>
 
         <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          Othrhalff is the raw, unfiltered campus network built for students across all Raipur colleges — NIT Raipur, IIM Raipur, AIIMS Raipur, HNLU, ITM & beyond. Read and post anonymous campus confessions, spill real dorm tea, and drop into a live virtual 2D playground where you walk around as your avatar and interact with people naturally — just like that classic Pokémon game.
+          Discover students through a swipe-based Discover page, connect when it feels right, ignore anyone without pressure, and revisit profiles anytime. Chat instantly, play ice-breakers like Truth or Dare and Would You Rather, and let conversations happen instead of forcing them.
         </p>
 
-        <p className="text-base sm:text-xl text-gray-950 leading-[1.85] font-medium">
-          No fake profiles, no paywalls, no bullshit subscriptions, and zero sandbox restrictions. Everything is 100% free, cross-college, and open the moment you join us with your student handle.
+        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
+          Share anonymous confessions, campus stories, memes, photos, and videos. Create or join groups around music, movies, gaming, coding, sports, or anything you're passionate about. Stream music together, watch videos with friends, and build communities around shared interests, not just shared classes.
+        </p>
+
+        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
+          Walk into a live 2D virtual campus as your own avatar, explore, meet new people, hang out, and interact just like you would on a real campus. Every conversation starts with curiosity instead of a notification.
+        </p>
+
+        <p className="text-base sm:text-xl text-gray-950 leading-[1.85] font-semibold border-l-4 border-[#F45D9B] pl-5 sm:pl-8 py-1">
+          No fake profiles. No paywalls. No premium subscriptions. Just one verified student identity, one growing student network, and a place where friendships, collaborations, communities, and even relationships happen naturally. <span className="text-[#F45D9B] font-bold">Not built for dating. Built for belonging.</span>
         </p>
 
       </div>
