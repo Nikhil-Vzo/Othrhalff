@@ -372,69 +372,57 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
-/* CAMPUS UNFILTERED SECTION — AWWWARDS EDITORIAL SHOWCASE */
+/* CAMPUS UNFILTERED SECTION WITH REACT BITS OPTIONWHEEL */
 const CampusEcosystemSection: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   const accordionItems = [
     {
       title: "Stay Anonymous",
-      subtitle: "INC-01 / PRIVACY",
       description: "Post confessions, ask questions, or observe without revealing identity.",
     },
     {
       title: "Spill Campus Tea",
-      subtitle: "GOS-02 / CHATTER",
       description: "Raw gossip and real-time dorm chatter from your verified college network.",
     },
     {
       title: "Movie Nights",
-      subtitle: "CIN-03 / STREAM",
       description: "Watch Netflix, anime or YouTube together without leaving your room.",
     },
     {
       title: "Walk The Campus Map",
-      subtitle: "MAP-04 / EXPLORE",
       description: "Drop into a live campus map as your avatar and discover who is active.",
     },
     {
       title: "Cross-Campus Friends",
-      subtitle: "UNI-05 / NETWORK",
       description: "Break out of your bubble and connect with verified students nearby.",
     },
     {
       title: "Spotify Together",
-      subtitle: "AUD-06 / JAM",
       description: "Listen to live room jams, share playlists, and match on real music taste.",
     },
     {
       title: "Share Raw Glimpses",
-      subtitle: "RAW-07 / MOMENTS",
       description: "Coffee runs, 2 AM study sessions, and raw moments Instagram never gets.",
     },
     {
       title: "Find Your Crowd",
-      subtitle: "VIB-08 / MATCH",
       description: "Connect on shared obsessions, dorm vibes, and real chemistry.",
     },
     {
       title: "Join Live Events",
-      subtitle: "EVT-09 / MEETUPS",
       description: "Discover pop-up campus hangouts, dorm parties, and impromptu meetups.",
     },
     {
       title: "Study Buddies",
-      subtitle: "ACD-10 / FOCUS",
       description: "Find row-2 lecture partners and late-night library study crews instantly.",
     },
     {
       title: "Gym Partners",
-      subtitle: "FIT-11 / SPOTTER",
       description: "Never lift alone. Match with gym spotters active on your schedule.",
     },
     {
       title: "Hidden Until Ready",
-      subtitle: "SEC-12 / GHOST",
       description: "Zero photos upfront. You control who unlocks your identity and when.",
     },
   ];
@@ -442,43 +430,38 @@ const CampusEcosystemSection: React.FC = () => {
   const activeItem = accordionItems[selectedIndex] || accordionItems[0];
 
   return (
-    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
-      <div className="max-w-7xl mx-auto relative z-10 space-y-12 sm:space-y-16">
+    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-16 sm:py-28 px-4 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
+      <div className="max-w-7xl mx-auto relative z-10 space-y-8 sm:space-y-12">
         
-        {/* Editorial Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-300/50 pb-8">
-          <div className="space-y-2">
-            <span className="font-departure text-xs text-gray-400 tracking-[0.25em] uppercase font-bold">
-              [ 02 / ECOSYSTEM ]
-            </span>
-            <h2 className="text-5xl sm:text-7xl md:text-8xl font-black text-gray-950 font-geist tracking-tighter leading-none">
-              College, <span className="text-[#F45D9B] font-light italic font-serif">unfiltered.</span>
-            </h2>
-          </div>
-          <span className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase font-semibold">
-            INTERACTIVE SPECS — SCROLL TO DISCOVER
-          </span>
+        {/* Section Header */}
+        <div className="flex flex-col items-start text-left space-y-2">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-gray-950 font-geist tracking-tight leading-tight">
+            College, <span className="text-[#F45D9B]">Unfiltered.</span>
+          </h2>
+          <p className="text-sm sm:text-lg text-gray-500 font-medium font-geist">
+            Everything active on your campus the moment you sign up.
+          </p>
         </div>
 
-        {/* Minimal Editorial Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[480px]">
+        {/* Clean Responsive Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-16 items-center min-h-[380px] sm:min-h-[460px]">
           
           {/* Left Column: 3D Rolling OptionWheel */}
-          <div className="lg:col-span-7 h-[440px] sm:h-[480px] w-full relative overflow-hidden">
+          <div className="lg:col-span-7 h-[320px] sm:h-[420px] w-full relative overflow-hidden">
             <OptionWheel
               items={accordionItems.map(item => item.title)}
               defaultSelected={0}
               onChange={(index) => setSelectedIndex(index)}
-              textColor="#a1a1aa"
+              textColor="#71717a"
               activeColor="#F45D9B"
               side="left"
-              fontSize={2.5}
-              spacing={2.0}
-              curve={0.85}
-              tilt={6}
-              blur={1.2}
+              fontSize={2.2}
+              spacing={1.9}
+              curve={0.8}
+              tilt={5}
+              blur={1.0}
               fade={0.3}
-              minOpacity={0.15}
+              minOpacity={0.2}
               smoothing={200}
               inset={12}
               loop={true}
@@ -486,29 +469,16 @@ const CampusEcosystemSection: React.FC = () => {
             />
           </div>
 
-          {/* Right Column: Pure Architectural Editorial Display (No Box Container) */}
-          <div className="lg:col-span-5 flex flex-col justify-between relative min-h-[320px] py-4">
+          {/* Right Column: Clean Active Content Display */}
+          <div className="lg:col-span-5 flex flex-col justify-center text-left space-y-4 border-l-2 border-[#F45D9B] pl-5 sm:pl-8 py-2 min-h-[140px] sm:min-h-[220px]">
             
-            {/* Watermark Index Number */}
-            <div className="text-7xl sm:text-8xl md:text-9xl font-black text-gray-200/60 font-departure select-none tracking-tighter leading-none pointer-events-none -mb-8">
-              {String(selectedIndex + 1).padStart(2, '0')}
-            </div>
+            <h3 className="text-2xl sm:text-4xl md:text-5xl font-black font-geist text-gray-950 leading-tight tracking-tight">
+              {activeItem.title}
+            </h3>
 
-            <div className="space-y-4 relative z-10">
-              <span className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase font-bold block">
-                — {activeItem.subtitle}
-              </span>
-
-              <h3 className="text-4xl sm:text-5xl md:text-6xl font-black font-geist text-gray-950 leading-[1.05] tracking-tight">
-                {activeItem.title}
-              </h3>
-
-              <div className="w-12 h-[2px] bg-[#F45D9B] my-4" />
-
-              <p className="text-lg sm:text-xl text-gray-600 font-medium font-geist leading-relaxed max-w-md">
-                {activeItem.description}
-              </p>
-            </div>
+            <p className="text-base sm:text-xl text-gray-600 font-medium font-geist leading-relaxed max-w-lg">
+              {activeItem.description}
+            </p>
 
           </div>
 
