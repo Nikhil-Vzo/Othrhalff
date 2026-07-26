@@ -446,48 +446,44 @@ const ManifestoSection: React.FC = () => {
   return (
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-950 pt-0 pb-20 sm:pb-32 overflow-hidden border-t border-b border-gray-300/40">
       
-      {/* Dual Marquee Ticker Banners (Ribbit Capital Palette Style) */}
-      <div className="w-full select-none flex flex-col">
+      {/* Tilted Overlapping Marquee Ribbons (Inspired by bottom MarqueeBar) */}
+      <div className="relative w-full overflow-hidden flex flex-col items-center bg-[#07030d] pt-8 pb-14">
         <style>{`
-          @keyframes marquee-left-fast {
+          @keyframes manifesto-marquee-left {
             0% { transform: translateX(0%); }
             100% { transform: translateX(-50%); }
           }
-          @keyframes marquee-right-fast {
+          @keyframes manifesto-marquee-right {
             0% { transform: translateX(-50%); }
             100% { transform: translateX(0%); }
           }
-          .animate-marquee-l {
-            animation: marquee-left-fast 20s linear infinite;
+          .animate-manifesto-l {
+            animation: manifesto-marquee-left 30s linear infinite;
             display: inline-flex;
           }
-          .animate-marquee-r {
-            animation: marquee-right-fast 20s linear infinite;
+          .animate-manifesto-r {
+            animation: manifesto-marquee-right 30s linear infinite;
             display: inline-flex;
           }
         `}</style>
         
-        {/* 1st Marquee Bar: Hot Pink Background, Black Text */}
-        <div className="w-full bg-[#F45D9B] text-black py-6 sm:py-9 md:py-12 overflow-hidden whitespace-nowrap border-b border-black/10">
-          <div className="animate-marquee-l font-mono font-black text-4xl sm:text-7xl md:text-8xl lg:text-9xl uppercase tracking-tighter items-center">
-            <span className="mx-8 flex items-center gap-6 sm:gap-10">
-              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
-            </span>
-            <span className="mx-8 flex items-center gap-6 sm:gap-10">
-              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
-            </span>
+        {/* 1st Top Band — tilted -2°, Hot Pink, scrolls left */}
+        <div className="w-[110vw] transform -rotate-2 bg-[#F45D9B]/10 backdrop-blur-md border-y border-[#F45D9B]/40 py-6 sm:py-9 shadow-[0_0_90px_rgba(244,93,155,0.2)] z-10">
+          <div className="flex whitespace-nowrap overflow-hidden py-2 border-y border-[#F45D9B]/20">
+            <div className="animate-manifesto-l text-white font-black text-4xl sm:text-7xl md:text-9xl uppercase tracking-tighter block">
+              <span className="mx-8 drop-shadow-[0_0_20px_rgba(244,93,155,0.9)]">GO BEYOND DATING • <span className="text-[#F45D9B]">GO BEYOND DATING</span> • GO BEYOND DATING •</span>
+              <span className="mx-8 drop-shadow-[0_0_20px_rgba(244,93,155,0.9)]">GO BEYOND DATING • <span className="text-[#F45D9B]">GO BEYOND DATING</span> • GO BEYOND DATING •</span>
+            </div>
           </div>
         </div>
 
-        {/* 2nd Marquee Bar: Dark Matte Background, Hot Pink Text */}
-        <div className="w-full bg-[#07030d] text-[#F45D9B] py-6 sm:py-9 md:py-12 overflow-hidden whitespace-nowrap border-b border-white/10">
-          <div className="animate-marquee-r font-mono font-black text-4xl sm:text-7xl md:text-8xl lg:text-9xl uppercase tracking-tighter items-center">
-            <span className="mx-8 flex items-center gap-6 sm:gap-10">
-              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
-            </span>
-            <span className="mx-8 flex items-center gap-6 sm:gap-10">
-              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
-            </span>
+        {/* 2nd Bottom Band — tilted +1°, Cyan/Blue, scrolls right, overlaps */}
+        <div className="w-[110vw] transform rotate-1 -mt-8 sm:-mt-12 bg-blue-900/20 backdrop-blur-lg border-y border-blue-500/40 py-5 sm:py-8 shadow-[0_0_90px_rgba(59,130,246,0.2)] z-0 mix-blend-screen">
+          <div className="flex whitespace-nowrap overflow-hidden py-2 border-y border-blue-500/20">
+            <div className="animate-manifesto-r text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black text-4xl sm:text-6xl md:text-8xl uppercase tracking-tighter block">
+              <span className="mx-10">FIND YOUR PEOPLE • FIND YOUR PEOPLE • FIND YOUR PEOPLE •</span>
+              <span className="mx-10">FIND YOUR PEOPLE • FIND YOUR PEOPLE • FIND YOUR PEOPLE •</span>
+            </div>
           </div>
         </div>
 
