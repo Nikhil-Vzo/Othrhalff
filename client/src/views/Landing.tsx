@@ -430,41 +430,66 @@ const ManifestoSection: React.FC = () => {
   return (
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-950 pt-0 pb-20 sm:pb-32 overflow-hidden border-t border-b border-gray-300/40">
       
-      {/* High-Impact Ticker Banner (Ribbit Capital Style: #00FF00 Neon Green) */}
-      <div className="w-full bg-[#00FF00] text-black py-4 sm:py-6 overflow-hidden whitespace-nowrap select-none border-b border-black/10">
+      {/* Dual Marquee Ticker Banners (Ribbit Capital Palette Style) */}
+      <div className="w-full select-none flex flex-col">
         <style>{`
-          @keyframes ribbon-scroll {
+          @keyframes marquee-left-fast {
             0% { transform: translateX(0%); }
             100% { transform: translateX(-50%); }
           }
-          .animate-ribbon {
-            animation: ribbon-scroll 22s linear infinite;
+          @keyframes marquee-right-fast {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0%); }
+          }
+          .animate-marquee-l {
+            animation: marquee-left-fast 20s linear infinite;
+            display: inline-flex;
+          }
+          .animate-marquee-r {
+            animation: marquee-right-fast 20s linear infinite;
             display: inline-flex;
           }
         `}</style>
-        <div className="animate-ribbon font-mono font-black text-3xl sm:text-5xl md:text-6xl uppercase tracking-tighter items-center">
-          <span className="mx-6 flex items-center gap-4">
-            HYPERLOCAL CAMPUS NETWORK <span className="text-black/50">®</span> GO BEYOND DATING <span className="text-black/50">®</span> BUILT FOR RAIPUR <span className="text-black/50">®</span> NIT • IIM • AIIMS • HNLU <span className="text-black/50">®</span>
-          </span>
-          <span className="mx-6 flex items-center gap-4">
-            HYPERLOCAL CAMPUS NETWORK <span className="text-black/50">®</span> GO BEYOND DATING <span className="text-black/50">®</span> BUILT FOR RAIPUR <span className="text-black/50">®</span> NIT • IIM • AIIMS • HNLU <span className="text-black/50">®</span>
-          </span>
+        
+        {/* 1st Marquee Bar: Hot Pink Background, Black Text */}
+        <div className="w-full bg-[#F45D9B] text-black py-3 sm:py-4 overflow-hidden whitespace-nowrap border-b border-black/10">
+          <div className="animate-marquee-l font-mono font-black text-2xl sm:text-4xl md:text-5xl uppercase tracking-tighter items-center">
+            <span className="mx-6 flex items-center gap-4">
+              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
+            </span>
+            <span className="mx-6 flex items-center gap-4">
+              GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
+            </span>
+          </div>
         </div>
+
+        {/* 2nd Marquee Bar: Dark Matte Background, Hot Pink Text */}
+        <div className="w-full bg-[#07030d] text-[#F45D9B] py-3 sm:py-4 overflow-hidden whitespace-nowrap border-b border-white/10">
+          <div className="animate-marquee-r font-mono font-black text-2xl sm:text-4xl md:text-5xl uppercase tracking-tighter items-center">
+            <span className="mx-6 flex items-center gap-4">
+              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
+            </span>
+            <span className="mx-6 flex items-center gap-4">
+              FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
+            </span>
+          </div>
+        </div>
+
       </div>
 
-      {/* Pure Monospace Editorial Text Block (Ribbit Capital 1:1 Style) */}
+      {/* Raw Unapologetic Monospace Editorial Text Block */}
       <div className="max-w-3xl mx-auto px-6 sm:px-12 pt-16 sm:pt-24 space-y-8 sm:space-y-12 text-left font-mono">
         
         <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          College social life didn't break because students stopped wanting to connect. It broke because generic dating apps turned real campus interactions into a shallow, transactional swipe game.
+          College social life is broken because generic dating apps turned real campus connections into a shallow, transactional swipe meat market. We threw all of that out the window.
         </p>
 
         <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          From late-night study crews to dorm tea, from spontaneous campus cinema streams to raw anonymous confessions, the greatest breakthroughs in campus life happen between classes, across campuses, and far beyond simple dating.
+          Othrhalff is the raw, unfiltered campus network built for students across all Raipur colleges — NIT Raipur, IIM Raipur, AIIMS Raipur, HNLU, ITM & beyond. Read and post anonymous campus confessions, spill real dorm tea, and drop into a live virtual 2D playground where you walk around as your avatar and interact with people naturally — just like that classic Pokémon game.
         </p>
 
         <p className="text-base sm:text-xl text-gray-950 leading-[1.85] font-medium">
-          At Othrhalff, we built a hyper-localized campus connection network specifically for Raipur — NIT Raipur, IIM Raipur, AIIMS Raipur, HNLU, ITM & beyond. Designed for genuine chemistry, shared obsessions, and real student connections.
+          No fake profiles, no paywalls, no bullshit subscriptions, and zero sandbox restrictions. Everything is 100% free, cross-college, and open the moment you join us with your student handle.
         </p>
 
       </div>
