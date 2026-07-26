@@ -442,26 +442,34 @@ const CampusEcosystemSection: React.FC = () => {
   const activeItem = accordionItems[selectedIndex] || accordionItems[0];
 
   return (
-    <section className="relative z-10 w-full bg-[#07030d] text-white py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-[#2A2A2A]">
-      <div className="max-w-7xl mx-auto relative z-10 space-y-12 sm:space-y-16">
+    <section className="relative z-10 w-full bg-[#07030d] text-white py-28 sm:py-40 px-6 sm:px-12 overflow-hidden border-t border-white/10">
+      {/* Ambient Background Radial Glows */}
+      <div className="absolute top-1/3 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#F45D9B]/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[450px] h-[450px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10 space-y-14 sm:space-y-20">
         
         {/* Header Section */}
-        <div className="flex flex-col items-start text-left space-y-4 max-w-3xl">
-          <p className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase">
-            WHAT UNLOCKS WHEN YOU SIGN UP
-          </p>
+        <div className="flex flex-col items-start text-left space-y-5 max-w-3xl">
+          {/* Pill Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F45D9B]/10 border border-[#F45D9B]/30 text-[#F45D9B] font-departure text-xs tracking-[0.2em] uppercase shadow-[0_0_25px_rgba(244,93,155,0.15)]">
+            <Sparkles className="w-3.5 h-3.5 text-[#F45D9B]" />
+            <span>WHAT UNLOCKS WHEN YOU SIGN UP</span>
+          </div>
 
-          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-white font-monument leading-[1.02] tracking-tight">
+          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-white font-monument leading-[1.05] tracking-tight">
             COLLEGE, <br />
-            UNFILTERED.
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-200 to-[#F45D9B]">
+              UNFILTERED.
+            </span>
           </h2>
 
-          <p className="text-base sm:text-xl text-gray-400 font-medium font-geist pt-2">
+          <p className="text-base sm:text-xl text-gray-300 font-medium font-geist leading-relaxed max-w-2xl">
             Here is everything you can do the moment you sign up with your campus handle.
           </p>
         </div>
 
-        {/* OptionWheel Pure Text Grid — Borderless, No Container Boxes */}
+        {/* OptionWheel & Active Card Showcase */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[520px]">
           
           {/* Left Column: 3D Rolling OptionWheel */}
@@ -470,7 +478,7 @@ const CampusEcosystemSection: React.FC = () => {
               items={accordionItems.map(item => item.title)}
               defaultSelected={0}
               onChange={(index) => setSelectedIndex(index)}
-              textColor="#333333"
+              textColor="#a1a1aa"
               activeColor="#F45D9B"
               side="left"
               fontSize={2.4}
@@ -479,7 +487,7 @@ const CampusEcosystemSection: React.FC = () => {
               tilt={7.5}
               blur={1.5}
               fade={0.35}
-              minOpacity={0.04}
+              minOpacity={0.08}
               smoothing={200}
               inset={16}
               loop={true}
@@ -487,24 +495,34 @@ const CampusEcosystemSection: React.FC = () => {
             />
           </div>
 
-          {/* Right Column: Borderless Active Text Display */}
-          <div className="lg:col-span-5 flex flex-col justify-center text-left space-y-6 relative overflow-hidden min-h-[260px]">
-            <div className="flex items-center justify-between">
-              <span className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase">
-                {activeItem.subtitle}
-              </span>
-              <span className="font-departure text-xs text-gray-500">
-                [{String(selectedIndex + 1).padStart(2, '0')} / 12]
-              </span>
+          {/* Right Column: Premium Glassmorphism Active Card */}
+          <div className="lg:col-span-5 relative">
+            <div className="p-8 sm:p-12 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-2xl relative min-h-[300px] flex flex-col justify-center space-y-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] group transition-all duration-500 hover:border-[#F45D9B]/30">
+              
+              {/* Left Accent Bar Glow */}
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-20 bg-gradient-to-b from-[#F45D9B] to-purple-500 rounded-r-full shadow-[0_0_20px_#F45D9B]" />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#F45D9B] animate-pulse" />
+                  <span className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase font-semibold">
+                    {activeItem.subtitle}
+                  </span>
+                </div>
+                <span className="font-departure text-xs text-gray-400 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                  {String(selectedIndex + 1).padStart(2, '0')} / 12
+                </span>
+              </div>
+
+              <h3 className="text-3xl sm:text-4xl lg:text-5xl font-black font-geist text-white leading-tight tracking-tight">
+                {activeItem.title}
+              </h3>
+
+              <p className="text-base sm:text-lg text-gray-300 font-medium font-geist leading-relaxed">
+                {activeItem.description}
+              </p>
+
             </div>
-
-            <h3 className="text-4xl sm:text-5xl font-black font-monument text-white leading-tight tracking-tight">
-              {activeItem.title}
-            </h3>
-
-            <p className="text-lg sm:text-xl text-gray-300 font-medium font-geist leading-relaxed">
-              {activeItem.description}
-            </p>
           </div>
 
         </div>
