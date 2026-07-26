@@ -467,9 +467,9 @@ const ManifestoSection: React.FC = () => {
           }
         `}</style>
         
-        {/* 1st Marquee Bar: Hot Pink Background, Black Text */}
-        <div className="w-full bg-[#F45D9B] text-black py-4 sm:py-6 overflow-hidden whitespace-nowrap border-b border-black/10">
-          <div className="animate-marquee-l font-mono font-black text-3xl sm:text-5xl md:text-6xl uppercase tracking-tighter items-center">
+        {/* 1st Marquee Bar: Hot Pink Background, Black Text (Ribbit 1:1 h-[60px] lg:h-[120px]) */}
+        <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[#F45D9B] text-black flex flex-row items-center justify-center overflow-hidden whitespace-nowrap border-b border-black/10">
+          <div className="animate-marquee-l font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter flex flex-row items-center">
             <span className="mx-6 flex items-center gap-4">
               GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span> GO BEYOND DATING <span className="text-black/40">®</span>
             </span>
@@ -479,9 +479,9 @@ const ManifestoSection: React.FC = () => {
           </div>
         </div>
 
-        {/* 2nd Marquee Bar: Dark Matte Background, Hot Pink Text */}
-        <div className="w-full bg-[#07030d] text-[#F45D9B] py-4 sm:py-6 overflow-hidden whitespace-nowrap border-b border-white/10">
-          <div className="animate-marquee-r font-mono font-black text-3xl sm:text-5xl md:text-6xl uppercase tracking-tighter items-center">
+        {/* 2nd Marquee Bar: Dark Matte Background, Hot Pink Text (Ribbit 1:1 h-[60px] lg:h-[120px]) */}
+        <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[#07030d] text-[#F45D9B] flex flex-row items-center justify-center overflow-hidden whitespace-nowrap border-b border-white/10">
+          <div className="animate-marquee-r font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter flex flex-row items-center">
             <span className="mx-6 flex items-center gap-4">
               FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span> FIND YOUR PEOPLE <span className="text-white/40">®</span>
             </span>
