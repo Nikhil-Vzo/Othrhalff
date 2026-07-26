@@ -301,8 +301,24 @@ const VirtualMeetupSection: React.FC = () => {
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
-        @import url('https://fonts.cdnfonts.com/css/monument-extended');
-        @import url('https://fonts.cdnfonts.com/css/departure-mono');
+
+        @font-face {
+          font-family: 'Departure Mono';
+          src: url('https://cdn.jsdelivr.net/fontsource/fonts/departure-mono@latest/latin-400-normal.woff2') format('woff2'),
+               url('https://fonts.cdnfonts.com/s/97732/DepartureMono-Regular.woff') format('woff');
+          font-weight: 400;
+          font-style: normal;
+          font-display: swap;
+        }
+
+        @font-face {
+          font-family: 'Monument Extended';
+          src: url('https://fonts.cdnfonts.com/s/29883/MonumentExtended-Ultrabold.woff2') format('woff2'),
+               url('https://fonts.cdnfonts.com/s/29883/MonumentExtended-Ultrabold.woff') format('woff');
+          font-weight: 800;
+          font-style: normal;
+          font-display: swap;
+        }
 
         .font-monument {
           font-family: 'Monument Extended', 'Unbounded', sans-serif;
