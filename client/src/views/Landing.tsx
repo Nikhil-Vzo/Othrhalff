@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Ghost, Heart, ArrowRight, Instagram, Twitter, Zap, Lock, Compass, Sparkles, Radio, Users, Flame, ArrowUpRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import {
   Navbar,
@@ -373,10 +372,9 @@ const VirtualMeetupSection: React.FC = () => {
   );
 };
 
-/* CAMPUS UNFILTERED STICKY SCROLL SECTION */
+/* CAMPUS UNFILTERED SECTION WITH REACT BITS OPTIONWHEEL */
 const CampusEcosystemSection: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   const accordionItems = [
     {
@@ -441,119 +439,76 @@ const CampusEcosystemSection: React.FC = () => {
     },
   ];
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const totalScrollable = rect.height - window.innerHeight;
-      if (totalScrollable <= 0) return;
-      const currentProgress = Math.max(0, Math.min(1, -rect.top / totalScrollable));
-      const newIndex = Math.min(
-        accordionItems.length - 1,
-        Math.floor(currentProgress * accordionItems.length)
-      );
-      setActiveIdx(newIndex);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [accordionItems.length]);
-
-  const activeItem = accordionItems[activeIdx] || accordionItems[0];
+  const activeItem = accordionItems[selectedIndex] || accordionItems[0];
 
   return (
-    <section ref={containerRef} className="relative w-full bg-[#07030d] text-white border-t border-[#2A2A2A] h-[280vh] sm:h-[320vh]">
-      
-      {/* Sticky Viewport Container */}
-      <div className="sticky top-0 h-screen w-full flex flex-col justify-center px-6 sm:px-12 overflow-hidden">
-        <div className="max-w-7xl mx-auto w-full space-y-8 sm:space-y-12">
-          
-          {/* Header Section */}
-          <div className="flex flex-col items-start text-left space-y-3 max-w-3xl">
-            <p className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase">
-              EVERYTHING BETWEEN CLASSES
-            </p>
+    <section className="relative z-10 w-full bg-[#07030d] text-white py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-[#2A2A2A]">
+      <div className="max-w-7xl mx-auto relative z-10 space-y-12 sm:space-y-16">
+        
+        {/* Header Section */}
+        <div className="flex flex-col items-start text-left space-y-4 max-w-3xl">
+          <p className="font-departure text-xs text-[#F45D9B] tracking-[0.2em] uppercase">
+            WHAT UNLOCKS WHEN YOU SIGN UP
+          </p>
 
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white font-monument leading-[1.02] tracking-tight">
-              COLLEGE, <br />
-              UNFILTERED.
-            </h2>
+          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-white font-monument leading-[1.02] tracking-tight">
+            COLLEGE, <br />
+            UNFILTERED.
+          </h2>
+
+          <p className="text-base sm:text-xl text-gray-400 font-medium font-geist pt-2">
+            Here is everything you can do the moment you sign up with your campus handle.
+          </p>
+        </div>
+
+        {/* OptionWheel Pure Text Grid — Borderless, No Container Boxes */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[520px]">
+          
+          {/* Left Column: 3D Rolling OptionWheel */}
+          <div className="lg:col-span-7 h-[460px] sm:h-[520px] w-full relative overflow-hidden">
+            <OptionWheel
+              items={accordionItems.map(item => item.title)}
+              defaultSelected={0}
+              onChange={(index) => setSelectedIndex(index)}
+              textColor="#333333"
+              activeColor="#F45D9B"
+              side="left"
+              fontSize={2.4}
+              spacing={2.1}
+              curve={0.85}
+              tilt={7.5}
+              blur={1.5}
+              fade={0.35}
+              minOpacity={0.04}
+              smoothing={200}
+              inset={16}
+              loop={true}
+              draggable={true}
+            />
           </div>
 
-          {/* Sticky 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center">
-            
-            {/* Left Column: Pure Typography List with Dynamic Font Size & Opacity */}
-            <div className="lg:col-span-6 flex flex-col space-y-2.5 sm:space-y-3.5">
-              {accordionItems.map((item, index) => {
-                const isActive = activeIdx === index;
-                return (
-                  <div
-                    key={index}
-                    onClick={() => setActiveIdx(index)}
-                    className="cursor-pointer transition-all duration-300 flex items-center gap-3 group select-none"
-                  >
-                    {/* Active Accent Indicator */}
-                    <span
-                      className={`font-departure text-sm transition-all duration-300 ${
-                        isActive
-                          ? 'text-[#F45D9B] opacity-100 translate-x-0'
-                          : 'text-transparent opacity-0 -translate-x-2'
-                      }`}
-                    >
-                      —
-                    </span>
-
-                    {/* Item Title: Grows slightly and turns hot pink when active */}
-                    <h3
-                      className={`font-geist transition-all duration-300 ${
-                        isActive
-                          ? 'text-xl sm:text-2xl md:text-3xl font-black text-[#F45D9B] opacity-100 tracking-tight'
-                          : 'text-sm sm:text-base text-zinc-500 font-medium opacity-35 hover:opacity-70 group-hover:text-white'
-                      }`}
-                    >
-                      {item.title}
-                    </h3>
-                  </div>
-                );
-              })}
+          {/* Right Column: Borderless Active Text Display */}
+          <div className="lg:col-span-5 flex flex-col justify-center text-left space-y-6 relative overflow-hidden min-h-[260px]">
+            <div className="flex items-center justify-between">
+              <span className="font-departure text-xs text-[#F45D9B] tracking-[0.25em] uppercase">
+                {activeItem.subtitle}
+              </span>
+              <span className="font-departure text-xs text-gray-500">
+                [{String(selectedIndex + 1).padStart(2, '0')} / 12]
+              </span>
             </div>
 
-            {/* Right Column: Dynamic Content Card (Only internal content swaps with smooth fade/slide) */}
-            <div className="lg:col-span-6 p-8 sm:p-12 rounded-3xl bg-white/[0.03] border border-[#2A2A2A] relative min-h-[300px] flex flex-col justify-center shadow-2xl backdrop-blur-xl">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeIdx}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="space-y-6 text-left"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-departure text-xs text-[#F45D9B] tracking-widest uppercase">
-                      {activeItem.subtitle}
-                    </span>
-                    <span className="font-departure text-xs text-zinc-500">
-                      [{String(activeIdx + 1).padStart(2, '0')} / {accordionItems.length}]
-                    </span>
-                  </div>
+            <h3 className="text-4xl sm:text-5xl font-black font-monument text-white leading-tight tracking-tight">
+              {activeItem.title}
+            </h3>
 
-                  <h3 className="text-3xl sm:text-5xl font-black font-geist text-white leading-tight tracking-tight">
-                    {activeItem.title}
-                  </h3>
-
-                  <p className="text-base sm:text-xl text-gray-300 font-medium font-geist leading-relaxed">
-                    {activeItem.description}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
+            <p className="text-lg sm:text-xl text-gray-300 font-medium font-geist leading-relaxed">
+              {activeItem.description}
+            </p>
           </div>
 
         </div>
+
       </div>
     </section>
   );
