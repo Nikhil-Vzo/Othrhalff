@@ -775,6 +775,19 @@ export const Landing: React.FC = () => {
             }}
           />
 
+          {/* Pill Badge Above Headline */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-mono tracking-[0.2em] uppercase mb-6 shadow-xl"
+            style={{
+              opacity: textRevealed ? 1 : 0,
+              transform: textRevealed ? 'translateY(0)' : 'translateY(15px)',
+              transition: 'all 0.6s ease-out 0.1s',
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#F45D9B]" />
+            <span>Go Beyond Dating</span>
+          </div>
+
           <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight text-white mb-6 leading-[1.1] font-display max-w-2xl">
             {"Find your people.".split(' ').map((word, i) => (
               <span
