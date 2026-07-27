@@ -1,7 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from client or server if present
+dotenv.config({ path: path.resolve(__dirname, '../client/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../server/.env') });
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://cthyiegohnvqtepzoqjf.supabase.co';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0aHlpZWdvaG52cXRlcHpvcWpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3ODgzMzMsImV4cCI6MjA5NzM2NDMzM30.G5CUSScFE5JqU5lqMTmtAh5xqJgwfye9bE4Wso78H2A';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_ANON_KEY) {
+  console.error('Error: VITE_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY environment variable is missing.');
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
