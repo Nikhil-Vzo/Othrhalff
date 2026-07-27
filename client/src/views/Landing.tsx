@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/resizable-navbar";
 import OptionWheel from '@/components/ui/OptionWheel';
 import GlassSurface from '@/components/ui/GlassSurface';
+import { VelocityScroll } from '@/components/ui/VelocityScroll';
 
 const CherryBlossomPetals: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -443,57 +444,30 @@ const MarqueeBar: React.FC = () => {
 
 /* RIBBIT CAPITAL STYLE MANIFESTO SECTION */
 const ManifestoSection: React.FC = () => {
+  const text1Node = (
+    <span className="flex items-center gap-6">
+      GO BEYOND DATING <span className="text-[#F45D9B]">•</span>
+    </span>
+  );
+
+  const text2Node = (
+    <span className="flex items-center gap-6">
+      FIND YOUR PEOPLE <span className="text-black/30">•</span>
+    </span>
+  );
+
   return (
     <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-950 pt-0 pb-20 sm:pb-32 overflow-hidden border-t border-b border-gray-300/40">
       
-      {/* Dual Marquee Ticker Banners (Infinite Gapless Hardware-Accelerated Ribbit Style) */}
-      <div className="w-full select-none flex flex-col overflow-hidden">
-        <style>{`
-          @keyframes marquee-left-seamless {
-            0% { transform: translate3d(0, 0, 0); }
-            100% { transform: translate3d(-50%, 0, 0); }
-          }
-          @keyframes marquee-right-seamless {
-            0% { transform: translate3d(-50%, 0, 0); }
-            100% { transform: translate3d(0, 0, 0); }
-          }
-          .animate-marquee-l {
-            animation: marquee-left-seamless 55s linear infinite;
-            display: inline-flex;
-            will-change: transform;
-          }
-          .animate-marquee-r {
-            animation: marquee-right-seamless 55s linear infinite;
-            display: inline-flex;
-            will-change: transform;
-          }
-        `}</style>
-        
-        {/* 1st Marquee Bar: Metallic Soft Pink Silk Gradient */}
-        <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[linear-gradient(110deg,#FEDEE5_0%,#FFFFFF_45%,#FCE7F3_60%,#FEDEE5_100%)] text-[#07030d] flex flex-row items-center overflow-hidden whitespace-nowrap border-b border-pink-200/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_2px_10px_rgba(244,93,155,0.08)]">
-          <div className="animate-marquee-l font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter flex flex-row items-center shrink-0">
-            <span className="flex items-center gap-6 pr-6">
-              GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span>
-            </span>
-            <span className="flex items-center gap-6 pr-6">
-              GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span> GO BEYOND DATING <span className="text-[#F45D9B]">•</span>
-            </span>
-          </div>
-        </div>
-
-        {/* 2nd Marquee Bar: Metallic Soft Rose Gold Gradient */}
-        <div className="w-full h-[60px] sm:h-[80px] lg:h-[120px] bg-[linear-gradient(110deg,#FBCFE8_0%,#FEDEE5_35%,#FFFFFF_50%,#F45D9B_100%)] text-black flex flex-row items-center overflow-hidden whitespace-nowrap border-b border-pink-300/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_15px_rgba(244,93,155,0.12)]">
-          <div className="animate-marquee-r font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter flex flex-row items-center shrink-0">
-            <span className="flex items-center gap-6 pr-6">
-              FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span>
-            </span>
-            <span className="flex items-center gap-6 pr-6">
-              FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span> FIND YOUR PEOPLE <span className="text-black/30">•</span>
-            </span>
-          </div>
-        </div>
-
-      </div>
+      {/* VelocityScroll Framer Motion Parallax Marquee with Metallic Soft Pink Styling */}
+      <VelocityScroll
+        text1={text1Node}
+        text2={text2Node}
+        default_velocity={1.8}
+        bar1ClassName="bg-[linear-gradient(110deg,#FEDEE5_0%,#FFFFFF_45%,#FCE7F3_60%,#FEDEE5_100%)] text-[#07030d] border-b border-pink-200/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_2px_10px_rgba(244,93,155,0.08)]"
+        bar2ClassName="bg-[linear-gradient(110deg,#FBCFE8_0%,#FEDEE5_35%,#FFFFFF_50%,#F45D9B_100%)] text-black border-b border-pink-300/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_15px_rgba(244,93,155,0.12)]"
+        textClassName="font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter"
+      />
 
       {/* Editorial Monospace Manifesto Text Block */}
       <div className="max-w-3xl mx-auto px-6 sm:px-12 pt-16 sm:pt-24 space-y-8 sm:space-y-12 text-left font-mono">
