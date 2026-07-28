@@ -1,6 +1,6 @@
 ##  Overview
 
-OTHRHALFF is a modern campus-based social platform designed to help students connect, interact, and express themselves freely.
+OTHRHALFF is a modern campus-based social platform designed to help students connect, interact, and express themselves feely.
 
 Built with a focus on **anonymity, simplicity, and real-time interaction**, it removes the pressure of traditional social platforms and replaces it with something more raw, more real.
 
