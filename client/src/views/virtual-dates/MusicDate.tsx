@@ -416,7 +416,7 @@ export const MusicDate = () => {
                     setRoomCode(queryRoom);
                     setRoomName(queryCreateName);
                     setIsHost(true);
-                    setMode('select');
+                    setMode('create_room');
                     if (queryPrivate === 'true') setIsPrivateRoom(true);
                     if (queryPasscode) setRoomPasscode(queryPasscode);
                     window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);

@@ -23,7 +23,7 @@ interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { currentUser, needsOnboarding } = useAuth();
   const { isCallActive, appId, channelName, token, partnerName, partnerAvatar, callType, callSessionId, endCall } = useCall();
-  const { unreadCount, unreadMessageCount } = useNotifications();
+  const { unreadCount, unreadMessageCount, setUnreadMessageCount } = useNotifications();
   const pathname = usePathname() || '';
   const router = useRouter();
 
