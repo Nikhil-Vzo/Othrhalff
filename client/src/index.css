@@ -1,3 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Outfit:wght@400;700;900&family=Teko:wght@400;700&family=Poppins:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Geist:wght@400;500;600;700;800;900&display=swap');
+
+/* WOFF2 High-Performance Font Face Definitions */
+@font-face {
+  font-family: 'Departure Mono';
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/departure-mono@latest/latin-400-normal.woff2') format('woff2'),
+       url('https://fonts.cdnfonts.com/s/97732/DepartureMono-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Monument Extended';
+  src: url('https://fonts.cdnfonts.com/s/29883/MonumentExtended-Ultrabold.woff2') format('woff2'),
+       url('https://fonts.cdnfonts.com/s/29883/MonumentExtended-Ultrabold.woff') format('woff');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist@latest/latin-400-normal.woff2') format('woff2');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

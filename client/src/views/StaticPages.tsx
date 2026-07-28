@@ -5,7 +5,7 @@ import { RotateCcw, Ghost, Shield, Heart, Briefcase, AlertTriangle, CheckCircle2
 // --- Shared Layout Component ---
 const PageLayout: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => {
   return (
-    <div className="h-screen w-full overflow-y-auto overflow-x-hidden bg-black text-white font-sans selection:bg-neon selection:text-white p-6 pb-20 relative">
+    <main className="h-screen w-full overflow-y-auto overflow-x-hidden bg-black text-white font-sans selection:bg-neon selection:text-white p-6 pb-20 relative">
       {/* Background Ambience */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-neon/10 blur-[120px] rounded-full pointer-events-none" />
 

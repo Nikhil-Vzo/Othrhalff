@@ -20,7 +20,7 @@ Here is what's new in Othrhalff:
 * **Scroll-to-Bottom Floating Button**: Scrolling up in longer chats automatically renders a sleek, glassmorphic scroll-down indicator that bounces and smoothly snaps you back to the latest message when clicked.
 * **Typing Indicators**: No more waiting in suspense! You can now see exactly when your match is drafting a message with our new animated typing bubble.
 * **Live Read Receipts (Neon Glow)**: Instantly track your message delivery status. Messages show a pulsing clock during transit, a single checkmark when delivered, and glowing neon cyan double-checkmarks the second they are read.
-* **Quick Emoji Drawer**: Tapping the new smile icon pops open a glassmorphic bar of the most popular dating and reaction emojis (`❤️`, `🔥`, `😂`, `✨`, `👀`, `🥺`, `🙌`, `💯`) to quickly append to your texts.
+
 
 ### 📣 2. Feed Upgrades ("The Pulse")
 * **Campus vs. Global Feeds**: Switch easily between confessions from your specific university ("Campus") and a unified feed of anonymous posts from campuses nationwide ("Global").

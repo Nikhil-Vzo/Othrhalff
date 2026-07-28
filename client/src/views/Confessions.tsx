@@ -16,14 +16,12 @@ type SortOption = 'newest' | 'oldest' | 'popular' | 'discussed';
 
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '😢', '👀'];
 const POSTS_PER_PAGE = 10;
-const CACHE_KEY = 'otherhalf_confessions_v4';
-const CACHE_EXPIRY_KEY = 'otherhalf_confessions_expiry_v4';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const readCache = (mode: 'campus' | 'global'): Confession[] => {
     try {
-        const cacheKey = `otherhalf_confessions_${mode}_v4`;
-        const expiryKey = `otherhalf_confessions_expiry_${mode}_v4`;
+        const cacheKey = `otherhalf_confessions_${mode}_cupid`;
+        const expiryKey = `otherhalf_confessions_expiry_${mode}_cupid`;
         const expiry = localStorage.getItem(expiryKey);
         if (expiry && Date.now() > parseInt(expiry, 10)) {
             localStorage.removeItem(cacheKey);
@@ -37,8 +35,8 @@ const readCache = (mode: 'campus' | 'global'): Confession[] => {
 
 const writeCache = (mode: 'campus' | 'global', data: Confession[]) => {
     try {
-        const cacheKey = `otherhalf_confessions_${mode}_v4`;
-        const expiryKey = `otherhalf_confessions_expiry_${mode}_v4`;
+        const cacheKey = `otherhalf_confessions_${mode}_cupid`;
+        const expiryKey = `otherhalf_confessions_expiry_${mode}_cupid`;
         localStorage.setItem(cacheKey, JSON.stringify(data));
         localStorage.setItem(expiryKey, String(Date.now() + CACHE_DURATION));
     } catch { /* quota exceeded */ }
@@ -197,6 +195,8 @@ export const Confessions: React.FC = () => {
                 if (currentUser && record.user_id === currentUser.id) return;
 
                 setConfessions(prev => {
+                    const exists = prev.some(c => c.id === confessionId);
+                    if (!exists) return prev;
                     const updated = prev.map(c => {
                         if (c.id !== confessionId) return c;
                         const newReactions = { ...c.reactions };
@@ -227,6 +227,8 @@ export const Confessions: React.FC = () => {
                 if (currentUser && record.user_id === currentUser.id) return;
 
                 setConfessions(prev => {
+                    const exists = prev.some(c => c.id === confessionId);
+                    if (!exists) return prev;
                     const updated = prev.map(c => {
                         if (c.id !== confessionId) return c;
                         if (expandedCommentsRef.current[confessionId]) {
@@ -661,32 +663,48 @@ export const Confessions: React.FC = () => {
             }
         } catch (err) { console.error(err); }
     };
-
     // isAmityStudent restriction removed to support other colleges in campus and global feeds
 
     return (
         <div className="h-full w-full bg-transparent text-white flex flex-col relative overflow-hidden font-sans">
             {/* Header */}
-            <div className="flex-none p-4 border-b border-gray-800/50 bg-black/20 backdrop-blur-md z-40 sticky top-0 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => navigate.push('/home')} aria-label="Go back to Discover" className="p-2 hover:bg-gray-800 rounded-full hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" aria-hidden="true" /></button>
-                    <div>
-                        <h1 className="text-xl font-bold uppercase tracking-tight">Confessions</h1>
-                        <p className="text-[10px] text-gray-500 font-mono">
-                            {currentUser 
-                                ? (feedMode === 'campus' ? currentUser.university : 'Global Feed') 
-                                : 'Global Feed'}
-                        </p>
+            <div className="flex-none p-4 border-b border-gray-800/50 bg-black/20 backdrop-blur-md z-40 sticky top-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => navigate.push('/home')} aria-label="Go back to Discover" className="p-2 hover:bg-gray-800 rounded-full hidden md:block"><ArrowLeft className="w-6 h-6 text-gray-400" aria-hidden="true" /></button>
+                        <div>
+                            <h1 className="text-xl font-bold uppercase tracking-tight">Confessions</h1>
+                            <p className="text-[10px] text-gray-500 font-mono">
+                                {currentUser 
+                                    ? (feedMode === 'campus' ? currentUser.university : 'Global Feed') 
+                                    : 'Global Feed'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Sort button on mobile */}
+                    <div className="sm:hidden relative">
+                        <button onClick={() => setShowSortMenu(!showSortMenu)} aria-label="Sort options" aria-expanded={showSortMenu} className={`p-2 rounded-full transition-colors ${showSortMenu ? 'bg-white text-black' : 'bg-gray-900 text-gray-400'}`}><SlidersHorizontal className="w-5 h-5" aria-hidden="true" /></button>
+                        {showSortMenu && (
+                            <>
+                                <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)}></div>
+                                <div className="absolute right-0 top-12 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-xl z-20">
+                                    {['newest', 'oldest'].map((type) => (
+                                        <button key={type} onClick={() => { setSortType(type as SortOption); setShowSortMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 capitalize">{type}</button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {/* Tabs & Sort */}
-                <div className="flex items-center gap-2 sm:gap-4">
+                {/* Tabs & Sort (Desktop/Tablet) */}
+                <div className="flex items-center justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
                     {currentUser && (
-                        <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl">
+                        <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl w-full sm:w-auto justify-center sm:justify-start">
                             <button
                                 onClick={() => setFeedMode('campus')}
-                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${feedMode === 'campus'
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${feedMode === 'campus'
                                     ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                                     : 'text-gray-500 hover:text-gray-300'
                                     }`}
@@ -696,7 +714,7 @@ export const Confessions: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setFeedMode('global')}
-                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${feedMode === 'global'
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${feedMode === 'global'
                                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
                                     : 'text-gray-500 hover:text-gray-300'
                                     }`}
@@ -707,8 +725,8 @@ export const Confessions: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Sort Menu */}
-                    <div className="relative">
+                    {/* Sort Menu (Desktop/Tablet) */}
+                    <div className="hidden sm:block relative">
                         <button onClick={() => setShowSortMenu(!showSortMenu)} aria-label="Sort options" aria-expanded={showSortMenu} className={`p-2 rounded-full transition-colors ${showSortMenu ? 'bg-white text-black' : 'bg-gray-900 text-gray-400'}`}><SlidersHorizontal className="w-5 h-5" aria-hidden="true" /></button>
                         {showSortMenu && (
                             <>

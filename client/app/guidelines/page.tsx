@@ -4,6 +4,9 @@ import { Guidelines } from '../../src/views/StaticPages';
 export const metadata: Metadata = {
   title: 'Community Guidelines | OthrHalff',
   description: 'Our rules for keeping OthrHalff a safe, fun, and inclusive space for all university students.',
+  alternates: {
+    canonical: '/guidelines',
+  },
 };
 
 export default function Page() {

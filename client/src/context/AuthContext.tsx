@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserProfile } from '../types';
 import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
 import ForceLogoutCountdown from '../components/ForceLogoutCountdown';
+import { db } from '../lib/db';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -17,6 +19,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     if (typeof window !== 'undefined') {
       return authService.getCurrentUser();
@@ -50,9 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. SLOW (Background): Verify with Supabase for updates/security
       if (supabase) {
         try {
+          let isAborted = false;
           const { data: { session } } = await supabase.auth.getSession().catch(err => {
             if (err.name === 'AbortError' || err.message.includes('AbortError')) {
                 console.log('Ignored AbortError during getSession');
+                isAborted = true;
             } else {
                 throw err;
             }
@@ -62,17 +67,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // If no session, try refreshing (mobile browsers often lose the access token
           // while backgrounded, but the refresh token is still valid)
           let activeSession = session;
-          if (!activeSession && localUser) {
+          if (!activeSession && localUser && !isAborted) {
             console.log('No session found, attempting token refresh...');
             const { data: refreshData } = await supabase.auth.refreshSession().catch(err => {
                 if (err.name === 'AbortError' || err.message.includes('AbortError')) {
                     console.log('Ignored AbortError during refreshSession');
+                    isAborted = true;
                 } else {
                     throw err;
                 }
                 return { data: { session: null } };
             });
             activeSession = refreshData?.session ?? null;
+          }
+
+          if (isAborted) {
+            console.log('Aborted getSession/refreshSession background call, skipping auth state updates');
+            return;
           }
 
           if (activeSession?.user) {
@@ -84,10 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
 
             if (profile && !error) {
-              if (!profile.real_name || !profile.university) {
-                setNeedsOnboarding(true);
-              }
-
               const appUser: UserProfile = {
                 id: profile.id,
                 username: profile.username,
@@ -135,7 +142,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-
   // Sync Supabase access token to the service worker's IndexedDB
   // so background push notification handlers can authenticate API calls
   const syncTokenToSW = useCallback(async () => {
@@ -158,34 +164,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }).catch(() => {});
   }, []);
 
-  const login = async (user: UserProfile) => {
+  const clearAllCaches = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      // 1. Clear session storage completely (safe for transient caches)
+      sessionStorage.clear();
+
+      // 2. Clear specific user/session-scoped keys from localStorage
+      const prefixesToRemove = ['otherhalf_', 'othrhalff_', 'deleted_messages_', 'cleared_chat_'];
+      const specificKeysToRemove = ['viewed_glimpse_ids'];
+
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key) {
+          const shouldRemove = prefixesToRemove.some(prefix => key.startsWith(prefix)) ||
+                              specificKeysToRemove.includes(key);
+          if (shouldRemove) {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+
+      // 3. Clear IndexedDB tables
+      try {
+        db.messages.clear();
+        db.profiles.clear();
+      } catch (e) {
+        console.error('Failed to clear IndexedDB:', e);
+      }
+    }
+  }, []);
+
+  const login = useCallback(async (user: UserProfile) => {
+    clearAllCaches();
     setCurrentUser(user);
     setNeedsOnboarding(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('otherhalf_confessions_campus_v4');
-      localStorage.removeItem('otherhalf_confessions_global_v4');
-      localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
-      localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
-    }
     // Non-blocking sync
     authService.login(user).catch(err => console.error("Background sync error:", err));
     // Sync token to SW for background push notification handling
     syncTokenToSW();
-  };
-
-  const clearAllCaches = useCallback(() => {
-    // Session storage caches
-    sessionStorage.removeItem('otherhalf_discover_cache_v3');
-    sessionStorage.removeItem('otherhalf_discover_cache_expiry_v3');
-    // Matches cache (localStorage, persists across tabs)
-    localStorage.removeItem('otherhalf_matches_cache_v6');
-    localStorage.removeItem('otherhalf_matches_expiry_v6');
-    // Confessions caches
-    localStorage.removeItem('otherhalf_confessions_campus_v4');
-    localStorage.removeItem('otherhalf_confessions_global_v4');
-    localStorage.removeItem('otherhalf_confessions_expiry_campus_v4');
-    localStorage.removeItem('otherhalf_confessions_expiry_global_v4');
-  }, []);
+  }, [clearAllCaches, syncTokenToSW]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowLogoutCountdown(false);
@@ -193,33 +210,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearAllCaches();
     clearSWToken();
     authService.logout();
-  }, [clearAllCaches, clearSWToken]);
+    router.push('/login');
+  }, [clearAllCaches, clearSWToken, router]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setCurrentUser(null);
     clearAllCaches();
     clearSWToken();
     authService.logout();
-  };
+  }, [clearAllCaches, clearSWToken]);
 
-  const updateProfile = (updates: Partial<UserProfile>) => {
-    if (!currentUser) return;
-    const updatedUser = { ...currentUser, ...updates };
-    setCurrentUser(updatedUser);
-    // Non-blocking update
-    authService.login(updatedUser).catch(err => console.error("Profile update sync error:", err));
-  };
+  const updateProfile = useCallback((updates: Partial<UserProfile>) => {
+    setCurrentUser(prev => {
+      if (!prev) return null;
+      const updatedUser = { ...prev, ...updates };
+      // Non-blocking update
+      authService.login(updatedUser).catch(err => console.error("Profile update sync error:", err));
+      return updatedUser;
+    });
+  }, []);
+
+  const authContextValue = useMemo(() => ({
+    currentUser,
+    login,
+    logout,
+    updateProfile,
+    isAuthenticated: !!currentUser,
+    isLoading,
+    needsOnboarding
+  }), [currentUser, login, logout, updateProfile, isLoading, needsOnboarding]);
 
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      login,
-      logout,
-      updateProfile,
-      isAuthenticated: !!currentUser,
-      isLoading,
-      needsOnboarding
-    }}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
       {showLogoutCountdown && (
         <ForceLogoutCountdown onComplete={handleCountdownComplete} />

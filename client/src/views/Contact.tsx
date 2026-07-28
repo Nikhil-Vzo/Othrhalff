@@ -47,7 +47,7 @@ export const Contact: React.FC = () => {
     }
 
     return (
-        <div className="h-screen w-full overflow-y-auto overflow-x-hidden bg-black text-white font-sans flex flex-col">
+        <main className="h-screen w-full overflow-y-auto overflow-x-hidden bg-black text-white font-sans flex flex-col">
             {/* Header */}
             <div className="px-4 py-3 bg-black/95 backdrop-blur-md border-b border-gray-800 flex items-center gap-3">
                 <button
@@ -79,10 +79,11 @@ export const Contact: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Email */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                                 Your Email
                             </label>
                             <input
+                                id="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -94,10 +95,11 @@ export const Contact: React.FC = () => {
 
                         {/* Subject */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="subject" className="block text-sm font-medium text-gray-300 mb-2">
                                 Subject
                             </label>
                             <input
+                                id="subject"
                                 type="text"
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
@@ -109,10 +111,11 @@ export const Contact: React.FC = () => {
 
                         {/* Message */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-2">
                                 Message
                             </label>
                             <textarea
+                                id="message"
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder="Tell us more..."
@@ -142,6 +145,6 @@ export const Contact: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     );
 };

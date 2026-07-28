@@ -5,6 +5,9 @@ import { Contact } from '../../src/views/Contact';
 export const metadata: Metadata = {
   title: 'Contact Support | OthrHalff',
   description: 'Get in touch with the OthrHalff team. Report issues, submit feedback, or reach out for help.',
+  alternates: {
+    canonical: '/contact',
+  },
 };
 
 export default function Page() {

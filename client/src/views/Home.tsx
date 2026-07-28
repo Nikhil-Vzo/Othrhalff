@@ -7,14 +7,17 @@ import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl } from '../utils/image';
+import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 import { safeSetItem } from '../utils/storage';
 
 
-// Cache key for session storage
-const PROFILES_CACHE_KEY = 'otherhalf_discover_cache_v3';
-const CACHE_EXPIRY_KEY = 'otherhalf_discover_cache_expiry_v3';
+// Cache key for session storage — keyed by filter mode so campus/global don't bleed into each other
+const getCacheKey = (mode: string) => `otherhalf_discover_cache_cupid_${mode}`;
+const getCacheExpiryKey = (mode: string) => `otherhalf_discover_cache_cupid_expiry_${mode}`;
+const getSkippedCacheKey = (mode: string) => `otherhalf_skipped_cache_cupid_${mode}`;
+const getSkippedCacheExpiryKey = (mode: string) => `otherhalf_skipped_cache_cupid_expiry_${mode}`;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Calculate age from DOB string
@@ -33,10 +36,19 @@ export const Home: React.FC = () => {
     const [queue, setQueue] = useState<MatchProfile[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [quote] = useState(getRandomQuote());
-    const [dragX, setDragX] = useState(0);
-    const [dragY, setDragY] = useState(0);
-    const [startX, setStartX] = useState(0);
-    const [startY, setStartY] = useState(0);
+    const dragXRef = useRef(0);
+    const dragYRef = useRef(0);
+    const startXRef = useRef(0);
+    const startYRef = useRef(0);
+    const isDraggingRef = useRef(false);
+    const updateScheduledRef = useRef(false);
+
+    // Element refs
+    const cardGlowRef = useRef<HTMLDivElement>(null);
+    const likeStampRef = useRef<HTMLDivElement>(null);
+    const nopeStampRef = useRef<HTMLDivElement>(null);
+    const bgBlob1Ref = useRef<HTMLDivElement>(null);
+    const bgBlob2Ref = useRef<HTMLDivElement>(null);
 
     const [pullDistance, setPullDistance] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -48,11 +60,11 @@ export const Home: React.FC = () => {
     const { unreadCount } = useNotifications();
     const preloadedImages = useRef<Set<string>>(new Set());
 
-    const [isDragging, setIsDragging] = useState(false);
-    const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+
     const [showSuccessBurst, setShowSuccessBurst] = useState(false);
     const [isSwiping, setIsSwiping] = useState(false);
     const [isRecycleMode, setIsRecycleMode] = useState(false);
+    const [recycleMessage, setRecycleMessage] = useState<string | null>(null);
     const cardRef = useRef<HTMLDivElement>(null);
     const [showTutorial, setShowTutorial] = useState(false);
 
@@ -90,14 +102,17 @@ export const Home: React.FC = () => {
 
 
 
-    const fetchSkippedProfiles = async () => {
+    const fetchFreshSkippedProfiles = useCallback(async (showLoading: boolean) => {
         if (!currentUser || !supabase) return;
-        setIsLoading(true);
+        if (showLoading) setIsLoading(true);
+        setRecycleMessage(null);
         try {
             const { data, error } = await supabase.rpc('get_skipped_profiles', {
                 current_user_id: currentUser.id,
                 match_mode: filterMode,
-                user_university: currentUser.university
+                user_university: currentUser.university,
+                limit_count: 20,
+                offset_count: 0
             });
 
             if (error) throw error;
@@ -117,21 +132,81 @@ export const Home: React.FC = () => {
                     isVerified: p.is_verified,
                     avatar: p.avatar,
                     lookingFor: p.looking_for || [],
-                    matchPercentage: Math.floor(Math.random() * (99 - 70 + 1) + 70),
+                    matchPercentage: calculateMatchPercentage(currentUser, {
+                        id: p.id,
+                        anonymousId: p.anonymous_id,
+                        realName: p.real_name,
+                        gender: p.gender,
+                        university: p.university,
+                        branch: p.branch,
+                        year: p.year,
+                        interests: p.interests || [],
+                        bio: p.bio,
+                        dob: p.dob,
+                        isVerified: p.is_verified,
+                        avatar: p.avatar,
+                        lookingFor: p.looking_for || [],
+                        matchPercentage: 0,
+                        distance: ''
+                    }),
                     distance: 'Recycled'
                 }));
                 setQueue(mappedProfiles);
                 setIsRecycleMode(true);
                 preloadImages(mappedProfiles.slice(0, 5));
+
+                // Cache the data safely
+                try {
+                    sessionStorage.setItem(getSkippedCacheKey(filterMode), JSON.stringify(mappedProfiles));
+                    sessionStorage.setItem(getSkippedCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
+                } catch (e) {
+                    console.warn('Failed to cache skipped profiles:', e);
+                }
             } else {
-                alert("No skipped profiles found yet! Swipe left on some people first, or your previous history might have been reset during the update.");
+                setQueue([]);
+                setRecycleMessage('No skipped profiles yet. Pass on someone first and they will show up here.');
+                // Clear cache if empty
+                try {
+                    sessionStorage.removeItem(getSkippedCacheKey(filterMode));
+                    sessionStorage.removeItem(getSkippedCacheExpiryKey(filterMode));
+                } catch (e) {}
             }
         } catch (err) {
             console.error('Error fetching skipped profiles:', err);
+            setRecycleMessage('Could not load skipped profiles. Try again.');
         } finally {
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
         }
-    };
+    }, [currentUser, filterMode, preloadImages]);
+
+    const fetchSkippedProfiles = useCallback(async (showLoading = true) => {
+        if (!currentUser || !supabase) return;
+        if (showLoading) setIsLoading(true);
+        setRecycleMessage(null);
+
+        // 1. Try cache first
+        try {
+            const cachedData = sessionStorage.getItem(getSkippedCacheKey(filterMode));
+            const cachedExpiry = sessionStorage.getItem(getSkippedCacheExpiryKey(filterMode));
+
+            if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
+                const cached = JSON.parse(cachedData);
+                if (cached.length > 0) {
+                    setQueue(cached);
+                    setIsRecycleMode(true);
+                    if (showLoading) setIsLoading(false);
+                    preloadImages(cached.slice(0, 5));
+                    // Background refresh
+                    fetchFreshSkippedProfiles(false);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Skipped cache read failed:', e);
+        }
+
+        fetchFreshSkippedProfiles(showLoading);
+    }, [currentUser, filterMode, fetchFreshSkippedProfiles, preloadImages]);
 
     // Load users from Supabase (with caching)
     const fetchFreshData = useCallback(async (showLoading: boolean) => {
@@ -168,7 +243,23 @@ export const Home: React.FC = () => {
                     isVerified: p.is_verified,
                     avatar: p.avatar,
                     lookingFor: p.looking_for || [],
-                    matchPercentage: Math.floor(Math.random() * (99 - 70 + 1) + 70),
+                    matchPercentage: calculateMatchPercentage(currentUser, {
+                        id: p.id,
+                        anonymousId: p.anonymous_id,
+                        realName: p.real_name,
+                        gender: p.gender,
+                        university: p.university,
+                        branch: p.branch,
+                        year: p.year,
+                        interests: p.interests || [],
+                        bio: p.bio,
+                        dob: p.dob,
+                        isVerified: p.is_verified,
+                        avatar: p.avatar,
+                        lookingFor: p.looking_for || [],
+                        matchPercentage: 0,
+                        distance: ''
+                    }),
                     distance: filterMode === 'campus' ? 'On Campus' : 'Global'
                 }));
 
@@ -179,11 +270,10 @@ export const Home: React.FC = () => {
 
                 // Cache the data safely
                 try {
-                    sessionStorage.setItem(PROFILES_CACHE_KEY, JSON.stringify(mappedProfiles));
-                    sessionStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString());
+                    sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(mappedProfiles));
+                    sessionStorage.setItem(getCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache profiles:', e);
-                    // If quota exceeded, we just don't cache. No crash.
                 }
             }
         } catch (err) {
@@ -193,40 +283,42 @@ export const Home: React.FC = () => {
         }
     }, [currentUser, filterMode, preloadImages]);
 
+    const loadDiscoverProfiles = useCallback(async (showLoading = true) => {
+        if (!currentUser || !supabase) {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsRecycleMode(false);
+
+        // 1. Try cache first for instant load (stale-while-revalidate)
+        try {
+            const cachedData = sessionStorage.getItem(getCacheKey(filterMode));
+            const cachedExpiry = sessionStorage.getItem(getCacheExpiryKey(filterMode));
+
+            if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
+                const cached = JSON.parse(cachedData);
+                if (cached.length > 0) {
+                    setQueue(cached);
+                    setIsLoading(false);
+                    preloadImages(cached.slice(0, 5));
+                    // Background refresh — no loading spinner
+                    fetchFreshData(false);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Cache read failed:', e);
+        }
+
+        // 2. No valid cache — fetch with loading spinner
+        fetchFreshData(showLoading);
+    }, [currentUser, filterMode, fetchFreshData, preloadImages]);
+
     // Load users from Supabase (with caching)
     useEffect(() => {
-        const fetchPotentialMatches = async () => {
-            if (!currentUser || !supabase) {
-                setIsLoading(false);
-                return;
-            }
-
-            // 1. Try cache first for instant load (stale-while-revalidate)
-            try {
-                const cachedData = sessionStorage.getItem(PROFILES_CACHE_KEY);
-                const cachedExpiry = sessionStorage.getItem(CACHE_EXPIRY_KEY);
-
-                if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
-                    const cached = JSON.parse(cachedData);
-                    if (cached.length > 0) {
-                        setQueue(cached);
-                        setIsLoading(false);
-                        preloadImages(cached.slice(0, 5));
-                        // Background refresh — no loading spinner
-                        fetchFreshData(false);
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.warn('Cache read failed:', e);
-            }
-
-            // 2. No valid cache — fetch with loading spinner
-            fetchFreshData(true);
-        };
-
-        fetchPotentialMatches();
-    }, [fetchFreshData]);
+        loadDiscoverProfiles(true);
+    }, [loadDiscoverProfiles]);
 
     // Fetch and subscribe to notifications - Handled by Context now
     // useEffect(() => { ... }, [currentUser]);
@@ -249,13 +341,13 @@ export const Home: React.FC = () => {
         const card = cardRef.current;
         if (!card) return;
         const onTouchMove = (e: TouchEvent) => {
-            if (isDragging) {
+            if (isDraggingRef.current) {
                 e.preventDefault();
             }
         };
         card.addEventListener('touchmove', onTouchMove, { passive: false });
         return () => card.removeEventListener('touchmove', onTouchMove);
-    }, [isDragging, currentProfile]);
+    }, [currentProfile]);
 
     const handleGlobalTouchStart = (e: React.TouchEvent) => {
         pullStartY.current = e.touches[0].clientY;
@@ -276,10 +368,17 @@ export const Home: React.FC = () => {
         if (pullDistance > 60 && !isRefreshing) {
             setIsRefreshing(true);
             setPullDistance(60); 
-            await Promise.all([
-                fetchFreshData(false),
-                new Promise(resolve => setTimeout(resolve, 3000))
-            ]);
+            if (isRecycleMode) {
+                await Promise.all([
+                    fetchFreshSkippedProfiles(false),
+                    new Promise(resolve => setTimeout(resolve, 1000))
+                ]);
+            } else {
+                await Promise.all([
+                    fetchFreshData(false),
+                    new Promise(resolve => setTimeout(resolve, 1000))
+                ]);
+            }
             setIsRefreshing(false);
             setPullDistance(0);
         } else {
@@ -288,19 +387,78 @@ export const Home: React.FC = () => {
         pullStartY.current = null;
     };
 
+    const updateDOM = () => {
+        updateScheduledRef.current = false;
+        
+        const dragX = dragXRef.current;
+        const dragY = dragYRef.current;
+        const isDragging = isDraggingRef.current;
+
+        const rotateY = typeof window !== 'undefined' ? (dragX / window.innerWidth) * 25 : 0;
+        const rotateZ = typeof window !== 'undefined' ? (dragX / window.innerWidth) * 15 : 0;
+        const scale = isDragging ? 1.02 : 1;
+        const likeOpacity = Math.max(0, Math.min((dragX - 30) / 80, 1));
+        const nopeOpacity = Math.max(0, Math.min((-dragX - 30) / 80, 1));
+
+        // Apply transformations to Active Card
+        if (cardRef.current) {
+            cardRef.current.style.transform = `translateX(${dragX}px) translateY(${dragY}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(${scale})`;
+            cardRef.current.style.transition = isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            cardRef.current.style.cursor = isDragging ? 'grabbing' : 'grab';
+        }
+
+        // Apply box shadow to Card Glow
+        if (cardGlowRef.current) {
+            cardGlowRef.current.style.boxShadow = dragX > 50
+                ? 'inset 0 0 80px rgba(34,197,94,0.4), 0 0 60px rgba(34,197,94,0.3)'
+                : dragX < -50
+                    ? 'inset 0 0 80px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.3)'
+                    : 'none';
+        }
+
+        // Apply stamps opacity & scale
+        if (likeStampRef.current) {
+            likeStampRef.current.style.opacity = String(likeOpacity);
+            likeStampRef.current.style.transform = `scale(${0.8 + likeOpacity * 0.4}) rotate(-12deg)`;
+        }
+        if (nopeStampRef.current) {
+            nopeStampRef.current.style.opacity = String(nopeOpacity);
+            nopeStampRef.current.style.transform = `scale(${0.8 + nopeOpacity * 0.4}) rotate(12deg)`;
+        }
+
+        // Apply transformations to Background Blobs
+        if (bgBlob1Ref.current) {
+            bgBlob1Ref.current.style.background = dragX > 50
+                ? 'radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)'
+                : dragX < -50
+                    ? 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)'
+                    : 'radial-gradient(circle, rgba(255,0,127,0.08) 0%, transparent 70%)';
+            bgBlob1Ref.current.style.transform = `translate(${dragX * 0.1}px, ${dragY * 0.1}px)`;
+        }
+        if (bgBlob2Ref.current) {
+            bgBlob2Ref.current.style.transform = `translate(${-dragX * 0.05}px, ${-dragY * 0.05}px)`;
+        }
+    };
+
+    const scheduleUpdate = () => {
+        if (updateScheduledRef.current) return;
+        updateScheduledRef.current = true;
+        requestAnimationFrame(updateDOM);
+    };
+
     // Enhanced touch handlers with spring physics feel
     const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
         if ('touches' in e) e.stopPropagation();
-        setIsDragging(true);
+        isDraggingRef.current = true;
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-        setStartX(clientX);
-        setStartY(clientY);
+        startXRef.current = clientX;
+        startYRef.current = clientY;
     };
 
     const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
         if ('touches' in e) e.stopPropagation();
-        if (!isDragging) return;
+        if (!isDraggingRef.current) return;
         // Prevent browser scroll/refresh while swiping
         if ('touches' in e) {
             e.preventDefault();
@@ -308,24 +466,22 @@ export const Home: React.FC = () => {
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
-        const deltaX = clientX - startX;
-        const deltaY = clientY - startY;
+        const deltaX = clientX - startXRef.current;
+        const deltaY = clientY - startYRef.current;
 
         // Spring-like resistance at edges
         const resistance = 0.8;
-        setDragX(deltaX * resistance);
-        setDragY(deltaY * 0.3);
+        dragXRef.current = deltaX * resistance;
+        dragYRef.current = deltaY * 0.3;
 
-        // Update swipe direction for background effect
-        if (deltaX > 50) setSwipeDirection('right');
-        else if (deltaX < -50) setSwipeDirection('left');
-        else setSwipeDirection(null);
+        scheduleUpdate();
     };
 
     const endSwipe = (e?: React.TouchEvent | React.MouseEvent) => {
         if (e && 'touches' in e) e.stopPropagation();
-        setIsDragging(false);
+        isDraggingRef.current = false;
         const threshold = window.innerWidth * 0.2;
+        const dragX = dragXRef.current;
 
         if (dragX > threshold) {
             handleSwipe('right');
@@ -333,9 +489,32 @@ export const Home: React.FC = () => {
             handleSwipe('left');
         } else {
             // Spring back animation
-            setDragX(0);
-            setDragY(0);
-            setSwipeDirection(null);
+            dragXRef.current = 0;
+            dragYRef.current = 0;
+            
+            if (cardRef.current) {
+                cardRef.current.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
+                cardRef.current.style.cursor = 'grab';
+            }
+            if (bgBlob1Ref.current) {
+                bgBlob1Ref.current.style.transform = 'translate(0px, 0px)';
+                bgBlob1Ref.current.style.background = 'radial-gradient(circle, rgba(255,0,127,0.08) 0%, transparent 70%)';
+            }
+            if (bgBlob2Ref.current) {
+                bgBlob2Ref.current.style.transform = 'translate(0px, 0px)';
+            }
+            if (likeStampRef.current) {
+                likeStampRef.current.style.opacity = '0';
+                likeStampRef.current.style.transform = 'scale(0.8) rotate(-12deg)';
+            }
+            if (nopeStampRef.current) {
+                nopeStampRef.current.style.opacity = '0';
+                nopeStampRef.current.style.transform = 'scale(0.8) rotate(12deg)';
+            }
+            if (cardGlowRef.current) {
+                cardGlowRef.current.style.boxShadow = 'none';
+            }
         }
     };
 
@@ -347,14 +526,30 @@ export const Home: React.FC = () => {
         const targetId = currentProfile.id;
         const action = direction === 'right' ? 'like' : 'pass';
 
-        // If in recycle mode, swiping left just touches the timestamp to move to back of queue
-        // Swiping right moves to likes
-
-
         // Cinematic exit animation
         const offScreenX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
-        setDragX(offScreenX);
-        setDragY(direction === 'right' ? -100 : 100);
+        const offScreenY = direction === 'right' ? -100 : 100;
+        
+        dragXRef.current = offScreenX;
+        dragYRef.current = offScreenY;
+        isDraggingRef.current = false;
+        
+        if (cardRef.current) {
+            const rotateY = (offScreenX / window.innerWidth) * 25;
+            const rotateZ = (offScreenX / window.innerWidth) * 15;
+            cardRef.current.style.transition = 'transform 0.3s ease-in';
+            cardRef.current.style.transform = `translateX(${offScreenX}px) translateY(${offScreenY}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(1)`;
+        }
+        
+        if (bgBlob1Ref.current) {
+            bgBlob1Ref.current.style.transform = 'translate(0px, 0px)';
+        }
+        if (bgBlob2Ref.current) {
+            bgBlob2Ref.current.style.transform = 'translate(0px, 0px)';
+        }
+        if (likeStampRef.current) likeStampRef.current.style.opacity = '0';
+        if (nopeStampRef.current) nopeStampRef.current.style.opacity = '0';
+        if (cardGlowRef.current) cardGlowRef.current.style.boxShadow = 'none';
 
         // Show success burst for likes
         if (direction === 'right') {
@@ -366,16 +561,23 @@ export const Home: React.FC = () => {
         }
 
         setTimeout(async () => {
-            setDragX(0);
-            setDragY(0);
-            setSwipeDirection(null);
+            dragXRef.current = 0;
+            dragYRef.current = 0;
+            
+            if (cardRef.current) {
+                cardRef.current.style.transition = 'none';
+                cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
+            }
 
             // 1. UPDATE STATE & CACHE (Optimistic)
             const nextQueue = queue.filter(p => p.id !== targetId);
             setQueue(nextQueue);
 
             // USE SAFE SET ITEM HERE to prevent crash if storage is full
-            safeSetItem(PROFILES_CACHE_KEY, JSON.stringify(nextQueue));
+            const cacheKeyToUpdate = isRecycleMode 
+                ? getSkippedCacheKey(filterMode)
+                : getCacheKey(filterMode);
+            safeSetItem(cacheKeyToUpdate, JSON.stringify(nextQueue));
 
             // 2. UNLOCK UI IMMEDIATELY
             setIsSwiping(false);
@@ -399,13 +601,6 @@ export const Home: React.FC = () => {
         }, 200);
     };
 
-    // Calculate 3D transforms
-    const rotateY = typeof window !== 'undefined' ? (dragX / window.innerWidth) * 25 : 0;
-    const rotateZ = typeof window !== 'undefined' ? (dragX / window.innerWidth) * 15 : 0;
-    const scale = isDragging ? 1.02 : 1;
-    const likeOpacity = Math.max(0, Math.min((dragX - 30) / 80, 1));
-    const nopeOpacity = Math.max(0, Math.min((-dragX - 30) / 80, 1));
-
     if (!currentUser) return null;
 
     return (
@@ -415,28 +610,36 @@ export const Home: React.FC = () => {
             onTouchMove={handleGlobalTouchMove}
             onTouchEnd={handleGlobalTouchEnd}
         >
+            {isRecycleMode && !isLoading && (
+                <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+                    <div className="flex items-center gap-2.5 px-4 py-2 bg-yellow-500/10 backdrop-blur-md rounded-full border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.2)] text-yellow-400 text-[11px] font-bold uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                        Reviewing Skipped
+                        <button
+                            onClick={() => loadDiscoverProfiles(true)}
+                            className="ml-2 px-3 py-0.5 bg-yellow-500 hover:bg-yellow-400 text-black text-[10px] font-black rounded-full transition-all active:scale-95 uppercase tracking-normal"
+                        >
+                            Exit
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* === REACTIVE BACKGROUND === */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 {/* Reactive blob - shifts with swipe direction */}
                 <div
+                    ref={bgBlob1Ref}
                     className="absolute top-[-30%] left-[-30%] w-[80%] h-[80%] rounded-full blur-[120px] transition-all duration-500 ease-out"
                     style={{
-                        background: swipeDirection === 'right'
-                            ? 'radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)'
-                            : swipeDirection === 'left'
-                                ? 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)'
-                                : 'radial-gradient(circle, rgba(255,0,127,0.08) 0%, transparent 70%)',
-                        transform: `translate(${dragX * 0.1}px, ${dragY * 0.1}px)`
+                        background: 'radial-gradient(circle, rgba(255,0,127,0.08) 0%, transparent 70%)'
                     }}
                 />
 
                 {/* Secondary ambient blob */}
                 <div
+                    ref={bgBlob2Ref}
                     className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full blur-[100px] bg-gradient-to-t from-purple-900/10 to-transparent transition-transform duration-700"
-                    style={{
-                        transform: `translate(${-dragX * 0.05}px, ${-dragY * 0.05}px)`
-                    }}
                 />
 
                 {/* Floating particles */}
@@ -616,11 +819,16 @@ export const Home: React.FC = () => {
                             )}
 
                             <button
-                                onClick={fetchSkippedProfiles}
+                                onClick={() => fetchSkippedProfiles(true)}
                                 className="px-6 py-3 bg-gray-800 border border-gray-700 text-gray-300 rounded-full font-bold text-sm transition-all hover:bg-gray-700 hover:text-white hover:border-gray-500 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                             >
                                 <Ghost className="w-4 h-4" /> Review Skipped Profiles
                             </button>
+                            {recycleMessage && (
+                                <p className="text-gray-500 text-xs text-center px-4 mt-1 leading-relaxed">
+                                    {recycleMessage}
+                                </p>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -635,12 +843,12 @@ export const Home: React.FC = () => {
                             {/* Background card stack */}
                             {thirdProfile && (
                                 <div className="absolute top-6 bottom-20 inset-x-0 bg-gray-900/50 rounded-[28px] transform scale-[0.88] translate-y-6 opacity-30 border border-gray-800/50 pointer-events-none overflow-hidden blur-[1px]">
-                                    <img src={getOptimizedUrl(thirdProfile.avatar, 384)} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" />
+                                    <img src={getOptimizedUrl(thirdProfile.avatar, 1024)} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" referrerPolicy="no-referrer" />
                                 </div>
                             )}
                             {nextProfile && (
                                 <div className="absolute top-3 bottom-16 inset-x-0 bg-gray-900/80 rounded-[28px] transform scale-[0.94] translate-y-3 opacity-50 border border-gray-800 pointer-events-none overflow-hidden">
-                                    <img src={getOptimizedUrl(nextProfile.avatar, 384)} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" />
+                                    <img src={getOptimizedUrl(nextProfile.avatar, 1024)} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" referrerPolicy="no-referrer" />
                                 </div>
                             )}
 
@@ -653,48 +861,44 @@ export const Home: React.FC = () => {
                                 onMouseDown={handleTouchStart}
                                 onMouseMove={handleTouchMove}
                                 onMouseUp={endSwipe}
-                                onMouseLeave={() => isDragging && endSwipe()}
+                                onMouseLeave={() => isDraggingRef.current && endSwipe()}
                                 style={{
-                                    transform: `translateX(${dragX}px) translateY(${dragY}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(${scale})`,
-                                    transition: isDragging ? 'none' : 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
                                     transformStyle: 'preserve-3d',
-                                    cursor: isDragging ? 'grabbing' : 'grab'
+                                    transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                    cursor: 'grab'
                                 }}
                                 className="absolute top-0 bottom-24 inset-x-0 rounded-[28px] overflow-hidden z-10 shadow-[0_25px_80px_-15px_rgba(0,0,0,0.9)]"
                             >
                                 {/* Card glow */}
                                 <div
-                                    className="absolute inset-0 z-20 pointer-events-none transition-opacity duration-200 rounded-[28px]"
-                                    style={{
-                                        boxShadow: swipeDirection === 'right'
-                                            ? 'inset 0 0 80px rgba(34,197,94,0.4), 0 0 60px rgba(34,197,94,0.3)'
-                                            : swipeDirection === 'left'
-                                                ? 'inset 0 0 80px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.3)'
-                                                : 'none'
-                                    }}
+                                    ref={cardGlowRef}
+                                    className="absolute inset-0 z-20 pointer-events-none rounded-[28px] transition-all duration-200"
                                 />
 
                                 {/* Image */}
                                 <img
-                                    src={getOptimizedUrl(currentProfile.avatar, 384)}
+                                    src={getOptimizedUrl(currentProfile.avatar, 1024)}
                                     alt="Profile"
                                     className="w-full h-full object-cover pointer-events-none"
                                     draggable={false}
+                                    referrerPolicy="no-referrer"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent via-40% to-black pointer-events-none" />
 
                                 {/* LIKE Stamp */}
                                 <div
-                                    className="absolute top-8 left-6 z-30 transition-all duration-200"
-                                    style={{ opacity: likeOpacity, transform: `scale(${0.8 + likeOpacity * 0.4}) rotate(-12deg)` }}
+                                    ref={likeStampRef}
+                                    className="absolute top-8 left-6 z-30 opacity-0 transition-all duration-200"
+                                    style={{ transform: 'scale(0.8) rotate(-12deg)' }}
                                 >
                                     <div className="border-[5px] border-green-400 text-green-400 font-black text-3xl px-3 py-1.5 rounded-lg bg-green-400/10 backdrop-blur-sm shadow-[0_0_40px_rgba(34,197,94,0.6)]">LIKE</div>
                                 </div>
 
                                 {/* NOPE Stamp */}
                                 <div
-                                    className="absolute top-8 right-6 z-30 transition-all duration-200"
-                                    style={{ opacity: nopeOpacity, transform: `scale(${0.8 + nopeOpacity * 0.4}) rotate(12deg)` }}
+                                    ref={nopeStampRef}
+                                    className="absolute top-8 right-6 z-30 opacity-0 transition-all duration-200"
+                                    style={{ transform: 'scale(0.8) rotate(12deg)' }}
                                 >
                                     <div className="border-[5px] border-red-400 text-red-400 font-black text-3xl px-3 py-1.5 rounded-lg bg-red-400/10 backdrop-blur-sm shadow-[0_0_40px_rgba(239,68,68,0.6)]">NOPE</div>
                                 </div>

@@ -4,6 +4,9 @@ import { About } from '../../src/views/StaticPages';
 export const metadata: Metadata = {
   title: 'About OthrHalff',
   description: 'Learn about our mission to bring connection back to campus life without the pressure of superficial swiping.',
+  alternates: {
+    canonical: '/about',
+  },
 };
 
 export default function Page() {

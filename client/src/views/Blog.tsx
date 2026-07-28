@@ -242,7 +242,7 @@ export const Blog: React.FC = () => {
   const fontInstrument = { fontFamily: "'Instrument Serif', serif" };
 
   return (
-    <div ref={outerRef} className="bg-[#05000a] text-white selection:bg-neon selection:text-white relative font-sans overflow-hidden h-screen w-full">
+    <main ref={outerRef} className="bg-[#05000a] text-white selection:bg-neon selection:text-white relative font-sans overflow-hidden h-screen w-full">
       
       {/* 0. Code Grid Preloader Screen */}
       <div className="loader-overlay fixed inset-0 z-[100] bg-black flex items-center justify-center transform origin-top">
@@ -375,7 +375,9 @@ export const Blog: React.FC = () => {
               <div className="max-w-5xl mx-auto px-6 text-center">
                 <h2 className="text-[clamp(2.5rem,5vw,5rem)] font-light leading-[1.2] text-gray-700" style={fontPlayfair}>
                   {'We wrote the code. But a network without a pulse is just a blank screen.'.split(' ').map((word, i) => (
-                    <span key={i} className="struggle-word inline-block mr-[0.3em] mb-2">{word}</span>
+                    <React.Fragment key={i}>
+                      <span className="struggle-word inline-block mr-[0.3em] mb-2">{word}</span>{' '}
+                    </React.Fragment>
                   ))}
                 </h2>
                 <div className="mt-24 max-w-2xl mx-auto origin-text">
@@ -497,7 +499,7 @@ export const Blog: React.FC = () => {
               <div className="relative z-10 px-6 max-w-4xl mx-auto origin-text">
                 <Rocket className="w-8 h-8 text-neon outline-none mx-auto mb-10 drop-shadow-[0_0_20px_rgba(255,0,127,0.5)]" />
                 <h2 className="text-[clamp(3.5rem,7vw,7rem)] font-black tracking-tighter mb-10 bg-clip-text text-transparent bg-gradient-to-br from-white via-white to-gray-600 leading-none">
-                  Something <br className="sm:hidden" /><span className="text-neon block sm:inline mt-2 sm:mt-0" style={fontPlayfair}>Bigger</span> Is Coming.
+                  Something{' '}<br className="sm:hidden" />{' '}<span className="text-neon block sm:inline mt-2 sm:mt-0" style={fontPlayfair}>Bigger</span>{' '}Is Coming.
                 </h2>
                 <p className="text-[clamp(1rem,1.5vw,1.25rem)] text-gray-400 font-light mb-16 max-w-2xl mx-auto leading-relaxed">
                   Next month, the rules change. We can't say what it is yet, but if you thought OTHRHALFF was just about swiping—prepare to unlearn.
@@ -598,6 +600,6 @@ export const Blog: React.FC = () => {
           </main>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
