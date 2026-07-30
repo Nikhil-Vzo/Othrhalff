@@ -95,20 +95,12 @@ export const Playground: React.FC = () => {
       setActiveChannel(null);
       supabase.removeChannel(channel);
     };
-
-
-
-    return () => {
-      isSubscribed = false;
-      setActiveChannel(null);
-      supabase.removeChannel(channel);
-    };
   }, [currentUser, sessionId]);
 
   // Broadcast our position and animation state to the channel
   const broadcastPosition = useCallback(
     (x: number, y: number, dir: string, moving: boolean) => {
-      if (!currentUser || !activeChannel) return;
+      if (!currentUser || !activeChannel || activeChannel.state !== 'joined') return;
 
       activeChannel.send({
         type: 'broadcast',
@@ -121,7 +113,7 @@ export const Playground: React.FC = () => {
           isMoving: moving,
           color: currentUser.gender === 'female' ? '#ff007f' : '#3b82f6',
         },
-      }).catch((e: any) => console.error("Broadcast failed", e));
+      }).catch(() => {});
     },
     [currentUser, sessionId, activeChannel]
   );
