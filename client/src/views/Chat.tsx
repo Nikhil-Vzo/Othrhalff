@@ -624,6 +624,7 @@ export const Chat: React.FC = () => {
   const [customWyrA, setCustomWyrA] = useState('');
   const [customWyrB, setCustomWyrB] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const partnerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
   const typingSentRef = useRef(false);
   const lastTypingSentTimeRef = useRef(0);
@@ -924,9 +925,9 @@ export const Chat: React.FC = () => {
 
   // Realtime
   useEffect(() => {
-    // Use a unique channel name for every mount to avoid React Strict Mode race conditions during cleanup
-    const uniqueChannelName = `chat_turbo_${matchId}_${Math.random().toString(36).substring(7)}`;
-    const channel = supabase.channel(uniqueChannelName)
+    // Deterministic channel name so both users join the exact same broadcast room
+    const channelName = `chat_room_${matchId}`;
+    const channel = supabase.channel(channelName)
       .on('postgres_changes', {
         event: '*', // Listen to INSERT and UPDATE
         schema: 'public',
@@ -954,6 +955,8 @@ export const Chat: React.FC = () => {
           // Block enforcement: ignore messages from blocked users
           if (newMsg.sender_id !== currentUser?.id) {
             if (isBlocked || isBlockedByThem) return; // Don't show messages if blocked
+            setPartnerIsTyping(false);
+            if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
             localMsg.is_read = true;
             markMessagesReadRef.current();
           }
@@ -970,13 +973,19 @@ export const Chat: React.FC = () => {
         }
       })
       .on('broadcast', { event: 'typing' }, (payload) => {
-        if (payload.payload.userId === partnerRef.current?.id) {
-          setPartnerIsTyping((prev) => {
-            if (prev !== payload.payload.isTyping) {
-              return payload.payload.isTyping;
-            }
-            return prev;
-          });
+        const senderId = payload.payload?.userId;
+        if (senderId && senderId !== currentUser?.id) {
+          const isTyping = !!payload.payload?.isTyping;
+          setPartnerIsTyping(isTyping);
+
+          if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
+
+          // Auto-expire partner typing state after 3.5s in case of network drop or abrupt disconnect
+          if (isTyping) {
+            partnerTypingTimeoutRef.current = setTimeout(() => {
+              setPartnerIsTyping(false);
+            }, 3500);
+          }
         }
       })
       .subscribe();
@@ -984,14 +993,38 @@ export const Chat: React.FC = () => {
     channelRef.current = channel;
 
     return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
+      if (typingSentRef.current && channelRef.current && currentUser) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, isTyping: false }
+        }).catch?.(() => {});
+        typingSentRef.current = false;
+      }
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [matchId]);
+  }, [matchId, currentUser?.id]);
 
   const handleInputChange = (val: string) => {
     setNewMessage(val);
-    if (!channelRef.current || !currentUser || channelRef.current.state !== 'joined') return;
+    if (!channelRef.current || !currentUser) return;
+
+    // If text was backspaced or cleared to empty, immediately broadcast typing: false
+    if (!val.trim()) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (typingSentRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, isTyping: false }
+        }).catch?.(() => {});
+        typingSentRef.current = false;
+      }
+      return;
+    }
 
     const now = Date.now();
     const shouldSend = !typingSentRef.current || (now - lastTypingSentTimeRef.current > 2500);
@@ -1002,7 +1035,7 @@ export const Chat: React.FC = () => {
         type: 'broadcast',
         event: 'typing',
         payload: { userId: currentUser.id, isTyping: true }
-      });
+      }).catch?.(() => {});
       typingSentRef.current = true;
       lastTypingSentTimeRef.current = now;
     }
@@ -1010,12 +1043,12 @@ export const Chat: React.FC = () => {
     // Reset timeout to broadcast typing = false after 1.5s
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      if (channelRef.current && currentUser && channelRef.current.state === 'joined') {
+      if (channelRef.current && currentUser && typingSentRef.current) {
         channelRef.current.send({
           type: 'broadcast',
           event: 'typing',
           payload: { userId: currentUser.id, isTyping: false }
-        });
+        }).catch?.(() => {});
         typingSentRef.current = false;
       }
     }, 1500);
@@ -1116,12 +1149,12 @@ export const Chat: React.FC = () => {
     
     // Clear typing indicator immediately
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (channelRef.current && channelRef.current.state === 'joined') {
+    if (channelRef.current && currentUser) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
         payload: { userId: currentUser.id, isTyping: false }
-      });
+      }).catch?.(() => {});
     }
     typingSentRef.current = false;
 
