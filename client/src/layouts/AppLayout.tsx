@@ -16,13 +16,31 @@ const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mo
   ssr: false
 });
 
+import { IncomingCallModal } from '../components/IncomingCallModal';
+import { OutgoingCallModal } from '../components/OutgoingCallModal';
+
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { currentUser, needsOnboarding } = useAuth();
-  const { isCallActive, appId, channelName, token, partnerName, partnerAvatar, callType, callSessionId, endCall } = useCall();
+  const { 
+    isCallActive, 
+    appId, 
+    channelName, 
+    token, 
+    partnerName, 
+    partnerAvatar, 
+    callType, 
+    callSessionId, 
+    endCall,
+    incomingCall,
+    outgoingCall,
+    acceptCall,
+    rejectCall,
+    cancelOutgoingCall
+  } = useCall();
   const { unreadCount, unreadMessageCount, setUnreadMessageCount } = useNotifications();
   const pathname = usePathname() || '';
   const router = useRouter();
@@ -390,6 +408,27 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           partnerAvatar={partnerAvatar || ''}
           callType={callType}
           callSessionId={callSessionId}
+        />
+      )}
+
+      {/* Incoming Call Modal Overlay */}
+      {incomingCall && (
+        <IncomingCallModal
+          callerName={incomingCall.callerName}
+          callerAvatar={incomingCall.callerAvatar}
+          onAccept={acceptCall}
+          onReject={rejectCall}
+          isVideoCall={incomingCall.callType === 'video'}
+        />
+      )}
+
+      {/* Outgoing Call Modal Overlay */}
+      {outgoingCall && (
+        <OutgoingCallModal
+          receiverName={outgoingCall.receiverName}
+          receiverAvatar={outgoingCall.receiverAvatar}
+          onCancel={cancelOutgoingCall}
+          isVideoCall={outgoingCall.callType === 'video'}
         />
       )}
       <AuthPromptModal

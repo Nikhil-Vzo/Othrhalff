@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
@@ -1552,17 +1553,52 @@ export const Chat: React.FC = () => {
           );
         })}
         {partnerIsTyping && (
-          <div className="flex items-center gap-2 text-gray-500 text-xs pl-10">
-            <div className="flex items-center gap-1 bg-gray-900/60 border border-gray-800/80 px-3 py-1.5 rounded-full backdrop-blur-sm">
-              <span className="text-[10px] font-mono tracking-wider font-semibold text-neon">{partner?.realName || partner?.anonymousId}</span>
-              <span className="text-[10px] text-gray-400">is typing</span>
-              <div className="flex gap-0.5 ml-1">
-                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '300ms' }} />
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="flex items-center gap-2 pl-4 py-2 my-1"
+          >
+            <div className="flex items-center gap-2.5 bg-gradient-to-r from-gray-900/95 via-gray-900/80 to-purple-950/40 border border-purple-500/20 px-3.5 py-2 rounded-2xl shadow-xl shadow-black/50 backdrop-blur-md">
+              {partner?.avatar ? (
+                <img
+                  src={getOptimizedUrl(partner.avatar, 32)}
+                  alt={partner.realName || partner.anonymousId}
+                  className="w-5 h-5 rounded-full object-cover border border-purple-400/40 shadow-sm shrink-0"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-[9px] font-bold text-neon shrink-0">
+                  {(partner?.realName || partner?.anonymousId || '?').slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold tracking-wide text-gray-200">
+                  {partner?.realName || partner?.anonymousId}
+                </span>
+                <span className="text-[11px] text-purple-300/70 font-medium">is typing</span>
+              </div>
+
+              <div className="flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded-full bg-black/50 border border-white/5">
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_6px_#ff007f]"
+                  animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_6px_#a855f7]"
+                  animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_6px_#ff007f]"
+                  animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }}
+                />
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
         <div ref={messagesEndRef} />
       </div>
