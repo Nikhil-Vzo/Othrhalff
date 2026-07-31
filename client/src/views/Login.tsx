@@ -28,6 +28,18 @@ export const Login: React.FC = () => {
     }
   }, [success]);
 
+  // Check for OAuth errors in URL hash
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.includes('error_description=')) {
+        const params = new URLSearchParams(hash.replace('#', '?'));
+        const desc = params.get('error_description');
+        if (desc) setError(decodeURIComponent(desc).replace(/\+/g, ' '));
+      }
+    }
+  }, []);
+
   // Clear error when user starts typing
   useEffect(() => {
     if (error) setError(null);

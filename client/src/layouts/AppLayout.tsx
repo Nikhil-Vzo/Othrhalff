@@ -51,12 +51,23 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     setMounted(true);
   }, []);
 
-  // Enforce onboarding/migration
+  // Enforce auth & onboarding routing
   useEffect(() => {
-    if (mounted && needsOnboarding && pathname !== '/onboarding') {
+    if (!mounted) return;
+
+    const PUBLIC_ROUTES = ['/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance'];
+
+    // If unauthenticated and accessing a protected view, send to login
+    if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
+      router.push('/login');
+      return;
+    }
+
+    // If needs onboarding, redirect to onboarding
+    if (currentUser && needsOnboarding && pathname !== '/onboarding') {
       router.push('/onboarding');
     }
-  }, [mounted, needsOnboarding, pathname, router]);
+  }, [mounted, currentUser, needsOnboarding, pathname, router]);
 
   // Fetch real-time unread messages count for the chat badge
   useEffect(() => {

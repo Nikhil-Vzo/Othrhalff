@@ -37,67 +37,114 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const initRef = useRef(false);
 
-  // Load from DB on mount (Optimized: Cache-First)
+  // Load from DB on mount (Optimized: Cache-First) & Listen for Auth State Changes
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
+    if (!supabase) return;
 
-    const initializeAuth = async () => {
-      // 1. FAST: Load from LocalStorage immediately to unblock UI
-      const localUser = authService.getCurrentUser();
-      if (localUser) {
-        setCurrentUser(localUser);
-        setIsLoading(false); // <--- The App loads instantly here
+    // Listen for real-time Auth State changes (OAuth redirects, token refresh, login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[AuthContext] Auth event: ${event}`);
+
+      if (session?.user) {
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile && !error) {
+            const appUser: UserProfile = {
+              id: profile.id,
+              username: profile.username || undefined,
+              anonymousId: profile.anonymous_id,
+              realName: profile.real_name,
+              gender: profile.gender,
+              university: profile.university,
+              universityEmail: profile.university_email,
+              branch: profile.branch,
+              year: profile.year,
+              interests: profile.interests || [],
+              lookingFor: profile.looking_for || [],
+              bio: profile.bio,
+              dob: profile.dob,
+              isVerified: profile.is_verified,
+              avatar: profile.avatar,
+              isPremium: profile.is_premium
+            };
+
+            setCurrentUser(appUser);
+            localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
+            
+            if (!profile.username || !profile.real_name || !profile.dob) {
+              setNeedsOnboarding(true);
+            } else {
+              setNeedsOnboarding(false);
+            }
+          } else {
+            // Profile does not exist yet in DB for new user -> needs onboarding
+            setNeedsOnboarding(true);
+          }
+        } catch (err) {
+          console.error('[AuthContext] Error loading user profile on auth change:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        localStorage.removeItem('otherhalf_session');
+        setNeedsOnboarding(false);
+        setIsLoading(false);
       }
+    });
 
-      // 2. SLOW (Background): Verify with Supabase for updates/security
-      if (supabase) {
+    if (!initRef.current) {
+      initRef.current = true;
+
+      const initializeAuth = async () => {
+        const localUser = authService.getCurrentUser();
+        if (localUser) {
+          setCurrentUser(localUser);
+          setIsLoading(false);
+        }
+
         try {
           let isAborted = false;
           const { data: { session } } = await supabase.auth.getSession().catch(err => {
-            if (err.name === 'AbortError' || err.message.includes('AbortError')) {
-                console.log('Ignored AbortError during getSession');
-                isAborted = true;
+            if (err.name === 'AbortError' || err.message?.includes('AbortError')) {
+              isAborted = true;
             } else {
-                throw err;
+              throw err;
             }
             return { data: { session: null } };
           });
 
-          // If no session, try refreshing (mobile browsers often lose the access token
-          // while backgrounded, but the refresh token is still valid)
           let activeSession = session;
           if (!activeSession && localUser && !isAborted) {
-            console.log('No session found, attempting token refresh...');
             const { data: refreshData } = await supabase.auth.refreshSession().catch(err => {
-                if (err.name === 'AbortError' || err.message.includes('AbortError')) {
-                    console.log('Ignored AbortError during refreshSession');
-                    isAborted = true;
-                } else {
-                    throw err;
-                }
-                return { data: { session: null } };
+              if (err.name === 'AbortError' || err.message?.includes('AbortError')) {
+                isAborted = true;
+              } else {
+                throw err;
+              }
+              return { data: { session: null } };
             });
             activeSession = refreshData?.session ?? null;
           }
 
-          if (isAborted) {
-            console.log('Aborted getSession/refreshSession background call, skipping auth state updates');
-            return;
-          }
+          if (isAborted) return;
 
           if (activeSession?.user) {
-            // Fetch fresh profile
             const { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', activeSession.user.id)
-              .single();
+              .maybeSingle();
 
             if (profile && !error) {
               const appUser: UserProfile = {
                 id: profile.id,
-                username: profile.username,
+                username: profile.username || undefined,
                 anonymousId: profile.anonymous_id,
                 realName: profile.real_name,
                 gender: profile.gender,
@@ -114,32 +161,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isPremium: profile.is_premium
               };
 
-              // Only update state if data actually changed (prevents re-renders)
-              if (JSON.stringify(appUser) !== JSON.stringify(localUser)) {
-                console.log('Profile updated from server');
-                setCurrentUser(appUser);
-                localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
+              setCurrentUser(appUser);
+              localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
+              if (!profile.username || !profile.real_name || !profile.dob) {
+                setNeedsOnboarding(true);
               }
             } else {
-              // Profile does not exist - new user needs onboarding
               setNeedsOnboarding(true);
             }
           } else if (localUser) {
-            // Both getSession AND refreshSession failed — session is truly dead.
-            // Show a countdown so users know why they're being logged out.
             console.warn('Session expired and refresh failed, showing logout countdown...');
             setShowLogoutCountdown(true);
           }
         } catch (err) {
           console.error('Background auth check failed:', err);
+        } finally {
+          setIsLoading(false);
         }
-      }
+      };
 
-      // If we didn't have a local user, we had to wait for Supabase. Now we stop loading.
-      if (!localUser) setIsLoading(false);
+      initializeAuth();
+    }
+
+    return () => {
+      subscription.unsubscribe();
     };
-
-    initializeAuth();
   }, []);
 
 
