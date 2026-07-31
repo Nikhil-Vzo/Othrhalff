@@ -10,7 +10,7 @@ import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
 import { AuthPromptModal } from '../components/AuthPromptModal';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 
 const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mod.VideoCall), {
   ssr: false
@@ -260,7 +260,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 <div className="relative shrink-0">
                   <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-neon transition-colors duration-300">
                     {currentUser?.avatar ? (
-                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
                     ) : (
                       <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                         <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>
@@ -295,6 +295,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
+        {currentUser && !currentUser.username && (
+          <div className="bg-gradient-to-r from-purple-950/80 via-gray-900 to-pink-950/80 border-b border-neon/30 px-4 py-2 flex items-center justify-between text-xs text-gray-200 z-50">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-neon animate-pulse" />
+              <span>Add a <strong className="text-white">@username</strong> to enable direct login!</span>
+            </div>
+            <button 
+              onClick={() => router.push('/profile')}
+              className="bg-neon/20 hover:bg-neon/30 border border-neon/50 text-neon px-3 py-1 rounded-full text-[11px] font-bold transition-all active:scale-95"
+            >
+              Set Up Now
+            </button>
+          </div>
+        )}
         {showStars && <StarField />}
         
         {/* Mobile Top-Left Profile Picture */}
@@ -307,7 +321,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             >
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 active:scale-95 transition-transform duration-200 bg-gray-900">
                 {currentUser?.avatar ? (
-                  <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
                 ) : (
                   <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                     <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>

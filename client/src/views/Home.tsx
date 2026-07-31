@@ -6,7 +6,7 @@ import { useRouter as useNavigate } from 'next/navigation';
 import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
 
 import { getRandomQuote } from '../data/loadingQuotes';
@@ -843,12 +843,12 @@ export const Home: React.FC = () => {
                             {/* Background card stack */}
                             {thirdProfile && (
                                 <div className="absolute top-6 bottom-20 inset-x-0 bg-gray-900/50 rounded-[28px] transform scale-[0.88] translate-y-6 opacity-30 border border-gray-800/50 pointer-events-none overflow-hidden blur-[1px]">
-                                    <img src={getOptimizedUrl(thirdProfile.avatar, 1024)} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" referrerPolicy="no-referrer" />
+                                    <img src={getOptimizedUrl(thirdProfile.avatar, 1024)} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" referrerPolicy="no-referrer" onError={handleImageError} />
                                 </div>
                             )}
                             {nextProfile && (
                                 <div className="absolute top-3 bottom-16 inset-x-0 bg-gray-900/80 rounded-[28px] transform scale-[0.94] translate-y-3 opacity-50 border border-gray-800 pointer-events-none overflow-hidden">
-                                    <img src={getOptimizedUrl(nextProfile.avatar, 1024)} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" referrerPolicy="no-referrer" />
+                                    <img src={getOptimizedUrl(nextProfile.avatar, 1024)} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" referrerPolicy="no-referrer" onError={handleImageError} />
                                 </div>
                             )}
 
@@ -882,6 +882,7 @@ export const Home: React.FC = () => {
                                     className="w-full h-full object-cover pointer-events-none"
                                     draggable={false}
                                     referrerPolicy="no-referrer"
+                                    onError={handleImageError}
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent via-40% to-black pointer-events-none" />
 

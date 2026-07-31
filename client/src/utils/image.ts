@@ -1,13 +1,31 @@
-export const getOptimizedUrl = (url: string | undefined | null, width: number = 100) => {
-    if (!url) return '';
-    if (url.startsWith('data:')) return url; // Return base64 data URLs as-is
-    if (!url.includes('supabase')) return url; // Return original if not supabase or empty
+export const DEFAULT_AVATAR = 'https://api.dicebear.com/9.x/thumbs/svg?seed=Felix';
 
-    const isAvatar = url.includes('/images/') || url.toLowerCase().includes('avatar');
-    const quality = isAvatar ? 100 : 70;
+export const getOptimizedUrl = (url: string | undefined | null, width: number = 100): string => {
+    if (!url || typeof url !== 'string' || !url.trim()) {
+        return DEFAULT_AVATAR;
+    }
 
-    // Supabase Storage Transformation URL
-    // If it already has query params, append using &
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}width=${width}&quality=${quality}&resize=cover`;
+    const trimmed = url.trim();
+    if (trimmed.startsWith('data:')) return trimmed; // Return base64 data URLs as-is
+
+    // Handle Supabase Storage URLs safely
+    if (trimmed.includes('supabase') && trimmed.includes('/storage/v1/')) {
+        if (trimmed.includes('/storage/v1/render/image/')) {
+            const separator = trimmed.includes('?') ? '&' : '?';
+            return `${trimmed}${separator}width=${width}&quality=100&resize=cover`;
+        }
+        return trimmed; // Return clean object URL without appending breaking query params
+    }
+
+    return trimmed;
+};
+
+export const handleImageError = (
+    e: React.SyntheticEvent<HTMLImageElement, Event>,
+    fallbackUrl: string = DEFAULT_AVATAR
+) => {
+    const target = e.currentTarget;
+    if (target.src !== fallbackUrl) {
+        target.src = fallbackUrl;
+    }
 };

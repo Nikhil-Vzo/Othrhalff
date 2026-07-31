@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Heart, BadgeCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 
 const getRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);
@@ -343,6 +343,7 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
                 alt="Avatar"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
+                onError={handleImageError}
               />
             ) : (
               <div className="w-full h-full bg-neon/10 flex items-center justify-center text-neon text-xs font-bold font-mono">

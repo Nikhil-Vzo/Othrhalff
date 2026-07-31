@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Heart, XCircle, GraduationCap, User, BadgeCheck, MapPin } from 'lucide-react';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 
 interface ProfileData {
     id: string;
@@ -55,9 +56,11 @@ export const ProfilePreviewModal: React.FC<ProfilePreviewModalProps> = ({
                 {/* Header with Image */}
                 <div className="relative h-96 overflow-hidden">
                     <img
-                        src={profile.avatar}
+                        src={getOptimizedUrl(profile.avatar, 600)}
                         alt="Profile"
                         className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                     />
                     {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-gray-900" />

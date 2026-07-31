@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { NeonInput, NeonButton } from '../components/Common';
-import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X, Calendar, Eye, EyeOff } from 'lucide-react';
+import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X, Calendar, Eye, EyeOff, User, Sparkles, Info, KeyRound, Building2 } from 'lucide-react';
 import { AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, LOOKING_FOR_OPTIONS, BRANCH_CATEGORIES, YEAR_OPTIONS } from '../constants';
 import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
@@ -364,7 +364,15 @@ export const Onboarding: React.FC = () => {
     <div className="min-h-screen bg-black flex items-center justify-center p-6">
       <div className="w-full max-w-2xl bg-gray-900/50 backdrop-blur-xl p-8 rounded-3xl border border-gray-800 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
         <div className="space-y-6 animate-fade-in">
-          <h2 className="text-xl font-bold text-white text-center">Create Your Persona</h2>
+          <div className="text-center space-y-1 border-b border-gray-800/80 pb-4">
+            <h2 className="text-2xl font-black text-white flex items-center justify-center gap-2">
+              <Sparkles className="w-6 h-6 text-neon" />
+              Set Up Your Persona Profile
+            </h2>
+            <p className="text-xs text-gray-400">
+              Set your unique <span className="text-neon font-semibold">@username</span> for direct login, and customize your campus persona.
+            </p>
+          </div>
 
           {/* Toast Messages */}
           {error && (
@@ -447,7 +455,10 @@ export const Onboarding: React.FC = () => {
           {/* Personal Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Username</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm text-gray-400">Account Username</label>
+                <span className="text-[10px] text-neon font-mono">Used for Direct Login</span>
+              </div>
               <div className="relative">
                 <NeonInput
                   value={tempProfile.username || ''}
@@ -489,7 +500,7 @@ export const Onboarding: React.FC = () => {
                 
                 {/* Rules List */}
                 <div className="mt-2 space-y-1">
-                  <p className="text-[10px] text-gray-500">Username must be:</p>
+                  <p className="text-[10px] text-gray-500">Username criteria:</p>
                   <ul className="text-[10px] space-y-0.5">
                     <li className={!tempProfile.username ? 'text-gray-500' : ((tempProfile.username.length >= 1 && tempProfile.username.length <= 30) ? 'text-green-500' : 'text-red-500')}>
                       • 1-30 characters long
@@ -528,18 +539,21 @@ export const Onboarding: React.FC = () => {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-500 mt-1">Secure your account</p>
+                <p className="text-[10px] text-gray-500 mt-1">Secure your account for direct login</p>
               </div>
             )}
 
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Name(Nickname works too!)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm text-gray-400">Display Name / Nickname</label>
+                <span className="text-[10px] text-gray-500 flex items-center gap-1"><Lock className="w-3 h-3" /> Shown to matches</span>
+              </div>
               <NeonInput
                 value={tempProfile.realName || ''}
                 onChange={e => setTempProfile({ ...tempProfile, realName: e.target.value })}
-                placeholder="Jane Doe"
+                placeholder="Jane or Nickname"
               />
-              <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><Lock className="w-3 h-3" /> Hidden until match</p>
+              <p className="text-[10px] text-gray-500 mt-1">Your display name shown on your profile card and during chats.</p>
             </div>
 
             <div>

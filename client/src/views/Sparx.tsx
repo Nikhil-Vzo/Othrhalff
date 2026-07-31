@@ -9,7 +9,7 @@ import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lo
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 
 interface GlimpseProfile {
   id: string;
@@ -810,6 +810,7 @@ export const Sparx: React.FC = () => {
                                 alt="Avatar" 
                                 className="w-full h-full object-cover" 
                                 referrerPolicy="no-referrer"
+                                onError={handleImageError}
                               />
                             ) : (
                               <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
@@ -923,6 +924,7 @@ export const Sparx: React.FC = () => {
                               alt="Avatar" 
                               className="w-full h-full object-cover" 
                               referrerPolicy="no-referrer"
+                              onError={handleImageError}
                             />
                           ) : (
                             <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
