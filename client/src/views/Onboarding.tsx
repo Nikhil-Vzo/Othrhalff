@@ -403,10 +403,7 @@ export const Onboarding: React.FC = () => {
         
         <div className="w-full max-w-md bg-zinc-950/90 backdrop-blur-2xl p-8 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(255,0,127,0.12)] space-y-6 relative z-10 animate-fade-in">
           
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" /> Quick Setup
-            </div>
+          <div className="text-center space-y-1.5 pb-2">
             <h2 className="text-2xl font-black text-white tracking-tight">Claim Your @Username</h2>
             <p className="text-xs text-zinc-400">
               Welcome back, <strong className="text-white">{tempProfile.realName}</strong>! Choose your unique handle to enable direct login.
@@ -523,9 +520,6 @@ export const Onboarding: React.FC = () => {
         
         {/* Header */}
         <div className="text-center space-y-1.5 border-b border-zinc-800/80 pb-5">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon/10 border border-neon/20 text-neon text-xs font-semibold mb-1">
-            <Sparkles className="w-3.5 h-3.5" /> Campus Onboarding
-          </div>
           <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Create Your Campus Persona</h2>
           <p className="text-xs text-zinc-400">
             Set your unique <span className="text-neon font-semibold">@username</span> for direct login, and customize your profile.
