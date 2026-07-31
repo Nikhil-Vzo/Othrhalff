@@ -24,7 +24,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { currentUser, needsOnboarding } = useAuth();
+  const { currentUser, needsOnboarding, isLoading } = useAuth();
   const { 
     isCallActive, 
     appId, 
@@ -53,7 +53,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   // Enforce auth & onboarding routing
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isLoading) return;
 
     const PUBLIC_ROUTES = ['/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance'];
 
@@ -63,11 +63,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       return;
     }
 
+    // If authenticated and visiting login page, redirect to home or onboarding
+    if (currentUser && pathname === '/login') {
+      const target = needsOnboarding ? '/onboarding' : '/home';
+      window.location.href = target;
+      return;
+    }
+
     // If needs onboarding, redirect to onboarding
     if (currentUser && needsOnboarding && pathname !== '/onboarding') {
       router.push('/onboarding');
     }
-  }, [mounted, currentUser, needsOnboarding, pathname, router]);
+  }, [mounted, isLoading, currentUser, needsOnboarding, pathname, router]);
 
   // Fetch real-time unread messages count for the chat badge
   useEffect(() => {

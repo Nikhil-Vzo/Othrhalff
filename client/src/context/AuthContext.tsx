@@ -46,6 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`[AuthContext] Auth event: ${event}`);
 
       if (session?.user) {
+        if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
         try {
           const { data: profile, error } = await supabase
             .from('profiles')
@@ -118,7 +121,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const initializeAuth = async () => {
         const localUser = authService.getCurrentUser();
-        if (localUser) {
+        const isOAuthCallback = typeof window !== 'undefined' && 
+          (window.location.hash.includes('access_token=') || 
+           window.location.hash.includes('error=') || 
+           window.location.search.includes('code='));
+
+        if (localUser && !isOAuthCallback) {
           setCurrentUser(localUser);
           setIsLoading(false);
         }

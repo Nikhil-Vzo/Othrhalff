@@ -136,7 +136,7 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/home`,
+        redirectTo: `${window.location.origin}/login`,
       }
     });
 
@@ -150,7 +150,7 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/home`,
+        emailRedirectTo: `${window.location.origin}/login`,
       }
     });
 

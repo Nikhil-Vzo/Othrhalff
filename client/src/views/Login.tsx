@@ -8,8 +8,10 @@ import Link from 'next/link';
 import { authService } from '../services/auth';
 import { analytics } from '../utils/analytics';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export const Login: React.FC = () => {
+  const { currentUser, needsOnboarding, isLoading: isAuthLoading } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +21,14 @@ export const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (currentUser && !isAuthLoading) {
+      const target = needsOnboarding ? '/onboarding' : '/home';
+      window.location.href = target;
+    }
+  }, [currentUser, needsOnboarding, isAuthLoading]);
 
   // Auto-dismiss success messages after 5 seconds
   useEffect(() => {
@@ -103,16 +113,29 @@ export const Login: React.FC = () => {
       }
 
       if (isLogin) {
-        await authService.signInWithPassword(finalEmail, password);
+        const authData = await authService.signInWithPassword(finalEmail, password);
         analytics.login('Password');
         setSuccess('Logged in successfully! Redirecting...');
-        // Let the normal app layout handle the routing
-        setTimeout(() => navigate.push('/home'), 500);
+
+        let target = '/home';
+        if (authData?.user?.id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username, real_name, dob')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+
+          if (!profile || !profile.username || !profile.real_name || !profile.dob) {
+            target = '/onboarding';
+          }
+        }
+
+        window.location.href = target;
       } else {
         await authService.signUp(finalEmail, password, '');
         analytics.login('Signup');
         setSuccess('Account created! Redirecting to setup...');
-        setTimeout(() => navigate.push('/onboarding'), 500);
+        window.location.href = '/onboarding';
       }
     } catch (error: any) {
       console.error('Login error:', error);
