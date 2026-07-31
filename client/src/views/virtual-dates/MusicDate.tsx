@@ -412,29 +412,26 @@ export const MusicDate = () => {
             const queryCreateName = searchParams.get('createName');
             
             if (queryRoom && mode === 'landing') {
+                setRoomCode(queryRoom);
+                if (queryPrivate === 'true') setIsPrivateRoom(true);
+                if (queryPasscode) {
+                    setRoomPasscode(queryPasscode);
+                    roomPasscodeRef.current = queryPasscode;
+                }
+
                 if (queryCreateName) {
-                    setRoomCode(queryRoom);
                     setRoomName(queryCreateName);
                     setIsHost(true);
                     setMode('create_room');
-                    if (queryPrivate === 'true') setIsPrivateRoom(true);
-                    if (queryPasscode) setRoomPasscode(queryPasscode);
-                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
-                    setError(null);
-                    return;
+                } else {
+                    setRoomName(parseRoomName(queryRoom));
+                    setIsHost(false);
+                    setMode('room');
                 }
                 
-                setRoomCode(queryRoom);
-                setRoomName(parseRoomName(queryRoom));
-                
-                if (queryPrivate === 'true') setIsPrivateRoom(true);
-                if (queryPasscode) setRoomPasscode(queryPasscode);
-                
-                if (queryPrivate || queryPasscode) {
-                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
-                }
-                
+                window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
                 setError(null);
+                return;
             }
         }
     }, [mode]);

@@ -101,6 +101,7 @@ const MessageRow = React.memo<MessageRowProps>(({
   handleMessageDoubleClick,
   handleDeleteMessage
 }) => {
+  const router = useNavigate();
   if (msg.isSystem && msg.parsedGame?.type === 'INVITE') {
     const inviteData = msg.parsedGame.state;
     const isCinema = inviteData.type === 'cinema';
@@ -140,13 +141,13 @@ const MessageRow = React.memo<MessageRowProps>(({
             </div>
           </div>
           
-          <a
-            href={inviteData.url}
+          <button
+            onClick={() => router.push(inviteData.url)}
             className={`w-full py-2.5 px-4 text-xs font-bold rounded-xl text-white transition-all active:scale-[0.98] duration-200 flex items-center justify-center gap-2 ${btnClass}`}
           >
             <Icon className="w-3.5 h-3.5" />
             <span>{buttonText}</span>
-          </a>
+          </button>
         </div>
       </div>
     );

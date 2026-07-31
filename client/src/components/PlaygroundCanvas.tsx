@@ -210,9 +210,10 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         worldRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
       }
 
-      // Throttle network broadcast
-      if (timestamp - lastBroadcastTime > 50) {
-        onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, movingRef.current);
+      // Throttle network broadcast — only broadcast while moving or when stopping
+      const movementStateChanged = movingRef.current !== isCurrentlyMoving;
+      if ((isCurrentlyMoving || movementStateChanged) && (timestamp - lastBroadcastTime > 100)) {
+        onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving);
         lastBroadcastTime = timestamp;
       }
       
