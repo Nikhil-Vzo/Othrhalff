@@ -526,16 +526,18 @@ export const MusicDate = () => {
                     // 3. Decide role and configure peer ID
                     let peerId: string | undefined = undefined;
                     let currentIsHost = false;
+                    const expectedHostId = 'host-' + roomCode;
 
-                    if (activeHostId) {
+                    if (activeHostId || !isHost) {
                         currentIsHost = false;
                         setIsHost(false);
-                        setRoomHostId(activeHostId);
+                        const targetHost = activeHostId || expectedHostId;
+                        setRoomHostId(targetHost);
                         setMode('room');
                     } else {
                         currentIsHost = true;
                         setIsHost(true);
-                        peerId = 'host-' + roomCode + '-' + Math.random().toString(36).substring(2, 9);
+                        peerId = expectedHostId;
                         setRoomHostId(peerId);
                         setMode('room');
                     }
@@ -576,7 +578,8 @@ export const MusicDate = () => {
                             analytics.virtualDateStart('Music Jam');
                         } else {
                             analytics.virtualDateJoin();
-                            connectToPeer(activeHostId!, stream, peer);
+                            const targetHost = activeHostId || expectedHostId;
+                            connectToPeer(targetHost, stream, peer);
                         }
                         setIsConnecting(false);
                     });

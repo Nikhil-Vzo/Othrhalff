@@ -521,16 +521,18 @@ export const CinemaDate: React.FC = () => {
                     // 3. Decide role and configure peer ID
                     let peerId: string | undefined = undefined;
                     let currentIsHost = false;
+                    const expectedHostId = 'host-' + roomCode;
 
-                    if (activeHostId) {
+                    if (activeHostId || !isHost) {
                         currentIsHost = false;
                         setIsHost(false);
-                        setRoomHostId(activeHostId);
+                        const targetHost = activeHostId || expectedHostId;
+                        setRoomHostId(targetHost);
                         setMode('viewer');
                     } else {
                         currentIsHost = true;
                         setIsHost(true);
-                        peerId = 'host-' + roomCode + '-' + Math.random().toString(36).substring(2, 9);
+                        peerId = expectedHostId;
                         setRoomHostId(peerId);
                         setMode('select');
                     }
@@ -571,7 +573,8 @@ export const CinemaDate: React.FC = () => {
                             analytics.virtualDateStart('Movie Date');
                         } else {
                             analytics.virtualDateJoin();
-                            connectToPeer(activeHostId!, stream, peer);
+                            const targetHost = activeHostId || expectedHostId;
+                            connectToPeer(targetHost, stream, peer);
                         }
                         setIsConnecting(false);
                     });
