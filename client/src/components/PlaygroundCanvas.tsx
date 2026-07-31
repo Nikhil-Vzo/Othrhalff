@@ -82,7 +82,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     }
     
     let animationFrameId: number;
-    const speed = 2.5; 
+    const speed = 0.8; 
     const playerCollisionSize = 32; 
 
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = true; };
@@ -203,9 +203,11 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (viewportRef.current && worldRef.current) {
         const vw = viewportRef.current.clientWidth;
         const vh = viewportRef.current.clientHeight;
-        const offsetX = (vw / 2) - posRef.current.x;
-        const offsetY = (vh / 2) - posRef.current.y;
-        worldRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+        const zoom = 1.6; // Increased zoom factor
+        const offsetX = (vw / 2) - (posRef.current.x * zoom);
+        const offsetY = (vh / 2) - (posRef.current.y * zoom);
+        worldRef.current.style.transformOrigin = '0 0';
+        worldRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
       }
 
       // Throttle network broadcast
@@ -241,9 +243,10 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         style={{ 
           width: `${WORLD_WIDTH}px`,
           height: `${WORLD_HEIGHT}px`,
-          backgroundImage: `url('/assets/Gemini_Generated_Image_g7wqy4g7wqy4g7wq.png')`,
+          backgroundImage: `url('/assets/campus map.png')`,
           backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
+          imageRendering: 'pixelated',
           willChange: 'transform'
         }}
       >

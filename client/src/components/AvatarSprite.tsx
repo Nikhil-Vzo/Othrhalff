@@ -50,7 +50,7 @@ export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
     <div 
       className={`absolute transition-transform duration-[50ms] ease-linear flex flex-col items-center justify-center ${isLocal ? 'z-20' : 'z-10'}`}
       style={{ 
-        transform: `translate(${x}px, ${y}px)`,
+        transform: `translate(${x}px, ${y}px) scale(0.6)`,
         width: `${spriteWidth}px`,
         height: `${spriteHeight}px`,
         // Center the sprite precisely on the X,Y coordinates
