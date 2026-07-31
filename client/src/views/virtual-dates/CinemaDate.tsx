@@ -496,7 +496,8 @@ export const CinemaDate: React.FC = () => {
 
                     // Check Passcode if joining existing private room
                     if (activeHostId && dbIsPrivate) {
-                        if (roomPasscode !== dbPasscode) {
+                        const effectivePasscode = roomPasscodeRef.current || roomPasscode;
+                        if (effectivePasscode !== dbPasscode) {
                             setNeedsPasscode(true);
                             setIsConnecting(false);
                             return; // Halt initialization until passcode is provided
@@ -559,7 +560,7 @@ export const CinemaDate: React.FC = () => {
                                             room_id: roomCode,
                                             host_peer_id: id,
                                             is_private: isPrivateRoom,
-                                            passcode: roomPasscode,
+                                            passcode: roomPasscodeRef.current || roomPasscode,
                                             updated_at: new Date().toISOString(),
                                             host_user_id: currentUser?.id
                                         });
@@ -1135,8 +1136,10 @@ export const CinemaDate: React.FC = () => {
         if (isPrivateRoom) {
             const passcode = Math.floor(1000 + Math.random() * 9000).toString();
             setRoomPasscode(passcode);
+            roomPasscodeRef.current = passcode;
         } else {
             setRoomPasscode(null);
+            roomPasscodeRef.current = null;
         }
 
         setRoomCode(code);

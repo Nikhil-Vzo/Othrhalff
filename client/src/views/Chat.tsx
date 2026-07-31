@@ -102,7 +102,7 @@ const MessageRow = React.memo<MessageRowProps>(({
   handleDeleteMessage
 }) => {
   const router = useNavigate();
-  if (msg.isSystem && msg.parsedGame?.type === 'INVITE') {
+  if (msg.parsedGame?.type === 'INVITE') {
     const inviteData = msg.parsedGame.state;
     const isCinema = inviteData.type === 'cinema';
     const Icon = isCinema ? Tv : Music;
@@ -1131,7 +1131,8 @@ export const Chat: React.FC = () => {
       await supabase.from('messages').insert({
         match_id: matchId,
         sender_id: currentUser.id,
-        text: inviteText
+        text: inviteText,
+        is_system: true
       });
 
       setShowVirtualDateModal(false);
