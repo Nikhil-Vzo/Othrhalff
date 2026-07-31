@@ -200,20 +200,21 @@ export const Onboarding: React.FC = () => {
     const timeoutId = setTimeout(async () => {
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        let query = supabase.from('profiles').select('username').eq('username', rawUsername);
-        if (authUser) {
-          query = query.neq('id', authUser.id);
-        }
-        const { data } = await query.maybeSingle();
+        const cleanUsername = rawUsername.trim();
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .ilike('username', cleanUsername)
+          .maybeSingle();
 
-        if (data) {
+        if (data && data.id !== authUser?.id) {
           setUsernameStatus('taken');
           const random1 = Math.floor(Math.random() * 100);
           const random2 = Math.floor(Math.random() * 999);
           setSuggestedUsernames([
-            `${rawUsername}${random1}`,
-            `${rawUsername}_${random2}`,
-            `${rawUsername}123`
+            `${cleanUsername}${random1}`,
+            `${cleanUsername}_${random2}`,
+            `${cleanUsername}123`
           ].slice(0, 3));
         } else {
           setUsernameStatus('available');
@@ -321,15 +322,17 @@ export const Onboarding: React.FC = () => {
         return;
       }
 
-      // Check username uniqueness
+      // Check username uniqueness (case-insensitive)
+      const cleanUsername = tempProfile.username.trim();
       const { data: existingUserWithUsername } = await supabase
         .from('profiles')
         .select('id')
-        .eq('username', tempProfile.username.trim())
+        .ilike('username', cleanUsername)
         .maybeSingle();
 
       if (existingUserWithUsername && existingUserWithUsername.id !== authUser.id) {
-        setError("This username is already taken. Please pick another one.");
+        setError(`The username '@${cleanUsername}' is already taken. Please pick another one.`);
+        setUsernameStatus('taken');
         setIsSubmitting(false);
         return;
       }

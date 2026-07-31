@@ -82,7 +82,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setNeedsOnboarding(false);
             }
           } else {
-            // Profile does not exist yet in DB for new user -> needs onboarding
+            // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
+            const newAppUser: UserProfile = {
+              id: session.user.id,
+              universityEmail: session.user.email || '',
+              realName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+              avatar: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '',
+              gender: 'Male',
+              university: '',
+              branch: '',
+              year: '1st Year',
+              interests: [],
+              lookingFor: [],
+              dob: ''
+            };
+            setCurrentUser(newAppUser);
+            localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
             setNeedsOnboarding(true);
           }
         } catch (err) {
@@ -167,6 +182,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setNeedsOnboarding(true);
               }
             } else {
+              const newAppUser: UserProfile = {
+                id: activeSession.user.id,
+                universityEmail: activeSession.user.email || '',
+                realName: activeSession.user.user_metadata?.full_name || activeSession.user.user_metadata?.name || '',
+                avatar: activeSession.user.user_metadata?.avatar_url || activeSession.user.user_metadata?.picture || '',
+                gender: 'Male',
+                university: '',
+                branch: '',
+                year: '1st Year',
+                interests: [],
+                lookingFor: [],
+                dob: ''
+              };
+              setCurrentUser(newAppUser);
+              localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
             }
           } else if (localUser) {

@@ -100,11 +100,11 @@ export const Profile: React.FC = () => {
                 if (!supabase) return;
                 const { data } = await supabase
                     .from('profiles')
-                    .select('username')
-                    .eq('username', username)
+                    .select('id, username')
+                    .ilike('username', username.trim())
                     .maybeSingle();
 
-                if (data) {
+                if (data && data.id !== currentUser?.id) {
                     setCredStatus('taken');
                     const random1 = Math.floor(Math.random() * 100);
                     const random2 = Math.floor(Math.random() * 999);
