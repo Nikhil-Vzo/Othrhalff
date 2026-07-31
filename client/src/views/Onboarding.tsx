@@ -199,11 +199,12 @@ export const Onboarding: React.FC = () => {
 
     const timeoutId = setTimeout(async () => {
       try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('username', rawUsername)
-          .maybeSingle();
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        let query = supabase.from('profiles').select('username').eq('username', rawUsername);
+        if (authUser) {
+          query = query.neq('id', authUser.id);
+        }
+        const { data } = await query.maybeSingle();
 
         if (data) {
           setUsernameStatus('taken');
