@@ -53,7 +53,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   useEffect(() => {
     // Load the hidden collision mask image
     const maskImg = new Image();
-    maskImg.src = '/assets/collision-mask.png';
+    maskImg.src = '/assets/collision-mask.png.png';
     maskImg.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = WORLD_WIDTH;
@@ -66,7 +66,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       }
     };
     maskImg.onerror = () => {
-      console.warn("collision-mask.png not found. Collisions are disabled.");
+      console.warn("collision-mask.png.png not found. Collisions are disabled.");
     };
   }, []);
 
