@@ -618,6 +618,17 @@ export const Landing: React.FC = () => {
   useEffect(() => { const textTimer = window.setTimeout(() => setTextRevealed(true), 120); const loadTimer = window.setTimeout(() => setPageLoaded(true), 1050); return () => { window.clearTimeout(textTimer); window.clearTimeout(loadTimer); }; }, []);
   useEffect(() => { const html = document.documentElement.style.overflow; const body = document.body.style.overflow; document.documentElement.style.overflow = 'unset'; document.body.style.overflow = 'unset'; return () => { document.documentElement.style.overflow = html; document.body.style.overflow = body; }; }, []);
   useEffect(() => { const move = (event: MouseEvent) => setMousePos({ x: event.clientX / window.innerWidth - .5, y: event.clientY / window.innerHeight - .5 }); window.addEventListener('mousemove', move, { passive: true }); return () => window.removeEventListener('mousemove', move); }, []);
+  
+  useEffect(() => {
+    if (isOAuthCallback && typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        if (window.location.hash.includes('access_token=')) {
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOAuthCallback]);
 
   if (isOAuthCallback || (isLoading && isAuthenticated)) {
     return <LoadingState message="Signing you in..." className="bg-[#05000a] fixed inset-0 z-[999]" />;

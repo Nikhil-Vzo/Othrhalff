@@ -183,6 +183,13 @@ export const Login: React.FC = () => {
   const handlePasskeyLogin = async () => {
     setError(null);
     setIsLoading(true);
+    
+    if (typeof window !== 'undefined' && !window.PublicKeyCredential) {
+      setError('Passkeys are not supported in this browser.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (!supabase) throw new Error('Supabase client not initialized');
       const { data, error } = await supabase.auth.signInWithPasskey();

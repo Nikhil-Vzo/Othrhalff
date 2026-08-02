@@ -10,6 +10,18 @@ export default function AuthCallbackPage() {
   const { currentUser, needsOnboarding, isLoading } = useAuth();
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const state = url.searchParams.get('state') || new URLSearchParams(window.location.hash.substring(1)).get('state');
+      const storedState = sessionStorage.getItem('oauth_state');
+      
+      if (state && storedState && state !== storedState) {
+        console.error("OAuth state mismatch detected. Rejecting session.");
+        router.replace('/login?error=Invalid_State');
+        return;
+      }
+    }
+
     if (!isLoading) {
       if (currentUser) {
         const target = needsOnboarding ? '/onboarding' : '/home';

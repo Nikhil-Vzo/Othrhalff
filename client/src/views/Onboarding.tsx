@@ -201,10 +201,11 @@ export const Onboarding: React.FC = () => {
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const cleanUsername = rawUsername.trim();
+        const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
         const { data } = await supabase
           .from('profiles')
-          .select('id, username')
-          .ilike('username', cleanUsername)
+          .select('id')
+          .ilike('username', safeUsername)
           .maybeSingle();
 
         if (data && data.id !== authUser?.id) {
@@ -324,10 +325,11 @@ export const Onboarding: React.FC = () => {
 
       // Check username uniqueness (case-insensitive)
       const cleanUsername = tempProfile.username.trim();
+      const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
       const { data: existingUserWithUsername } = await supabase
         .from('profiles')
         .select('id')
-        .ilike('username', cleanUsername)
+        .ilike('username', safeUsername)
         .maybeSingle();
 
       if (existingUserWithUsername && existingUserWithUsername.id !== authUser.id) {
@@ -356,7 +358,7 @@ export const Onboarding: React.FC = () => {
       const userToSave: UserProfile = {
         id: authUser.id,
         username: tempProfile.username?.trim(),
-        anonymousId: tempProfile.anonymousId || `User#${Math.floor(Math.random() * 10000).toString(16).toUpperCase()}`,
+        anonymousId: tempProfile.anonymousId || `User#${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)).slice(0, 8).toUpperCase().replace(/-/g, '')}`,
         realName: (tempProfile.realName || '').trim(),
         gender: tempProfile.gender || 'Male',
         university: tempProfile.university === 'Other' ? customUniversity.trim() : (tempProfile.university || CHHATTISGARH_COLLEGES[0]),

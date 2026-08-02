@@ -58,7 +58,17 @@ export const authService = {
   logout: async () => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     if (supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Supabase signOut error:', err);
+      } finally {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
     }
   },
   /**

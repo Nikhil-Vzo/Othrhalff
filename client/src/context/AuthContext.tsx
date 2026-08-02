@@ -49,78 +49,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for real-time Auth State changes (OAuth redirects, token refresh, login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[AuthContext] Auth event: ${event}`);
-
-      if (session?.user) {
-        setIsLoading(true);
-        if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-        try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (profile && !error) {
-            const appUser: UserProfile = {
-              id: profile.id,
-              username: profile.username || undefined,
-              anonymousId: profile.anonymous_id,
-              realName: profile.real_name,
-              gender: profile.gender,
-              university: profile.university,
-              universityEmail: profile.university_email,
-              branch: profile.branch,
-              year: profile.year,
-              interests: profile.interests || [],
-              lookingFor: profile.looking_for || [],
-              bio: profile.bio,
-              dob: profile.dob,
-              isVerified: profile.is_verified,
-              avatar: profile.avatar,
-              isPremium: profile.is_premium
-            };
-
-            setCurrentUser(appUser);
-            localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
-            
-            if (!profile.username || !profile.real_name || !profile.dob) {
-              setNeedsOnboarding(true);
-            } else {
-              setNeedsOnboarding(false);
-            }
-          } else {
-            // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
-            const newAppUser: UserProfile = {
-              id: session.user.id,
-              anonymousId: '',
-              universityEmail: session.user.email || '',
-              realName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-              avatar: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '',
-              gender: 'Male',
-              university: '',
-              branch: '',
-              year: '1st Year',
-              interests: [],
-              lookingFor: [],
-              bio: '',
-              dob: '',
-              isVerified: false
-            };
-            setCurrentUser(newAppUser);
-            localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
-            setNeedsOnboarding(true);
+      try {
+        if (session?.user) {
+          setIsLoading(true);
+          if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+            window.history.replaceState(null, '', window.location.pathname);
           }
-        } catch (err) {
-          console.error('[AuthContext] Error loading user profile on auth change:', err);
-        } finally {
-          setIsLoading(false);
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle();
+
+            if (profile && !error) {
+              const appUser: UserProfile = {
+                id: profile.id,
+                username: profile.username || undefined,
+                anonymousId: profile.anonymous_id,
+                realName: profile.real_name,
+                gender: profile.gender,
+                university: profile.university,
+                universityEmail: profile.university_email,
+                branch: profile.branch,
+                year: profile.year,
+                interests: profile.interests || [],
+                lookingFor: profile.looking_for || [],
+                bio: profile.bio,
+                dob: profile.dob,
+                isVerified: profile.is_verified,
+                avatar: profile.avatar,
+                isPremium: profile.is_premium
+              };
+
+              setCurrentUser(appUser);
+              localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
+              
+              if (!profile.username || !profile.real_name || !profile.dob) {
+                setNeedsOnboarding(true);
+              } else {
+                setNeedsOnboarding(false);
+              }
+            } else {
+              // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
+              const newAppUser: UserProfile = {
+                id: session.user.id,
+                anonymousId: '',
+                universityEmail: session.user.email || '',
+                realName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+                avatar: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '',
+                gender: 'Male',
+                university: '',
+                branch: '',
+                year: '1st Year',
+                interests: [],
+                lookingFor: [],
+                bio: '',
+                dob: '',
+                isVerified: false
+              };
+              setCurrentUser(newAppUser);
+              localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
+              setNeedsOnboarding(true);
+            }
+          } catch (err) {
+            console.error('[AuthContext] Error loading user profile on auth change:', err);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          localStorage.removeItem('otherhalf_session');
+          setNeedsOnboarding(false);
         }
-      } else if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        localStorage.removeItem('otherhalf_session');
-        setNeedsOnboarding(false);
+      } catch (err) {
+        console.error('[AuthContext] Unhandled auth change error:', err);
+      } finally {
+        // Guarantee loading state is cleared when auth events finish
         setIsLoading(false);
       }
     });
