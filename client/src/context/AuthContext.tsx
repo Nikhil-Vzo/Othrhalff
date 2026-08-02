@@ -28,6 +28,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [isLoading, setIsLoading] = useState(() => {
     if (typeof window !== 'undefined') {
+      const isOAuthCallback =
+        window.location.hash.includes('access_token=') ||
+        window.location.hash.includes('error=') ||
+        window.location.search.includes('code=');
+      if (isOAuthCallback) return true;
       return !authService.getCurrentUser();
     }
     return true;
@@ -46,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`[AuthContext] Auth event: ${event}`);
 
       if (session?.user) {
+        setIsLoading(true);
         if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
           window.history.replaceState(null, '', window.location.pathname);
         }

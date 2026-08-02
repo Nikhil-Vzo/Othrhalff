@@ -66,7 +66,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     // If authenticated and visiting login page, redirect to home or onboarding
     if (currentUser && pathname === '/login') {
       const target = needsOnboarding ? '/onboarding' : '/home';
-      window.location.href = target;
+      router.replace(target);
       return;
     }
 
