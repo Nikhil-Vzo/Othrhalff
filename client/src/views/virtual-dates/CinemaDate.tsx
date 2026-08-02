@@ -233,11 +233,10 @@ export const CinemaDate: React.FC = () => {
         setIsConnecting(true);
         setError(null);
         try {
-            const roomUuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' 
-                ? crypto.randomUUID() 
-                : Math.random().toString(36).substring(2, 15) + '-' + Math.random().toString(36).substring(2, 15);
+            const unifiedCode = generateRoomCode();
+            const roomUuid = `cinema_date_${unifiedCode}`;
             
-            const inviteText = `[SYSTEM] [INVITE:v1] ${JSON.stringify({
+            const inviteText = `[INVITE:v1] ${JSON.stringify({
                 action: 'join_room',
                 type: 'cinema',
                 room: roomUuid,
@@ -584,8 +583,18 @@ export const CinemaDate: React.FC = () => {
                         let msg = `Connection Error: ${err.type || 'Unknown'}`;
 
                         if (err.type === 'peer-unavailable') {
-                            msg = "Stale host detected. Initializing room...";
-                            handleStaleHost();
+                            if (!activeHostId) {
+                                msg = "Waiting for host to start the room...";
+                                setError(msg);
+                                setTimeout(() => {
+                                    setRoomCode('');
+                                    setTimeout(() => setRoomCode(roomCode), 300);
+                                }, 5000);
+                                return;
+                            } else {
+                                msg = "Stale host detected. Initializing room...";
+                                handleStaleHost();
+                            }
                         } else if (err.type === 'unavailable-id') {
                             msg = "Room Name/Code is already taken. Please try another.";
                         } else if (err.type === 'network') {
@@ -673,7 +682,7 @@ export const CinemaDate: React.FC = () => {
                 }
             };
         }
-    }, [roomCode, needsPasscode, roomPasscode]); // Re-run when room identity or passcode state changes
+    }, [roomCode, needsPasscode, roomPasscode, mode]); // Re-run when room identity, passcode state, or mode changes
 
     const parseRoomName = (roomId: string) => {
         const parts = roomId.split('_');
@@ -704,11 +713,13 @@ export const CinemaDate: React.FC = () => {
                 if (queryCreateName) {
                     setRoomName(queryCreateName);
                     setIsHost(true);
-                    setMode('select');
+                    setMode('create_room');
+                    sessionStorage.setItem('cinema_host_room_code', queryRoom);
                 } else {
+                    const isSessionHost = sessionStorage.getItem('cinema_host_room_code') === queryRoom;
                     setRoomName(parseRoomName(queryRoom));
-                    setIsHost(false);
-                    setMode('viewer');
+                    setIsHost(isSessionHost);
+                    setMode(isSessionHost ? 'create_room' : 'viewer');
                 }
                 
                 window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
@@ -1133,13 +1144,13 @@ export const CinemaDate: React.FC = () => {
         }
         setIsConnecting(true);
         const nameSlug = roomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
-        const uniqueId = Math.random().toString(36).substring(2, 7);
-        const code = `cinema_${nameSlug}_${uniqueId}`;
+        const unifiedCode = generateRoomCode();
+        const code = `cinema_${nameSlug}_${unifiedCode}`;
         
+        // No longer storing separate passcode. The unifiedCode IS the secure code.
         if (isPrivateRoom) {
-            const passcode = Math.floor(1000 + Math.random() * 9000).toString();
-            setRoomPasscode(passcode);
-            roomPasscodeRef.current = passcode;
+            setRoomPasscode(null);
+            roomPasscodeRef.current = null;
         } else {
             setRoomPasscode(null);
             roomPasscodeRef.current = null;
@@ -1153,9 +1164,9 @@ export const CinemaDate: React.FC = () => {
     };
 
     const handleJoinRoom = async () => {
-        const entered = joinCode.replace(/\D/g, '');
-        if (entered.length !== 4) {
-            setError('Please enter a valid 4-digit passcode');
+        const entered = joinCode.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        if (entered.length !== 7) {
+            setError('Please enter a valid 7-character room code (e.g., ABC-123)');
             setTimeout(() => setError(null), 3000);
             return;
         }
@@ -1166,10 +1177,8 @@ export const CinemaDate: React.FC = () => {
             try {
                 const { data, error } = await supabase
                     .from('active_rooms')
-                    .select('room_id, is_private, passcode')
-                    .eq('is_private', true)
-                    .eq('passcode', entered)
-                    .like('room_id', 'cinema_%')
+                    .select('room_id, is_private')
+                    .like('room_id', `%_${entered}`)
                     .maybeSingle();
                     
                 if (error) throw error;
@@ -1179,11 +1188,10 @@ export const CinemaDate: React.FC = () => {
                     setRoomName('Joined Room');
                     setIsHost(false);
                     setMode('viewer');
-                    setRoomPasscode(entered);
-                    setIsPrivateRoom(true);
+                    setIsPrivateRoom(data.is_private || false);
                     setError(null);
                 } else {
-                    setError('Invalid passcode or room expired');
+                    setError('Invalid room code or room expired');
                     setTimeout(() => setError(null), 3000);
                 }
             } catch (err: any) {
@@ -1853,8 +1861,8 @@ export const CinemaDate: React.FC = () => {
     const handlePasteCode = async () => {
         try {
             const text = await navigator.clipboard.readText();
-            const cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            setJoinCode(cleaned.slice(0, 6));
+            const cleaned = text.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            setJoinCode(cleaned.slice(0, 7));
         } catch (err) {
             setError('Could not paste from clipboard');
             setTimeout(() => setError(null), 2000);
@@ -1879,7 +1887,7 @@ export const CinemaDate: React.FC = () => {
                         <LogIn className="w-10 h-10" />
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Join a Room</h2>
-                    <p className="text-sm text-white/50 font-light">Enter the 4-digit passcode for private rooms</p>
+                    <p className="text-sm text-white/50 font-light">Enter the 7-character room code (e.g. ABC-123)</p>
                 </div>
                 <div className="space-y-6">
                     <div>
@@ -1911,7 +1919,7 @@ export const CinemaDate: React.FC = () => {
                     </div>
                     <button
                         onClick={handleJoinRoom}
-                        disabled={isConnecting || joinCode.length !== 4}
+                        disabled={isConnecting || joinCode.length !== 7}
                         className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
                     >
                         {isConnecting ? (

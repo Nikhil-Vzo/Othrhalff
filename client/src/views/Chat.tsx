@@ -1117,29 +1117,34 @@ export const Chat: React.FC = () => {
     try {
       const nameSlug = virtualDateRoomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
       const uniqueId = Math.random().toString(36).substring(2, 7);
-      const roomUuid = `${virtualDateType}_${nameSlug}_${uniqueId}`;
-      const passcode = Math.floor(1000 + Math.random() * 9000).toString();
+      const generateUnifiedCode = () => {
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const numbers = '0123456789';
+        let code = '';
+        for (let i = 0; i < 3; i++) code += letters.charAt(Math.floor(Math.random() * letters.length));
+        code += '-';
+        for (let i = 0; i < 3; i++) code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        return code;
+      };
 
-      const inviteText = `[SYSTEM] [INVITE:v1] ${JSON.stringify({
+      const unifiedCode = generateUnifiedCode();
+      const roomUuid = `${virtualDateType}_${nameSlug}_${unifiedCode}`;
+
+      const inviteText = `[INVITE:v1] ${JSON.stringify({
         action: 'join_room',
         type: virtualDateType,
         room: roomUuid,
-        url: `/sparx/${virtualDateType}?room=${roomUuid}&private=true&passcode=${passcode}`,
+        url: `/sparx/${virtualDateType}?room=${roomUuid}&private=true`,
         message: virtualDateType === 'cinema' ? 'Cinema Date Watch Party' : 'Music Jam Session'
       })}`;
 
-      await supabase.from('messages').insert({
-        match_id: matchId,
-        sender_id: currentUser.id,
-        text: inviteText,
-        is_system: true
-      });
+      await sendGameMessage(inviteText);
 
       setShowVirtualDateModal(false);
       setVirtualDateType(null);
       setVirtualDateRoomName('');
       
-      navigate.push(`/sparx/${virtualDateType}?createName=${encodeURIComponent(virtualDateRoomName)}&room=${roomUuid}&private=true&passcode=${passcode}`);
+      navigate.push(`/sparx/${virtualDateType}?createName=${encodeURIComponent(virtualDateRoomName)}&room=${roomUuid}&private=true`);
     } catch (e) {
       console.error('Failed to create virtual date:', e);
     } finally {

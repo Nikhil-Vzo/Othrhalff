@@ -55,7 +55,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const PUBLIC_ROUTES = ['/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance'];
+    const PUBLIC_ROUTES = ['/', '/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance'];
 
     // If unauthenticated and accessing a protected view, send to login
     if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
