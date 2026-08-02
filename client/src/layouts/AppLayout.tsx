@@ -70,8 +70,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       return;
     }
 
-    // If needs onboarding, redirect to onboarding
-    if (currentUser && needsOnboarding && pathname !== '/onboarding') {
+    // If needs onboarding and attempting to access a protected route, redirect to onboarding
+    if (currentUser && needsOnboarding && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
       router.push('/onboarding');
     }
   }, [mounted, isLoading, currentUser, needsOnboarding, pathname, router]);
