@@ -28,6 +28,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [isLoading, setIsLoading] = useState(() => {
     if (typeof window !== 'undefined') {
+      const isOAuthCallback =
+        window.location.hash.includes('access_token=') ||
+        window.location.hash.includes('error=') ||
+        window.location.search.includes('code=');
+      if (isOAuthCallback) return true;
       return !authService.getCurrentUser();
     }
     return true;
@@ -46,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`[AuthContext] Auth event: ${event}`);
 
       if (session?.user) {
+        setIsLoading(true);
         if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
           window.history.replaceState(null, '', window.location.pathname);
         }
@@ -88,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
             const newAppUser: UserProfile = {
               id: session.user.id,
+              anonymousId: '',
               universityEmail: session.user.email || '',
               realName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
               avatar: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '',
@@ -97,7 +104,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               year: '1st Year',
               interests: [],
               lookingFor: [],
-              dob: ''
+              bio: '',
+              dob: '',
+              isVerified: false
             };
             setCurrentUser(newAppUser);
             localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
@@ -192,6 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               const newAppUser: UserProfile = {
                 id: activeSession.user.id,
+                anonymousId: '',
                 universityEmail: activeSession.user.email || '',
                 realName: activeSession.user.user_metadata?.full_name || activeSession.user.user_metadata?.name || '',
                 avatar: activeSession.user.user_metadata?.avatar_url || activeSession.user.user_metadata?.picture || '',
@@ -201,7 +211,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 year: '1st Year',
                 interests: [],
                 lookingFor: [],
-                dob: ''
+                bio: '',
+                dob: '',
+                isVerified: false
               };
               setCurrentUser(newAppUser);
               localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));

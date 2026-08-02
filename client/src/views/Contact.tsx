@@ -1,35 +1,69 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Mail, MessageSquare, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Mail, MessageSquare, AlertTriangle, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export const Contact: React.FC = () => {
     const navigate = useNavigate();
     const searchParams = useSearchParams();
+    const { currentUser } = useAuth();
+
     const reportUserId = searchParams.get('reportUserId') || searchParams.get('report_user_id') || '';
     const reportUserName = searchParams.get('reportUserName') || searchParams.get('report_user_name') || '';
 
     const [subject, setSubject] = useState(reportUserId ? 'Report User' : '');
     const [message, setMessage] = useState(
         reportUserId
-            ? `I want to report user: ${reportUserName}\n\nReason: `
+            ? `I want to report user: ${reportUserName} (ID: ${reportUserId})\n\nReason: `
             : ''
     );
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(currentUser?.universityEmail || '');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    useEffect(() => {
+        if (currentUser?.universityEmail && !email) {
+            setEmail(currentUser.universityEmail);
+        }
+    }, [currentUser, email]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setErrorMessage(null);
 
-        // For now, just show success message
-        // In production, you'd send this to your backend/email service
-        console.log('Contact form submitted:', { email, subject, message });
-        setSubmitted(true);
+        try {
+            const { error } = await supabase
+                .from('support_tickets')
+                .insert({
+                    user_id: currentUser?.id || null,
+                    email: email.trim(),
+                    category: reportUserId ? 'Report User' : (subject.trim() || 'General Inquiry'),
+                    message: message.trim(),
+                    status: 'open'
+                });
 
-        setTimeout(() => {
-            navigate.back(); // Go back after 2 seconds
-        }, 2000);
+            if (error) {
+                console.error('Error submitting support ticket:', error);
+                setErrorMessage('Failed to send message. Please try again.');
+                setIsSubmitting(false);
+                return;
+            }
+
+            setSubmitted(true);
+
+            setTimeout(() => {
+                navigate.back(); // Go back after 2 seconds
+            }, 2000);
+        } catch (err) {
+            console.error('Unexpected error submitting support ticket:', err);
+            setErrorMessage('An unexpected error occurred. Please try again.');
+            setIsSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -73,6 +107,12 @@ export const Contact: React.FC = () => {
                                     </p>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {errorMessage && (
+                        <div className="bg-red-900/20 border border-red-800/50 rounded-xl p-4 mb-6 text-red-400 text-sm text-center">
+                            {errorMessage}
                         </div>
                     )}
 
@@ -128,11 +168,21 @@ export const Contact: React.FC = () => {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full bg-neon hover:bg-neon/90 text-white font-medium py-3.5 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,0,127,0.3)]"
+                            disabled={isSubmitting}
+                            className="w-full bg-neon hover:bg-neon/90 text-white font-medium py-3.5 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(255,0,127,0.3)] disabled:opacity-50 disabled:pointer-events-none"
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <MessageSquare className="w-5 h-5" />
-                                Send Message
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <MessageSquare className="w-5 h-5" />
+                                        Send Message
+                                    </>
+                                )}
                             </div>
                         </button>
                     </form>

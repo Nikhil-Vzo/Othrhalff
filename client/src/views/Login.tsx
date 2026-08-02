@@ -26,9 +26,9 @@ export const Login: React.FC = () => {
   useEffect(() => {
     if (currentUser && !isAuthLoading) {
       const target = needsOnboarding ? '/onboarding' : '/home';
-      window.location.href = target;
+      navigate.push(target);
     }
-  }, [currentUser, needsOnboarding, isAuthLoading]);
+  }, [currentUser, needsOnboarding, isAuthLoading, navigate]);
 
   // Auto-dismiss success messages after 5 seconds
   useEffect(() => {
@@ -130,12 +130,12 @@ export const Login: React.FC = () => {
           }
         }
 
-        window.location.href = target;
+        navigate.push(target);
       } else {
         await authService.signUp(finalEmail, password, '');
         analytics.login('Signup');
         setSuccess('Account created! Redirecting to setup...');
-        window.location.href = '/onboarding';
+        navigate.push('/onboarding');
       }
     } catch (error: any) {
       console.error('Login error:', error);

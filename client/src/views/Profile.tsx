@@ -15,6 +15,17 @@ import {
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS, MOCK_INTERESTS } from '../constants';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
 
+const calculateAge = (dob?: string): number | null => {
+    if (!dob) return null;
+    const birth = new Date(dob);
+    const today = new Date();
+    if (isNaN(birth.getTime())) return null;
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+};
+
 export const Profile: React.FC = () => {
     const params = useParams();
     const id = params?.id as string;
@@ -431,9 +442,9 @@ export const Profile: React.FC = () => {
                                         <span className="bg-zinc-850 px-3 py-1 rounded-full text-xs border border-white/5 text-zinc-300 font-medium uppercase">
                                             {profileUser.gender}
                                         </span>
-                                        {profileUser.dob && (
+                                        {profileUser.dob && calculateAge(profileUser.dob) !== null && (
                                             <span className="bg-zinc-850 px-3 py-1 rounded-full text-xs border border-white/5 text-zinc-300 font-medium">
-                                                {new Date().getFullYear() - new Date(profileUser.dob).getFullYear()} Years Old
+                                                {calculateAge(profileUser.dob)} Years Old
                                             </span>
                                         )}
                                     </div>

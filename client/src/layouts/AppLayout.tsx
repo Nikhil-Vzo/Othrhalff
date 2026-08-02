@@ -55,7 +55,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const PUBLIC_ROUTES = ['/', '/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance'];
+    const PUBLIC_ROUTES = ['/', '/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance', '/blog'];
 
     // If unauthenticated and accessing a protected view, send to login
     if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
@@ -66,7 +66,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     // If authenticated and visiting login page, redirect to home or onboarding
     if (currentUser && pathname === '/login') {
       const target = needsOnboarding ? '/onboarding' : '/home';
-      window.location.href = target;
+      router.replace(target);
       return;
     }
 

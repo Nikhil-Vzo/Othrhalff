@@ -123,7 +123,10 @@ export const authService = {
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          resolve(reader.result as string);
+          resolve((reader.result as string) || '');
+        };
+        reader.onerror = () => {
+          resolve('');
         };
         reader.readAsDataURL(file);
       });

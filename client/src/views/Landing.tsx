@@ -33,6 +33,7 @@ import {
 import Link from 'next/link';
 import { useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { LoadingState } from '../components/LoadingState';
 import { VelocityScroll } from '@/components/ui/VelocityScroll';
 import {
   MobileNav,
@@ -607,10 +608,20 @@ export const Landing: React.FC = () => {
   const onEnter = () => navigate.push('/login');
   const navItems = [{ name: 'Experience', link: '#experience' }, { name: 'Stories', link: '/blog' }, { name: 'World', link: '#playground' }, { name: 'Safety', link: '#safety' }];
 
+  const isOAuthCallback = typeof window !== 'undefined' && (
+    window.location.hash.includes('access_token=') ||
+    window.location.hash.includes('error=') ||
+    window.location.search.includes('code=')
+  );
+
   useEffect(() => { if (!isLoading && isAuthenticated) navigate.push('/home'); }, [isAuthenticated, isLoading, navigate]);
   useEffect(() => { const textTimer = window.setTimeout(() => setTextRevealed(true), 120); const loadTimer = window.setTimeout(() => setPageLoaded(true), 1050); return () => { window.clearTimeout(textTimer); window.clearTimeout(loadTimer); }; }, []);
   useEffect(() => { const html = document.documentElement.style.overflow; const body = document.body.style.overflow; document.documentElement.style.overflow = 'unset'; document.body.style.overflow = 'unset'; return () => { document.documentElement.style.overflow = html; document.body.style.overflow = body; }; }, []);
   useEffect(() => { const move = (event: MouseEvent) => setMousePos({ x: event.clientX / window.innerWidth - .5, y: event.clientY / window.innerHeight - .5 }); window.addEventListener('mousemove', move, { passive: true }); return () => window.removeEventListener('mousemove', move); }, []);
+
+  if (isOAuthCallback || (isLoading && isAuthenticated)) {
+    return <LoadingState message="Signing you in..." className="bg-[#05000a] fixed inset-0 z-[999]" />;
+  }
 
   return (
     <div className="landing-page min-h-screen overflow-x-clip bg-[#07030d] font-sans text-white selection:bg-[#F45D9B] selection:text-white">
@@ -623,7 +634,9 @@ export const Landing: React.FC = () => {
         @keyframes landing-marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } } @keyframes landing-marquee-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
         @media (prefers-reduced-motion: reduce) { .landing-page *, .landing-page *::before, .landing-page *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
       `}</style>
-      <div className={`fixed inset-0 z-[999] flex flex-col items-center justify-center bg-[#05000a] transition-all duration-700 ${pageLoaded ? 'pointer-events-none scale-110 opacity-0' : 'opacity-100'}`}><div className="flex items-center gap-2"><Ghost className="h-6 w-6 animate-pulse text-[#F45D9B]" /><span className="text-2xl font-bold">OthrHalff</span></div><span className="mt-5 h-px w-36 overflow-hidden bg-white/15 after:block after:h-full after:w-1/2 after:animate-[pulse_1s_ease-in-out_infinite] after:bg-[#F45D9B]" /></div>
+      <div className={`fixed inset-0 z-[999] transition-all duration-700 ${pageLoaded ? 'pointer-events-none scale-110 opacity-0' : 'opacity-100'}`}>
+        <LoadingState message="Connecting signals..." className="bg-[#05000a] h-full w-full" />
+      </div>
       <div className="pointer-events-none fixed inset-0 z-[1] opacity-[.045] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
       <header className="relative min-h-[100svh] overflow-hidden">
         <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-8 transition-transform duration-1000 ease-out" style={{ transform: `translate3d(${mousePos.x * -15}px,${mousePos.y * -15}px,0) scale(1.04)` }}><img src="/landing_hero-bg.png?v=10" alt="" className="hidden h-full w-full object-cover md:block" /><img src="/landing_hero-mobile-bg.png?v=10" alt="" className="h-full w-full object-cover md:hidden" /></div><div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(7,3,13,.04),rgba(7,3,13,.12)_54%,#07030d_100%)]" /></div>
