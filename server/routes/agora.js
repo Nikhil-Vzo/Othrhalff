@@ -15,8 +15,8 @@ router.post('/agora-token', verifySupabaseToken, async (req, res) => {
       throw new Error('Agora credentials not configured');
     }
 
-    // Generate a unique channel name for this call
-    const channelName = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use provided channel name or generate a unique one
+    const channelName = req.body.channelName || `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Use uid 0 (auto-assign)
     const uid = 0;

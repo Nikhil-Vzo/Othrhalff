@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../client/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../client/.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 let supabaseAuthClient;
