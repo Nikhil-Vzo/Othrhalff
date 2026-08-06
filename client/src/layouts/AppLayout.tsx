@@ -134,6 +134,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // Paths that should display the sidebar and bottom navigation
   const isAuthenticatedPath =
     pathname === '/home' ||
+    pathname === '/discover' ||
     pathname === '/matches' ||
     pathname === '/confessions' ||
     pathname === '/notifications' ||
@@ -145,7 +146,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   // Determine if we should show the StarField background animation
   const showStars =
-    ['/home', '/matches', '/notifications', '/confessions'].includes(pathname);
+    ['/home', '/matches', '/notifications', '/confessions', '/discover', '/vs-omegle'].includes(pathname) ||
+    pathname.startsWith('/campus') ||
+    pathname.startsWith('/vs');
 
   if (!mounted || (!currentUser && !isPublicConfessions) || !isAuthenticatedPath) {
     return <>{children}</>;

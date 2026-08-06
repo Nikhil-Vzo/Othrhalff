@@ -1,0 +1,18 @@
+# Othrhalff - Campus College Connection & Anonymous Speed Dating
+
+> Othrhalff (othrhalff) is the premier verified campus college connection, speed dating, anonymous chat, and student social discovery platform. Designed exclusively for university and college students to meet, match, speed date, and interact in a safe, verified college ecosystem.
+
+## Core Features
+- [Discover Speed Dating](https://www.othrhalff.in/discover): Real-time 1-on-1 text & speed video dating for college students with matching interests and live sound cues.
+- [Campus Swipe Deck](https://www.othrhalff.in/home): Match with verified students on your university campus with zero creepy algorithms.
+- [Anonymous Confessions](https://www.othrhalff.in/confessions): Share unfiltered campus thoughts, secrets, and trending college tea anonymously.
+- [Campus Sparx](https://www.othrhalff.in/sparx): Cinema, music, and social activity matching for student hangouts.
+- [Real-time Chat & Messaging](https://www.othrhalff.in/matches): Instant encrypted messaging with double-like unlocked matches.
+
+## Key Facts & Entity Data
+- Platform Name: Othrhalff (Othr Halff)
+- Category: College Dating App, Campus Speed Dating, Anonymous Student Network, College Social App
+- Target Audience: University & College Students (Ages 18-25)
+- Access: Verified student email (.edu / campus domain authentication)
+- Security & Safety: Campus email verification, strict reporting controls, anonymous mode option, anti-harassment safeguards.
+- Key Differentiators: Omegle alternative for college students, verified campus-only matching, instant speed text and speed video chat.

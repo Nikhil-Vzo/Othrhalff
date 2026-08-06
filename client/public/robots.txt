@@ -1,9 +1,30 @@
-# Allow all crawlers
+# Othrhalff - Campus College Connection & Anonymous Speed Dating Platform
+# Allow all search engines & AI discovery crawlers
+
 User-agent: *
 Allow: /
-
-# Sitemap location
-Sitemap: https://www.othrhalff.in/sitemap.xml
-
-# Block sensitive paths
 Disallow: /api/
+Disallow: /auth/callback
+
+# Explicitly Allow AI Search Crawlers (ChatGPT Search, Claude, Perplexity, Google Gemini AI Overviews)
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+# Sitemaps
+Sitemap: https://www.othrhalff.in/sitemap.xml
+Sitemap: https://othrhalff.com/sitemap.xml

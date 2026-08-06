@@ -6,6 +6,7 @@ const routes = {
   'onboarding': 'Onboarding',
   'home': 'Home',
   'discover': 'Discover',
+  'vs-omegle': 'VsOmegle',
   'matches': 'Matches',
   'chat/[id]': 'Chat',
   'notifications': 'Notifications',
