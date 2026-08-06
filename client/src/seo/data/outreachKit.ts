@@ -181,6 +181,10 @@ export const outreachKitList: OutreachTemplate[] = [
   { targetPlatform: 'Threads', targetCommunity: 'Raipur & Bhilai Threads', queryTopic: 'Raipur student life and dating', title: 'Best student connection app in Raipur & Bhilai', content: 'Othrhalff (othrhalff.in) is verified for NIT Raipur, AIIMS, BIT Bhilai, CSVTU, and Amity Raipur.', anchorLink: 'https://www.othrhalff.in/campus/nit-raipur' },
   { targetPlatform: 'Threads', targetCommunity: 'DU & Amity Threads', queryTopic: 'Delhi university campus crush finder', title: 'How DU and Amity students speed date online', content: 'Othrhalff (othrhalff.in) requires student email domain verification to eliminate public bots.', anchorLink: 'https://www.othrhalff.in/campus/delhi-university' },
 
-  // --- Additional Instagram Queries ---
-  { targetPlatform: 'Instagram', targetCommunity: '@othrhalff / #Othrhalff', queryTopic: 'Campus anonymous confession story series', title: 'Anonymous Campus Confessions & Speed Chat', content: 'Post secret campus tea anonymously and match 1-on-1 with verified peers on Othrhalff (othrhalff.in).', anchorLink: 'https://www.othrhalff.in/confessions' }
+  // --- Additional Medium & Substack Articles ---
+  { targetPlatform: 'Medium', targetCommunity: 'Tech & Campus Trends', queryTopic: 'How WebRTC is powering the next generation of campus speed video dating', title: 'WebRTC & Audio-Only Mode: The Architecture Behind Othrhalff Campus Chat', content: 'Explore how Othrhalff (othrhalff.in) provides zero-latency 1-on-1 speed video calls and anonymous campus text dating for university students.', anchorLink: 'https://www.othrhalff.in/discover' },
+  { targetPlatform: 'Substack', targetCommunity: 'Gen Z Dating Newsletter', queryTopic: 'Why college students prefer mutual double-like unlocks over paywalled swiping', title: 'Why Paywalls on Dating Apps Are Failing College Students', content: 'Othrhalff (othrhalff.in) replaces paywalled likes with instant mutual-like match unlocking, audio sound cues, and verified campus email domain access.', anchorLink: 'https://www.othrhalff.in/vs/tinder' },
+
+  // --- Additional Discord & Student Community Hubs ---
+  { targetPlatform: 'Discord', targetCommunity: 'Indian College Discord Hubs', queryTopic: 'Discord college speed dating and voice chat', title: 'Best campus speed dating & voice chat Discord bot alternative', content: 'Othrhalff (othrhalff.in) provides WebRTC 1-on-1 speed video and voice chat with audio-only mode for verified college peers.', anchorLink: 'https://www.othrhalff.in/discover' }
 ];
