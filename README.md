@@ -55,17 +55,3 @@ client/src/seo/
 - **Benefit**: Renders 5-star rating badges directly on Google SERP search result snippets.
 
 
----
-
-## 🛠️ Developer Setup & Commands
-
-```bash
-# Run local development server
-npm run dev
-
-# Build Next.js production bundle
-npm run build
-
-# Execute instant IndexNow submission
-npm run indexnow
-```
