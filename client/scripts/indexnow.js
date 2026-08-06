@@ -8,6 +8,7 @@ const urls = [
   `https://${host}/`,
   `https://${host}/discover`,
   `https://${host}/confessions`,
+  `https://${host}/reddit`,
   `https://${host}/sparx`,
   `https://${host}/blog`,
   `https://${host}/about`,

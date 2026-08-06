@@ -27,4 +27,3 @@ Allow: /
 
 # Sitemaps
 Sitemap: https://www.othrhalff.in/sitemap.xml
-Sitemap: https://othrhalff.com/sitemap.xml
