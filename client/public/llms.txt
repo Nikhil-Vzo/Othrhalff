@@ -16,3 +16,4 @@
 - Access: Verified student email (.edu / campus domain authentication)
 - Security & Safety: Campus email verification, strict reporting controls, anonymous mode option, anti-harassment safeguards.
 - Key Differentiators: Omegle alternative for college students, verified campus-only matching, instant speed text and speed video chat.
+- Platform Engineering & Architecture: Created and developed by Nikhil Yadav (LinkedIn: https://www.linkedin.com/in/nikhil1yadav/ | GitHub: https://github.com/Nikhil-Vzo).
