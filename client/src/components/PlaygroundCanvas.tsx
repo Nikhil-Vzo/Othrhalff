@@ -33,16 +33,16 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
-  
+
   const keys = useRef<{ [key: string]: boolean }>({});
-  
+
   const posRef = useRef(localPosition);
   const [localDir, setLocalDir] = useState<Direction>('down');
   const [localIsMoving, setLocalIsMoving] = useState(false);
-  
+
   const dirRef = useRef<Direction>('down');
   const movingRef = useRef(false);
-  
+
   // Mobile Touch Refs
   const touchActiveRef = useRef(false);
   const touchPosRef = useRef({ x: 0, y: 0 });
@@ -80,14 +80,14 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       setLocalIsMoving(false);
       return;
     }
-    
+
     let animationFrameId: number;
-    const speed = 0.8; 
-    const playerCollisionSize = 32; 
+    const speed = 0.8;
+    const playerCollisionSize = 32;
 
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = true; };
     const handleKeyUp = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = false; };
-    
+
     // Mobile Touch Event Handlers
     const handleTouchStart = (e: TouchEvent) => {
       touchActiveRef.current = true;
@@ -95,7 +95,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         touchPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
-    
+
     const handleTouchMove = (e: TouchEvent) => {
       if (!touchActiveRef.current) return;
       e.preventDefault(); // Stop mobile browser scrolling/pull-to-refresh
@@ -103,14 +103,14 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         touchPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
-    
+
     const handleTouchEnd = () => {
       touchActiveRef.current = false;
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    
+
     const viewportNode = viewportRef.current;
     if (viewportNode) {
       viewportNode.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -119,12 +119,12 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     }
 
     let lastBroadcastTime = 0;
-    
+
     // Pixel Collision Checker
     const checkPixelCollision = (x: number, y: number, size: number) => {
       // Hard boundary check
       if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
-      
+
       // If mask isn't loaded, don't block
       if (!maskCtxRef.current) return false;
 
@@ -146,7 +146,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       let dx = 0;
       let dy = 0;
       let newDir = dirRef.current;
-      
+
       // Keyboard input
       if (keys.current['w'] || keys.current['arrowup']) { dy -= speed; }
       if (keys.current['s'] || keys.current['arrowdown']) { dy += speed; }
@@ -155,16 +155,16 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
       // Mobile Touch input
       if (touchActiveRef.current && viewportRef.current) {
-         const vw = viewportRef.current.clientWidth;
-         const vh = viewportRef.current.clientHeight;
-         const deltaX = touchPosRef.current.x - (vw / 2);
-         const deltaY = touchPosRef.current.y - (vh / 2);
-         
-         // 30px deadzone so tapping the center doesn't cause jitters
-         if (Math.abs(deltaX) > 30) dx += deltaX > 0 ? speed : -speed;
-         if (Math.abs(deltaY) > 30) dy += deltaY > 0 ? speed : -speed;
+        const vw = viewportRef.current.clientWidth;
+        const vh = viewportRef.current.clientHeight;
+        const deltaX = touchPosRef.current.x - (vw / 2);
+        const deltaY = touchPosRef.current.y - (vh / 2);
+
+        // 30px deadzone so tapping the center doesn't cause jitters
+        if (Math.abs(deltaX) > 30) dx += deltaX > 0 ? speed : -speed;
+        if (Math.abs(deltaY) > 30) dy += deltaY > 0 ? speed : -speed;
       }
-      
+
       // Determine direction (favor Y axis if angle is steep)
       if (dx !== 0 || dy !== 0) {
         if (Math.abs(dy) > Math.abs(dx)) {
@@ -188,7 +188,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (isCurrentlyMoving) {
         let proposedX = posRef.current.x + dx;
         let proposedY = posRef.current.y + dy;
-        
+
         // WALL SLIDING LOGIC using Pixel Collisions
         if (!checkPixelCollision(proposedX, proposedY, playerCollisionSize)) {
           posRef.current = { x: proposedX, y: proposedY };
@@ -216,12 +216,12 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving);
         lastBroadcastTime = timestamp;
       }
-      
+
       animationFrameId = requestAnimationFrame(updateLoop);
     };
-    
+
     animationFrameId = requestAnimationFrame(updateLoop);
-    
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
@@ -236,12 +236,12 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
   return (
     <div ref={viewportRef} className="relative w-full h-full bg-black overflow-hidden">
-      
+
       {/* THE WORLD - This pans around underneath the centered camera */}
-      <div 
+      <div
         ref={worldRef}
         className="absolute top-0 left-0"
-        style={{ 
+        style={{
           width: `${WORLD_WIDTH}px`,
           height: `${WORLD_HEIGHT}px`,
           backgroundImage: `url('/assets/campus map.png')`,
@@ -251,27 +251,27 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
           willChange: 'transform'
         }}
       >
-        
+
         {/* Remote Players */}
         {remotePlayers.map((player) => (
-           <AvatarSprite 
-             key={player.id}
-             x={player.x}
-             y={player.y}
-             direction={player.direction || 'down'}
-             isMoving={player.isMoving || false}
-             color={player.color}
-             username={player.id.substring(0, 5)}
-           />
+          <AvatarSprite
+            key={player.id}
+            x={player.x}
+            y={player.y}
+            direction={player.direction || 'down'}
+            isMoving={player.isMoving || false}
+            color={player.color}
+            username={player.id.substring(0, 5)}
+          />
         ))}
-        
+
         {/* Local Player */}
-        <AvatarSprite 
-           x={posRef.current.x}
-           y={posRef.current.y}
-           direction={localDir}
-           isMoving={localIsMoving}
-           isLocal={true}
+        <AvatarSprite
+          x={posRef.current.x}
+          y={posRef.current.y}
+          direction={localDir}
+          isMoving={localIsMoving}
+          isLocal={true}
         />
 
       </div>

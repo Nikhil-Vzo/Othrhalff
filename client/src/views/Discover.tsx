@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { VideoCall } from '../components/VideoCall';
 import { Heart, Search, SkipForward, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+const VideoCall = dynamic<any>(
+  () => import('../components/VideoCall').then(mod => mod.VideoCall),
+  { ssr: false }
+);
 
 type DiscoverState = 'IDLE' | 'SEARCHING' | 'CONNECTING' | 'CONNECTED' | 'MATCHED';
 
