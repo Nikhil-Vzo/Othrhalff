@@ -10,6 +10,10 @@ export type { CampusData };
 
 export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) => {
   const router = useRouter();
+
+  React.useEffect(() => {
+    router.replace('/');
+  }, [router]);
   const slug = campusSlug || 'delhi-university';
   const campus = campusList.find(c => c.slug === slug) || campusList[0];
 

@@ -7,6 +7,10 @@ import { outreachKitList } from '../data/outreachKit';
 export const RedditHub: React.FC = () => {
   const router = useRouter();
 
+  React.useEffect(() => {
+    router.replace('/');
+  }, [router]);
+
   return (
     <div className="min-h-screen bg-black text-white relative font-sans overflow-x-hidden selection:bg-neon selection:text-white">
       <StarField />

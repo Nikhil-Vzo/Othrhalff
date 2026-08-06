@@ -89,6 +89,10 @@ export const competitorList: CompetitorData[] = [
 
 export const VsCompetitor: React.FC<{ competitorSlug?: string }> = ({ competitorSlug }) => {
   const router = useRouter();
+
+  React.useEffect(() => {
+    router.replace('/');
+  }, [router]);
   const slug = competitorSlug || 'tinder';
   const comp = competitorList.find(c => c.slug === slug) || competitorList[0];
 
