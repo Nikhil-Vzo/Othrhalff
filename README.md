@@ -54,9 +54,6 @@ client/src/seo/
 - **Mechanism**: Injects `WebApplication` with `AggregateRating` (★ 4.9 / 1,280 reviews) and `DiscussionForumPosting` JSON-LD schema graphs directly into `<head>`.
 - **Benefit**: Renders 5-star rating badges directly on Google SERP search result snippets.
 
-### 8. **Tactic 8: Discreet Developer Entity & Portfolio Attribution**
-- **Mechanism**: Encodes discrete `Person` & `founder` JSON-LD schema graphs and `llms.txt` citations connecting **Nikhil Yadav** ([LinkedIn Profile](https://www.linkedin.com/in/nikhil1yadav/)) directly to Othrhalff's knowledge graph.
-- **Benefit**: Ranks portfolio search queries without affecting end-user UI design.
 
 ---
 
