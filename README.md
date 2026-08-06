@@ -1,4 +1,3 @@
-# 🚀 Othrhalff – Verified Campus Dating & Student Social Network
 
 > **Production Platform**: [Othrhalff](https://www.othrhalff.in)  
 > **Brand & Target**: Verified Campus College Connection, Instant Speed Text & Video Chat, Anonymous Confessions
