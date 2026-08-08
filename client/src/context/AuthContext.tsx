@@ -5,6 +5,7 @@ import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
 import ForceLogoutCountdown from '../components/ForceLogoutCountdown';
 import { db } from '../lib/db';
+import { subscribeToPushNotifications } from '../services/pushNotifications';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -52,6 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         if (session?.user) {
           setIsLoading(true);
+          if (session.access_token) {
+            subscribeToPushNotifications(session.access_token).catch(() => {});
+          }
           if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
             window.history.replaceState(null, '', window.location.pathname);
           }
