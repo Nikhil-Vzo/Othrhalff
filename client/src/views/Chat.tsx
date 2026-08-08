@@ -863,6 +863,40 @@ export const Chat: React.FC = () => {
     markMessagesReadRef.current();
   }, [matchId, currentUser?.id]);
 
+  // Offline Outbox Sync: Auto-retry pending outbox messages on network recovery
+  useEffect(() => {
+    const handleOnline = async () => {
+      try {
+        const pending = await db.outbox.where('status').equals('pending').toArray();
+        if (!pending || pending.length === 0) return;
+        
+        for (const item of pending) {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert({ match_id: item.match_id, sender_id: item.sender_id, text: item.text })
+            .select()
+            .single();
+
+          if (!error && data) {
+            await db.transaction('rw', [db.messages, db.outbox], async () => {
+              await db.messages.delete(item.id);
+              await db.messages.put(mapSupabaseMessageToLocal(data, item.match_id));
+              await db.outbox.delete(item.id);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Dexie Outbox Sync] Retry failed:', err);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    if (navigator.onLine) {
+      handleOnline();
+    }
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   const loadMoreMessages = async () => {
     if (!hasMoreMessages || isLoadingMore || !matchId) return;
     setIsLoadingMore(true);
@@ -1228,11 +1262,21 @@ export const Chat: React.FC = () => {
       if (localSaved) {
         try {
           await db.messages.update(optimisticId, { status: 'failed' });
+          // Save to Dexie outbox for background retry when connection restores
+          await db.outbox.put({
+            id: optimisticId,
+            match_id: matchId,
+            sender_id: currentUser.id,
+            text: textToSend,
+            created_at: Date.now(),
+            status: 'pending',
+            retry_count: 0
+          });
         } catch (dbErr) {
           console.error('Failed to mark message as failed in local DB:', dbErr);
         }
       } 
-      showToast('Failed to send', 'error'); 
+      showToast('Failed to send (saved to offline outbox)', 'error'); 
     }
   };
 

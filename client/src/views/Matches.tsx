@@ -11,6 +11,8 @@ import { getRandomQuote } from '../data/loadingQuotes';
 import { LoadingState } from '../components/LoadingState';
 import { buildRealtimeIdFilter, chunkIds } from '../utils/realtime';
 
+import { db } from '../lib/db';
+
 interface ChatPreview {
   id: string;
   partner: MatchProfile;
@@ -19,18 +21,19 @@ interface ChatPreview {
   unreadCount: number;
 }
 
-// v6: localStorage + stale-while-revalidate
+// v6: IndexedDB (Dexie) + localStorage fallback + stale-while-revalidate
 const CACHE_KEY = 'otherhalf_matches_cache_v6';
 const CACHE_EXPIRY_KEY = 'otherhalf_matches_expiry_v6';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Helper: read cache from localStorage (survives tab close)
+// Helper: read cache from Dexie IndexedDB (falling back to localStorage)
 const readCache = (): ChatPreview[] => {
   try {
     const expiry = localStorage.getItem(CACHE_EXPIRY_KEY);
     if (expiry && Date.now() > parseInt(expiry, 10)) {
       localStorage.removeItem(CACHE_KEY);
       localStorage.removeItem(CACHE_EXPIRY_KEY);
+      db.matches.clear().catch(() => {});
       return [];
     }
     const cached = localStorage.getItem(CACHE_KEY);
@@ -46,8 +49,41 @@ const readCache = (): ChatPreview[] => {
   } catch { return []; }
 };
 
+// Async helper to populate state from Dexie
+const readDexieMatches = async (): Promise<ChatPreview[]> => {
+  try {
+    const records = await db.matches.toArray();
+    if (records && records.length > 0) {
+      return records.map(r => ({
+        id: r.id,
+        partner: r.partner,
+        lastMessage: r.lastMessage,
+        lastMessageTime: r.lastMessageTime,
+        unreadCount: r.unreadCount
+      }));
+    }
+  } catch (e) {
+    console.warn('[Dexie Matches] Error reading Dexie matches:', e);
+  }
+  return readCache();
+};
+
 const writeCache = (data: ChatPreview[]) => {
   try {
+    // 1. Primary: Persist to Dexie IndexedDB
+    const dexieRecords = data.map(c => ({
+      id: c.id,
+      partner: c.partner,
+      lastMessage: c.lastMessage,
+      lastMessageTime: c.lastMessageTime,
+      unreadCount: c.unreadCount,
+      updated_at: Date.now()
+    }));
+    db.matches.bulkPut(dexieRecords).catch(err => {
+      console.warn('[Dexie Matches] Failed to write to Dexie DB:', err);
+    });
+
+    // 2. Secondary: Sync to localStorage for fallback
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     localStorage.setItem(CACHE_EXPIRY_KEY, String(Date.now() + CACHE_DURATION));
   } catch { /* quota exceeded — ignore */ }
@@ -131,27 +167,32 @@ export const Matches: React.FC = () => {
 
   // Load cache and session state on mount
   useEffect(() => {
-    let initialChats = readCache();
-    try {
-      const lastViewedMatchId = sessionStorage.getItem('last_viewed_match_id');
-      if (lastViewedMatchId) {
-        initialChats = initialChats.map((c: ChatPreview) => {
-          if (c.id === lastViewedMatchId) {
-            return {
-              ...c,
-              unreadCount: 0
-            };
-          }
-          return c;
-        });
-        writeCache(initialChats);
-        sessionStorage.removeItem('last_viewed_match_id');
+    let isMounted = true;
+    (async () => {
+      let initialChats = await readDexieMatches();
+      if (!isMounted) return;
+      try {
+        const lastViewedMatchId = sessionStorage.getItem('last_viewed_match_id');
+        if (lastViewedMatchId) {
+          initialChats = initialChats.map((c: ChatPreview) => {
+            if (c.id === lastViewedMatchId) {
+              return {
+                ...c,
+                unreadCount: 0
+              };
+            }
+            return c;
+          });
+          writeCache(initialChats);
+          sessionStorage.removeItem('last_viewed_match_id');
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-    }
-    setChats(initialChats);
-    setLoading(initialChats.length === 0);
+      setChats(initialChats);
+      setLoading(initialChats.length === 0);
+    })();
+    return () => { isMounted = false; };
   }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'unread' | 'online'>('all');

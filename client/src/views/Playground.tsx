@@ -5,6 +5,7 @@ import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { MapPin, MapPinOff, Users } from 'lucide-react';
+import { db } from '../lib/db';
 
 export const Playground: React.FC = () => {
   const { currentUser } = useAuth();
@@ -29,6 +30,28 @@ export const Playground: React.FC = () => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Load saved position and GPS preferences from Dexie IndexedDB
+  useEffect(() => {
+    if (!currentUser) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const savedSettings = await db.playground_settings.get(currentUser.id);
+        if (savedSettings && isMounted) {
+          if (typeof savedSettings.last_x === 'number' && typeof savedSettings.last_y === 'number') {
+            setMyPos({ x: savedSettings.last_x, y: savedSettings.last_y });
+          }
+          if (typeof savedSettings.gps_enabled === 'boolean') {
+            setGpsEnabled(savedSettings.gps_enabled);
+          }
+        }
+      } catch (err) {
+        console.warn('[Dexie Playground] Error loading settings:', err);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [currentUser]);
 
   // 1. Supabase Broadcast Setup for Real-time Multiplayer
   useEffect(() => {
@@ -122,7 +145,18 @@ export const Playground: React.FC = () => {
   const handlePositionChange = useCallback((x: number, y: number, dir: string, moving: boolean) => {
     setMyPos({ x, y });
     broadcastPosition(x, y, dir, moving);
-  }, [broadcastPosition]);
+
+    // Save to Dexie IndexedDB
+    if (currentUser?.id) {
+      db.playground_settings.put({
+        id: currentUser.id,
+        last_x: Math.round(x),
+        last_y: Math.round(y),
+        gps_enabled: gpsEnabled,
+        updated_at: Date.now()
+      }).catch(() => {});
+    }
+  }, [broadcastPosition, currentUser?.id, gpsEnabled]);
 
   // 2. Geolocation Integration
   useEffect(() => {

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import agoraRouter from './routes/agora.js';
 import matchesRouter from './routes/matches.js';
 import confessionsRouter from './routes/confessions.js';
+import { rateLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +39,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Global API Rate Limiting (Redis powered with in-memory fallback)
+app.use('/api', rateLimiter({ limit: 60, windowSeconds: 60 }));
 
 // Health Check
 app.get('/api/health', (req, res) => {

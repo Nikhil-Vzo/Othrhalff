@@ -10,3 +10,14 @@ services:
         value: production
       - key: DAILY_API_KEY
         sync: false  # Set this in Render Dashboard for security
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: other-half-redis
+          property: connectionString
+
+  - type: redis
+    name: other-half-redis
+    ipAllowList: [] # internal networking only
+    plan: free
+

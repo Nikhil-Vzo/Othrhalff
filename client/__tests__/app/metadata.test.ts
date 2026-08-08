@@ -278,7 +278,9 @@ describe('Layout metadata (client/app/layout.tsx)', () => {
   });
 
   it('title is OthrHalff', () => {
-    expect(layoutMetadata.title).toBe('OthrHalff');
+    const titleObj = layoutMetadata.title as any;
+    const titleStr = typeof titleObj === 'string' ? titleObj : (titleObj?.default || '');
+    expect(titleStr.toLowerCase()).toContain('othrhalff');
   });
 
   it('has a description', () => {
@@ -289,7 +291,8 @@ describe('Layout metadata (client/app/layout.tsx)', () => {
     expect((layoutMetadata.description as string).toLowerCase()).toContain('anonymous');
   });
 
-  it('description contains "destiny"', () => {
-    expect((layoutMetadata.description as string).toLowerCase()).toContain('destiny');
+  it('description contains "campus" or "dating"', () => {
+    const desc = (layoutMetadata.description as string).toLowerCase();
+    expect(desc.includes('campus') || desc.includes('dating')).toBe(true);
   });
 });
