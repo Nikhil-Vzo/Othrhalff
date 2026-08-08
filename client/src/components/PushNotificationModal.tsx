@@ -102,27 +102,27 @@ export const PushNotificationModal: React.FC = () => {
 
         {/* Title */}
         <h3 className="text-2xl font-black text-white tracking-tight mb-2 font-geist">
-          Never Miss a Campus Spark! ⚡
+          Hey! Developer wanna say something to you 💬
         </h3>
 
         {/* Body Text */}
         <p className="text-sm text-gray-300 leading-relaxed mb-6 font-medium">
-          Enable notifications to receive personal updates from developers, instant match alerts & speed date invites from your campus.
+          Enable notifications to receive personal messages, campus updates & secret announcements directly from the developers.
         </p>
 
         {/* Benefit Highlights */}
         <div className="space-y-2.5 mb-6 text-left bg-gray-900/50 p-4 rounded-2xl border border-gray-800/60 text-xs">
           <div className="flex items-center gap-2.5 text-gray-200">
             <MessageSquareHeart className="w-4 h-4 text-neon flex-shrink-0" />
-            <span>Direct personal updates & event alerts from devs</span>
+            <span>Direct personal messages from developers</span>
           </div>
           <div className="flex items-center gap-2.5 text-gray-200">
             <Sparkles className="w-4 h-4 text-purple-400 flex-shrink-0" />
-            <span>Instant notification when someone likes your profile</span>
+            <span>Exclusive campus event alerts & feature drops</span>
           </div>
           <div className="flex items-center gap-2.5 text-gray-200">
             <ShieldCheck className="w-4 h-4 text-green-400 flex-shrink-0" />
-            <span>Safe, zero-spam campus notifications</span>
+            <span>Safe, zero-spam notifications</span>
           </div>
         </div>
 
