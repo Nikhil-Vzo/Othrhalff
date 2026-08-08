@@ -1,7 +1,7 @@
 import express from 'express';
 import webpush from 'web-push';
 import { verifySupabaseToken } from '../middleware/auth.js';
-import { cacheSet, cacheGet } from '../lib/redis.js';
+import { redis, isConnected, cacheSet, cacheGet } from '../lib/redis.js';
 
 const router = express.Router();
 
@@ -99,4 +99,74 @@ router.post('/push/send', verifySupabaseToken, async (req, res) => {
   }
 });
 
+// 4. BROADCAST Web Push Notification to ALL Subscribed Users
+router.post('/push/broadcast', verifySupabaseToken, async (req, res) => {
+  try {
+    const { title, body, icon, url, metadata } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ error: 'Missing title or body for broadcast' });
+    }
+
+    const subscriptions = [];
+
+    // Collect subscriptions from Redis if connected
+    if (redis && isConnected) {
+      try {
+        const keys = await redis.keys('push_sub:*');
+        for (const key of keys) {
+          const raw = await redis.get(key);
+          if (raw) {
+            try { subscriptions.push(JSON.parse(raw)); } catch (e) {}
+          }
+        }
+      } catch (e) {
+        console.warn('[Broadcast] Error reading Redis push keys:', e);
+      }
+    }
+
+    // Also collect local in-memory fallback subscriptions
+    for (const sub of localSubscriptions.values()) {
+      if (sub && !subscriptions.some(s => s.endpoint === sub.endpoint)) {
+        subscriptions.push(sub);
+      }
+    }
+
+    if (subscriptions.length === 0) {
+      return res.status(404).json({ success: false, message: 'No active push subscribers found' });
+    }
+
+    const payload = JSON.stringify({
+      title: title || '🔥 Campus Alert | Othrhalff',
+      body: body,
+      icon: icon || '/favicon.png',
+      metadata: {
+        url: url || 'https://www.othrhalff.in',
+        ...metadata
+      }
+    });
+
+    // Send push notification to ALL subscribers in parallel
+    const results = await Promise.allSettled(
+      subscriptions.map(sub => webpush.sendNotification(sub, payload))
+    );
+
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    res.json({
+      success: true,
+      message: `Broadcast complete! Sent to ${successful} users (${failed} failed / expired).`,
+      totalSubscribers: subscriptions.length,
+      successful,
+      failed
+    });
+
+  } catch (error) {
+    console.error('Error broadcasting push notification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
+
