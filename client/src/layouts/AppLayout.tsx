@@ -18,6 +18,7 @@ const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mo
 
 import { IncomingCallModal } from '../components/IncomingCallModal';
 import { OutgoingCallModal } from '../components/OutgoingCallModal';
+import { PushNotificationModal } from '../components/PushNotificationModal';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -476,6 +477,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
       />
+      <PushNotificationModal />
     </div>
   );
 };
