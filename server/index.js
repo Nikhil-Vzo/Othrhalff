@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import agoraRouter from './routes/agora.js';
 import matchesRouter from './routes/matches.js';
 import confessionsRouter from './routes/confessions.js';
+import pushRouter from './routes/push.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,6 +53,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api', agoraRouter);
 app.use('/api', matchesRouter);
 app.use('/api', confessionsRouter);
+app.use('/api', pushRouter);
 
 app.get('/', (req, res) => {
   res.send('Backend API is running. Use the Vercel Frontend to interact.');
