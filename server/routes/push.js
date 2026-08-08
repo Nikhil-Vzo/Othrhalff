@@ -99,9 +99,16 @@ router.post('/push/send', verifySupabaseToken, async (req, res) => {
   }
 });
 
-// 4. BROADCAST Web Push Notification to ALL Subscribed Users
+// 4. BROADCAST Web Push Notification to ALL Subscribed Users (Admin Protected)
 router.post('/push/broadcast', verifySupabaseToken, async (req, res) => {
   try {
+    const adminSecret = req.headers['x-admin-secret'] || req.body.adminSecret;
+    const expectedSecret = process.env.ADMIN_SECRET_KEY || 'othrhalff_admin_secret_key_2026';
+
+    if (adminSecret !== expectedSecret) {
+      return res.status(403).json({ error: 'Forbidden: Invalid or missing Admin Secret Key' });
+    }
+
     const { title, body, icon, url, metadata } = req.body;
 
     if (!title || !body) {
