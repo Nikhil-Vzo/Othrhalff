@@ -4,10 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
   Heart, Search, SkipForward, MessageSquare, Video, Send, 
-  ArrowLeft, User, Clock
+  ArrowLeft, User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { StarField } from '../components/StarField';
 
 const VideoCall = dynamic<any>(
   () => import('../components/VideoCall').then(mod => mod.VideoCall),
@@ -23,72 +22,6 @@ interface ChatMessage {
   text: string;
   timestamp: number;
 }
-
-let sharedAudioCtx: AudioContext | null = null;
-
-const getAudioContext = (): AudioContext | null => {
-  if (typeof window === 'undefined') return null;
-  if (!sharedAudioCtx) {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (AudioCtx) {
-      sharedAudioCtx = new AudioCtx();
-    }
-  }
-  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
-    sharedAudioCtx.resume().catch(() => {});
-  }
-  return sharedAudioCtx;
-};
-
-const playSoundEffect = (type: 'MATCH' | 'MESSAGE' | 'DISCONNECT') => {
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    const now = ctx.currentTime;
-
-    if (type === 'MATCH') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(659.25, now);
-      osc.frequency.setValueAtTime(830.61, now + 0.08);
-      osc.frequency.setValueAtTime(987.77, now + 0.16);
-
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-
-      osc.start(now);
-      osc.stop(now + 0.45);
-    } else if (type === 'MESSAGE') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, now);
-      osc.frequency.exponentialRampToValueAtTime(240, now + 0.07);
-
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-
-      osc.start(now);
-      osc.stop(now + 0.07);
-    } else if (type === 'DISCONNECT') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
-
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-      osc.start(now);
-      osc.stop(now + 0.12);
-    }
-  } catch (err) {
-    // Audio autoplay blocked or unsupported
-  }
-};
 
 export const Discover: React.FC = () => {
   const { currentUser } = useAuth();
@@ -388,7 +321,6 @@ export const Discover: React.FC = () => {
 
         setState('CONNECTED');
         setIsPartnerDisconnected(false);
-        playSoundEffect('MATCH');
       } catch (err) {
         console.error("Match accept error:", err);
         setState('SEARCHING');
@@ -399,7 +331,6 @@ export const Discover: React.FC = () => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTING') {
         setState('CONNECTED');
         setIsPartnerDisconnected(false);
-        playSoundEffect('MATCH');
       }
     });
 
@@ -407,7 +338,6 @@ export const Discover: React.FC = () => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTED') {
         setMessages(prev => [...prev, payload.message]);
         setIsPartnerTyping(false);
-        playSoundEffect('MESSAGE');
       }
     });
 
@@ -428,7 +358,6 @@ export const Discover: React.FC = () => {
     newChannel.on('broadcast', { event: 'SKIP' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTED') {
         setIsPartnerDisconnected(true);
-        playSoundEffect('DISCONNECT');
       }
     });
 
@@ -488,13 +417,11 @@ export const Discover: React.FC = () => {
   if (state === 'IDLE') {
     return (
       <div className="w-full h-full flex flex-col items-center justify-between bg-black text-white p-6 relative">
-        <StarField />
-        
-        {/* Top Header Bar */}
+        {/* Top Header */}
         <div className="w-full max-w-md flex items-center justify-between z-10">
           <button
             onClick={() => router.push('/home')}
-            className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors md:hidden"
+            className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
             aria-label="Back to Home"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -508,32 +435,29 @@ export const Discover: React.FC = () => {
           </div>
         </div>
 
-        {/* Header Title Section (Pushed Up) */}
-        <div className="w-full max-w-md flex flex-col items-center text-center z-10 pt-4 pb-2">
-          <div className="w-20 h-20 rounded-full bg-neon/20 border border-neon/30 flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(255,0,127,0.3)]">
+        {/* Hero Content */}
+        <div className="w-full max-w-md flex flex-col items-center text-center my-auto">
+          <div className="w-20 h-20 rounded-full bg-neon/20 border border-neon/30 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,0,127,0.3)]">
             <Search className="w-9 h-9 text-neon" />
           </div>
 
           <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">
             Discover
           </h1>
-          <p className="text-gray-400 text-xs text-center max-w-xs leading-relaxed">
-            Match randomly with students on campus right now.
+          <p className="text-gray-400 text-xs text-center max-w-xs mb-4">
+            Match randomly with anyone in your campus right now.
           </p>
-        </div>
 
-        {/* Options Section (Pushed Down) */}
-        <div className="w-full max-w-md flex flex-col items-center z-10 pb-4">
           {/* Single User Online Banner */}
           {activeUsersCount <= 1 && (
-            <div className="mb-5 px-3.5 py-1.5 rounded-full bg-gray-900 border border-gray-800 text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
+            <div className="mb-6 px-3.5 py-1.5 rounded-full bg-gray-900 border border-gray-800 text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-neon" />
-              <span>You are currently the first student online right now.</span>
+              <span>You are currently the only person online right now.</span>
             </div>
           )}
 
           {/* Mode Switcher */}
-          <div className="flex bg-gray-900 p-1 rounded-full border border-gray-800 mb-5 w-full max-w-xs">
+          <div className="flex bg-gray-900 p-1 rounded-full border border-gray-800 mb-8 w-full max-w-xs">
             <button
               onClick={() => setMode('TEXT')}
               className={`flex-1 py-2.5 rounded-full text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
@@ -560,10 +484,7 @@ export const Discover: React.FC = () => {
 
           {/* Start Button */}
           <button
-            onClick={() => {
-              getAudioContext();
-              setState('SEARCHING');
-            }}
+            onClick={() => setState('SEARCHING')}
             className="w-full max-w-xs py-4 bg-neon text-white font-bold rounded-full uppercase tracking-widest text-xs shadow-[0_4px_14px_rgba(255,0,127,0.4)] active:scale-95 transition-transform"
           >
             Start Discovering
@@ -571,9 +492,9 @@ export const Discover: React.FC = () => {
         </div>
 
         {/* Footer info */}
-        <div className="w-full max-w-md text-center py-2 z-10">
+        <div className="w-full max-w-md text-center py-2">
           <p className="text-[11px] text-gray-500">
-            Othrhalff Campus Speed Dating • Mutual likes during live text or video chat unlock a permanent match.
+            Mutual likes during chat unlock a permanent match.
           </p>
         </div>
       </div>
@@ -586,19 +507,18 @@ export const Discover: React.FC = () => {
   if (state === 'SEARCHING' || state === 'CONNECTING') {
     return (
       <div className="w-full h-full flex flex-col items-center justify-between bg-black text-white p-6 relative">
-        <StarField />
         <div className="w-full max-w-md flex items-center justify-between z-10">
           <button
             onClick={() => setState('IDLE')}
-            className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors md:hidden"
+            className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
 
           <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-800 px-3 py-1.5 rounded-full">
-            <Clock className="w-3.5 h-3.5 text-neon animate-spin" style={{ animationDuration: '4s' }} />
+            <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
             <span className="text-xs font-bold text-gray-300 font-mono">
-              {state === 'SEARCHING' ? `Searching... ${Math.floor(searchTime / 60)}:${(searchTime % 60).toString().padStart(2, '0')}` : 'Connecting...'}
+              {state === 'SEARCHING' ? `Searching... ${searchTime}s` : 'Connecting...'}
             </span>
           </div>
         </div>
@@ -623,13 +543,13 @@ export const Discover: React.FC = () => {
           {/* Timeout / Single User Telemetry Notification */}
           {state === 'SEARCHING' && activeUsersCount <= 1 && (
             <p className="text-xs font-mono text-neon/90 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800">
-              You are currently the only student online right now. Waiting for someone to join...
+              You are currently the only one online right now. Waiting for someone to join...
             </p>
           )}
 
           {state === 'SEARCHING' && activeUsersCount > 1 && searchTime >= 15 && (
             <p className="text-xs font-mono text-gray-400 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800">
-              Searching for available campus peer in {mode} mode...
+              Searching for available persons in {mode} mode...
             </p>
           )}
         </div>
@@ -693,7 +613,7 @@ export const Discover: React.FC = () => {
                 handleSkip();
                 setState('IDLE');
               }}
-              className="w-9 h-9 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors md:hidden"
+              className="w-9 h-9 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -775,7 +695,7 @@ export const Discover: React.FC = () => {
               onClick={() => cleanupAndResetState('SEARCHING')}
               className="w-full py-3 bg-neon text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-lg shadow-neon/20"
             >
-              Find Next Student
+              Find Next Person
             </button>
           </div>
         ) : (
@@ -807,8 +727,8 @@ export const Discover: React.FC = () => {
   if (state === 'CONNECTED' && mode === 'VIDEO' && callInfo) {
     return (
       <div className="w-full h-full relative bg-black">
-        {/* Back Button Overlay (Mobile Only) */}
-        <div className="absolute top-4 left-4 z-[140] md:hidden">
+        {/* Back Button Overlay */}
+        <div className="absolute top-4 left-4 z-[140]">
           <button
             onClick={() => {
               handleSkip();
