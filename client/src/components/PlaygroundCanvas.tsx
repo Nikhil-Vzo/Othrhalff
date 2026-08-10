@@ -6,17 +6,39 @@ export interface Player {
   x: number;
   y: number;
   color: string;
+  color: string;
   direction?: Direction;
   isMoving?: boolean;
+  sittingOn?: string | null;
 }
 
 interface PlaygroundCanvasProps {
   localPlayerId: string;
-  onPositionChange: (x: number, y: number, dir: Direction, moving: boolean) => void;
+  localSessionId: string;
+  onPositionChange: (x: number, y: number, dir: Direction, moving: boolean, sittingOn?: string | null) => void;
   remotePlayers: Player[];
-  gpsEnabled: boolean;
   localPosition: { x: number; y: number };
+  speechBubbles: Map<string, {text: string, timestamp: number}>;
+  sitState: 'IDLE' | 'SITTING';
+  activeBench: string | null;
+  onSitRequest: (benchId: string, benchX: number, benchY: number) => void;
 }
+
+const BENCH_ZONES = [
+  // Top row near trees
+  { id: 'bench-top-1', x: 1420, y: 280, radius: 80 },
+  { id: 'bench-top-2', x: 1530, y: 280, radius: 80 },
+  { id: 'bench-top-3', x: 1640, y: 280, radius: 80 },
+  { id: 'bench-top-4', x: 1750, y: 280, radius: 80 },
+  
+  // Center Plaza
+  { id: 'bench-plaza-tl', x: 1540, y: 770, radius: 80 },
+  { id: 'bench-plaza-tr', x: 1950, y: 770, radius: 80 },
+  { id: 'bench-plaza-c',  x: 1740, y: 930, radius: 80 },
+  { id: 'bench-plaza-bl', x: 1540, y: 1110, radius: 80 },
+  { id: 'bench-plaza-bc', x: 1760, y: 1240, radius: 80 },
+  { id: 'bench-plaza-br', x: 1890, y: 1110, radius: 80 }
+];
 
 // ---------------------------------------------------------
 // MAP SETTINGS
@@ -26,10 +48,14 @@ const WORLD_HEIGHT = 1440;
 
 export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   localPlayerId,
+  localSessionId,
   onPositionChange,
   remotePlayers,
-  gpsEnabled,
-  localPosition
+  localPosition,
+  speechBubbles,
+  sitState,
+  activeBench,
+  onSitRequest
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -46,6 +72,16 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   // Mobile Touch Refs
   const touchActiveRef = useRef(false);
   const touchPosRef = useRef({ x: 0, y: 0 });
+
+  const activeBenchRef = useRef(activeBench);
+  const lastActiveBenchRef = useRef<string | null>(null);
+  
+  useEffect(() => { 
+    activeBenchRef.current = activeBench; 
+    if (activeBench) {
+      lastActiveBenchRef.current = activeBench;
+    }
+  }, [activeBench]);
 
   // COLLISION MASK ENGINE
   const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -76,17 +112,33 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
   // WASD Movement & Camera Panning Loop
   useEffect(() => {
-    if (gpsEnabled) {
-      setLocalIsMoving(false);
-      return;
-    }
 
     let animationFrameId: number;
     const speed = 0.8;
     const playerCollisionSize = 32;
 
-    const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = true; };
-    const handleKeyUp = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = false; };
+
+    const handleKeyDown = (e: KeyboardEvent) => { 
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      keys.current[e.key.toLowerCase()] = true; 
+
+      // Handle interaction key (SPACE) for benches
+      if (e.code === 'Space' && sitState === 'IDLE') {
+        const nearZone = BENCH_ZONES.find(zone => {
+          const dx = posRef.current.x - zone.x;
+          const dy = posRef.current.y - zone.y;
+          return Math.sqrt(dx*dx + dy*dy) < zone.radius;
+        });
+        if (nearZone) {
+          onSitRequest(nearZone.id, nearZone.x, nearZone.y);
+        }
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => { 
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      keys.current[e.key.toLowerCase()] = false; 
+    };
+    
 
     // Mobile Touch Event Handlers
     const handleTouchStart = (e: TouchEvent) => {
@@ -124,6 +176,31 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     const checkPixelCollision = (x: number, y: number, size: number) => {
       // Hard boundary check
       if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
+
+      // Check Bench Collision
+      const benchCollisionRadius = 30; // Solid physics core
+      for (const zone of BENCH_ZONES) {
+        if (zone.id === activeBenchRef.current) continue; // Allow standing up from current bench
+        
+        const dx = x - zone.x;
+        const dy = y - (zone.y + 10); // Center of physical bench block
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        // If they just stood up, they are still inside the bench radius. 
+        // We let them walk OUT, and lock the wall behind them only once they are fully clear.
+        if (zone.id === lastActiveBenchRef.current) {
+          if (dist > benchCollisionRadius + 2) {
+            lastActiveBenchRef.current = null; // They are out! Clear it.
+          } else {
+            continue; // Still inside, let them move freely
+          }
+        }
+
+        if (dist < benchCollisionRadius) {
+          return true; // Hit a bench!
+        }
+      }
+
 
       // If mask isn't loaded, don't block
       if (!maskCtxRef.current) return false;
@@ -203,17 +280,32 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (viewportRef.current && worldRef.current) {
         const vw = viewportRef.current.clientWidth;
         const vh = viewportRef.current.clientHeight;
-        const zoom = 1.6; // Increased zoom factor
-        const offsetX = (vw / 2) - (posRef.current.x * zoom);
-        const offsetY = (vh / 2) - (posRef.current.y * zoom);
+        
+        // Find interaction target if one exists
+        const targetZone = activeBench ? BENCH_ZONES.find(z => z.id === activeBench) : null;
+        
+        let targetX = posRef.current.x;
+        let targetY = posRef.current.y;
+        let zoom = 1.6;
+        
+        if (targetZone && sitState === 'SITTING') {
+          targetX = targetZone.x;
+          targetY = targetZone.y;
+          zoom = 2.5; // Zoom in during bench interaction
+        }
+
+        const offsetX = (vw / 2) - (targetX * zoom);
+        const offsetY = (vh / 2) - (targetY * zoom);
+        
         worldRef.current.style.transformOrigin = '0 0';
+        worldRef.current.style.transition = 'transform 0.5s ease-out'; // Smooth camera moves
         worldRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
       }
 
       // Throttle network broadcast — only broadcast while moving or when stopping
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
       if ((isCurrentlyMoving || movementStateChanged) && (timestamp - lastBroadcastTime > 100)) {
-        onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving);
+        onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving, activeBenchRef.current);
         lastBroadcastTime = timestamp;
       }
 
@@ -232,7 +324,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       }
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gpsEnabled, onPositionChange]);
+  }, [onPositionChange, onSitRequest, sitState]);
 
   return (
     <div ref={viewportRef} className="relative w-full h-full bg-black overflow-hidden">
@@ -252,26 +344,72 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         }}
       >
 
-        {/* Remote Players */}
-        {remotePlayers.map((player) => (
-          <AvatarSprite
-            key={player.id}
-            x={player.x}
-            y={player.y}
-            direction={player.direction || 'down'}
-            isMoving={player.isMoving || false}
-            color={player.color}
-            username={player.id.substring(0, 5)}
-          />
-        ))}
+        
+        {/* Render Zones */}
+        {BENCH_ZONES.map(zone => {
+          const dx = posRef.current.x - zone.x;
+          const dy = posRef.current.y - zone.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          const isNear = dist < zone.radius;
 
+          return (
+            <div key={zone.id} className="absolute z-20 pointer-events-none" style={{ transform: `translate(${zone.x}px, ${zone.y}px)` }}>
+              {/* Bench Graphic */}
+              <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+                <div className="relative pointer-events-none drop-shadow-2xl">
+                  <img src="/api/bench" alt="Bench" className="w-32 h-auto image-rendering-pixelated drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
+                  {/* Soft glow for interactivity */}
+                  <div className="absolute inset-0 bg-white/5 rounded-sm animate-pulse blur-[5px] -z-10"></div>
+                </div>
+                
+                {isNear && sitState === 'IDLE' && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onSitRequest(zone.id, zone.x, zone.y); }}
+                    className="absolute -top-12 px-3 py-1 bg-black/80 text-white text-xs font-bold rounded-full border border-gray-400 whitespace-nowrap shadow-lg animate-bounce pointer-events-auto cursor-pointer hover:bg-gray-800 transition-colors"
+                  >
+                    Press SPACE or Click to Sit
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        
+        {/* Remote Players */}
+        {remotePlayers.map((player) => {
+           // Calculate distance
+           const dx = player.x - posRef.current.x;
+           const dy = player.y - posRef.current.y;
+           const dist = Math.sqrt(dx*dx + dy*dy);
+           // Proximity threshold for reading bubbles (approx 400px radius)
+           const canReadBubble = dist < 400;
+           const bubble = speechBubbles.get(player.id); // player.id is the sessionId
+
+           return (
+             <AvatarSprite 
+               key={player.id}
+               x={player.x}
+               y={player.y}
+               direction={player.direction || 'down'}
+               isMoving={player.isMoving || false}
+               color={player.color}
+               username={player.id.substring(0, 5)}
+               speechBubble={canReadBubble ? bubble?.text : undefined}
+               isSitting={!!player.sittingOn}
+             />
+           );
+        })}
+        
         {/* Local Player */}
-        <AvatarSprite
-          x={posRef.current.x}
-          y={posRef.current.y}
-          direction={localDir}
-          isMoving={localIsMoving}
-          isLocal={true}
+        <AvatarSprite 
+           x={posRef.current.x}
+           y={posRef.current.y}
+           direction={localDir}
+           isMoving={localIsMoving}
+           isLocal={true}
+           speechBubble={speechBubbles.get(localSessionId)?.text}
+           isSitting={sitState === 'SITTING'}
+
         />
 
       </div>

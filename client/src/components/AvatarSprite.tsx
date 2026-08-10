@@ -8,8 +8,9 @@ interface AvatarSpriteProps {
   direction: Direction;
   isMoving: boolean;
   color?: string;
-  username?: string;
   isLocal?: boolean;
+  speechBubble?: string;
+  isSitting?: boolean;
 }
 
 // LPC Universal Spritesheet standard rows for walking
@@ -21,7 +22,8 @@ const directionToRow = {
 };
 
 export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
-  x, y, direction, isMoving, color = '#3b82f6', username = 'Player', isLocal = false
+  x, y, direction, isMoving, color = '#3b82f6', username = 'Player', isLocal = false,
+  speechBubble, isSitting = false
 }) => {
   const [frame, setFrame] = useState(0);
   
@@ -50,12 +52,13 @@ export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
     <div 
       className={`absolute transition-transform duration-[50ms] ease-linear flex flex-col items-center justify-center ${isLocal ? 'z-20' : 'z-10'}`}
       style={{ 
-        transform: `translate(${x}px, ${y}px) scale(0.6)`,
+        transform: `translate(${x}px, ${y + (isSitting ? 15 : 0)}px) scale(0.6)`,
         width: `${spriteWidth}px`,
         height: `${spriteHeight}px`,
         // Center the sprite precisely on the X,Y coordinates
         marginTop: `-${spriteHeight / 2}px`, 
-        marginLeft: `-${spriteWidth / 2}px`
+        marginLeft: `-${spriteWidth / 2}px`,
+        clipPath: isSitting ? 'inset(0 0 35% 0)' : 'none'
       }}
     >
       {/* The actual animated sprite */}
@@ -76,6 +79,17 @@ export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
       
       {/* Drop Shadow underneath the character */}
       <div className="absolute bottom-2 w-8 h-2.5 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
+
+      {/* Floating Speech Bubble */}
+      {speechBubble && (
+        <div className="absolute -top-10 flex flex-col items-center pointer-events-none z-30 animate-bounce">
+          <div className="bg-white text-black px-3 py-1.5 rounded-2xl text-xs font-bold max-w-[150px] text-center shadow-lg break-words border-2 border-gray-200">
+            {speechBubble}
+          </div>
+          {/* Little tail for the speech bubble */}
+          <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-white -mt-[2px]"></div>
+        </div>
+      )}
 
       {/* Floating Name Tag */}
       <div className="absolute -bottom-3 whitespace-nowrap pointer-events-none">
