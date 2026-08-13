@@ -58,6 +58,31 @@ export async function cacheSet(key, value, ttlSeconds = 300) {
 }
 
 /**
+ * Set value only when the key does not already exist.
+ */
+export async function cacheSetOnce(key, value, ttlSeconds = 300) {
+  if (!redis || !isConnected) return false;
+  try {
+    const result = await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Delete a Redis key. Used to release short-lived locks on failed work.
+ */
+export async function cacheDelete(key) {
+  if (!redis || !isConnected) return false;
+  try {
+    await redis.del(key);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+/**
  * Sliding Window Rate Limiter using Redis
  * returns { allowed: boolean, remaining: number, resetInSeconds: number }
  */
