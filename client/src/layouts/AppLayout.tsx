@@ -130,7 +130,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   }, [currentUser]);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => {
+    if (pathname === path) return true;
+    if (path !== '/' && pathname.startsWith(path + '/')) return true;
+    if (path === '/matches' && pathname.startsWith('/chat/')) return true;
+    return false;
+  };
 
   // Paths that should display the sidebar and bottom navigation
   const isAuthenticatedPath =
