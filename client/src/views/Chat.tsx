@@ -1534,7 +1534,7 @@ export const Chat: React.FC = () => {
   const proceedWithCall = async (type: 'audio' | 'video') => {
     if (!partner || !matchId || !currentUser) return; setIsStartingCall(true);
     try { if (await checkUserBusy(partner.id, currentUser.id)) { showToast(`${partner.realName} busy`, 'info'); setIsStartingCall(false); return; } } catch { }
-    setOutgoingCall({ receiverName: partner.realName, receiverAvatar: partner.avatar || '', callType: type });
+    setOutgoingCall({ receiverId: partner.id, receiverName: partner.realName, receiverAvatar: partner.avatar || '', callType: type });
     try {
       const s = await initiateCall(partner.id, matchId, { id: currentUser.id, name: currentUser.realName, avatar: currentUser.avatar || '', callType: type });
       if (!s) throw new Error('Fail');

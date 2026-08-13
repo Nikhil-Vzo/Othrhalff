@@ -197,17 +197,37 @@ export const checkUserBusy = async (targetUserId: string, ignoreCallerId?: strin
     }
 };
 
+export const sendCallCancelSignal = async (receiverId: string, payload: { callerId: string }) => {
+    if (!supabase) return;
+    const channel = supabase.channel(`incoming_calls:${receiverId}`);
+    channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            await channel.send({ type: 'broadcast', event: 'incoming_call_cancelled', payload: payload });
+            supabase.removeChannel(channel);
+        }
+    });
+};
+
 export const subscribeToIncomingCalls = (userId: string, onIncomingCall: (call: CallSession | any) => void) => {
     if (!supabase) return () => { };
     const channel = supabase.channel(`incoming_calls:${userId}`)
         .on('broadcast', { event: 'incoming_call_signal' }, (payload) => {
             onIncomingCall({ isBroadcast: true, ...payload.payload });
         })
+        .on('broadcast', { event: 'incoming_call_cancelled' }, (payload) => {
+            onIncomingCall({ isCancelled: true, callerId: payload.payload.callerId });
+        })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_sessions', filter: `receiver_id=eq.${userId}` }, (payload) => {
             const callSession = payload.new as CallSession;
             const isFresh = (Date.now() - new Date(callSession.created_at).getTime()) < 30000;
             if (callSession.status === 'ringing' && isFresh) {
                 onIncomingCall(callSession);
+            }
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_sessions', filter: `receiver_id=eq.${userId}` }, (payload) => {
+            const callSession = payload.new as CallSession;
+            if (callSession.status === 'ended' || callSession.status === 'rejected' || callSession.status === 'missed') {
+                onIncomingCall({ isCancelled: true, callSessionId: callSession.id, callerId: callSession.caller_id });
             }
         })
         .subscribe();
