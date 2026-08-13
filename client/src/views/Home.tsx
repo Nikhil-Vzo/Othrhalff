@@ -686,13 +686,14 @@ export const Home: React.FC = () => {
             )}
 
             {/* === TOP HEADER === */}
-            <div className="w-full px-5 py-4 flex items-center justify-end gap-3 z-30 relative">
+            <div className="w-full px-5 py-4 flex flex-col items-end gap-1.5 z-30 relative">
 
                 <div className="flex items-center gap-3">
                     {/* Premium Filter Toggle */}
                     <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl">
                         <button
                             onClick={() => setFilterMode('campus')}
+                            title={`Campus Mode: Only show students from ${currentUser?.university || 'your university'}`}
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${filterMode === 'campus'
                                 ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -703,6 +704,7 @@ export const Home: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setFilterMode('global')}
+                            title="Global Mode: Show students from all universities"
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${filterMode === 'global'
                                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -727,6 +729,13 @@ export const Home: React.FC = () => {
                         )}
                     </button>
                 </div>
+
+                {/* Scope Explanation Label */}
+                <p className="text-[9px] text-gray-400 font-medium tracking-wide bg-zinc-950/80 border border-white/5 rounded-md px-2 py-0.5 pointer-events-none select-none max-w-xs text-right truncate">
+                    {filterMode === 'campus' 
+                        ? `Campus: Only showing students from ${currentUser?.university ? currentUser.university.split('|')[0] : 'your university'}` 
+                        : 'Global: Showing students from all universities'}
+                </p>
             </div>
 
             {/* === MAIN CONTENT === */}
