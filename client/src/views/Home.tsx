@@ -62,7 +62,7 @@ export const Home: React.FC = () => {
 
 
     const [showSuccessBurst, setShowSuccessBurst] = useState(false);
-    const [isSwiping, setIsSwiping] = useState(false);
+    const swipeInFlightRef = useRef(false);
     const [isRecycleMode, setIsRecycleMode] = useState(false);
     const [recycleMessage, setRecycleMessage] = useState<string | null>(null);
     const cardRef = useRef<HTMLDivElement>(null);
@@ -519,12 +519,16 @@ export const Home: React.FC = () => {
     };
 
     const handleSwipe = async (direction: 'left' | 'right') => {
-        if (!currentProfile || !currentUser || !supabase || isSwiping) return;
+        if (!currentProfile || !currentUser || !supabase || swipeInFlightRef.current) return;
 
-        setIsSwiping(true); // Lock to prevent double-taps
+        swipeInFlightRef.current = true;
 
-        const targetId = currentProfile.id;
+        const swipedProfile = currentProfile;
+        const targetId = swipedProfile.id;
         const action = direction === 'right' ? 'like' : 'pass';
+        const cacheKeyToUpdate = isRecycleMode
+            ? getSkippedCacheKey(filterMode)
+            : getCacheKey(filterMode);
 
         // Cinematic exit animation
         const offScreenX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
@@ -569,22 +573,12 @@ export const Home: React.FC = () => {
                 cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
             }
 
-            // 1. UPDATE STATE & CACHE (Optimistic)
-            const nextQueue = queue.filter(p => p.id !== targetId);
-            setQueue(nextQueue);
+            const optimisticQueue = queue.filter(p => p.id !== targetId);
+            setQueue(optimisticQueue);
+            safeSetItem(cacheKeyToUpdate, JSON.stringify(optimisticQueue));
 
-            // USE SAFE SET ITEM HERE to prevent crash if storage is full
-            const cacheKeyToUpdate = isRecycleMode 
-                ? getSkippedCacheKey(filterMode)
-                : getCacheKey(filterMode);
-            safeSetItem(cacheKeyToUpdate, JSON.stringify(nextQueue));
-
-            // 2. UNLOCK UI IMMEDIATELY
-            setIsSwiping(false);
-
-            // 3. SEND TO DB (Background)
             try {
-                // Use UPSERT to handle recycling (re-swiping on previously passed users)
+                // Use UPSERT to keep duplicate swipe attempts idempotent for the same user/profile pair.
                 const { error: swipeError } = await supabase
                     .from('swipes')
                     .upsert({
@@ -594,13 +588,20 @@ export const Home: React.FC = () => {
                         created_at: new Date().toISOString()
                     }, { onConflict: 'liker_id, target_id' });
 
-                if (swipeError) console.error('Swipe error:', swipeError);
+                if (swipeError) throw swipeError;
             } catch (err) {
                 console.error('Swipe logic error:', err);
+                setQueue(prevQueue => {
+                    if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
+                    const rolledBackQueue = [swipedProfile, ...prevQueue];
+                    safeSetItem(cacheKeyToUpdate, JSON.stringify(rolledBackQueue));
+                    return rolledBackQueue;
+                });
+            } finally {
+                swipeInFlightRef.current = false;
             }
         }, 200);
     };
-
     if (!currentUser) return null;
 
     return (
