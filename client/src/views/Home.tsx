@@ -59,6 +59,7 @@ export const Home: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { unreadCount } = useNotifications();
     const preloadedImages = useRef<Set<string>>(new Set());
+    const swipedIdsRef = useRef<Set<string>>(new Set());
 
 
     const [showSuccessBurst, setShowSuccessBurst] = useState(false);
@@ -151,13 +152,17 @@ export const Home: React.FC = () => {
                     }),
                     distance: 'Recycled'
                 }));
-                setQueue(mappedProfiles);
+                
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredProfiles = mappedProfiles.filter(p => !activeSwipedIds.has(p.id));
+                
+                setQueue(filteredProfiles);
                 setIsRecycleMode(true);
-                preloadImages(mappedProfiles.slice(0, 5));
+                preloadImages(filteredProfiles.slice(0, 5));
 
                 // Cache the data safely
                 try {
-                    sessionStorage.setItem(getSkippedCacheKey(filterMode), JSON.stringify(mappedProfiles));
+                    sessionStorage.setItem(getSkippedCacheKey(filterMode), JSON.stringify(filteredProfiles));
                     sessionStorage.setItem(getSkippedCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache skipped profiles:', e);
@@ -191,11 +196,13 @@ export const Home: React.FC = () => {
 
             if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
                 const cached = JSON.parse(cachedData);
-                if (cached.length > 0) {
-                    setQueue(cached);
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredCached = cached.filter((p: MatchProfile) => !activeSwipedIds.has(p.id));
+                if (filteredCached.length > 0) {
+                    setQueue(filteredCached);
                     setIsRecycleMode(true);
                     if (showLoading) setIsLoading(false);
-                    preloadImages(cached.slice(0, 5));
+                    preloadImages(filteredCached.slice(0, 5));
                     // Background refresh
                     fetchFreshSkippedProfiles(false);
                     return;
@@ -263,14 +270,17 @@ export const Home: React.FC = () => {
                     distance: filterMode === 'campus' ? 'On Campus' : 'Global'
                 }));
 
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredProfiles = mappedProfiles.filter(p => !activeSwipedIds.has(p.id));
+
                 // Update state
-                setQueue(mappedProfiles);
+                setQueue(filteredProfiles);
                 setIsRecycleMode(false);
-                preloadImages(mappedProfiles.slice(0, 5));
+                preloadImages(filteredProfiles.slice(0, 5));
 
                 // Cache the data safely
                 try {
-                    sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(mappedProfiles));
+                    sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(filteredProfiles));
                     sessionStorage.setItem(getCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache profiles:', e);
@@ -298,10 +308,12 @@ export const Home: React.FC = () => {
 
             if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
                 const cached = JSON.parse(cachedData);
-                if (cached.length > 0) {
-                    setQueue(cached);
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredCached = cached.filter((p: MatchProfile) => !activeSwipedIds.has(p.id));
+                if (filteredCached.length > 0) {
+                    setQueue(filteredCached);
                     setIsLoading(false);
-                    preloadImages(cached.slice(0, 5));
+                    preloadImages(filteredCached.slice(0, 5));
                     // Background refresh — no loading spinner
                     fetchFreshData(false);
                     return;
@@ -530,6 +542,9 @@ export const Home: React.FC = () => {
             ? getSkippedCacheKey(filterMode)
             : getCacheKey(filterMode);
 
+        // Add to swiped set immediately to prevent background fetches from restoring this profile
+        swipedIdsRef.current.add(targetId);
+
         // Cinematic exit animation
         const offScreenX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
         const offScreenY = direction === 'right' ? -100 : 100;
@@ -591,6 +606,8 @@ export const Home: React.FC = () => {
                 if (swipeError) throw swipeError;
             } catch (err) {
                 console.error('Swipe logic error:', err);
+                // Remove from swiped set on rollback
+                swipedIdsRef.current.delete(targetId);
                 setQueue(prevQueue => {
                     if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
                     const rolledBackQueue = [swipedProfile, ...prevQueue];
