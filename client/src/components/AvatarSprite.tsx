@@ -8,9 +8,11 @@ interface AvatarSpriteProps {
   direction: Direction;
   isMoving: boolean;
   color?: string;
+  username?: string;
   isLocal?: boolean;
   speechBubble?: string;
   isSitting?: boolean;
+  isGpsActive?: boolean;
 }
 
 // LPC Universal Spritesheet standard rows for walking
@@ -23,7 +25,7 @@ const directionToRow = {
 
 export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
   x, y, direction, isMoving, color = '#3b82f6', username = 'Player', isLocal = false,
-  speechBubble, isSitting = false
+  speechBubble, isSitting = false, isGpsActive = false
 }) => {
   const [frame, setFrame] = useState(0);
   
@@ -79,6 +81,11 @@ export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
       
       {/* Drop Shadow underneath the character */}
       <div className="absolute bottom-2 w-8 h-2.5 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
+
+      {/* GPS Active Radar Ping Effect */}
+      {isGpsActive && (
+        <div className="absolute bottom-1 w-12 h-6 border-2 border-cyan-400/80 rounded-[100%] animate-ping pointer-events-none -z-10 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
+      )}
 
       {/* Floating Speech Bubble */}
       {speechBubble && (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -34,6 +34,17 @@ export const Playground: React.FC = () => {
   // Debug states
   const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // GPS Geolocation States
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'DISABLED' | 'ACQUIRING' | 'LOCKED' | 'ERROR'>('DISABLED');
+  const gpsAnchorRef = useRef<{ lat: number; lng: number; x: number; y: number } | null>(null);
+  const collisionCheckerRef = useRef<((x: number, y: number) => { x: number; y: number; isBlocked: boolean }) | null>(null);
+
+  const handleCollisionCheckerReady = useCallback((checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => {
+    collisionCheckerRef.current = checker;
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -190,11 +201,11 @@ export const Playground: React.FC = () => {
         id: currentUser.id,
         last_x: Math.round(x),
         last_y: Math.round(y),
-        gps_enabled: false,
+        gps_enabled: gpsEnabled,
         updated_at: Date.now()
       }).catch(() => {});
     }
-  }, [broadcastPosition, sitState, currentUser?.id]);
+  }, [broadcastPosition, sitState, currentUser?.id, gpsEnabled]);
 
   const handleSendSpeechBubble = (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,7 +269,101 @@ export const Playground: React.FC = () => {
     handlePositionChange(seatX, seatY, 'down', false, benchId);
   };
 
-  // 2. Geolocation Integration Removed per user request
+  // 2. Geolocation Sync Engine
+  const toggleGpsMode = useCallback(() => {
+    setGpsEnabled(prev => {
+      const nextState = !prev;
+      gpsAnchorRef.current = null;
+      if (currentUser?.id) {
+        db.playground_settings.put({
+          id: currentUser.id,
+          last_x: Math.round(myPos.x),
+          last_y: Math.round(myPos.y),
+          gps_enabled: nextState,
+          updated_at: Date.now()
+        }).catch(() => {});
+      }
+      return nextState;
+    });
+  }, [currentUser?.id, myPos.x, myPos.y]);
+
+  useEffect(() => {
+    if (!gpsEnabled) {
+      setGpsStatus('DISABLED');
+      setGpsAccuracy(null);
+      gpsAnchorRef.current = null;
+      return;
+    }
+
+    if (!('geolocation' in navigator)) {
+      setGpsStatus('ERROR');
+      setErrorMsg('Geolocation is not supported by your browser.');
+      setGpsEnabled(false);
+      return;
+    }
+
+    setGpsStatus('ACQUIRING');
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setGpsAccuracy(Math.round(accuracy));
+        setGpsStatus('LOCKED');
+
+        if (!gpsAnchorRef.current) {
+          gpsAnchorRef.current = { lat: latitude, lng: longitude, x: myPos.x, y: myPos.y };
+          return;
+        }
+
+        const anchor = gpsAnchorRef.current;
+        // Metres displacement using Equirectangular approximation
+        const dLatMeters = (latitude - anchor.lat) * 111139;
+        const dLngMeters = (longitude - anchor.lng) * 111139 * Math.cos(anchor.lat * (Math.PI / 180));
+
+        // Scale factor: 8 pixels per real-world meter
+        const PIXELS_PER_METER = 8;
+        const rawTargetX = Math.max(50, Math.min(2510, anchor.x + dLngMeters * PIXELS_PER_METER));
+        const rawTargetY = Math.max(50, Math.min(1390, anchor.y - dLatMeters * PIXELS_PER_METER));
+
+        // Enforce Wall Avoidance & Walkable Path Sanitization
+        let finalX = rawTargetX;
+        let finalY = rawTargetY;
+        if (collisionCheckerRef.current) {
+          const validated = collisionCheckerRef.current(rawTargetX, rawTargetY);
+          finalX = validated.x;
+          finalY = validated.y;
+        }
+
+        const dx = finalX - myPos.x;
+        const dy = finalY - myPos.y;
+
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+          let dir: 'up' | 'down' | 'left' | 'right' = 'down';
+          if (Math.abs(dy) > Math.abs(dx)) {
+            dir = dy < 0 ? 'up' : 'down';
+          } else {
+            dir = dx < 0 ? 'left' : 'right';
+          }
+
+          handlePositionChange(finalX, finalY, dir, true);
+        }
+      },
+      (err) => {
+        console.warn('[GPS Error]', err);
+        setGpsStatus('ERROR');
+        setErrorMsg(`GPS Error: ${err.message}`);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 2000,
+        timeout: 15000
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [gpsEnabled, handlePositionChange, myPos.x, myPos.y]);
 
   if (!mounted || !currentUser) {
     return <div className="flex h-full items-center justify-center text-white">Loading Playground...</div>;
@@ -269,12 +374,12 @@ export const Playground: React.FC = () => {
       {/* Instructions Overlay */}
       <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
         <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
-          Use W A S D or Arrow Keys to Move
+          {gpsEnabled ? 'GPS Tracking Active • Walk outside to move' : 'Use W A S D or Arrow Keys to Move'}
         </p>
       </div>
 
       {/* Top HUD overlay */}
-      <div className="absolute top-4 left-4 z-20 flex gap-4 pointer-events-none items-center">
+      <div className="absolute top-4 left-4 z-20 flex gap-4 pointer-events-none items-center flex-wrap">
         {/* User Profile Pic */}
         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 bg-gray-900 pointer-events-auto cursor-pointer shadow-lg hover:border-neon transition-colors" onClick={() => window.location.href = '/profile'}>
           {currentUser.avatar ? (
@@ -298,9 +403,33 @@ export const Playground: React.FC = () => {
           </div>
         </div>
 
+        {/* GPS Mode Toggle Button */}
+        <button
+          onClick={toggleGpsMode}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border pointer-events-auto transition-all shadow-md cursor-pointer ${
+            gpsEnabled
+              ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)]'
+              : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+          }`}
+          title="Toggle Real-world GPS Position Sync"
+        >
+          {gpsEnabled ? (
+            <MapPin size={16} className="text-cyan-400 animate-bounce" />
+          ) : (
+            <MapPinOff size={16} className="text-gray-400" />
+          )}
+          <span className="text-xs font-bold">
+            {gpsEnabled
+              ? gpsStatus === 'LOCKED'
+                ? `GPS Sync (±${gpsAccuracy ?? '?'}m)`
+                : `GPS (${gpsStatus})`
+              : 'GPS Off'}
+          </span>
+        </button>
+
         {/* Error Message Debug */}
         {errorMsg && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-900/50 border border-red-500 rounded-full backdrop-blur-md max-w-md">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-900/50 border border-red-500 rounded-full backdrop-blur-md max-w-md pointer-events-auto">
             <span className="text-white text-xs font-bold text-red-200">Error: {errorMsg}</span>
           </div>
         )}
@@ -318,6 +447,8 @@ export const Playground: React.FC = () => {
           sitState={sitState}
           activeBench={activeBench}
           onSitRequest={handleSitRequest}
+          gpsEnabled={gpsEnabled}
+          onCollisionCheckerReady={handleCollisionCheckerReady}
         />
       </div>
 

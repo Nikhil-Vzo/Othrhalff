@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { AvatarSprite, Direction } from './AvatarSprite';
 
 export interface Player {
   id: string;
   x: number;
   y: number;
-  color: string;
   color: string;
   direction?: Direction;
   isMoving?: boolean;
@@ -22,6 +21,8 @@ interface PlaygroundCanvasProps {
   sitState: 'IDLE' | 'SITTING';
   activeBench: string | null;
   onSitRequest: (benchId: string, benchX: number, benchY: number) => void;
+  gpsEnabled?: boolean;
+  onCollisionCheckerReady?: (checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => void;
 }
 
 const BENCH_ZONES = [
@@ -55,7 +56,9 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   speechBubbles,
   sitState,
   activeBench,
-  onSitRequest
+  onSitRequest,
+  gpsEnabled = false,
+  onCollisionCheckerReady
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -86,6 +89,46 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   // COLLISION MASK ENGINE
   const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
+  const checkPixelCollision = useCallback((x: number, y: number, size: number = 32) => {
+    if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
+
+    const benchCollisionRadius = 30;
+    for (const zone of BENCH_ZONES) {
+      if (zone.id === activeBenchRef.current) continue;
+      const dx = x - zone.x;
+      const dy = y - (zone.y + 10);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < benchCollisionRadius) return true;
+    }
+
+    if (!maskCtxRef.current) return false;
+
+    try {
+      const pixel = maskCtxRef.current.getImageData(Math.round(x), Math.round(y + size / 2), 1, 1).data;
+      return pixel[0] < 50;
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
+  const findNearestWalkablePosition = useCallback((startX: number, startY: number) => {
+    if (!checkPixelCollision(startX, startY)) {
+      return { x: startX, y: startY, isBlocked: false };
+    }
+
+    for (let r = 5; r <= 120; r += 5) {
+      for (let angle = 0; angle < 360; angle += 45) {
+        const rad = (angle * Math.PI) / 180;
+        const testX = Math.round(startX + r * Math.cos(rad));
+        const testY = Math.round(startY + r * Math.sin(rad));
+        if (!checkPixelCollision(testX, testY)) {
+          return { x: testX, y: testY, isBlocked: true };
+        }
+      }
+    }
+    return { x: startX, y: startY, isBlocked: true };
+  }, [checkPixelCollision]);
+
   useEffect(() => {
     // Load the hidden collision mask image
     const maskImg = new Image();
@@ -99,12 +142,18 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         ctx.drawImage(maskImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         maskCtxRef.current = ctx;
         console.log("Collision mask loaded successfully!");
+        if (onCollisionCheckerReady) {
+          onCollisionCheckerReady(findNearestWalkablePosition);
+        }
       }
     };
     maskImg.onerror = () => {
       console.warn("collision-mask.png not found. Collisions are disabled.");
+      if (onCollisionCheckerReady) {
+        onCollisionCheckerReady(findNearestWalkablePosition);
+      }
     };
-  }, []);
+  }, [findNearestWalkablePosition, onCollisionCheckerReady]);
 
   useEffect(() => {
     posRef.current = localPosition;
@@ -409,7 +458,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
            isLocal={true}
            speechBubble={speechBubbles.get(localSessionId)?.text}
            isSitting={sitState === 'SITTING'}
-
+           isGpsActive={gpsEnabled}
         />
 
       </div>
