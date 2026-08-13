@@ -126,6 +126,57 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           }
         });
 
+        // Token renewal logic
+        let isRenewing = false;
+        const renewToken = async () => {
+          if (isRenewing) {
+            console.log('[Agora] Token renewal already in progress, skipping duplicate request.');
+            return;
+          }
+          isRenewing = true;
+          try {
+            console.log('[Agora] Attempting token renewal for channel:', channelName);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              console.error('[Agora] No active Supabase session found for token renewal.');
+              return;
+            }
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/agora-token`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({ channelName })
+            });
+
+            if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.error || 'Failed to fetch renewal token');
+            }
+
+            const data = await res.json();
+            if (!isMounted) return;
+            console.log('[Agora] Successfully fetched new token, renewing client...');
+            await client.renewToken(data.token);
+            showToast('Call security credentials renewed successfully.', 'success');
+          } catch (err: any) {
+            console.error('[Agora] Failed to renew Agora token:', err);
+            if (isMounted) {
+              showToast('Warning: Call connection may drop due to token expiry.', 'error');
+            }
+          } finally {
+            isRenewing = false;
+          }
+        };
+
+        client.on('token-privilege-will-expire', renewToken);
+        client.on('token-privilege-did-expire', async () => {
+          console.warn('[Agora] Token expired. Attempting emergency renewal...');
+          await renewToken();
+        });
+
         // Join channel
         await client.join(appId, channelName, token, null);
         console.log('Joined channel successfully');
