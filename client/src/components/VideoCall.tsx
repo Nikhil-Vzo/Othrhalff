@@ -28,6 +28,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(callType === 'audio');
   const [isJoined, setIsJoined] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const { showToast } = useToast();
   
   // Track client in a ref so we can use it in cleanup
@@ -91,7 +92,14 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           });
 
           if (mediaType === 'audio') {
-            user.audioTrack?.play();
+            try {
+              await user.audioTrack?.play();
+            } catch (err: any) {
+              console.error('Remote audio autoplay blocked:', err);
+              if (err.code === 4016 || err.name === 'NotAllowedError' || String(err).includes('autoplay')) {
+                setAutoplayBlocked(true);
+              }
+            }
           }
         });
 
@@ -373,6 +381,27 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
     return 'Poor';
   };
 
+  const handleResumeAudio = async () => {
+    console.log('[Autoplay] Attempting to resume remote audio tracks...');
+    let success = true;
+    for (const user of remoteUsers) {
+      if (user.audioTrack) {
+        try {
+          await user.audioTrack.play();
+        } catch (err) {
+          console.error(`[Autoplay] Failed to play audio track for user ${user.uid}:`, err);
+          success = false;
+        }
+      }
+    }
+    if (success) {
+      setAutoplayBlocked(false);
+      showToast('Audio enabled successfully.', 'success');
+    } else {
+      showToast('Failed to enable some audio tracks. Please try again.', 'error');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       {/* Header */}
@@ -492,6 +521,23 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
         {customControls}
       </div>
 
+      {autoplayBlocked && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/80 backdrop-blur-md">
+          <div className="text-center p-6 bg-gray-900 border border-gray-800 rounded-2xl max-w-sm mx-4 shadow-2xl">
+            <MicOff className="w-12 h-12 text-red-500 mx-auto mb-4 animate-bounce" />
+            <h3 className="text-lg font-bold text-white mb-2">Audio is Blocked</h3>
+            <p className="text-gray-400 text-sm mb-6">
+              Your browser blocked remote audio autoplay. Click the button below to enable audio.
+            </p>
+            <button
+              onClick={handleResumeAudio}
+              className="w-full py-3 px-6 rounded-xl bg-neon hover:bg-neon/90 text-black font-bold transition-all shadow-lg hover:scale-105"
+            >
+              Enable Audio
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
