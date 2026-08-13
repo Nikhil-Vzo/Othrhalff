@@ -1588,7 +1588,16 @@ export const Chat: React.FC = () => {
       </div>
 
       <ConfirmationModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} isDestructive={confirmModal.isDestructive} onConfirm={confirmModal.onConfirm} onCancel={closeConfirmModal} />
-      <PermissionModal isOpen={permissionModal.isOpen} onPermissionsGranted={permissionModal.onGranted} onCancel={() => setPermissionModal(prev => ({ ...prev, isOpen: false }))} requiredPermissions={permissionModal.type === 'video' ? ['camera', 'microphone'] : ['microphone']} />
+      <PermissionModal 
+        isOpen={permissionModal.isOpen} 
+        onPermissionsGranted={permissionModal.onGranted} 
+        onCancel={() => setPermissionModal(prev => ({ ...prev, isOpen: false }))} 
+        requiredPermissions={permissionModal.type === 'video' ? ['camera', 'microphone'] : ['microphone']} 
+        onFallbackToAudio={() => {
+          setPermissionModal(prev => ({ ...prev, isOpen: false }));
+          proceedWithCall('audio');
+        }}
+      />
 
       {/* Main Split Layout Container */}
       <div className="flex-1 flex flex-row overflow-hidden w-full relative z-10">
