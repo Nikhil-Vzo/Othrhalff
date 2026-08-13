@@ -38,8 +38,23 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { currentUser } = useAuth();
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+    const [unreadCount, setUnreadCountState] = useState(0);
+    const [unreadMessageCount, setUnreadMessageCountState] = useState(0);
+
+    const setUnreadCount = useCallback((value: React.SetStateAction<number>) => {
+        setUnreadCountState(prev => {
+            const nextValue = typeof value === 'function' ? (value as Function)(prev) : value;
+            return Math.max(0, nextValue);
+        });
+    }, []);
+
+    const setUnreadMessageCount = useCallback((value: React.SetStateAction<number>) => {
+        setUnreadMessageCountState(prev => {
+            const nextValue = typeof value === 'function' ? (value as Function)(prev) : value;
+            return Math.max(0, nextValue);
+        });
+    }, []);
+
     const [loading, setLoading] = useState(false);
 
     // Debounce Ref to prevent "Thundering Herd" of fetches
