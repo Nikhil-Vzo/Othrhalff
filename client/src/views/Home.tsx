@@ -10,7 +10,7 @@ import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
 
 import { getRandomQuote } from '../data/loadingQuotes';
-import { safeSetItem } from '../utils/storage';
+import { deferSafeSetItem } from '../utils/storage';
 
 
 // Cache key for session storage — keyed by filter mode so campus/global don't bleed into each other
@@ -575,7 +575,7 @@ export const Home: React.FC = () => {
 
             const optimisticQueue = queue.filter(p => p.id !== targetId);
             setQueue(optimisticQueue);
-            safeSetItem(cacheKeyToUpdate, JSON.stringify(optimisticQueue));
+            deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(optimisticQueue));
 
             try {
                 // Use UPSERT to keep duplicate swipe attempts idempotent for the same user/profile pair.
@@ -594,7 +594,7 @@ export const Home: React.FC = () => {
                 setQueue(prevQueue => {
                     if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
                     const rolledBackQueue = [swipedProfile, ...prevQueue];
-                    safeSetItem(cacheKeyToUpdate, JSON.stringify(rolledBackQueue));
+                    deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(rolledBackQueue));
                     return rolledBackQueue;
                 });
             } finally {
