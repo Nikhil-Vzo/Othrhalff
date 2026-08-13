@@ -138,12 +138,22 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           if (callType === 'audio') {
             // Audio-only: Only request microphone
             audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            if (!isMounted) {
+              audioTrack.close();
+              return;
+            }
           } else {
             // Video call: Request both
             [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+            if (!isMounted) {
+              audioTrack.close();
+              videoTrack?.close();
+              return;
+            }
           }
         } catch (mediaError: any) {
           console.error('Media permission error:', mediaError);
+          if (!isMounted) return;
           if (mediaError.code === 'PERMISSION_DENIED' || mediaError.name === 'NotAllowedError') {
             showToast('Microphone/Camera permission denied. Please enable them in browser settings.', 'error');
           } else {
