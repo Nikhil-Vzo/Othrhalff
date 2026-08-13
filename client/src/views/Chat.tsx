@@ -21,6 +21,17 @@ import { getCachedProfile } from '../services/profileCache';
 import { useNotifications } from '../context/NotificationContext';
 
 import { getRandomQuote } from '../data/loadingQuotes';
+
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 import { 
   WYR_TEMPLATES, 
   hashString, 
@@ -870,14 +881,47 @@ export const Chat: React.FC = () => {
         const pending = await db.outbox.where('status').equals('pending').toArray();
         if (!pending || pending.length === 0) return;
         
+        // Sort pending messages chronologically to preserve original sequence
+        pending.sort((a, b) => a.created_at - b.created_at);
+        
         for (const item of pending) {
           const { data, error } = await supabase
             .from('messages')
-            .insert({ match_id: item.match_id, sender_id: item.sender_id, text: item.text })
+            .insert({ 
+              id: item.id,
+              match_id: item.match_id, 
+              sender_id: item.sender_id, 
+              text: item.text,
+              created_at: new Date(item.created_at).toISOString()
+            })
             .select()
             .single();
 
-          if (!error && data) {
+          if (error) {
+            // If already inserted (e.g. duplicate request retry), treat as success
+            if (error.code === '23505') {
+              await db.transaction('rw', [db.messages, db.outbox], async () => {
+                await db.messages.delete(item.id);
+                await db.messages.put({
+                  id: item.id,
+                  match_id: item.match_id,
+                  sender_id: item.sender_id,
+                  text: item.text,
+                  created_at: item.created_at,
+                  is_system: false,
+                  is_read: false,
+                  status: 'sent'
+                });
+                await db.outbox.delete(item.id);
+              });
+              continue;
+            }
+            console.error('[Dexie Outbox Sync] Error syncing outbox message:', error);
+            await db.outbox.update(item.id, { status: 'failed' });
+            continue;
+          }
+
+          if (data) {
             await db.transaction('rw', [db.messages, db.outbox], async () => {
               await db.messages.delete(item.id);
               await db.messages.put(mapSupabaseMessageToLocal(data, item.match_id));
@@ -1203,7 +1247,7 @@ export const Chat: React.FC = () => {
     const textToSend = newMessage.trim(); setNewMessage('');
     
     // 1. Instantly create a temporary message object & save to local Dexie
-    const optimisticId = `temp-${Date.now()}`;
+    const optimisticId = generateUUID();
     const optimisticLocal: LocalMessage = {
       id: optimisticId,
       match_id: matchId,
@@ -1228,7 +1272,7 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
+        .insert({ id: optimisticId, match_id: matchId, sender_id: currentUser.id, text: textToSend })
         .select()
         .single();
         
@@ -1283,7 +1327,7 @@ export const Chat: React.FC = () => {
   const sendGameMessage = async (textToSend: string) => {
     if (!currentUser || !matchId || isBlocked || isBlockedByThem) return;
     
-    const optimisticId = `temp-${Date.now()}`;
+    const optimisticId = generateUUID();
     const optimisticLocal: LocalMessage = {
       id: optimisticId,
       match_id: matchId,
@@ -1307,7 +1351,7 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
+        .insert({ id: optimisticId, match_id: matchId, sender_id: currentUser.id, text: textToSend })
         .select()
         .single();
         
