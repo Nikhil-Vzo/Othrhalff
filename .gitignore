@@ -16,3 +16,5 @@ db_backup/
 .worktrees/
 
 .superpowers/
+
+PUSH_NOTIFICATIONS_MANUAL.txt

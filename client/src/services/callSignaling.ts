@@ -102,8 +102,18 @@ export const initiateCall = async (
 export const answerCall = async (callSessionId: string): Promise<boolean> => {
     if (!supabase) return false;
     try {
-        const { error } = await supabase.from('call_sessions').update({ status: 'active', answered_at: new Date().toISOString() }).eq('id', callSessionId);
-        if (error) throw error; return true;
+        const { data, error } = await supabase.from('call_sessions')
+            .update({ status: 'active', answered_at: new Date().toISOString() })
+            .eq('id', callSessionId)
+            .eq('status', 'ringing')
+            .select();
+            
+        if (error) throw error; 
+        if (!data || data.length === 0) {
+            console.warn('[CallSignaling] Cannot answer call: session is no longer ringing (likely cancelled by caller).');
+            return false;
+        }
+        return true;
     } catch (error) { console.error(error); return false; }
 };
 

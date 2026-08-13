@@ -8,5 +8,18 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DAILY_API_KEY
+      - key: AGORA_APP_ID
         sync: false  # Set this in Render Dashboard for security
+      - key: AGORA_APP_CERTIFICATE
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: other-half-redis
+          property: connectionString
+
+  - type: redis
+    name: other-half-redis
+    ipAllowList: [] # internal networking only
+    plan: free
+

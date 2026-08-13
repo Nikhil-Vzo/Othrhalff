@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "indexnow": "node scripts/indexnow.js"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

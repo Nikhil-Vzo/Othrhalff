@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Copy, Smartphone, MessageSquare, Send, Check, Loader2, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 
 // Icons for social networks
 const WhatsappIcon = () => (
@@ -244,7 +244,7 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden border border-gray-600">
                         {match.avatar ? (
-                          <img src={getOptimizedUrl(match.avatar, 64)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={getOptimizedUrl(match.avatar, 64)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-lg font-bold text-gray-400">
                             {(match.realName || match.anonymousId)[0].toUpperCase()}

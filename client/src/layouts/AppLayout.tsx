@@ -6,15 +6,20 @@ import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Ghost, Search, MessageCircle, Bell, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2 } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { AuthPromptModal } from '../components/AuthPromptModal';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 
 
 const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mod.VideoCall), {
   ssr: false
 });
+
+import { IncomingCallModal } from '../components/IncomingCallModal';
+import { OutgoingCallModal } from '../components/OutgoingCallModal';
+import { PushNotificationModal } from '../components/PushNotificationModal';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -23,6 +28,23 @@ interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { currentUser, needsOnboarding } = useAuth();
   const { isCallActive, appId, channelName, token, partnerName, partnerAvatar, callType, callSessionId, endCall } = useCall();
+  const { currentUser, needsOnboarding, isLoading } = useAuth();
+  const { 
+    isCallActive, 
+    appId, 
+    channelName, 
+    token, 
+    partnerName, 
+    partnerAvatar, 
+    callType, 
+    callSessionId, 
+    endCall,
+    incomingCall,
+    outgoingCall,
+    acceptCall,
+    rejectCall,
+    cancelOutgoingCall
+  } = useCall();
   const { unreadCount, unreadMessageCount, setUnreadMessageCount } = useNotifications();
   const pathname = usePathname() || '';
   const router = useRouter();
@@ -33,13 +55,82 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     setMounted(true);
   }, []);
 
-  // Enforce onboarding/migration
+  // Enforce auth & onboarding routing
   useEffect(() => {
-    if (mounted && needsOnboarding && pathname !== '/onboarding') {
+    if (!mounted || isLoading) return;
+
+    const PUBLIC_ROUTES = ['/', '/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance', '/blog'];
+
+    // If unauthenticated and accessing a protected view, send to login
+    if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
+      router.push('/login');
+      return;
+    }
+
+    // If authenticated and visiting login page, redirect to home or onboarding
+    if (currentUser && pathname === '/login') {
+      const target = needsOnboarding ? '/onboarding' : '/home';
+      router.replace(target);
+      return;
+    }
+
+    // If needs onboarding and attempting to access a protected route, redirect to onboarding
+    if (currentUser && needsOnboarding && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
       router.push('/onboarding');
     }
-  }, [mounted, needsOnboarding, pathname, router]);
+  }, [mounted, isLoading, currentUser, needsOnboarding, pathname, router]);
 
+  // Fetch real-time unread messages count for the chat badge
+  useEffect(() => {
+    if (!currentUser || !supabase) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        // First get active matches for the user
+        const { data: matches } = await supabase
+          .from('matches')
+          .select('id')
+          .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
+
+        if (matches && matches.length > 0) {
+          const matchIds = matches.map(m => m.id);
+          const { count, error } = await supabase
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .in('match_id', matchIds)
+            .neq('sender_id', currentUser.id)
+            .eq('is_read', false);
+
+          if (!error && count !== null) {
+            setUnreadMessageCount(count);
+          }
+        } else {
+          setUnreadMessageCount(0);
+        }
+      } catch (err) {
+        console.error('Error fetching unread messages count:', err);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Listen for changes in messages to update badge live (filtered to receiver)
+    const channelName = `unread_count_${currentUser.id}`;
+    const channel = supabase.channel(channelName)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `receiver_id=eq.${currentUser.id}`
+      }, () => {
+        fetchUnreadCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const isActive = (path: string) => pathname === path;
@@ -47,6 +138,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // Paths that should display the sidebar and bottom navigation
   const isAuthenticatedPath =
     pathname === '/home' ||
+    pathname === '/discover' ||
     pathname === '/matches' ||
     pathname === '/confessions' ||
     pathname === '/notifications' ||
@@ -58,7 +150,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   // Determine if we should show the StarField background animation
   const showStars =
-    ['/home', '/matches', '/notifications', '/confessions'].includes(pathname);
+    ['/home', '/matches', '/notifications', '/confessions', '/discover', '/vs-omegle'].includes(pathname) ||
+    pathname.startsWith('/campus') ||
+    pathname.startsWith('/vs');
 
   if (!mounted || (!currentUser && !isPublicConfessions) || !isAuthenticatedPath) {
     return <>{children}</>;
@@ -76,6 +170,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { path: '/home', icon: Search, label: 'Discover' },
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: !!unreadCount },
+    { path: '/home', icon: Home, label: 'Home' },
+    { path: '/discover', icon: Search, label: 'Discover' },
+    { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
+    { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
     { path: '/sparx', icon: Zap, label: 'Sparx' },
     { path: '/profile', icon: User, label: 'My Profile' }
@@ -191,7 +289,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 <div className="relative shrink-0">
                   <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-neon transition-colors duration-300">
                     {currentUser?.avatar ? (
-                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
                     ) : (
                       <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                         <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>
@@ -226,6 +324,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
+        {currentUser && !currentUser.username && (
+          <div className="bg-gradient-to-r from-purple-950/80 via-gray-900 to-pink-950/80 border-b border-neon/30 px-4 py-2 flex items-center justify-between text-xs text-gray-200 z-50">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-neon animate-pulse" />
+              <span>Add a <strong className="text-white">@username</strong> to enable direct login!</span>
+            </div>
+            <button 
+              onClick={() => router.push('/profile')}
+              className="bg-neon/20 hover:bg-neon/30 border border-neon/50 text-neon px-3 py-1 rounded-full text-[11px] font-bold transition-all active:scale-95"
+            >
+              Set Up Now
+            </button>
+          </div>
+        )}
         {showStars && <StarField />}
         
         {/* Mobile Top-Left Profile Picture */}
@@ -238,7 +350,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             >
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 active:scale-95 transition-transform duration-200 bg-gray-900">
                 {currentUser?.avatar ? (
-                  <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
                 ) : (
                   <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                     <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>
@@ -325,9 +437,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               className="absolute left-1/2 -translate-x-1/2 bottom-8 w-14 h-14 flex flex-col items-center justify-center rounded-full z-20 transition-transform active:scale-95 pointer-events-auto"
             >
               <div className={`w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr ${isActive('/home') ? 'from-neon to-purple-600 shadow-[0_0_20px_rgba(255,0,127,0.8)]' : 'from-gray-800 to-gray-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'}`}>
-                <Search className={`w-6 h-6 ${isActive('/home') ? 'text-white' : 'text-gray-300'}`} strokeWidth={2.5} />
+                <Home className={`w-6 h-6 ${isActive('/home') ? 'text-white' : 'text-gray-300'}`} strokeWidth={2.5} />
               </div>
-              {isActive('/home') && <span className="absolute -bottom-5 text-[10px] font-bold text-neon tracking-wider drop-shadow-[0_0_4px_rgba(255,0,127,0.8)]">DISCOVER</span>}
+              {isActive('/home') && <span className="absolute -bottom-5 text-[10px] font-bold text-neon tracking-wider drop-shadow-[0_0_4px_rgba(255,0,127,0.8)]">HOME</span>}
             </button>
           </nav>
         )}
@@ -346,10 +458,32 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           callSessionId={callSessionId}
         />
       )}
+
+      {/* Incoming Call Modal Overlay */}
+      {incomingCall && (
+        <IncomingCallModal
+          callerName={incomingCall.callerName}
+          callerAvatar={incomingCall.callerAvatar}
+          onAccept={acceptCall}
+          onReject={rejectCall}
+          isVideoCall={incomingCall.callType === 'video'}
+        />
+      )}
+
+      {/* Outgoing Call Modal Overlay */}
+      {outgoingCall && (
+        <OutgoingCallModal
+          receiverName={outgoingCall.receiverName}
+          receiverAvatar={outgoingCall.receiverAvatar}
+          onCancel={cancelOutgoingCall}
+          isVideoCall={outgoingCall.callType === 'video'}
+        />
+      )}
       <AuthPromptModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
       />
+      <PushNotificationModal />
     </div>
   );
 };

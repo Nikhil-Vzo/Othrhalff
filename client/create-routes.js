@@ -5,6 +5,8 @@ const routes = {
   'login': 'Login',
   'onboarding': 'Onboarding',
   'home': 'Home',
+  'discover': 'Discover',
+  'vs-omegle': 'VsOmegle',
   'matches': 'Matches',
   'chat/[id]': 'Chat',
   'notifications': 'Notifications',
@@ -48,7 +50,7 @@ for (const [routePath, componentPath] of Object.entries(routes)) {
   let relativeDots = '../'.repeat(routePath.split('/').length + 1);
 
   let content;
-  if (routePath === 'sparx/cinema' || routePath === 'sparx/music') {
+  if (routePath === 'sparx/cinema' || routePath === 'sparx/music' || routePath === 'discover') {
     content = `"use client";\n\nimport dynamic from 'next/dynamic';\n\nconst ${exportName} = dynamic(\n  () => import('${relativeDots}src/views/${componentPath}').then(mod => mod.${exportName}),\n  { ssr: false }\n);\n\nexport default function Page() {\n  return <${exportName} />;\n}\n`;
   } else {
     content = `"use client";\n\nimport { ${exportName} } from '${relativeDots}src/views/${componentPath}';\n\nexport default function Page() {\n  return <${exportName} />;\n}\n`;

@@ -33,6 +33,10 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
 
         audio.play().catch(err => {
             console.error('Failed to play ringtone:', err);
+            // Fallback for autoplay restrictions: vibrate phone if supported
+            if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
         });
 
         return () => {

@@ -13,7 +13,18 @@ import {
     Shield, Info, Briefcase, Users, Rocket, Sparkles, Fingerprint
 } from 'lucide-react';
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS, MOCK_INTERESTS } from '../constants';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
+
+const calculateAge = (dob?: string): number | null => {
+    if (!dob) return null;
+    const birth = new Date(dob);
+    const today = new Date();
+    if (isNaN(birth.getTime())) return null;
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+};
 
 export const Profile: React.FC = () => {
     const params = useParams();
@@ -100,11 +111,11 @@ export const Profile: React.FC = () => {
                 if (!supabase) return;
                 const { data } = await supabase
                     .from('profiles')
-                    .select('username')
-                    .eq('username', username)
+                    .select('id, username')
+                    .ilike('username', username.trim())
                     .maybeSingle();
 
-                if (data) {
+                if (data && data.id !== currentUser?.id) {
                     setCredStatus('taken');
                     const random1 = Math.floor(Math.random() * 100);
                     const random2 = Math.floor(Math.random() * 999);
@@ -391,6 +402,7 @@ export const Profile: React.FC = () => {
                                             alt="Avatar"
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover/avatar:scale-105"
                                             referrerPolicy="no-referrer"
+                                            onError={handleImageError}
                                         />
                                     </div>
                                     {profileUser.isVerified && (
@@ -430,9 +442,9 @@ export const Profile: React.FC = () => {
                                         <span className="bg-zinc-850 px-3 py-1 rounded-full text-xs border border-white/5 text-zinc-300 font-medium uppercase">
                                             {profileUser.gender}
                                         </span>
-                                        {profileUser.dob && (
+                                        {profileUser.dob && calculateAge(profileUser.dob) !== null && (
                                             <span className="bg-zinc-850 px-3 py-1 rounded-full text-xs border border-white/5 text-zinc-300 font-medium">
-                                                {new Date().getFullYear() - new Date(profileUser.dob).getFullYear()} Years Old
+                                                {calculateAge(profileUser.dob)} Years Old
                                             </span>
                                         )}
                                     </div>
@@ -500,6 +512,7 @@ export const Profile: React.FC = () => {
                                                     alt="Edit Avatar"
                                                     className="w-full h-full object-cover"
                                                     referrerPolicy="no-referrer"
+                                                    onError={handleImageError}
                                                 />
                                             </div>
                                             <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center cursor-pointer opacity-0 group-hover/edit-avatar:opacity-100 transition-opacity duration-300">
@@ -519,7 +532,7 @@ export const Profile: React.FC = () => {
                                                             editForm.avatar === avatar ? 'border-neon scale-105' : 'border-zinc-800 opacity-60 hover:opacity-100'
                                                         }`}
                                                     >
-                                                        <img src={getOptimizedUrl(avatar, 40)} alt="" className="w-full h-full bg-zinc-800 rounded-full" referrerPolicy="no-referrer" />
+                                                        <img src={getOptimizedUrl(avatar, 40)} alt="" className="w-full h-full bg-zinc-800 rounded-full" referrerPolicy="no-referrer" onError={handleImageError} />
                                                     </button>
                                                 ))}
                                             </div>
@@ -996,6 +1009,24 @@ export const Profile: React.FC = () => {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            <div className="mt-2.5 space-y-1">
+                                                <p className="text-[10px] text-zinc-500 font-bold uppercase">Username Criteria:</p>
+                                                <ul className="text-[10px] space-y-0.5">
+                                                    <li className={!credForm.username ? 'text-zinc-500' : ((credForm.username.length >= 1 && credForm.username.length <= 30) ? 'text-green-400' : 'text-red-400')}>
+                                                        • 1-30 characters long
+                                                    </li>
+                                                    <li className={!credForm.username ? 'text-zinc-500' : (/^[a-z0-9_.]+$/.test(credForm.username) ? 'text-green-400' : 'text-red-400')}>
+                                                        • Only lowercase letters, numbers, underscores & dots
+                                                    </li>
+                                                    <li className={!credForm.username ? 'text-zinc-500' : (!/\.\./.test(credForm.username) ? 'text-green-400' : 'text-red-400')}>
+                                                        • No consecutive dots
+                                                    </li>
+                                                    <li className={!credForm.username ? 'text-zinc-500' : (!/^\./.test(credForm.username) && !/\.$/.test(credForm.username) ? 'text-green-400' : 'text-red-400')}>
+                                                        • Cannot start or end with a dot
+                                                    </li>
+                                                </ul>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

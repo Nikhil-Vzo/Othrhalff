@@ -8,8 +8,10 @@ import Link from 'next/link';
 import { authService } from '../services/auth';
 import { analytics } from '../utils/analytics';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export const Login: React.FC = () => {
+  const { currentUser, needsOnboarding, isLoading: isAuthLoading } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +22,14 @@ export const Login: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (currentUser && !isAuthLoading) {
+      const target = needsOnboarding ? '/onboarding' : '/home';
+      navigate.push(target);
+    }
+  }, [currentUser, needsOnboarding, isAuthLoading, navigate]);
+
   // Auto-dismiss success messages after 5 seconds
   useEffect(() => {
     if (success) {
@@ -27,6 +37,18 @@ export const Login: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [success]);
+
+  // Check for OAuth errors in URL hash
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash.includes('error_description=')) {
+        const params = new URLSearchParams(hash.replace('#', '?'));
+        const desc = params.get('error_description');
+        if (desc) setError(decodeURIComponent(desc).replace(/\+/g, ' '));
+      }
+    }
+  }, []);
 
   // Clear error when user starts typing
   useEffect(() => {
@@ -91,16 +113,29 @@ export const Login: React.FC = () => {
       }
 
       if (isLogin) {
-        await authService.signInWithPassword(finalEmail, password);
+        const authData = await authService.signInWithPassword(finalEmail, password);
         analytics.login('Password');
         setSuccess('Logged in successfully! Redirecting...');
-        // Let the normal app layout handle the routing
-        setTimeout(() => navigate.push('/home'), 500);
+
+        let target = '/home';
+        if (authData?.user?.id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username, real_name, dob')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+
+          if (!profile || !profile.username || !profile.real_name || !profile.dob) {
+            target = '/onboarding';
+          }
+        }
+
+        navigate.push(target);
       } else {
         await authService.signUp(finalEmail, password, '');
         analytics.login('Signup');
         setSuccess('Account created! Redirecting to setup...');
-        setTimeout(() => navigate.push('/onboarding'), 500);
+        navigate.push('/onboarding');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -148,6 +183,13 @@ export const Login: React.FC = () => {
   const handlePasskeyLogin = async () => {
     setError(null);
     setIsLoading(true);
+    
+    if (typeof window !== 'undefined' && !window.PublicKeyCredential) {
+      setError('Passkeys are not supported in this browser.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (!supabase) throw new Error('Supabase client not initialized');
       const { data, error } = await supabase.auth.signInWithPasskey();

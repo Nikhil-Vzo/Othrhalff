@@ -1,20 +1,29 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { MapPin, MapPinOff, Users } from 'lucide-react';
+import { db } from '../lib/db';
 
 export const Playground: React.FC = () => {
   const { currentUser } = useAuth();
   const [remotePlayers, setRemotePlayers] = useState<Map<string, Player>>(new Map());
-  const [gpsEnabled, setGpsEnabled] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
 
   // Default coordinates (approx center of canvas)
-  const [myPos, setMyPos] = useState({ x: 400, y: 300 });
+  const [myPos, setMyPos] = useState({ x: 1600, y: 720 });
   const [mounted, setMounted] = useState(false);
+
+  // Interaction States
+  const [speechBubbles, setSpeechBubbles] = useState<Map<string, {text: string, timestamp: number}>>(new Map());
+  const [chatInput, setChatInput] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [sitState, setSitState] = useState<'IDLE' | 'SITTING'>('IDLE');
+  const [activeBench, setActiveBench] = useState<string | null>(null);
+  
+  const EMOJI_LIST = ['😂', '❤️', '🔥', '👍', '😢', '🎉', '👋', '👀', '✨', '💀'];
 
   // Store the active channel so broadcast Position uses the exact subscribed instance
   const [activeChannel, setActiveChannel] = useState<any>(null);
@@ -26,9 +35,42 @@ export const Playground: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // GPS Geolocation States
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'DISABLED' | 'ACQUIRING' | 'LOCKED' | 'ERROR'>('DISABLED');
+  const gpsAnchorRef = useRef<{ lat: number; lng: number; x: number; y: number } | null>(null);
+  const collisionCheckerRef = useRef<((x: number, y: number) => { x: number; y: number; isBlocked: boolean }) | null>(null);
+
+  const handleCollisionCheckerReady = useCallback((checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => {
+    collisionCheckerRef.current = checker;
+  }, []);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Load saved position and GPS preferences from Dexie IndexedDB
+  useEffect(() => {
+    if (!currentUser) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const savedSettings = await db.playground_settings.get(currentUser.id);
+        if (savedSettings && isMounted) {
+          if (typeof savedSettings.last_x === 'number' && typeof savedSettings.last_y === 'number') {
+            setMyPos({ x: savedSettings.last_x, y: savedSettings.last_y });
+          }
+          if (typeof savedSettings.gps_enabled === 'boolean') {
+            setGpsEnabled(savedSettings.gps_enabled);
+          }
+        }
+      } catch (err) {
+        console.warn('[Dexie Playground] Error loading settings:', err);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [currentUser]);
 
   // 1. Supabase Broadcast Setup for Real-time Multiplayer
   useEffect(() => {
@@ -50,6 +92,7 @@ export const Playground: React.FC = () => {
           direction: payload.direction || 'down',
           isMoving: payload.isMoving || false,
           color: payload.color || '#3b82f6',
+          sittingOn: payload.sittingOn || null
         });
         return newMap;
       });
@@ -59,6 +102,28 @@ export const Playground: React.FC = () => {
       if (!isSubscribed) return;
       const state = channel.presenceState();
       setOnlineCount(Object.keys(state).length);
+    });
+
+    // Handle Speech Bubbles
+    channel.on('broadcast', { event: 'speech_bubble' }, ({ payload }) => {
+      setSpeechBubbles(prev => {
+        const newMap = new Map(prev);
+        newMap.set(payload.id, { text: payload.text, timestamp: Date.now() });
+        return newMap;
+      });
+      
+      // Auto-clear bubble after 7 seconds
+      setTimeout(() => {
+        setSpeechBubbles(prev => {
+          const m = new Map(prev);
+          const current = m.get(payload.id);
+          // Only delete if it's the exact same bubble (timestamp matches)
+          // to prevent deleting a newer bubble that was sent before the old one timed out
+          // but just a simple delete works fine for now if we don't care about overlap edge cases
+          m.delete(payload.id);
+          return m;
+        });
+      }, 7000);
     });
 
     channel.on('presence', { event: 'leave' }, ({ key }) => {
@@ -95,20 +160,12 @@ export const Playground: React.FC = () => {
       setActiveChannel(null);
       supabase.removeChannel(channel);
     };
-
-
-
-    return () => {
-      isSubscribed = false;
-      setActiveChannel(null);
-      supabase.removeChannel(channel);
-    };
   }, [currentUser, sessionId]);
 
   // Broadcast our position and animation state to the channel
   const broadcastPosition = useCallback(
-    (x: number, y: number, dir: string, moving: boolean) => {
-      if (!currentUser || !activeChannel) return;
+    (x: number, y: number, dir: string, moving: boolean, sittingOn: string | null = null) => {
+      if (!currentUser || !activeChannel || activeChannel.state !== 'joined') return;
 
       activeChannel.send({
         type: 'broadcast',
@@ -119,55 +176,194 @@ export const Playground: React.FC = () => {
           y,
           direction: dir,
           isMoving: moving,
-          color: currentUser.gender === 'female' ? '#ff007f' : '#3b82f6',
-        },
-      }).catch((e: any) => console.error("Broadcast failed", e));
+          color: '#3b82f6',
+          sittingOn
+        }
+      }).catch(() => {});
     },
     [currentUser, sessionId, activeChannel]
   );
 
   // Callback from the Canvas when the local player moves using WASD
-  const handlePositionChange = useCallback((x: number, y: number, dir: string, moving: boolean) => {
+  const handlePositionChange = useCallback((x: number, y: number, dir: string, moving: boolean, sittingOn: string | null = null) => {
     setMyPos({ x, y });
-    broadcastPosition(x, y, dir, moving);
-  }, [broadcastPosition]);
+    if (moving && sitState === 'SITTING') {
+      // If they try to move while sitting, stand them up
+      setSitState('IDLE');
+      setActiveBench(null);
+      sittingOn = null;
+    }
+    broadcastPosition(x, y, dir, moving, sittingOn);
 
-  // 2. Geolocation Integration
-  useEffect(() => {
-    let watchId: number;
+    // Save to Dexie IndexedDB
+    if (currentUser?.id) {
+      db.playground_settings.put({
+        id: currentUser.id,
+        last_x: Math.round(x),
+        last_y: Math.round(y),
+        gps_enabled: gpsEnabled,
+        updated_at: Date.now()
+      }).catch(() => {});
+    }
+  }, [broadcastPosition, sitState, currentUser?.id, gpsEnabled]);
 
-    if (gpsEnabled && navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          // --- CAMPUS CALIBRATION ---
-          // In a real app, you would define the exact bounds of your campus:
-          // const CAMPUS_TOP_LEFT = { lat: 37.7749, lng: -122.4194 };
-          // const CAMPUS_BOTTOM_RIGHT = { lat: 37.7739, lng: -122.4184 };
-          // Then you mathematically map `position.coords` to `(x, y)` on the canvas.
+  const handleSendSpeechBubble = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !activeChannel) return;
+    
+    const text = chatInput.trim();
+    
+    // Broadcast to others
+    activeChannel.send({
+      type: 'broadcast',
+      event: 'speech_bubble',
+      payload: { id: sessionId, text }
+    });
 
-          // For this prototype, we'll just simulate a mapping by using modulo math
-          // so the player moves when their GPS moves.
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
+    // Show locally immediately
+    setSpeechBubbles(prev => {
+      const newMap = new Map(prev);
+      newMap.set(sessionId, { text, timestamp: Date.now() });
+      return newMap;
+    });
 
-          const mappedX = (Math.abs(lng) * 100000) % 800; // Fake mapping
-          const mappedY = (Math.abs(lat) * 100000) % 600; // Fake mapping
+    // Auto-clear local
+    setTimeout(() => {
+      setSpeechBubbles(prev => {
+        const m = new Map(prev);
+        m.delete(sessionId);
+        return m;
+      });
+    }, 7000);
 
-          handlePositionChange(mappedX, mappedY, 'down', true);
-        },
-        (error) => {
-          console.error('Error watching position:', error);
-          setGpsEnabled(false);
-          alert("Could not access location. Reverting to manual movement.");
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-      );
+    setChatInput('');
+    setShowEmojiPicker(false);
+  };
+
+  const handleEmojiClick = (emoji: string) => {
+    setChatInput(prev => prev + emoji);
+  };
+
+  const handleSitRequest = (benchId: string, benchX: number, benchY: number) => {
+    const occupants = Array.from(remotePlayers.values()).filter(p => p.sittingOn === benchId);
+    if (occupants.length >= 2) {
+      setErrorMsg("Bench is full!");
+      setTimeout(() => setErrorMsg(null), 3000);
+      return;
     }
 
+    let seatX = benchX - 25; // Default left
+    if (occupants.length === 1 && occupants[0].x < benchX) {
+      seatX = benchX + 25; // Left is taken
+    } else if (occupants.length === 1 && occupants[0].x >= benchX) {
+      seatX = benchX - 25; // Right is taken
+    }
+
+    // Move the avatar further down so they sit on the grey seat area instead of floating on the backrest
+    const seatY = benchY + 15;
+    
+    setSitState('SITTING');
+    setActiveBench(benchId);
+    
+    // Teleport local player to seat and broadcast sitting state
+    handlePositionChange(seatX, seatY, 'down', false, benchId);
+  };
+
+  // 2. Geolocation Sync Engine
+  const toggleGpsMode = useCallback(() => {
+    setGpsEnabled(prev => {
+      const nextState = !prev;
+      gpsAnchorRef.current = null;
+      if (currentUser?.id) {
+        db.playground_settings.put({
+          id: currentUser.id,
+          last_x: Math.round(myPos.x),
+          last_y: Math.round(myPos.y),
+          gps_enabled: nextState,
+          updated_at: Date.now()
+        }).catch(() => {});
+      }
+      return nextState;
+    });
+  }, [currentUser?.id, myPos.x, myPos.y]);
+
+  useEffect(() => {
+    if (!gpsEnabled) {
+      setGpsStatus('DISABLED');
+      setGpsAccuracy(null);
+      gpsAnchorRef.current = null;
+      return;
+    }
+
+    if (!('geolocation' in navigator)) {
+      setGpsStatus('ERROR');
+      setErrorMsg('Geolocation is not supported by your browser.');
+      setGpsEnabled(false);
+      return;
+    }
+
+    setGpsStatus('ACQUIRING');
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setGpsAccuracy(Math.round(accuracy));
+        setGpsStatus('LOCKED');
+
+        if (!gpsAnchorRef.current) {
+          gpsAnchorRef.current = { lat: latitude, lng: longitude, x: myPos.x, y: myPos.y };
+          return;
+        }
+
+        const anchor = gpsAnchorRef.current;
+        // Metres displacement using Equirectangular approximation
+        const dLatMeters = (latitude - anchor.lat) * 111139;
+        const dLngMeters = (longitude - anchor.lng) * 111139 * Math.cos(anchor.lat * (Math.PI / 180));
+
+        // Scale factor: 8 pixels per real-world meter
+        const PIXELS_PER_METER = 8;
+        const rawTargetX = Math.max(50, Math.min(2510, anchor.x + dLngMeters * PIXELS_PER_METER));
+        const rawTargetY = Math.max(50, Math.min(1390, anchor.y - dLatMeters * PIXELS_PER_METER));
+
+        // Enforce Wall Avoidance & Walkable Path Sanitization
+        let finalX = rawTargetX;
+        let finalY = rawTargetY;
+        if (collisionCheckerRef.current) {
+          const validated = collisionCheckerRef.current(rawTargetX, rawTargetY);
+          finalX = validated.x;
+          finalY = validated.y;
+        }
+
+        const dx = finalX - myPos.x;
+        const dy = finalY - myPos.y;
+
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+          let dir: 'up' | 'down' | 'left' | 'right' = 'down';
+          if (Math.abs(dy) > Math.abs(dx)) {
+            dir = dy < 0 ? 'up' : 'down';
+          } else {
+            dir = dx < 0 ? 'left' : 'right';
+          }
+
+          handlePositionChange(finalX, finalY, dir, true);
+        }
+      },
+      (err) => {
+        console.warn('[GPS Error]', err);
+        setGpsStatus('ERROR');
+        setErrorMsg(`GPS Error: ${err.message}`);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 2000,
+        timeout: 15000
+      }
+    );
+
     return () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
+      navigator.geolocation.clearWatch(watchId);
     };
-  }, [gpsEnabled, broadcastPosition]);
+  }, [gpsEnabled, handlePositionChange, myPos.x, myPos.y]);
 
   if (!mounted || !currentUser) {
     return <div className="flex h-full items-center justify-center text-white">Loading Playground...</div>;
@@ -175,8 +371,15 @@ export const Playground: React.FC = () => {
 
   return (
     <div className="relative w-full h-full flex flex-col bg-black overflow-hidden">
+      {/* Instructions Overlay */}
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
+        <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
+          {gpsEnabled ? 'GPS Tracking Active • Walk outside to move' : 'Use W A S D or Arrow Keys to Move'}
+        </p>
+      </div>
+
       {/* Top HUD overlay */}
-      <div className="absolute top-4 left-4 z-20 flex gap-4 pointer-events-none items-center">
+      <div className="absolute top-4 left-4 z-20 flex gap-4 pointer-events-none items-center flex-wrap">
         {/* User Profile Pic */}
         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 bg-gray-900 pointer-events-auto cursor-pointer shadow-lg hover:border-neon transition-colors" onClick={() => window.location.href = '/profile'}>
           {currentUser.avatar ? (
@@ -188,56 +391,111 @@ export const Playground: React.FC = () => {
           )}
         </div>
 
-        {/* Online Count */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-black/50 border border-gray-800 rounded-full backdrop-blur-md">
-          <Users className="w-4 h-4 text-neon" />
-          <span className="text-white text-xs font-bold">{onlineCount} Online</span>
+        {/* Online Count & Connection */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
+            <Users size={16} className="text-gray-400" />
+            <span className="text-white text-sm font-medium">{onlineCount} Online</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
+            <div className={`w-2 h-2 rounded-full ${connectionStatus === 'SUBSCRIBED' ? 'bg-neon animate-pulse' : 'bg-red-500'}`}></div>
+            <span className="text-gray-300 text-xs font-bold">{connectionStatus}</span>
+          </div>
         </div>
 
-        {/* Connection Status Debug */}
-        <div className={`flex items-center gap-2 px-3 py-1.5 bg-black/50 border rounded-full backdrop-blur-md ${connectionStatus === 'SUBSCRIBED' ? 'border-green-500/50' : 'border-red-500/50'}`}>
-          <span className={`w-2 h-2 rounded-full ${connectionStatus === 'SUBSCRIBED' ? 'bg-green-500' : connectionStatus === 'CONNECTING' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
-          <span className="text-white text-xs font-bold">{connectionStatus}</span>
-        </div>
+        {/* GPS Mode Toggle Button */}
+        <button
+          onClick={toggleGpsMode}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border pointer-events-auto transition-all shadow-md cursor-pointer ${
+            gpsEnabled
+              ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)]'
+              : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+          }`}
+          title="Toggle Real-world GPS Position Sync"
+        >
+          {gpsEnabled ? (
+            <MapPin size={16} className="text-cyan-400 animate-bounce" />
+          ) : (
+            <MapPinOff size={16} className="text-gray-400" />
+          )}
+          <span className="text-xs font-bold">
+            {gpsEnabled
+              ? gpsStatus === 'LOCKED'
+                ? `GPS Sync (±${gpsAccuracy ?? '?'}m)`
+                : `GPS (${gpsStatus})`
+              : 'GPS Off'}
+          </span>
+        </button>
 
         {/* Error Message Debug */}
         {errorMsg && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-900/50 border border-red-500 rounded-full backdrop-blur-md max-w-md">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-900/50 border border-red-500 rounded-full backdrop-blur-md max-w-md pointer-events-auto">
             <span className="text-white text-xs font-bold text-red-200">Error: {errorMsg}</span>
           </div>
         )}
-
-        {/* GPS Toggle */}
-        <button
-          onClick={() => setGpsEnabled(!gpsEnabled)}
-          className={`pointer-events-auto flex items-center gap-2 px-3 py-1.5 border rounded-full backdrop-blur-md transition-colors ${gpsEnabled
-            ? 'bg-neon/20 border-neon text-white shadow-[0_0_10px_rgba(255,0,127,0.3)]'
-            : 'bg-black/50 border-gray-800 text-gray-400 hover:text-white'
-            }`}
-        >
-          {gpsEnabled ? <MapPin className="w-4 h-4" /> : <MapPinOff className="w-4 h-4" />}
-          <span className="text-xs font-bold">{gpsEnabled ? 'GPS Tracking ON' : 'Use Manual (WASD)'}</span>
-        </button>
       </div>
 
       {/* The 2D World */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative pb-16"> {/* Add padding for the chat bar */}
         <PlaygroundCanvas
           localPlayerId={currentUser.id}
+          localSessionId={sessionId}
           onPositionChange={handlePositionChange}
           remotePlayers={Array.from(remotePlayers.values())}
-          gpsEnabled={gpsEnabled}
           localPosition={myPos}
+          speechBubbles={speechBubbles}
+          sitState={sitState}
+          activeBench={activeBench}
+          onSitRequest={handleSitRequest}
+          gpsEnabled={gpsEnabled}
+          onCollisionCheckerReady={handleCollisionCheckerReady}
         />
       </div>
 
-      {/* Instructions Overlay */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
-        {!gpsEnabled && (
-          <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
-            Use W A S D or Arrow Keys to Move
-          </p>
-        )}
+      {/* Global Chat Input Bar */}
+      <div className="absolute bottom-0 w-full bg-gray-900 border-t border-gray-800 p-3 z-30 flex justify-center">
+        <form onSubmit={handleSendSpeechBubble} className="w-full max-w-2xl flex gap-2 relative">
+          
+          {/* Quick Emoji Picker */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-full left-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg p-2 shadow-2xl flex flex-wrap gap-1 w-64 z-50">
+              {EMOJI_LIST.map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => handleEmojiClick(emoji)}
+                  className="text-xl hover:bg-gray-700 p-2 rounded transition-colors"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="px-4 py-2 bg-gray-800 text-xl rounded-full border border-gray-700 hover:bg-gray-700 transition-colors"
+          >
+            😀
+          </button>
+
+          <input
+            type="text"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Say something to people nearby..."
+            className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-full border border-gray-700 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition-colors"
+            maxLength={100}
+          />
+          <button 
+            type="submit"
+            disabled={!chatInput.trim()}
+            className="px-6 py-2 bg-neon text-white font-bold rounded-full hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Say
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -234,7 +234,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Update database
-    await answerCallAPI(incomingCall.callSessionId);
+    const success = await answerCallAPI(incomingCall.callSessionId);
+    
+    if (!success) {
+      console.warn('[CallContext] Failed to answer call. Session may have been cancelled.');
+      setIncomingCall(null);
+      return;
+    }
 
     // Start the call
     startCall(

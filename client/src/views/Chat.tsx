@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
@@ -12,7 +13,7 @@ import { blockUser, unblockUser, checkBlockStatus } from '../services/blockServi
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { initiateCall, checkUserBusy } from '../services/callSignaling';
 import { analytics } from '../utils/analytics';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, LocalMessage } from '../lib/db';
 import Dexie from 'dexie';
@@ -100,7 +101,8 @@ const MessageRow = React.memo<MessageRowProps>(({
   handleMessageDoubleClick,
   handleDeleteMessage
 }) => {
-  if (msg.isSystem && msg.parsedGame?.type === 'INVITE') {
+  const router = useNavigate();
+  if (msg.parsedGame?.type === 'INVITE') {
     const inviteData = msg.parsedGame.state;
     const isCinema = inviteData.type === 'cinema';
     const Icon = isCinema ? Tv : Music;
@@ -139,13 +141,13 @@ const MessageRow = React.memo<MessageRowProps>(({
             </div>
           </div>
           
-          <a
-            href={inviteData.url}
+          <button
+            onClick={() => router.push(inviteData.url)}
             className={`w-full py-2.5 px-4 text-xs font-bold rounded-xl text-white transition-all active:scale-[0.98] duration-200 flex items-center justify-center gap-2 ${btnClass}`}
           >
             <Icon className="w-3.5 h-3.5" />
             <span>{buttonText}</span>
-          </a>
+          </button>
         </div>
       </div>
     );
@@ -396,7 +398,7 @@ const MessageRow = React.memo<MessageRowProps>(({
         {!isMe && (
           <div className="w-8 h-8 flex-shrink-0">
             {showAvatar && (
-              <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" referrerPolicy="no-referrer" />
+              <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
             )}
           </div>
         )}
@@ -624,6 +626,7 @@ export const Chat: React.FC = () => {
   const [customWyrA, setCustomWyrA] = useState('');
   const [customWyrB, setCustomWyrB] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const partnerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
   const typingSentRef = useRef(false);
   const lastTypingSentTimeRef = useRef(0);
@@ -860,6 +863,40 @@ export const Chat: React.FC = () => {
     markMessagesReadRef.current();
   }, [matchId, currentUser?.id]);
 
+  // Offline Outbox Sync: Auto-retry pending outbox messages on network recovery
+  useEffect(() => {
+    const handleOnline = async () => {
+      try {
+        const pending = await db.outbox.where('status').equals('pending').toArray();
+        if (!pending || pending.length === 0) return;
+        
+        for (const item of pending) {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert({ match_id: item.match_id, sender_id: item.sender_id, text: item.text })
+            .select()
+            .single();
+
+          if (!error && data) {
+            await db.transaction('rw', [db.messages, db.outbox], async () => {
+              await db.messages.delete(item.id);
+              await db.messages.put(mapSupabaseMessageToLocal(data, item.match_id));
+              await db.outbox.delete(item.id);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Dexie Outbox Sync] Retry failed:', err);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    if (navigator.onLine) {
+      handleOnline();
+    }
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   const loadMoreMessages = async () => {
     if (!hasMoreMessages || isLoadingMore || !matchId) return;
     setIsLoadingMore(true);
@@ -924,9 +961,9 @@ export const Chat: React.FC = () => {
 
   // Realtime
   useEffect(() => {
-    // Use a unique channel name for every mount to avoid React Strict Mode race conditions during cleanup
-    const uniqueChannelName = `chat_turbo_${matchId}_${Math.random().toString(36).substring(7)}`;
-    const channel = supabase.channel(uniqueChannelName)
+    // Deterministic channel name so both users join the exact same broadcast room
+    const channelName = `chat_room_${matchId}`;
+    const channel = supabase.channel(channelName)
       .on('postgres_changes', {
         event: '*', // Listen to INSERT and UPDATE
         schema: 'public',
@@ -954,6 +991,8 @@ export const Chat: React.FC = () => {
           // Block enforcement: ignore messages from blocked users
           if (newMsg.sender_id !== currentUser?.id) {
             if (isBlocked || isBlockedByThem) return; // Don't show messages if blocked
+            setPartnerIsTyping(false);
+            if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
             localMsg.is_read = true;
             markMessagesReadRef.current();
           }
@@ -970,13 +1009,19 @@ export const Chat: React.FC = () => {
         }
       })
       .on('broadcast', { event: 'typing' }, (payload) => {
-        if (payload.payload.userId === partnerRef.current?.id) {
-          setPartnerIsTyping((prev) => {
-            if (prev !== payload.payload.isTyping) {
-              return payload.payload.isTyping;
-            }
-            return prev;
-          });
+        const senderId = payload.payload?.userId;
+        if (senderId && senderId !== currentUser?.id) {
+          const isTyping = !!payload.payload?.isTyping;
+          setPartnerIsTyping(isTyping);
+
+          if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
+
+          // Auto-expire partner typing state after 3.5s in case of network drop or abrupt disconnect
+          if (isTyping) {
+            partnerTypingTimeoutRef.current = setTimeout(() => {
+              setPartnerIsTyping(false);
+            }, 3500);
+          }
         }
       })
       .subscribe();
@@ -984,14 +1029,38 @@ export const Chat: React.FC = () => {
     channelRef.current = channel;
 
     return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
+      if (typingSentRef.current && channelRef.current && currentUser) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, isTyping: false }
+        }).catch?.(() => {});
+        typingSentRef.current = false;
+      }
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [matchId]);
+  }, [matchId, currentUser?.id]);
 
   const handleInputChange = (val: string) => {
     setNewMessage(val);
-    if (!channelRef.current || !currentUser || channelRef.current.state !== 'joined') return;
+    if (!channelRef.current || !currentUser) return;
+
+    // If text was backspaced or cleared to empty, immediately broadcast typing: false
+    if (!val.trim()) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (typingSentRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, isTyping: false }
+        }).catch?.(() => {});
+        typingSentRef.current = false;
+      }
+      return;
+    }
 
     const now = Date.now();
     const shouldSend = !typingSentRef.current || (now - lastTypingSentTimeRef.current > 2500);
@@ -1002,7 +1071,7 @@ export const Chat: React.FC = () => {
         type: 'broadcast',
         event: 'typing',
         payload: { userId: currentUser.id, isTyping: true }
-      });
+      }).catch?.(() => {});
       typingSentRef.current = true;
       lastTypingSentTimeRef.current = now;
     }
@@ -1010,12 +1079,12 @@ export const Chat: React.FC = () => {
     // Reset timeout to broadcast typing = false after 1.5s
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      if (channelRef.current && currentUser && channelRef.current.state === 'joined') {
+      if (channelRef.current && currentUser && typingSentRef.current) {
         channelRef.current.send({
           type: 'broadcast',
           event: 'typing',
           payload: { userId: currentUser.id, isTyping: false }
-        });
+        }).catch?.(() => {});
         typingSentRef.current = false;
       }
     }, 1500);
@@ -1082,28 +1151,34 @@ export const Chat: React.FC = () => {
     try {
       const nameSlug = virtualDateRoomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
       const uniqueId = Math.random().toString(36).substring(2, 7);
-      const roomUuid = `${virtualDateType}_${nameSlug}_${uniqueId}`;
-      const passcode = Math.floor(1000 + Math.random() * 9000).toString();
+      const generateUnifiedCode = () => {
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const numbers = '0123456789';
+        let code = '';
+        for (let i = 0; i < 3; i++) code += letters.charAt(Math.floor(Math.random() * letters.length));
+        code += '-';
+        for (let i = 0; i < 3; i++) code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        return code;
+      };
 
-      const inviteText = `[SYSTEM] [INVITE:v1] ${JSON.stringify({
+      const unifiedCode = generateUnifiedCode();
+      const roomUuid = `${virtualDateType}_${nameSlug}_${unifiedCode}`;
+
+      const inviteText = `[INVITE:v1] ${JSON.stringify({
         action: 'join_room',
         type: virtualDateType,
         room: roomUuid,
-        url: `/sparx/${virtualDateType}?room=${roomUuid}&private=true&passcode=${passcode}`,
+        url: `/sparx/${virtualDateType}?room=${roomUuid}&private=true`,
         message: virtualDateType === 'cinema' ? 'Cinema Date Watch Party' : 'Music Jam Session'
       })}`;
 
-      await supabase.from('messages').insert({
-        match_id: matchId,
-        sender_id: currentUser.id,
-        text: inviteText
-      });
+      await sendGameMessage(inviteText);
 
       setShowVirtualDateModal(false);
       setVirtualDateType(null);
       setVirtualDateRoomName('');
       
-      navigate.push(`/sparx/${virtualDateType}?createName=${encodeURIComponent(virtualDateRoomName)}&room=${roomUuid}&private=true&passcode=${passcode}`);
+      navigate.push(`/sparx/${virtualDateType}?createName=${encodeURIComponent(virtualDateRoomName)}&room=${roomUuid}&private=true`);
     } catch (e) {
       console.error('Failed to create virtual date:', e);
     } finally {
@@ -1116,12 +1191,12 @@ export const Chat: React.FC = () => {
     
     // Clear typing indicator immediately
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (channelRef.current && channelRef.current.state === 'joined') {
+    if (channelRef.current && currentUser) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
         payload: { userId: currentUser.id, isTyping: false }
-      });
+      }).catch?.(() => {});
     }
     typingSentRef.current = false;
 
@@ -1187,11 +1262,21 @@ export const Chat: React.FC = () => {
       if (localSaved) {
         try {
           await db.messages.update(optimisticId, { status: 'failed' });
+          // Save to Dexie outbox for background retry when connection restores
+          await db.outbox.put({
+            id: optimisticId,
+            match_id: matchId,
+            sender_id: currentUser.id,
+            text: textToSend,
+            created_at: Date.now(),
+            status: 'pending',
+            retry_count: 0
+          });
         } catch (dbErr) {
           console.error('Failed to mark message as failed in local DB:', dbErr);
         }
       } 
-      showToast('Failed to send', 'error'); 
+      showToast('Failed to send (saved to offline outbox)', 'error'); 
     }
   };
 
@@ -1442,7 +1527,7 @@ export const Chat: React.FC = () => {
           // Pass back the latest message to update the list instantly
           const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
           navigate.push('/matches');
-        }} aria-label="Back to matches" className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" aria-hidden="true" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" alt={`${partner.realName || partner.anonymousId}'s avatar`} referrerPolicy="no-referrer" /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} aria-hidden="true" />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
+        }} aria-label="Back to matches" className="p-2 -ml-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"><ArrowLeft className="w-5 h-5" aria-hidden="true" /></button><div className="relative"><img src={getOptimizedUrl(partner.avatar, 64)} className="w-10 h-10 rounded-full border border-gray-700 object-cover" alt={`${partner.realName || partner.anonymousId}'s avatar`} referrerPolicy="no-referrer" onError={handleImageError} /><div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isUserOnline(partner.id) ? 'bg-green-500' : 'bg-gray-500'}`}></div></div><div><div className="flex items-center gap-1"><h3 className="text-sm font-bold text-white">{partner.realName || partner.anonymousId}</h3>{partner.isVerified && (<BadgeCheck className="w-3.5 h-3.5 flex-shrink-0 drop-shadow-[0_0_4px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} aria-hidden="true" />)}</div><span className="text-[10px] text-gray-500">{isUserOnline(partner.id) ? <span className="text-green-400">Active</span> : (getLastSeen(partner.id) ? (new Date().getTime() - getLastSeen(partner.id)!.getTime() < 60000 ? 'just now' : getLastSeen(partner.id)?.toLocaleDateString()) : 'Offline')}</span></div></div>
         <div className="flex items-center gap-1"><button onClick={() => startVideoCall('video')} disabled={isStartingCall || isBlocked || isBlockedByThem} aria-label="Start video call" className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-neon'}`}><Video className="w-5 h-5" aria-hidden="true" /></button><button onClick={() => startVideoCall('audio')} disabled={isStartingCall || isBlocked || isBlockedByThem} aria-label="Start voice call" className={`p-2.5 hover:bg-gray-800 rounded-full ${isBlocked || isBlockedByThem ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-green-400'}`}><Phone className="w-5 h-5" aria-hidden="true" /></button>
           <div className="relative">
             <button onClick={() => setShowMenu(!showMenu)} aria-label="More options" aria-expanded={showMenu} className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full"><MoreVertical className="w-5 h-5" aria-hidden="true" /></button>
@@ -1519,17 +1604,53 @@ export const Chat: React.FC = () => {
           );
         })}
         {partnerIsTyping && (
-          <div className="flex items-center gap-2 text-gray-500 text-xs pl-10">
-            <div className="flex items-center gap-1 bg-gray-900/60 border border-gray-800/80 px-3 py-1.5 rounded-full backdrop-blur-sm">
-              <span className="text-[10px] font-mono tracking-wider font-semibold text-neon">{partner?.realName || partner?.anonymousId}</span>
-              <span className="text-[10px] text-gray-400">is typing</span>
-              <div className="flex gap-0.5 ml-1">
-                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1 h-1 rounded-full bg-neon animate-bounce" style={{ animationDelay: '300ms' }} />
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="flex items-center gap-2 pl-4 py-2 my-1"
+          >
+            <div className="flex items-center gap-2.5 bg-gradient-to-r from-gray-900/95 via-gray-900/80 to-purple-950/40 border border-purple-500/20 px-3.5 py-2 rounded-2xl shadow-xl shadow-black/50 backdrop-blur-md">
+              {partner?.avatar ? (
+                <img
+                  src={getOptimizedUrl(partner.avatar, 32)}
+                  alt={partner.realName || partner.anonymousId}
+                  className="w-5 h-5 rounded-full object-cover border border-purple-400/40 shadow-sm shrink-0"
+                  onError={handleImageError}
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-[9px] font-bold text-neon shrink-0">
+                  {(partner?.realName || partner?.anonymousId || '?').slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold tracking-wide text-gray-200">
+                  {partner?.realName || partner?.anonymousId}
+                </span>
+                <span className="text-[11px] text-purple-300/70 font-medium">is typing</span>
+              </div>
+
+              <div className="flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded-full bg-black/50 border border-white/5">
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_6px_#ff007f]"
+                  animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_6px_#a855f7]"
+                  animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_6px_#ff007f]"
+                  animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }}
+                />
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
         <div ref={messagesEndRef} />
       </div>

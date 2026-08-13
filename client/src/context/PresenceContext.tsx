@@ -91,14 +91,18 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             updatePresence(true);
         }, 30000);
 
-        // Activity detection - reset heartbeat on user activity
+        // Activity detection - reset heartbeat on user activity with throttling
+        const lastActivityBroadcastRef = { current: 0 };
         const resetActivity = () => {
             if (activityTimeoutRef.current) {
                 clearTimeout(activityTimeoutRef.current);
             }
             
-            // Mark online in Realtime (no DB write unless status changes)
-            updatePresence(true);
+            const now = Date.now();
+            if (now - lastActivityBroadcastRef.current > 60000) {
+                updatePresence(true);
+                lastActivityBroadcastRef.current = now;
+            }
 
             // Set idle/offline timeout (e.g., mark offline after 3 minutes of inactivity)
             activityTimeoutRef.current = setTimeout(() => {

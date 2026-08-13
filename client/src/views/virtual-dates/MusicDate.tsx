@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2 } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
+import { ShareRoomModal } from '../../components/ShareRoomModal';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
@@ -56,6 +57,7 @@ export const MusicDate = () => {
     const [roomName, setRoomName] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [joinCode, setJoinCode] = useState('');
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -317,6 +319,10 @@ export const MusicDate = () => {
                 : Math.random().toString(36).substring(2, 15) + '-' + Math.random().toString(36).substring(2, 15);
 
             const inviteText = `[SYSTEM] [INVITE:v1] ${JSON.stringify({
+            const unifiedCode = generateRoomCode();
+            const roomUuid = `music_jam_${unifiedCode}`;
+            
+            const inviteText = `[INVITE:v1] ${JSON.stringify({
                 action: 'join_room',
                 type: 'music',
                 room: roomUuid,
@@ -350,6 +356,7 @@ export const MusicDate = () => {
 
     // Chat State
     const [showChat, setShowChat] = useState(false);
+    const [showUsersList, setShowUsersList] = useState(false);
     const [messages, setMessages] = useState<{ user: string, text: string }[]>([
         { user: 'System', text: 'Welcome to the Music Jam!' }
     ]);
@@ -412,8 +419,14 @@ export const MusicDate = () => {
             const queryCreateName = searchParams.get('createName');
             
             if (queryRoom && mode === 'landing') {
+                setRoomCode(queryRoom);
+                if (queryPrivate === 'true') setIsPrivateRoom(true);
+                if (queryPasscode) {
+                    setRoomPasscode(queryPasscode);
+                    roomPasscodeRef.current = queryPasscode;
+                }
+
                 if (queryCreateName) {
-                    setRoomCode(queryRoom);
                     setRoomName(queryCreateName);
                     setIsHost(true);
                     setMode('room');
@@ -434,7 +447,19 @@ export const MusicDate = () => {
                     window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
                 }
 
+                    setMode('create_room');
+                    sessionStorage.setItem('host_room_code', queryRoom);
+                } else {
+                    const isSessionHost = sessionStorage.getItem('host_room_code') === queryRoom;
+                    setRoomName(parseRoomName(queryRoom));
+                    setIsHost(isSessionHost);
+                    // If they are recovering their host session, go back to create_room so they can "Start Jam"
+                    setMode(isSessionHost ? 'create_room' : 'room');
+                }
+                
+                window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
                 setError(null);
+                return;
             }
         }
     }, [mode]);
@@ -492,7 +517,8 @@ export const MusicDate = () => {
 
                     // Check Passcode if joining existing private room
                     if (activeHostId && dbIsPrivate) {
-                        if (roomPasscode !== dbPasscode) {
+                        const effectivePasscode = roomPasscodeRef.current || roomPasscode;
+                        if (effectivePasscode !== dbPasscode) {
                             setNeedsPasscode(true);
                             setIsConnecting(false);
                             return; // Halt initialization until passcode is provided
@@ -528,16 +554,18 @@ export const MusicDate = () => {
                     // 3. Decide role and configure peer ID
                     let peerId: string | undefined = undefined;
                     let currentIsHost = false;
+                    const expectedHostId = 'host-' + roomCode;
 
-                    if (activeHostId) {
+                    if (activeHostId || !isHost) {
                         currentIsHost = false;
                         setIsHost(false);
-                        setRoomHostId(activeHostId);
+                        const targetHost = activeHostId || expectedHostId;
+                        setRoomHostId(targetHost);
                         setMode('room');
                     } else {
                         currentIsHost = true;
                         setIsHost(true);
-                        peerId = 'host-' + roomCode + '-' + Math.random().toString(36).substring(2, 9);
+                        peerId = expectedHostId;
                         setRoomHostId(peerId);
                         setMode('room');
                     }
@@ -567,7 +595,7 @@ export const MusicDate = () => {
                                             room_id: roomCode,
                                             host_peer_id: id,
                                             is_private: isPrivateRoom,
-                                            passcode: roomPasscode,
+                                            passcode: roomPasscodeRef.current || roomPasscode,
                                             updated_at: new Date().toISOString(),
                                             host_user_id: currentUser?.id
                                         });
@@ -578,7 +606,8 @@ export const MusicDate = () => {
                             analytics.virtualDateStart('Music Jam');
                         } else {
                             analytics.virtualDateJoin();
-                            connectToPeer(activeHostId!, stream, peer);
+                            const targetHost = activeHostId || expectedHostId;
+                            connectToPeer(targetHost, stream, peer);
                         }
                         setIsConnecting(false);
                     });
@@ -588,8 +617,18 @@ export const MusicDate = () => {
                         let msg = `Connection Error: ${err.type || 'Unknown'}`;
 
                         if (err.type === 'peer-unavailable') {
-                            msg = "Stale host detected. Initializing room...";
-                            handleStaleHost();
+                            if (!activeHostId) {
+                                msg = "Waiting for host to start the room...";
+                                setError(msg);
+                                setTimeout(() => {
+                                    setRoomCode('');
+                                    setTimeout(() => setRoomCode(roomCode), 300);
+                                }, 5000);
+                                return;
+                            } else {
+                                msg = "Stale host detected. Initializing room...";
+                                handleStaleHost();
+                            }
                         } else if (err.type === 'unavailable-id') {
                             msg = "Room Name/Code is already taken. Please try another.";
                         } else if (err.type === 'network') {
@@ -668,7 +707,7 @@ export const MusicDate = () => {
                 }
             };
         }
-    }, [roomCode, needsPasscode, roomPasscode]);
+    }, [roomCode, needsPasscode, roomPasscode, mode]);
 
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
         console.log(`Attempting to connect to Host: ${targetId}`);
@@ -1151,6 +1190,16 @@ export const MusicDate = () => {
         broadcastSync('seek', { time: newTime });
     };
 
+    const generateRoomCode = () => {
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const numbers = '0123456789';
+        let code = '';
+        for (let i = 0; i < 3; i++) code += letters.charAt(Math.floor(Math.random() * letters.length));
+        code += '-';
+        for (let i = 0; i < 3; i++) code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        return code;
+    };
+
     const handleCreateRoom = () => {
         if (!roomName.trim()) {
             setError('Please enter a room name');
@@ -1161,11 +1210,15 @@ export const MusicDate = () => {
         const uniqueId = Math.random().toString(36).substring(2, 7);
         const code = `music_${nameSlug}_${uniqueId}`;
 
+        const unifiedCode = generateRoomCode();
+        const code = `music_${nameSlug}_${unifiedCode}`;
+        
         if (isPrivateRoom) {
-            const passcode = Math.floor(1000 + Math.random() * 9000).toString();
-            setRoomPasscode(passcode);
+            setRoomPasscode(null);
+            roomPasscodeRef.current = null;
         } else {
             setRoomPasscode(null);
+            roomPasscodeRef.current = null;
         }
 
         setRoomCode(code);
@@ -1175,9 +1228,9 @@ export const MusicDate = () => {
     };
 
     const handleJoinRoom = async () => {
-        const entered = joinCode.replace(/\D/g, '');
-        if (entered.length !== 4) {
-            setError('Please enter a valid 4-digit passcode');
+        const entered = joinCode.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        if (entered.length !== 7) {
+            setError('Please enter a valid 7-character room code (e.g., ABC-123)');
             return;
         }
 
@@ -1187,10 +1240,8 @@ export const MusicDate = () => {
             try {
                 const { data, error } = await supabase
                     .from('active_rooms')
-                    .select('room_id, is_private, passcode')
-                    .eq('is_private', true)
-                    .eq('passcode', entered)
-                    .like('room_id', 'music_%')
+                    .select('room_id, is_private')
+                    .like('room_id', `%_${entered}`)
                     .maybeSingle();
 
                 if (error) throw error;
@@ -1200,11 +1251,10 @@ export const MusicDate = () => {
                     setRoomName('Joined Room');
                     setIsHost(false);
                     setMode('room');
-                    setRoomPasscode(entered);
-                    setIsPrivateRoom(true);
+                    setIsPrivateRoom(data.is_private || false);
                     setError(null);
                 } else {
-                    setError('Invalid passcode or room expired');
+                    setError('Invalid room code or room expired');
                     setTimeout(() => setError(null), 3000);
                 }
             } catch (err: any) {
@@ -1497,7 +1547,7 @@ export const MusicDate = () => {
                             {isCreate ? <PlusCircle className="w-10 h-10" /> : <LogIn className="w-10 h-10" />}
                         </div>
                         <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">{isCreate ? 'Create Your Jam' : 'Join a Jam'}</h2>
-                        <p className="text-sm text-white/50 font-light">{isCreate ? 'Give your room a fun name' : "Enter the 4-digit passcode for private rooms"}</p>
+                        <p className="text-sm text-white/50 font-light">{isCreate ? 'Give your room a fun name' : "Enter the 7-character room code (e.g. ABC-123)"}</p>
                     </div>
                     {error && <div className="mb-6 text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 py-3 rounded-xl backdrop-blur-md">{error}</div>}
                     <div className="space-y-6">
@@ -1526,14 +1576,14 @@ export const MusicDate = () => {
                             </div>
                         ) : (
                             <div>
-                                <label className="block text-sm font-medium text-white/60 mb-2">Room Passcode</label>
-                                <input type="text" maxLength={4} value={joinCode} onChange={e => {
-                                    setJoinCode(e.target.value.replace(/\D/g, ''));
-                                }} onKeyPress={e => e.key === 'Enter' && handleJoinRoom()} placeholder="0000" disabled={isConnecting} className="w-full bg-[#0a001a]/50 border border-white/10 rounded-xl px-5 py-4 text-center text-xl md:text-2xl tracking-widest text-white placeholder-white/20 focus:border-indigo-500/50 focus:outline-none transition-all font-mono disabled:opacity-50 shadow-inner backdrop-blur-md" autoFocus />
-                                <div className="text-xs text-white/30 mt-3 text-center tracking-widest">FORMAT: 1234</div>
+                                <label className="block text-sm font-medium text-white/60 mb-2">Room Code</label>
+                                <input type="text" maxLength={7} value={joinCode} onChange={e => {
+                                    setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''));
+                                }} onKeyPress={e => e.key === 'Enter' && handleJoinRoom()} placeholder="ABC-123" disabled={isConnecting} className="w-full bg-[#0a001a]/50 border border-white/10 rounded-xl px-5 py-4 text-center text-xl md:text-2xl tracking-widest text-white placeholder-white/20 focus:border-indigo-500/50 focus:outline-none transition-all font-mono disabled:opacity-50 shadow-inner backdrop-blur-md" autoFocus />
+                                <div className="text-xs text-white/30 mt-3 text-center tracking-widest">FORMAT: ABC-123</div>
                             </div>
                         )}
-                        <button onClick={isCreate ? handleCreateRoom : handleJoinRoom} disabled={isConnecting || (isCreate ? !roomName.trim() : joinCode.length !== 4)} className={`w-full bg-gradient-to-r text-white font-bold py-4 rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isCreate ? 'from-violet-500 to-purple-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-indigo-500 to-blue-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]'}`}>
+                        <button onClick={isCreate ? handleCreateRoom : handleJoinRoom} disabled={isConnecting || (isCreate ? !roomName.trim() : joinCode.length !== 7)} className={`w-full bg-gradient-to-r text-white font-bold py-4 rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isCreate ? 'from-violet-500 to-purple-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-indigo-500 to-blue-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]'}`}>
                             {isConnecting ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1557,6 +1607,11 @@ export const MusicDate = () => {
 
     return (
         <div ref={containerRef} className="flex flex-col h-[100dvh] w-full bg-[#050510] text-white overflow-hidden font-sans relative">
+            <ShareRoomModal 
+                isOpen={isShareModalOpen} 
+                onClose={() => setIsShareModalOpen(false)} 
+                roomUrl={window.location.href} 
+            />
             <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnded} onError={handleAudioError} />
 
             {/* Header / Nav Bar */}
@@ -1570,14 +1625,36 @@ export const MusicDate = () => {
                             {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
                             <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
                         </span>
-                        {isHost && isPrivateRoom && roomPasscode && (
+                        {isHost && (
                             <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold">
-                                <Lock className="w-3 h-3" />
-                                PASSCODE: {roomPasscode}
+                                <Users className="w-3 h-3" />
+                                HOST
                             </div>
                         )}
                     </div>
                     <div className="flex items-center gap-1.5 md:gap-3">
+                        <div className="relative">
+                            <button onClick={() => setShowUsersList(!showUsersList)} className={`p-2 rounded-xl transition-colors flex items-center gap-2 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
+                                <Users className="w-5 h-5" />
+                                <span className="text-xs font-bold bg-gray-800 px-1.5 rounded-full">{peers.length + 1}</span>
+                            </button>
+                            {showUsersList && (
+                                <div className="absolute top-12 right-0 w-56 bg-gray-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
+                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Participants</div>
+                                    <div className="max-h-48 overflow-y-auto space-y-2">
+                                        <div className="text-sm text-gray-300 font-medium">You {isHost && '(Host)'}</div>
+                                        {peers.map(p => (
+                                            <div key={p.peerId} className="text-sm text-gray-400 truncate">
+                                                {peerNames[p.peerId] || p.peerId.substring(0, 5)} {p.peerId === roomHostId && '(Host)'}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <button onClick={() => setIsShareModalOpen(true)} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block" title="Share Room">
+                            <Share2 className="w-5 h-5" />
+                        </button>
                         {/* Mobile search toggle */}
                         <button onClick={() => setShowMobileSearch(!showMobileSearch)} className={`p-2 rounded-xl transition-colors md:hidden ${showMobileSearch ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
                             <ListMusic className="w-5 h-5" />

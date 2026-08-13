@@ -9,12 +9,15 @@ import { fileURLToPath } from 'url';
 import agoraRouter from './routes/agora.js';
 import matchesRouter from './routes/matches.js';
 import confessionsRouter from './routes/confessions.js';
+import pushRouter from './routes/push.js';
+import { rateLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load env variables
 dotenv.config({ path: path.resolve(__dirname, '../client/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../client/.env.local') });
 dotenv.config({ path: path.resolve(__dirname, './.env') });
 
 const app = express();
@@ -32,11 +35,14 @@ const corsOptions = {
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret', 'X-Admin-Secret']
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Global API Rate Limiting (Redis powered with in-memory fallback)
+app.use('/api', rateLimiter({ limit: 60, windowSeconds: 60 }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -47,6 +53,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api', agoraRouter);
 app.use('/api', matchesRouter);
 app.use('/api', confessionsRouter);
+app.use('/api', pushRouter);
 
 app.get('/', (req, res) => {
   res.send('Backend API is running. Use the Vercel Frontend to interact.');

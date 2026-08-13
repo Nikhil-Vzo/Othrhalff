@@ -3,12 +3,19 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { NeonInput, NeonButton } from '../components/Common';
-import { Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, CheckCircle2, X, Calendar, Eye, EyeOff } from 'lucide-react';
-import { AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, LOOKING_FOR_OPTIONS, BRANCH_CATEGORIES, YEAR_OPTIONS } from '../constants';
+import { 
+  Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, 
+  CheckCircle2, X, Calendar, Eye, EyeOff, Sparkles, User, ShieldCheck
+} from 'lucide-react';
+import { 
+  AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, 
+  LOOKING_FOR_OPTIONS, BRANCH_CATEGORIES, YEAR_OPTIONS 
+} from '../constants';
 import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
 import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabase';
+import { sanitizeUsername, validateUsernameRules } from '../utils/usernameValidation';
 
 // Generate arrays for DOB dropdowns
 const DAYS = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
@@ -20,22 +27,26 @@ export const Onboarding: React.FC = () => {
   const navigate = useNavigate();
   const searchParams = useSearchParams();
 
-  // Loading state to prevent flash of form while checking for existing profile
+  // Loading & submission state
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Existing profile state
+  const [isExistingPartialUser, setIsExistingPartialUser] = useState(false);
+
+  // Username validation state
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [suggestedUsernames, setSuggestedUsernames] = useState<string[]>([]);
-  const [needsMigration, setNeedsMigration] = useState(false);
   const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // State to hold the verified email
+  // Verified Email
   const [email, setEmail] = useState<string>(searchParams.get('email') || '');
 
-  // DOB as separate fields for cool UI
+  // DOB state
   const [dobDay, setDobDay] = useState('');
   const [dobMonth, setDobMonth] = useState('');
   const [dobYear, setDobYear] = useState('');
@@ -56,7 +67,7 @@ export const Onboarding: React.FC = () => {
   const [branchCategory, setBranchCategory] = useState('');
   const [customUniversity, setCustomUniversity] = useState('');
 
-  // --- NEW: Check for existing profile & Auto-fill from Google ---
+  // --- Fetch existing profile & pre-fill data ---
   useEffect(() => {
     const fetchUserAndCheckProfile = async () => {
       if (!supabase) {
@@ -64,114 +75,147 @@ export const Onboarding: React.FC = () => {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      if (user) {
-        // 1. Check if user already has a profile in the database
-        const { data: existingProfile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        if (user) {
+          if (user.email) setEmail(user.email);
 
-        if (existingProfile && !error) {
-          // Profile exists! Skip onboarding and redirect to home
-          // Missing username can be set up later in the Account settings (Profile view)
-          const appUser: UserProfile = {
-            id: existingProfile.id,
-            username: existingProfile.username || undefined,
-            anonymousId: existingProfile.anonymous_id,
-            realName: existingProfile.real_name,
-            gender: existingProfile.gender,
-            university: existingProfile.university,
-            universityEmail: existingProfile.university_email,
-            branch: existingProfile.branch,
-            year: existingProfile.year,
-            interests: existingProfile.interests || [],
-            lookingFor: existingProfile.looking_for || [],
-            bio: existingProfile.bio,
-            dob: existingProfile.dob,
-            isVerified: existingProfile.is_verified,
-            avatar: existingProfile.avatar,
-            isPremium: existingProfile.is_premium
-          };
+          // Check if Google sign in (requires password setup)
+          const providers = user.app_metadata?.providers || [];
+          if (providers.includes('google') || user.app_metadata?.provider === 'google') {
+            setRequiresPasswordSetup(true);
+          }
 
-          // Log them in and redirect to home
-          await login(appUser);
-          navigate.push('/home');
-          return; // Exit early, no need to show onboarding
+          // Check for existing database profile
+          const { data: existingProfile, error: profileErr } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (existingProfile && !profileErr) {
+            // Pre-fill DOB if present
+            if (existingProfile.dob) {
+              const parts = existingProfile.dob.split('-');
+              if (parts.length === 3) {
+                setDobYear(parts[0]);
+                const monthIdx = parseInt(parts[1], 10) - 1;
+                if (monthIdx >= 0 && monthIdx < 12) setDobMonth(MONTHS[monthIdx]);
+                setDobDay(parts[2].padStart(2, '0'));
+              }
+            }
+
+            // Pre-fill tempProfile with existing DB values
+            setTempProfile({
+              username: existingProfile.username || '',
+              realName: existingProfile.real_name || '',
+              gender: existingProfile.gender || 'Male',
+              university: existingProfile.university || CHHATTISGARH_COLLEGES[0],
+              branch: existingProfile.branch || '',
+              year: existingProfile.year || '1st Year',
+              interests: existingProfile.interests || [],
+              lookingFor: existingProfile.looking_for || [],
+              bio: existingProfile.bio || '',
+              avatar: existingProfile.avatar || AVATAR_PRESETS[0],
+              dob: existingProfile.dob || '',
+              anonymousId: existingProfile.anonymous_id
+            });
+
+            if (existingProfile.branch) {
+              setBranchCategory(BRANCH_CATEGORIES.includes(existingProfile.branch) ? existingProfile.branch : 'Other');
+            }
+
+            // If profile is 100% complete (has username, real_name, dob), go straight to home!
+            if (existingProfile.username && existingProfile.real_name && existingProfile.dob) {
+              const appUser: UserProfile = {
+                id: existingProfile.id,
+                username: existingProfile.username,
+                anonymousId: existingProfile.anonymous_id,
+                realName: existingProfile.real_name,
+                gender: existingProfile.gender,
+                university: existingProfile.university,
+                universityEmail: existingProfile.university_email,
+                branch: existingProfile.branch,
+                year: existingProfile.year,
+                interests: existingProfile.interests || [],
+                lookingFor: existingProfile.looking_for || [],
+                bio: existingProfile.bio,
+                dob: existingProfile.dob,
+                isVerified: existingProfile.is_verified,
+                avatar: existingProfile.avatar,
+                isPremium: existingProfile.is_premium
+              };
+
+              await login(appUser);
+              navigate.push('/home');
+              return;
+            }
+
+            // If user already filled personal details before but is ONLY missing a username
+            if (existingProfile.real_name && existingProfile.dob) {
+              setIsExistingPartialUser(true);
+            }
+          } else {
+            // Auto-fill from Google Metadata for new user
+            const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+            const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+
+            setTempProfile(prev => ({
+              ...prev,
+              realName: googleName || prev.realName || '',
+              avatar: googleAvatar || prev.avatar
+            }));
+          }
         }
-
-        // 2. No existing profile - Set Email for new user
-        if (user.email) setEmail(user.email);
-
-        // Check if they signed up via Google (they need a password)
-        const providers = user.app_metadata?.providers || [];
-        if (providers.includes('google') || user.app_metadata?.provider === 'google') {
-           setRequiresPasswordSetup(true);
-        }
-
-        // 3. Auto-fill from Google Metadata (Name & Picture)
-        const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
-        const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-
-        setTempProfile(prev => ({
-          ...prev,
-          // Only overwrite if currently empty
-          realName: prev.realName ? prev.realName : (googleName || ''),
-          avatar: (prev.avatar === AVATAR_PRESETS[0] && googleAvatar) ? googleAvatar : prev.avatar
-        }));
+      } catch (err) {
+        console.error("Error checking profile:", err);
+      } finally {
+        setIsCheckingProfile(false);
       }
-
-      // Done checking, show the form
-      setIsCheckingProfile(false);
     };
 
     fetchUserAndCheckProfile();
   }, [login, navigate]);
 
-  // --- NEW: Live Username Checker ---
+  // --- Live Username Checker ---
   useEffect(() => {
-    const username = tempProfile.username || '';
+    const rawUsername = tempProfile.username || '';
     
-    // Reset if empty
-    if (!username) {
+    if (!rawUsername) {
       setUsernameStatus('idle');
       setSuggestedUsernames([]);
       return;
     }
 
-    // Client-side rule checking (Instagram Style)
-    const isLengthValid = username.length >= 1 && username.length <= 30;
-    const isFormatValid = /^[a-z0-9_.]+$/.test(username);
-    const noConsecutiveDots = !/\.\./.test(username);
-    const validStartEnd = !/^\./.test(username) && !/\.$/.test(username);
+    const { isValid } = validateUsernameRules(rawUsername);
 
-    if (!isLengthValid || !isFormatValid || !noConsecutiveDots || !validStartEnd) {
+    if (!isValid) {
       setUsernameStatus('invalid');
       return;
     }
 
     setUsernameStatus('checking');
 
-    // Debounce backend check
     const timeoutId = setTimeout(async () => {
       try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const cleanUsername = rawUsername.trim();
+        const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
         const { data } = await supabase
           .from('profiles')
-          .select('username')
-          .eq('username', username)
+          .select('id')
+          .ilike('username', safeUsername)
           .maybeSingle();
 
-        if (data) {
+        if (data && data.id !== authUser?.id) {
           setUsernameStatus('taken');
-          // Generate simple suggestions
           const random1 = Math.floor(Math.random() * 100);
           const random2 = Math.floor(Math.random() * 999);
           setSuggestedUsernames([
-            `${username}${random1}`,
-            `${username}_${random2}`,
-            `${username}123`
+            `${cleanUsername}${random1}`,
+            `${cleanUsername}_${random2}`,
+            `${cleanUsername}123`
           ].slice(0, 3));
         } else {
           setUsernameStatus('available');
@@ -179,7 +223,7 @@ export const Onboarding: React.FC = () => {
       } catch (err) {
         console.error("Error checking username:", err);
       }
-    }, 500);
+    }, 400);
 
     return () => clearTimeout(timeoutId);
   }, [tempProfile.username]);
@@ -198,25 +242,26 @@ export const Onboarding: React.FC = () => {
   };
 
   const toggleInterest = (interest: string) => {
-    setTempProfile(prev => {
-      const current = prev.interests || [];
-      if (current.includes(interest)) return { ...prev, interests: current.filter(i => i !== interest) };
-      if (current.length >= 5) return prev;
-      return { ...prev, interests: [...current, interest] };
-    });
+    const current = tempProfile.interests || [];
+    if (current.includes(interest)) {
+      setTempProfile({ ...tempProfile, interests: current.filter(i => i !== interest) });
+    } else {
+      if (current.length < 5) {
+        setTempProfile({ ...tempProfile, interests: [...current, interest] });
+      }
+    }
   };
 
   const toggleLookingFor = (option: string) => {
-    setTempProfile(prev => {
-      const current = prev.lookingFor || [];
-      if (current.includes(option)) return { ...prev, lookingFor: current.filter(i => i !== option) };
-      // No max limit mentioned, but let's keep it reasonable or unlimited. User said "at least 2".
-      // Let's not limit max for now.
-      return { ...prev, lookingFor: [...current, option] };
-    });
+    const current = tempProfile.lookingFor || [];
+    if (current.includes(option)) {
+      setTempProfile({ ...tempProfile, lookingFor: current.filter(o => o !== option) });
+    } else {
+      setTempProfile({ ...tempProfile, lookingFor: [...current, option] });
+    }
   };
 
-  const handleCreateProfile = async () => {
+  const handleSaveProfile = async () => {
     setError(null);
 
     // Validation
@@ -228,39 +273,42 @@ export const Onboarding: React.FC = () => {
       setError("Please create a password (minimum 6 characters) for your account.");
       return;
     }
-    if (!email) {
-      setError("Email is required. Please login again.");
-      return;
-    }
-    if (!tempProfile.realName?.trim()) {
-      setError("Please enter your real name.");
-      return;
-    }
-    if (!tempProfile.branch?.trim()) {
-      setError("Please select your field of study.");
-      return;
-    }
-    if (tempProfile.university === 'Other' && !customUniversity.trim()) {
-      setError("Please enter your college name.");
-      return;
-    }
-    if (!dobDay || !dobMonth || !dobYear) {
-      setError("Please select your complete date of birth.");
-      return;
-    }
-    if ((tempProfile.interests || []).length === 0) {
-      setError("Please select at least one interest.");
-      return;
-    }
-    if ((tempProfile.lookingFor || []).length < 2) {
-      setError("Please select at least 2 'Looking For' options.");
-      return;
+
+    // Only validate full details if user is not just completing an existing partial profile
+    if (!isExistingPartialUser) {
+      if (!email) {
+        setError("Email is required. Please login again.");
+        return;
+      }
+      if (!tempProfile.realName?.trim()) {
+        setError("Please enter your display name.");
+        return;
+      }
+      if (!tempProfile.branch?.trim()) {
+        setError("Please select your field of study.");
+        return;
+      }
+      if (tempProfile.university === 'Other' && !customUniversity.trim()) {
+        setError("Please enter your college name.");
+        return;
+      }
+      if (!dobDay || !dobMonth || !dobYear) {
+        setError("Please select your complete date of birth.");
+        return;
+      }
+      if ((tempProfile.interests || []).length === 0) {
+        setError("Please select at least one interest.");
+        return;
+      }
+      if ((tempProfile.lookingFor || []).length < 2) {
+        setError("Please select at least 2 'Looking For' options.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
 
     try {
-      // Get the real authenticated user ID from Supabase
       if (!supabase) {
         setError("Authentication service not available.");
         setIsSubmitting(false);
@@ -275,15 +323,18 @@ export const Onboarding: React.FC = () => {
         return;
       }
 
-      // Check username uniqueness
+      // Check username uniqueness (case-insensitive)
+      const cleanUsername = tempProfile.username.trim();
+      const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
       const { data: existingUserWithUsername } = await supabase
         .from('profiles')
         .select('id')
-        .eq('username', tempProfile.username.trim())
+        .ilike('username', safeUsername)
         .maybeSingle();
 
       if (existingUserWithUsername && existingUserWithUsername.id !== authUser.id) {
-        setError("This username is already taken. Please pick another one.");
+        setError(`The username '@${cleanUsername}' is already taken. Please pick another one.`);
+        setUsernameStatus('taken');
         setIsSubmitting(false);
         return;
       }
@@ -292,27 +343,29 @@ export const Onboarding: React.FC = () => {
       if (requiresPasswordSetup && password) {
         const { error: pwdError } = await supabase.auth.updateUser({ password });
         if (pwdError) {
-           setError("Failed to set password: " + pwdError.message);
-           setIsSubmitting(false);
-           return;
+          setError("Failed to set password: " + pwdError.message);
+          setIsSubmitting(false);
+          return;
         }
       }
 
-      // Compose DOB from separate fields (YYYY-MM-DD format)
+      // Compose DOB
       const monthIndex = MONTHS.indexOf(dobMonth) + 1;
-      const formattedDob = `${dobYear}-${monthIndex.toString().padStart(2, '0')}-${dobDay}`;
+      const formattedDob = (dobYear && monthIndex && dobDay) 
+        ? `${dobYear}-${monthIndex.toString().padStart(2, '0')}-${dobDay}`
+        : (tempProfile.dob || '2000-01-01');
 
-      const newUser: UserProfile = {
-        id: authUser.id, // Use REAL Supabase Auth UUID
+      const userToSave: UserProfile = {
+        id: authUser.id,
         username: tempProfile.username?.trim(),
-        anonymousId: needsMigration ? tempProfile.anonymousId! : `User#${Math.floor(Math.random() * 10000).toString(16).toUpperCase()}`,
-        realName: tempProfile.realName.trim(),
+        anonymousId: tempProfile.anonymousId || `User#${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)).slice(0, 8).toUpperCase().replace(/-/g, '')}`,
+        realName: (tempProfile.realName || '').trim(),
         gender: tempProfile.gender || 'Male',
         university: tempProfile.university === 'Other' ? customUniversity.trim() : (tempProfile.university || CHHATTISGARH_COLLEGES[0]),
-        universityEmail: email,
+        universityEmail: email || authUser.email || '',
         isVerified: false,
         branch: tempProfile.branch || 'General',
-        year: tempProfile.year || 'Freshman',
+        year: tempProfile.year || '1st Year',
         interests: tempProfile.interests || [],
         lookingFor: tempProfile.lookingFor || [],
         bio: tempProfile.bio || '',
@@ -320,412 +373,503 @@ export const Onboarding: React.FC = () => {
         dob: formattedDob
       };
 
-      // CRITICAL: Await login to ensure profile is saved to database before navigation
-      await login(newUser);
+      await login(userToSave);
+      setSuccess("Profile saved! Redirecting...");
 
-      // Send Welcome Notification
-      try {
-        await supabase.from('notifications').insert({
-          user_id: authUser.id,
-          type: 'system',
-          title: 'Welcome to Other Half! 🖤',
-          message: 'Your profile is live. Start swiping to find your match!',
-          read: false
-        });
-      } catch (notifError) {
-        console.error('Failed to send welcome notification', notifError);
-      }
-
-      setSuccess("Profile created! Redirecting...");
-
-      // Small delay for user to see success message
       setTimeout(() => {
         navigate.push('/home');
       }, 500);
     } catch (err: any) {
-      setError(err.message || "Failed to create profile. Please try again.");
+      setError(err.message || "Failed to save profile. Please try again.");
       setIsSubmitting(false);
     }
   };
 
-  // Show loading while checking for existing profile
   if (isCheckingProfile) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 text-neon animate-spin" />
-          <p className="text-gray-400 text-sm">Checking your profile...</p>
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-9 h-9 text-neon animate-spin" />
+          <p className="text-zinc-400 text-xs font-mono tracking-wider">LOADING PROFILE...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl bg-gray-900/50 backdrop-blur-xl p-8 rounded-3xl border border-gray-800 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
-        <div className="space-y-6 animate-fade-in">
-          <h2 className="text-xl font-bold text-white text-center">Create Your Persona</h2>
+  // --- DEDICATED QUICK USERNAME SET UP FOR EXISTING USERS ---
+  if (isExistingPartialUser) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Subtle Ambient Background Glows */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon/10 rounded-full blur-[140px] pointer-events-none" />
+        
+        <div className="w-full max-w-md bg-zinc-950/90 backdrop-blur-2xl p-8 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(255,0,127,0.12)] space-y-6 relative z-10 animate-fade-in">
+          
+          <div className="text-center space-y-1.5 pb-2">
+            <h2 className="text-2xl font-black text-white tracking-tight">Claim Your @Username</h2>
+            <p className="text-xs text-zinc-400">
+              Welcome back, <strong className="text-white">{tempProfile.realName}</strong>! Choose your unique handle to enable direct login.
+            </p>
+          </div>
 
-          {/* Toast Messages */}
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3 animate-fade-in">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-300 flex-1">{error}</p>
-              <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
-                <X className="w-4 h-4" />
-              </button>
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-2.5 text-xs text-rose-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl flex items-start gap-3 animate-fade-in">
-              <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-green-300 flex-1">{success}</p>
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>{success}</span>
             </div>
           )}
 
-          {/* Avatar Selection */}
-          <div className="flex flex-col items-center mb-6">
-            <label className="block text-sm text-gray-400 mb-3">Choose Avatar or Upload Photo</label>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-neon overflow-hidden relative group">
-                {tempProfile.avatar ? (
-                  <img src={tempProfile.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <Ghost className="w-12 h-12 text-gray-600 m-auto mt-5" />
-                )}
-                <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Upload className="w-6 h-6 text-white" />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-2 overflow-x-auto max-w-full pb-2 custom-scrollbar">
-              {AVATAR_PRESETS.map((avatar, i) => (
-                <button
-                  key={i}
-                  onClick={() => setTempProfile({ ...tempProfile, avatar })}
-                  className={`w-10 h-10 rounded-full border-2 overflow-hidden flex-shrink-0 ${tempProfile.avatar === avatar ? 'border-neon scale-110' : 'border-gray-700 opacity-50 hover:opacity-100'}`}
-                >
-                  <img src={avatar} alt={`Preset ${i}`} className="w-full h-full bg-gray-800" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* University Selection */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">College / University</label>
-            <div className="relative">
-              <select
-                className="w-full bg-gray-900 border-2 border-gray-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-10"
-                value={tempProfile.university}
-                onChange={e => setTempProfile({ ...tempProfile, university: e.target.value })}
-              >
-                {CHHATTISGARH_COLLEGES.map(college => (
-                  <option key={college} value={college}>{college}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
-            </div>
-
-            {tempProfile.university === 'Other' && (
-              <div className="mt-2 animate-fade-in">
-                <NeonInput
-                  value={customUniversity}
-                  onChange={e => setCustomUniversity(e.target.value)}
-                  placeholder="Enter your college/university name"
-                />
-              </div>
-            )}
-            <p className="text-[10px] text-yellow-500/80 mt-2 flex items-start gap-1">
-              <span className="mt-0.5">⚠️</span>
-              <span>Note: You cannot change your college once selected. To change it later, you will need to verify your ID card.</span>
-            </p>
-          </div>
-
-          {/* Personal Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Username</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-zinc-300">Account Username</label>
+                {usernameStatus === 'available' && (
+                  <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Available
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <NeonInput
                   value={tempProfile.username || ''}
-                  onChange={e => setTempProfile({ ...tempProfile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '') })}
-                  placeholder="cool_student"
+                  onChange={e => setTempProfile({ ...tempProfile, username: sanitizeUsername(e.target.value) })}
+                  placeholder="e.g. alex_rivera"
                   className="pr-10"
                 />
-                {usernameStatus === 'available' && (
-                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
-                )}
-                {usernameStatus === 'taken' && (
-                  <X className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
-                )}
                 {usernameStatus === 'checking' && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 animate-spin" />
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 animate-spin" />
                 )}
-              </div>
-              
-              {/* Status Message & Rules */}
-              <div className="mt-2 text-xs">
                 {usernameStatus === 'available' && (
-                  <span className="text-green-500 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Username available</span>
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
                 )}
                 {usernameStatus === 'taken' && (
-                  <div className="text-red-500">
-                    <span className="font-medium flex items-center gap-1"><X className="w-3 h-3" /> Username not available.</span>
-                    <div className="mt-1 text-gray-400">
-                      Try: {suggestedUsernames.map(u => (
-                        <span key={u} 
-                          onClick={() => setTempProfile({...tempProfile, username: u})}
-                          className="text-neon cursor-pointer hover:underline mr-2"
-                        >
-                          {u}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  <X className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-400" />
                 )}
-                
-                {/* Rules List */}
-                <div className="mt-2 space-y-1">
-                  <p className="text-[10px] text-gray-500">Username must be:</p>
-                  <ul className="text-[10px] space-y-0.5">
-                    <li className={!tempProfile.username ? 'text-gray-500' : ((tempProfile.username.length >= 1 && tempProfile.username.length <= 30) ? 'text-green-500' : 'text-red-500')}>
-                      • 1-30 characters long
-                    </li>
-                    <li className={!tempProfile.username ? 'text-gray-500' : (/^[a-z0-9_.]+$/.test(tempProfile.username) ? 'text-green-500' : 'text-red-500')}>
-                      • Only lowercase letters, numbers, underscores & dots
-                    </li>
-                    <li className={!tempProfile.username ? 'text-gray-500' : (!/\.\./.test(tempProfile.username) ? 'text-green-500' : 'text-red-500')}>
-                      • No consecutive dots
-                    </li>
-                    <li className={!tempProfile.username ? 'text-gray-500' : (!/^\./.test(tempProfile.username) && !/\.$/.test(tempProfile.username) ? 'text-green-500' : 'text-red-500')}>
-                      • Cannot start or end with a dot
-                    </li>
-                  </ul>
-                </div>
               </div>
+
+              {usernameStatus === 'invalid' && tempProfile.username && (
+                <p className="text-[11px] text-rose-400 mt-1">1-30 chars, lowercase, numbers, `_` and `.` only (no start/end dot).</p>
+              )}
+
+              {usernameStatus === 'taken' && (
+                <div className="mt-2 text-xs text-rose-400">
+                  <span>Username unavailable. Try: </span>
+                  <div className="inline-flex gap-1.5 flex-wrap mt-1">
+                    {suggestedUsernames.map(u => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setTempProfile({ ...tempProfile, username: u })}
+                        className="text-neon hover:underline font-mono text-[11px]"
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {requiresPasswordSetup && (
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Create Password</label>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">Create Password</label>
                 <div className="relative">
                   <NeonInput
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Min. 6 characters"
-                    className="pr-12"
+                    className="pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                    tabIndex={-1}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-500 mt-1">Secure your account</p>
               </div>
             )}
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Name(Nickname works too!)</label>
-              <NeonInput
-                value={tempProfile.realName || ''}
-                onChange={e => setTempProfile({ ...tempProfile, realName: e.target.value })}
-                placeholder="Jane Doe"
-              />
-              <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1"><Lock className="w-3 h-3" /> Hidden until match</p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Gender</label>
-              <div className="relative">
-                <select
-                  className="w-full bg-gray-900 border-2 border-gray-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-10"
-                  value={tempProfile.gender}
-                  onChange={e => setTempProfile({ ...tempProfile, gender: e.target.value })}
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Field of Study</label>
-              <div className="relative">
-                <select
-                  className="w-full bg-gray-900 border-2 border-gray-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-10"
-                  value={branchCategory}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setBranchCategory(val);
-                    if (val !== 'Other') {
-                      setTempProfile({ ...tempProfile, branch: val });
-                    } else {
-                      setTempProfile({ ...tempProfile, branch: '' });
-                    }
-                  }}
-                >
-                  <option value="">Select Field</option>
-                  {BRANCH_CATEGORIES.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
-              </div>
-
-              {branchCategory === 'Other' && (
-                <div className="mt-2 animate-fade-in">
-                  <NeonInput
-                    value={tempProfile.branch || ''}
-                    onChange={e => setTempProfile({ ...tempProfile, branch: e.target.value })}
-                    placeholder="Specific Branch/Major"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Year</label>
-              <div className="relative">
-                <select
-                  className="w-full bg-gray-900 border-2 border-gray-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-10"
-                  value={tempProfile.year}
-                  onChange={e => setTempProfile({ ...tempProfile, year: e.target.value })}
-                >
-                  {YEAR_OPTIONS.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm text-gray-400 mb-1 flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Date of Birth
-              </label>
-              <div className="flex gap-2">
-                {/* Day */}
-                <div className="relative flex-1">
-                  <select
-                    className="w-full bg-gray-900 border-2 border-gray-800 text-white px-3 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-8 text-center"
-                    value={dobDay}
-                    onChange={e => setDobDay(e.target.value)}
-                  >
-                    <option value="">Day</option>
-                    {DAYS.map(day => (
-                      <option key={day} value={day}>{day}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
-                </div>
-
-                {/* Month */}
-                <div className="relative flex-[1.5]">
-                  <select
-                    className="w-full bg-gray-900 border-2 border-gray-800 text-white px-3 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-8 text-center"
-                    value={dobMonth}
-                    onChange={e => setDobMonth(e.target.value)}
-                  >
-                    <option value="">Month</option>
-                    {MONTHS.map(month => (
-                      <option key={month} value={month}>{month}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
-                </div>
-
-                {/* Year */}
-                <div className="relative flex-1">
-                  <select
-                    className="w-full bg-gray-900 border-2 border-gray-800 text-white px-3 py-3 rounded-xl outline-none focus:border-neon appearance-none h-[52px] pr-8 text-center"
-                    value={dobYear}
-                    onChange={e => setDobYear(e.target.value)}
-                  >
-                    <option value="">Year</option>
-                    {YEARS.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
-                </div>
-              </div>
-              <p className="text-[10px] text-gray-500 mt-1">Must be 18+ to use this app</p>
-            </div>
-          </div>
-
-          {/* Interests */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">Interests (Max 5)</label>
-            <div className="flex flex-wrap gap-2">
-              {MOCK_INTERESTS.map(interest => (
-                <button
-                  key={interest}
-                  onClick={() => toggleInterest(interest)}
-                  className={`px-3 py-1 rounded-full text-xs border transition-all ${(tempProfile.interests || []).includes(interest)
-                    ? 'bg-neon border-neon text-white shadow-neon-sm'
-                    : 'bg-transparent border-gray-700 text-gray-400 hover:border-gray-500'
-                    }`}
-                >
-                  {interest}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Looking For */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">I'm looking for... (Select at least 2)</label>
-            <div className="flex flex-wrap gap-2">
-              {LOOKING_FOR_OPTIONS.map(option => (
-                <button
-                  key={option}
-                  onClick={() => toggleLookingFor(option)}
-                  className={`px-3 py-1 rounded-full text-xs border transition-all ${(tempProfile.lookingFor || []).includes(option)
-                    ? 'bg-pink-500 border-pink-500 text-white shadow-lg'
-                    : 'bg-transparent border-gray-700 text-gray-400 hover:border-gray-500'
-                    }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Bio */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Anonymous Bio</label>
-            <textarea
-              className="w-full bg-gray-900 border-2 border-gray-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon h-24 resize-none"
-              placeholder="Describe yourself without revealing your name..."
-              value={tempProfile.bio || ''}
-              onChange={e => setTempProfile({ ...tempProfile, bio: e.target.value })}
-            />
           </div>
 
           <NeonButton
-            className="w-full flex items-center justify-center gap-2"
-            onClick={handleCreateProfile}
-            disabled={isSubmitting}
+            onClick={handleSaveProfile}
+            disabled={isSubmitting || usernameStatus !== 'available'}
+            className="w-full py-3.5 rounded-xl font-bold text-sm"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Creating Profile...
-              </>
-            ) : (
-              'Enter The Void'
-            )}
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Complete Setup & Enter App'}
           </NeonButton>
         </div>
+      </div>
+    );
+  }
+
+  // --- FULL ONBOARDING FORM FOR NEW USERS ---
+  return (
+    <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
+      {/* Background Lighting */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-neon/10 rounded-full blur-[150px] pointer-events-none" />
+
+      <div className="w-full max-w-2xl bg-zinc-950/90 backdrop-blur-2xl p-6 md:p-8 rounded-3xl border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.8)] space-y-6 relative z-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
+        
+        {/* Header */}
+        <div className="text-center space-y-1.5 border-b border-zinc-800/80 pb-5">
+          <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Create Your Campus Persona</h2>
+          <p className="text-xs text-zinc-400">
+            Set your unique <span className="text-neon font-semibold">@username</span> for direct login, and customize your profile.
+          </p>
+        </div>
+
+        {/* Notifications */}
+        {error && (
+          <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-2.5 text-xs text-rose-300 animate-fade-in">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-200">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300 animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>{success}</span>
+          </div>
+        )}
+
+        {/* Avatar Selection */}
+        <div className="flex flex-col items-center gap-3">
+          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Profile Avatar</label>
+          <div className="w-20 h-20 rounded-full border-2 border-neon p-0.5 relative group overflow-hidden bg-zinc-900 shadow-[0_0_20px_rgba(255,0,127,0.2)]">
+            <img src={tempProfile.avatar} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+            <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <Upload className="w-5 h-5 text-white" />
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+            </label>
+          </div>
+          <div className="flex gap-2 overflow-x-auto max-w-full pb-1 custom-scrollbar">
+            {AVATAR_PRESETS.map((avatar, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setTempProfile({ ...tempProfile, avatar })}
+                className={`w-9 h-9 rounded-full border overflow-hidden flex-shrink-0 transition-all ${
+                  tempProfile.avatar === avatar ? 'border-neon ring-2 ring-neon/40 scale-105' : 'border-zinc-800 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img src={avatar} alt={`Preset ${i}`} className="w-full h-full object-cover bg-zinc-900" />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* College Dropdown */}
+        <div className="space-y-1">
+          <label className="block text-xs font-semibold text-zinc-300">College / University</label>
+          <div className="relative">
+            <select
+              className="w-full bg-zinc-900 border border-zinc-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none text-sm pr-10"
+              value={tempProfile.university}
+              onChange={e => setTempProfile({ ...tempProfile, university: e.target.value })}
+            >
+              {CHHATTISGARH_COLLEGES.map(college => (
+                <option key={college} value={college} className="bg-zinc-900 text-white">{college}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4 pointer-events-none" />
+          </div>
+
+          {tempProfile.university === 'Other' && (
+            <div className="mt-2">
+              <NeonInput
+                value={customUniversity}
+                onChange={e => setCustomUniversity(e.target.value)}
+                placeholder="Enter college name"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Form Inputs Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Account Username */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-zinc-300">Account Username</label>
+              {usernameStatus === 'available' && (
+                <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Available
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <NeonInput
+                value={tempProfile.username || ''}
+                onChange={e => setTempProfile({ ...tempProfile, username: sanitizeUsername(e.target.value) })}
+                placeholder="cool_student"
+                className="pr-9"
+              />
+              {usernameStatus === 'checking' && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 animate-spin" />
+              )}
+              {usernameStatus === 'available' && (
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
+              )}
+              {usernameStatus === 'taken' && (
+                <X className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-400" />
+              )}
+            </div>
+
+            {usernameStatus === 'invalid' && tempProfile.username && (
+              <p className="text-[11px] text-rose-400 mt-1">1-30 chars, lowercase, numbers, `_` and `.` only.</p>
+            )}
+
+            {usernameStatus === 'taken' && (
+              <div className="mt-1.5 text-xs text-rose-400">
+                <span>Taken. Try: </span>
+                <span className="inline-flex gap-1.5">
+                  {suggestedUsernames.map(u => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => setTempProfile({ ...tempProfile, username: u })}
+                      className="text-neon hover:underline font-mono text-[11px]"
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Password (if Google login) */}
+          {requiresPasswordSetup && (
+            <div>
+              <label className="block text-xs font-semibold text-zinc-300 mb-1">Create Password</label>
+              <div className="relative">
+                <NeonInput
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  className="pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Display Name */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-zinc-300">Display Name / Nickname</label>
+              <span className="text-[10px] text-zinc-500 flex items-center gap-1"><Lock className="w-3 h-3" /> Private</span>
+            </div>
+            <NeonInput
+              value={tempProfile.realName || ''}
+              onChange={e => setTempProfile({ ...tempProfile, realName: e.target.value })}
+              placeholder="Jane or Nickname"
+            />
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-300 mb-1">Gender</label>
+            <div className="relative">
+              <select
+                className="w-full bg-zinc-900 border border-zinc-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none text-sm pr-10"
+                value={tempProfile.gender}
+                onChange={e => setTempProfile({ ...tempProfile, gender: e.target.value })}
+              >
+                <option value="Male" className="bg-zinc-900 text-white">Male</option>
+                <option value="Female" className="bg-zinc-900 text-white">Female</option>
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Field of Study */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-300 mb-1">Field of Study</label>
+            <div className="relative">
+              <select
+                className="w-full bg-zinc-900 border border-zinc-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none text-sm pr-10"
+                value={branchCategory}
+                onChange={e => {
+                  const val = e.target.value;
+                  setBranchCategory(val);
+                  if (val !== 'Other') {
+                    setTempProfile({ ...tempProfile, branch: val });
+                  } else {
+                    setTempProfile({ ...tempProfile, branch: '' });
+                  }
+                }}
+              >
+                <option value="" className="bg-zinc-900 text-white">Select Field</option>
+                {BRANCH_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat} className="bg-zinc-900 text-white">{cat}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4 pointer-events-none" />
+            </div>
+
+            {branchCategory === 'Other' && (
+              <div className="mt-2">
+                <NeonInput
+                  value={tempProfile.branch || ''}
+                  onChange={e => setTempProfile({ ...tempProfile, branch: e.target.value })}
+                  placeholder="Specific Branch"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Year */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-300 mb-1">Year</label>
+            <div className="relative">
+              <select
+                className="w-full bg-zinc-900 border border-zinc-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon appearance-none text-sm pr-10"
+                value={tempProfile.year}
+                onChange={e => setTempProfile({ ...tempProfile, year: e.target.value })}
+              >
+                {YEAR_OPTIONS.map(yr => (
+                  <option key={yr} value={yr} className="bg-zinc-900 text-white">{yr}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* DOB */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-zinc-300 mb-1 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-zinc-400" /> Date of Birth
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="relative">
+                <select
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white px-3 py-3 rounded-xl outline-none focus:border-neon appearance-none text-xs text-center pr-6"
+                  value={dobDay}
+                  onChange={e => setDobDay(e.target.value)}
+                >
+                  <option value="" className="bg-zinc-900 text-white">Day</option>
+                  {DAYS.map(d => <option key={d} value={d} className="bg-zinc-900 text-white">{d}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 w-3.5 h-3.5 pointer-events-none" />
+              </div>
+
+              <div className="relative">
+                <select
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white px-3 py-3 rounded-xl outline-none focus:border-neon appearance-none text-xs text-center pr-6"
+                  value={dobMonth}
+                  onChange={e => setDobMonth(e.target.value)}
+                >
+                  <option value="" className="bg-zinc-900 text-white">Month</option>
+                  {MONTHS.map(m => <option key={m} value={m} className="bg-zinc-900 text-white">{m}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 w-3.5 h-3.5 pointer-events-none" />
+              </div>
+
+              <div className="relative">
+                <select
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white px-3 py-3 rounded-xl outline-none focus:border-neon appearance-none text-xs text-center pr-6"
+                  value={dobYear}
+                  onChange={e => setDobYear(e.target.value)}
+                >
+                  <option value="" className="bg-zinc-900 text-white">Year</option>
+                  {YEARS.map(y => <option key={y} value={y} className="bg-zinc-900 text-white">{y}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 w-3.5 h-3.5 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Interests */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-zinc-300">Interests (Max 5)</label>
+          <div className="flex flex-wrap gap-2">
+            {MOCK_INTERESTS.map(interest => {
+              const isSelected = (tempProfile.interests || []).includes(interest);
+              return (
+                <button
+                  key={interest}
+                  type="button"
+                  onClick={() => toggleInterest(interest)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    isSelected
+                      ? 'bg-neon/20 border-neon text-neon shadow-[0_0_12px_rgba(255,0,127,0.3)]'
+                      : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  {interest}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Looking For */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-zinc-300">Looking For (Select at least 2)</label>
+          <div className="flex flex-wrap gap-2">
+            {LOOKING_FOR_OPTIONS.map(option => {
+              const isSelected = (tempProfile.lookingFor || []).includes(option);
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggleLookingFor(option)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    isSelected
+                      ? 'bg-pink-500/20 border-pink-500 text-pink-300 shadow-[0_0_12px_rgba(236,72,153,0.3)]'
+                      : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Anonymous Bio */}
+        <div className="space-y-1">
+          <label className="block text-xs font-semibold text-zinc-300">Anonymous Bio</label>
+          <textarea
+            className="w-full bg-zinc-900 border border-zinc-800 text-white px-4 py-3 rounded-xl outline-none focus:border-neon text-sm h-20 resize-none placeholder:text-zinc-600"
+            placeholder="Describe yourself without revealing your identity..."
+            value={tempProfile.bio || ''}
+            onChange={e => setTempProfile({ ...tempProfile, bio: e.target.value })}
+          />
+        </div>
+
+        <NeonButton
+          onClick={handleSaveProfile}
+          disabled={isSubmitting}
+          className="w-full py-4 text-base font-bold rounded-xl"
+        >
+          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Create Persona & Enter'}
+        </NeonButton>
+
       </div>
     </div>
   );

@@ -67,7 +67,7 @@ export const HeartCursor: React.FC = () => {
         };
     }, [isVisible]);
 
-    // Don't render on touch devices
+    // Don't render on touch devices (and don't hide default cursor)
     if (typeof window !== 'undefined' && 'ontouchstart' in window) {
         return null;
     }

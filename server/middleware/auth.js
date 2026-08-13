@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../client/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../client/.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 let supabaseAuthClient;
@@ -30,9 +31,15 @@ function getSupabaseAuthClient() {
  * Attaches the verified user ID to req.userId.
  */
 export async function verifySupabaseToken(req, res, next) {
+  const adminSecret = req.headers['x-admin-secret'];
+  if (adminSecret && process.env.ADMIN_SECRET_KEY && adminSecret === process.env.ADMIN_SECRET_KEY) {
+    req.isAdmin = true;
+    return next();
+  }
+
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Missing Bearer token' });
+    return res.status(401).json({ error: 'Unauthorized: Missing Bearer token or Admin Secret Key' });
   }
   const token = authHeader.split('Bearer ')[1];
   try {

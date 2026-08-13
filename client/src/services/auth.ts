@@ -58,7 +58,17 @@ export const authService = {
   logout: async () => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     if (supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Supabase signOut error:', err);
+      } finally {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
     }
   },
   /**
@@ -123,7 +133,10 @@ export const authService = {
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          resolve(reader.result as string);
+          resolve((reader.result as string) || '');
+        };
+        reader.onerror = () => {
+          resolve('');
         };
         reader.readAsDataURL(file);
       });
@@ -136,7 +149,7 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/onboarding`,
+        redirectTo: `${window.location.origin}/login`,
       }
     });
 
@@ -150,7 +163,7 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`,
+        emailRedirectTo: `${window.location.origin}/login`,
       }
     });
 

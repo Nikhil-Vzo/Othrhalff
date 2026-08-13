@@ -18,17 +18,20 @@ interface VideoCallProps {
   partnerAvatar: string;
   callType: 'audio' | 'video';
   callSessionId: string;
+  customControls?: React.ReactNode;
 }
 
-export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token, onLeave, partnerName, partnerAvatar, callType, callSessionId }) => {
+export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token, onLeave, partnerName, partnerAvatar, callType, callSessionId, customControls }) => {
   const [localVideoTrack, setLocalVideoTrack] = useState<ICameraVideoTrack | null>(null);
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null);
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(callType === 'audio');
   const [isJoined, setIsJoined] = useState(false);
-  const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' }));
   const { showToast } = useToast();
+  
+  // Track client in a ref so we can use it in cleanup
+  const clientRef = useRef<any>(null);
 
   // === FIX 1: Use refs to avoid stale closures in cleanup ===
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
@@ -62,10 +65,16 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
   const [isReconnecting, setIsReconnecting] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    // Create a fresh client for this mount
+    const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' });
+    clientRef.current = client;
+    
     const init = async () => {
       try {
         // Set up event listeners
         client.on('user-published', async (user, mediaType) => {
+          if (!isMounted) return;
           await client.subscribe(user, mediaType);
           console.log('Subscribed to user:', user.uid);
 
@@ -90,11 +99,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           console.log('User unpublished:', user.uid, mediaType);
           if (mediaType === 'video') {
             // For video calls, if they turn off video, we might want to keep them in the list 
-            // but just show avatar. If we remove them, it goes to "Waiting...". 
-            // Actually, we should only remove them on 'user-left'.
-            // However, to re-render the video slot as empty, we might need to update state.
-            // But 'remoteUsers' is "users in call". 
-            // Let's NOT remove them here, just let the videoTrack be undefined on re-render.
+            // but just show avatar.
           }
         });
 
@@ -115,7 +120,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
             setIsReconnecting(true);
           } else if (curState === 'CONNECTED') {
             setIsReconnecting(false);
-          } else if (curState === 'DISCONNECTED') {
+          } else if (curState === 'DISCONNECTED' && isMounted) {
             setIsReconnecting(false);
             showToast('Call disconnected', 'error');
           }
@@ -153,17 +158,27 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
         setLocalAudioTrack(audioTrack);
         if (videoTrack) {
           setLocalVideoTrack(videoTrack);
-          await client.publish([audioTrack, videoTrack]);
-          videoTrack.play('local-video');
+          if (isMounted) {
+            await client.publish([audioTrack, videoTrack]);
+            videoTrack.play('local-video');
+          }
         } else {
-          await client.publish([audioTrack]);
+          if (isMounted) {
+            await client.publish([audioTrack]);
+          }
         }
 
-        console.log('Published local tracks');
+        if (isMounted) {
+          console.log('Published local tracks');
+          setIsJoined(true);
+        }
 
-        setIsJoined(true);
-
-      } catch (error) {
+      } catch (error: any) {
+        // If aborted due to Strict Mode unmount, ignore it
+        if (!isMounted || error?.message?.includes('cancel') || error?.message?.includes('ABORT')) {
+           console.log("Join aborted (likely due to Strict Mode unmount). Ignoring.");
+           return;
+        }
         console.error('Failed to join channel:', error);
         showToast('Failed to join call: ' + (error as Error).message, 'error');
         onLeave();
@@ -173,14 +188,16 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
     init();
 
     return () => {
+      isMounted = false;
       // Cleanup using refs (avoids stale closure bug)
       localAudioTrackRef.current?.close();
       localVideoTrackRef.current?.close();
-      client.leave();
-      client.removeAllListeners();
+      if (clientRef.current) {
+         clientRef.current.leave();
+      }
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [appId, channelName, token, onLeave, callType]);
+  }, [appId, channelName, token, callType, onLeave, showToast]);
 
   // Listen for call ended by partner
   useEffect(() => {
@@ -235,9 +252,12 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
     });
   }, [remoteUsers]);
 
-  const toggleMute = () => {
-    if (localAudioTrack) {
-      localAudioTrack.setEnabled(isMuted);
+  const toggleMute = async () => {
+    if (localAudioTrackRef.current) {
+      await localAudioTrackRef.current.setMuted(!isMuted);
+      setIsMuted(!isMuted);
+    } else if (localAudioTrack) {
+      await localAudioTrack.setMuted(!isMuted);
       setIsMuted(!isMuted);
     }
   };
@@ -248,23 +268,27 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       return;
     }
 
-
-
-    if (localVideoTrack) {
-      // Just toggle enabled state
-      const newState = !isVideoOff;
-      const shouldEnable = isVideoOff; // If currently off, we enable
-      await localVideoTrack.setEnabled(shouldEnable);
-      setIsVideoOff(!isVideoOff);
+    const trackToUse = localVideoTrackRef.current || localVideoTrack;
+    if (trackToUse) {
+      const shouldMute = !isVideoOff;
+      await trackToUse.setMuted(shouldMute);
+      setIsVideoOff(shouldMute);
     }
   };
 
   const handleEndCall = async () => {
+    try {
+      if (clientRef.current) {
+         await clientRef.current.leave();
+      }
+    } catch (e) {
+      console.error('Error leaving channel:', e);
+    }
+
     // Use refs to ensure we close the actual current tracks
     localAudioTrackRef.current?.close();
     localVideoTrackRef.current?.close();
     if (timerRef.current) clearInterval(timerRef.current);
-    client.leave();
 
     // Update DB status to 'ended'
     if (callSessionId) {
@@ -404,6 +428,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
             {isVideoOff ? <VideoOff className="w-6 h-6 text-white" /> : <VideoIcon className="w-6 h-6 text-white" />}
           </button>
         )}
+        {customControls}
       </div>
 
     </div>

@@ -6,7 +6,7 @@ import { useRouter as useNavigate } from 'next/navigation';
 import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
-import { getOptimizedUrl } from '../utils/image';
+import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
 
 import { getRandomQuote } from '../data/loadingQuotes';
@@ -62,7 +62,7 @@ export const Home: React.FC = () => {
 
 
     const [showSuccessBurst, setShowSuccessBurst] = useState(false);
-    const [isSwiping, setIsSwiping] = useState(false);
+    const swipeInFlightRef = useRef(false);
     const [isRecycleMode, setIsRecycleMode] = useState(false);
     const [recycleMessage, setRecycleMessage] = useState<string | null>(null);
     const cardRef = useRef<HTMLDivElement>(null);
@@ -519,12 +519,16 @@ export const Home: React.FC = () => {
     };
 
     const handleSwipe = async (direction: 'left' | 'right') => {
-        if (!currentProfile || !currentUser || !supabase || isSwiping) return;
+        if (!currentProfile || !currentUser || !supabase || swipeInFlightRef.current) return;
 
-        setIsSwiping(true); // Lock to prevent double-taps
+        swipeInFlightRef.current = true;
 
-        const targetId = currentProfile.id;
+        const swipedProfile = currentProfile;
+        const targetId = swipedProfile.id;
         const action = direction === 'right' ? 'like' : 'pass';
+        const cacheKeyToUpdate = isRecycleMode
+            ? getSkippedCacheKey(filterMode)
+            : getCacheKey(filterMode);
 
         // Cinematic exit animation
         const offScreenX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
@@ -569,22 +573,12 @@ export const Home: React.FC = () => {
                 cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
             }
 
-            // 1. UPDATE STATE & CACHE (Optimistic)
-            const nextQueue = queue.filter(p => p.id !== targetId);
-            setQueue(nextQueue);
+            const optimisticQueue = queue.filter(p => p.id !== targetId);
+            setQueue(optimisticQueue);
+            safeSetItem(cacheKeyToUpdate, JSON.stringify(optimisticQueue));
 
-            // USE SAFE SET ITEM HERE to prevent crash if storage is full
-            const cacheKeyToUpdate = isRecycleMode 
-                ? getSkippedCacheKey(filterMode)
-                : getCacheKey(filterMode);
-            safeSetItem(cacheKeyToUpdate, JSON.stringify(nextQueue));
-
-            // 2. UNLOCK UI IMMEDIATELY
-            setIsSwiping(false);
-
-            // 3. SEND TO DB (Background)
             try {
-                // Use UPSERT to handle recycling (re-swiping on previously passed users)
+                // Use UPSERT to keep duplicate swipe attempts idempotent for the same user/profile pair.
                 const { error: swipeError } = await supabase
                     .from('swipes')
                     .upsert({
@@ -594,13 +588,20 @@ export const Home: React.FC = () => {
                         created_at: new Date().toISOString()
                     }, { onConflict: 'liker_id, target_id' });
 
-                if (swipeError) console.error('Swipe error:', swipeError);
+                if (swipeError) throw swipeError;
             } catch (err) {
                 console.error('Swipe logic error:', err);
+                setQueue(prevQueue => {
+                    if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
+                    const rolledBackQueue = [swipedProfile, ...prevQueue];
+                    safeSetItem(cacheKeyToUpdate, JSON.stringify(rolledBackQueue));
+                    return rolledBackQueue;
+                });
+            } finally {
+                swipeInFlightRef.current = false;
             }
         }, 200);
     };
-
     if (!currentUser) return null;
 
     return (
@@ -843,12 +844,12 @@ export const Home: React.FC = () => {
                             {/* Background card stack */}
                             {thirdProfile && (
                                 <div className="absolute top-6 bottom-20 inset-x-0 bg-gray-900/50 rounded-[28px] transform scale-[0.88] translate-y-6 opacity-30 border border-gray-800/50 pointer-events-none overflow-hidden blur-[1px]">
-                                    <img src={getOptimizedUrl(thirdProfile.avatar, 1024)} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" referrerPolicy="no-referrer" />
+                                    <img src={getOptimizedUrl(thirdProfile.avatar, 1024)} className="w-full h-full object-cover opacity-40 grayscale" alt="" aria-hidden="true" referrerPolicy="no-referrer" onError={handleImageError} />
                                 </div>
                             )}
                             {nextProfile && (
                                 <div className="absolute top-3 bottom-16 inset-x-0 bg-gray-900/80 rounded-[28px] transform scale-[0.94] translate-y-3 opacity-50 border border-gray-800 pointer-events-none overflow-hidden">
-                                    <img src={getOptimizedUrl(nextProfile.avatar, 1024)} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" referrerPolicy="no-referrer" />
+                                    <img src={getOptimizedUrl(nextProfile.avatar, 1024)} className="w-full h-full object-cover opacity-60 grayscale-[50%]" alt="" aria-hidden="true" referrerPolicy="no-referrer" onError={handleImageError} />
                                 </div>
                             )}
 
@@ -882,6 +883,7 @@ export const Home: React.FC = () => {
                                     className="w-full h-full object-cover pointer-events-none"
                                     draggable={false}
                                     referrerPolicy="no-referrer"
+                                    onError={handleImageError}
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent via-40% to-black pointer-events-none" />
 

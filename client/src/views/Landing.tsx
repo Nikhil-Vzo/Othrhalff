@@ -1,829 +1,666 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Ghost, Heart, ArrowRight, Instagram, Twitter, Zap, Lock, Compass, Sparkles, Radio, Users, Flame, ArrowUpRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { useRouter as useNavigate } from 'next/navigation';
-import Link from 'next/link';
-import { useAuth } from '../context/AuthContext';
+import { AnimatePresence, motion, useScroll, useSpring, useTransform } from 'framer-motion';
 import {
-  Navbar,
+  ArrowDownRight,
+  ArrowRight,
+  BadgeCheck,
+  Bell,
+  Check,
+  CheckCheck,
+  Compass,
+  Ghost,
+  Heart,
+  Instagram,
+  Lock,
+  MapPin,
+  MessageCircle,
+  Mic,
+  Phone,
+  Play,
+  Plus,
+  Radio,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  Video,
+  Volume2,
+  X,
+  Zap,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter as useNavigate } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
+import { LoadingState } from '../components/LoadingState';
+import { VelocityScroll } from '@/components/ui/VelocityScroll';
+import {
+  MobileNav,
+  MobileNavHeader,
+  MobileNavMenu,
+  MobileNavToggle,
   NavBody,
   NavItems,
-  MobileNav,
-  NavbarLogo,
+  Navbar,
   NavbarButton,
-  MobileNavHeader,
-  MobileNavToggle,
-  MobileNavMenu,
-} from "@/components/ui/resizable-navbar";
-import OptionWheel from '@/components/ui/OptionWheel';
-import GlassSurface from '@/components/ui/GlassSurface';
-import { VelocityScroll } from '@/components/ui/VelocityScroll';
+  NavbarLogo,
+} from '@/components/ui/resizable-navbar';
 
-const CherryBlossomPetals: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const pink = '#F45D9B';
+const sceneEase = [0.22, 1, 0.36, 1] as const;
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+const chapterMeta = [
+  { id: 'discover', label: '01 / DISCOVER' },
+  { id: 'confess', label: '02 / CONFESS' },
+  { id: 'playground', label: '03 / PLAYGROUND' },
+  { id: 'chat', label: '04 / CHAT' },
+  { id: 'safety', label: '05 / YOUR PACE' },
+];
 
-    let animationFrameId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
-
-    const petals: Array<{
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-      angle: number;
-      spin: number;
-      opacity: number;
-    }> = [];
-
-    for (let i = 0; i < 20; i++) {
-      petals.push({
-        x: Math.random() * width,
-        y: Math.random() * height - height,
-        size: Math.random() * 5 + 3,
-        speedX: Math.random() * 1.0 - 0.3,
-        speedY: Math.random() * 0.8 + 0.6,
-        angle: Math.random() * Math.PI * 2,
-        spin: Math.random() * 0.015 - 0.0075,
-        opacity: Math.random() * 0.35 + 0.15,
-      });
-    }
-
-    const drawPetal = (
-      ctx: CanvasRenderingContext2D,
-      x: number,
-      y: number,
-      size: number,
-      angle: number,
-      opacity: number
-    ) => {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.bezierCurveTo(-size, -size / 2, -size, size, 0, size * 1.4);
-      ctx.bezierCurveTo(size, size, size, -size / 2, 0, 0);
-      ctx.fillStyle = `rgba(255, 150, 180, ${opacity})`;
-      ctx.fill();
-      ctx.restore();
-    };
-
-    const update = () => {
-      ctx.clearRect(0, 0, width, height);
-
-      petals.forEach((p) => {
-        p.y += p.speedY;
-        p.x += p.speedX;
-        p.angle += p.spin;
-
-        if (p.y > height) {
-          p.y = -20;
-          p.x = Math.random() * width;
-          p.speedY = Math.random() * 0.8 + 0.6;
-          p.speedX = Math.random() * 1.0 - 0.3;
-        }
-
-        drawPetal(ctx, p.x, p.y, p.size, p.angle, p.opacity);
-      });
-
-      animationFrameId = requestAnimationFrame(update);
-    };
-
-    const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-
-    window.addEventListener('resize', handleResize);
-    update();
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[2]" />;
+const reveal = {
+  hidden: { opacity: 0, y: 32, filter: 'blur(8px)' },
+  show: { opacity: 1, y: 0, filter: 'blur(0px)' },
 };
 
-const Scene2PhoneReveal: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [activeStep, setActiveStep] = useState(0);
+const SectionIndex: React.FC = () => {
+  const [active, setActive] = useState('discover');
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const totalHeight = rect.height - windowHeight;
-      if (totalHeight <= 0) return;
-      
-      const progress = Math.max(0, Math.min(1, -rect.top / totalHeight));
-
-      if (progress < 0.22) {
-        setActiveStep(0);
-      } else if (progress < 0.48) {
-        setActiveStep(1);
-      } else if (progress < 0.74) {
-        setActiveStep(2);
-      } else {
-        setActiveStep(3);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    const observers = chapterMeta.map((chapter) => {
+      const element = document.getElementById(chapter.id);
+      if (!element) return null;
+      const observer = new IntersectionObserver(
+        ([entry]) => entry.isIntersecting && setActive(chapter.id),
+        { rootMargin: '-45% 0px -45% 0px' }
+      );
+      observer.observe(element);
+      return observer;
+    });
+    return () => observers.forEach((observer) => observer?.disconnect());
   }, []);
 
-  // Asset mapping — Step 1: Discover, Step 2: Confessions, Step 3: Notifications
-  const phoneScreens = [
-    {
-      img: '/mockups/phone-off.png',
-      scale: 'scale-95',
-      tag: '00 / STANDBY',
-      badge: 'POWER OFF',
-      title: 'Your phone can help you find your vibe.',
-      subtitle: 'Without Othrhalff, it\'s just a dark screen. Scroll down to power on.',
-    },
-    {
-      img: '/mockups/phone-discover.png',
-      scale: 'scale-100',
-      tag: '01 / DISCOVER',
-      badge: 'LIVE RADAR',
-      title: 'Micro-Local Campus Radar',
-      subtitle: 'Connect dynamically with verified students active in your immediate campus circles.',
-    },
-    {
-      img: '/mockups/phone-confession.png',
-      scale: 'scale-100',
-      tag: '02 / CONFESSIONS',
-      badge: 'RAW VIBES',
-      title: 'Chemistry First, Identity Second',
-      subtitle: 'Locked profiles. Connect strictly through raw conversation and shared interests.',
-    },
-    {
-      img: '/mockups/phone-notification.png',
-      scale: 'scale-100',
-      tag: '03 / NOTIFICATIONS',
-      badge: 'INSTANT MATCH',
-      title: 'Instant Campus Synergy',
-      subtitle: 'Match on class schedules, cinema taste & study routines.',
-    },
-  ];
-
-  const activeTheme = phoneScreens[activeStep];
-
   return (
-    <div ref={containerRef} className="relative h-[340vh] w-full bg-[#07030d] overflow-x-clip">
-      
-      {/* Sticky Viewport Frame */}
-      <div className="sticky top-0 h-screen w-full flex flex-col justify-between py-6 sm:py-10 relative overflow-clip">
-        
-        {/* DIAGONAL SPLIT BACKGROUND: Architectural Matte & White Panel */}
-        <div className="absolute inset-0 z-0 flex pointer-events-none">
-          {/* Left Dark Matte Base */}
-          <div className="w-full md:w-1/2 h-full bg-[#07030d] relative border-r border-white/5" />
-          {/* Right Diagonal White Architectural Cut (MD+ Screens) */}
-          <div 
-            className="hidden md:block w-1/2 h-full bg-[#faf8fb] transition-all duration-700 relative shadow-[-30px_0_90px_rgba(0,0,0,0.6)]"
-            style={{
-              clipPath: 'polygon(12% 0, 100% 0, 100% 100%, 0% 100%)'
-            }}
-          />
-        </div>
-
-        {/* 2. MAIN CONTENT GRID (Standardized Hero 3D Phone + Refined Typography) */}
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 md:px-12 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-12 items-center relative z-10 my-auto">
-
-          {/* LEFT COLUMN (6 Cols MD, 7 Cols LG): Hero Scaled 3D Phone Mockup (Positioned Lower) */}
-          <div className="md:col-span-6 lg:col-span-7 flex flex-col items-center justify-center relative order-2 md:order-1 translate-y-8 md:translate-y-12">
-            
-            {/* Master Phone Render Stack */}
-            <div className="relative z-10 w-[300px] sm:w-[400px] md:w-[440px] lg:w-[480px] h-[400px] sm:h-[570px] md:h-[620px] lg:h-[660px] flex items-center justify-center">
-              
-              {/* CINEMATIC POWER-ON LIGHT REVEAL BEHIND PHONE */}
-              <div 
-                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] sm:w-[350px] md:w-[420px] h-[330px] sm:h-[490px] md:h-[570px] rounded-[50px] bg-gradient-to-tr from-[#F45D9B] via-[#9333EA] to-[#3B82F6] transition-all duration-1000 ease-out pointer-events-none ${
-                  activeStep > 0
-                    ? 'opacity-85 scale-110 blur-[60px] md:blur-[80px]'
-                    : 'opacity-0 scale-50 blur-[120px]'
-                }`}
-              />
-
-              {/* Radiant Ambient Core Light */}
-              <div 
-                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] sm:w-[260px] h-[240px] sm:h-[360px] rounded-full bg-[#F45D9B] transition-all duration-1000 ease-out pointer-events-none ${
-                  activeStep > 0
-                    ? 'opacity-90 scale-100 blur-[40px]'
-                    : 'opacity-0 scale-30 blur-[100px]'
-                }`}
-              />
-
-              {phoneScreens.map((screen, idx) => (
-                <div
-                  key={`phone-state-${idx}`}
-                  className={`absolute inset-0 w-full h-full flex items-center justify-center transition-all duration-700 ease-out ${
-                    activeStep === idx
-                      ? 'opacity-100 scale-100 translate-y-0 z-20 filter drop-shadow-[0_25px_50px_rgba(0,0,0,0.9)] md:drop-shadow-[0_35px_70px_rgba(0,0,0,0.95)]'
-                      : 'opacity-0 scale-[0.95] translate-y-4 z-10 pointer-events-none'
-                  }`}
-                >
-                  <img
-                    src={screen.img}
-                    alt={screen.tag}
-                    className={`max-w-full max-h-full object-contain transition-all duration-700 hover:scale-[1.02] ${screen.scale || 'scale-100'}`}
-                    style={{ imageRendering: '-webkit-optimize-contrast' }}
-                  />
-                </div>
-              ))}
-            </div>
-
-          </div>
-
-          {/* RIGHT COLUMN (6 Cols MD, 5 Cols LG): Editorial Typography */}
-          <div className="md:col-span-6 lg:col-span-5 flex flex-col items-center md:items-start text-center md:text-left z-20 order-1 md:order-2 gap-4 md:pl-6">
-            
-            {/* Step Counter Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-[#F45D9B]/15 md:bg-[#F45D9B]/10 border border-[#F45D9B]/30 text-[#F45D9B] text-[11px] font-mono tracking-widest uppercase">
-              <span>{activeTheme.tag}</span>
-            </div>
-
-            {/* Headline */}
-            <h2 key={`title-${activeStep}`} className="text-xl sm:text-2xl md:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-white md:text-gray-950 leading-[1.2] font-display transition-all duration-500 animate-fadeIn">
-              {activeTheme.title}
-            </h2>
-
-            {/* Subtitle */}
-            <p key={`sub-${activeStep}`} className="text-xs sm:text-sm md:text-[15px] text-white/80 md:text-gray-500 leading-relaxed max-w-sm transition-all duration-500 animate-fadeIn font-medium">
-              {activeTheme.subtitle}
-            </p>
-
-          </div>
-
-        </div>
-
-        {/* 3. BOTTOM FOOTER: Step Navigation Dots & Scroll Guide */}
-        <div className="relative z-30 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2.5">
-            {phoneScreens.map((_, idx) => (
-              <button
-                key={`dot-${idx}`}
-                onClick={() => setActiveStep(idx)}
-                className={`h-2 rounded-full transition-all duration-500 ${
-                  activeStep === idx ? 'w-8 bg-[#F45D9B]' : 'w-2 bg-white/40 md:bg-gray-400 hover:bg-gray-500'
-                }`}
-              />
-            ))}
-          </div>
-          {activeStep === 0 && (
-            <p className="text-xs text-white/60 md:text-gray-500 tracking-widest uppercase animate-pulse flex items-center gap-1.5 font-mono">
-              <span>↓</span> Scroll down to power on
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+    <nav aria-label="Experience chapters" className="fixed right-5 top-1/2 z-40 hidden -translate-y-1/2 lg:flex flex-col items-end gap-2.5">
+      {chapterMeta.map((chapter) => {
+        const isActive = active === chapter.id;
+        return (
+          <a key={chapter.id} href={`#${chapter.id}`} className="group flex items-center gap-2">
+            <span className={`font-mono text-[9px] tracking-[0.16em] transition-all duration-300 ${isActive ? 'translate-x-0 text-white opacity-100' : 'translate-x-2 text-white/50 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'}`}>
+              {chapter.label}
+            </span>
+            <span className={`h-1.5 rounded-full transition-all duration-500 ${isActive ? 'w-8 bg-[#F45D9B] shadow-[0_0_14px_#F45D9B]' : 'w-1.5 bg-white/35 group-hover:bg-white/70'}`} />
+          </a>
+        );
+      })}
+    </nav>
   );
 };
 
-/* VIRTUAL MEETUP GROUNDS SECTION WITH GAME CONSOLE MP4 */
-const VirtualMeetupSection: React.FC = () => {
+const MagneticButton: React.FC<{ children: React.ReactNode; onClick: () => void; dark?: boolean }> = ({ children, onClick, dark = false }) => {
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   return (
-    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-900 py-24 sm:py-36 px-6 sm:px-12 overflow-hidden border-t border-b border-gray-300/40">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+    <button
+      onClick={onClick}
+      onMouseMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setOffset({ x: (event.clientX - rect.left - rect.width / 2) * 0.18, y: (event.clientY - rect.top - rect.height / 2) * 0.18 });
+      }}
+      onMouseLeave={() => setOffset({ x: 0, y: 0 })}
+      style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
+      className={`group inline-flex items-center gap-3 rounded-full px-6 py-3 text-sm font-bold transition-[transform,background,color,box-shadow] duration-300 ${dark ? 'bg-[#07030d] text-white hover:bg-[#F45D9B] hover:shadow-[0_16px_42px_rgba(244,93,155,0.3)]' : 'bg-white text-[#07030d] hover:shadow-[0_16px_42px_rgba(255,255,255,0.22)]'}`}
+    >
+      <span>{children}</span>
+      <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+    </button>
+  );
+};
 
-        @font-face {
-          font-family: 'Departure Mono';
-          src: url('https://cdn.jsdelivr.net/fontsource/fonts/departure-mono@latest/latin-400-normal.woff2') format('woff2'),
-               url('https://fonts.cdnfonts.com/s/97732/DepartureMono-Regular.woff') format('woff');
-          font-weight: 400;
-          font-style: normal;
-          font-display: swap;
-        }
+const SectionKicker: React.FC<{ index: string; title: string; tone?: 'dark' | 'light' }> = ({ index, title, tone = 'dark' }) => (
+  <div className={`flex items-center gap-3 font-mono text-[10px] font-bold tracking-[0.18em] ${tone === 'dark' ? 'text-white/60' : 'text-black/45'}`}>
+    <span className="text-[#F45D9B]">{index}</span>
+    <span className={`h-px w-10 ${tone === 'dark' ? 'bg-white/20' : 'bg-black/15'}`} />
+    <span>{title}</span>
+  </div>
+);
 
-        @font-face {
-          font-family: 'Monument Extended';
-          src: url('https://fonts.cdnfonts.com/s/29883/MonumentExtended-Ultrabold.woff2') format('woff2'),
-               url('https://fonts.cdnfonts.com/s/29883/MonumentExtended-Ultrabold.woff') format('woff');
-          font-weight: 800;
-          font-style: normal;
-          font-display: swap;
-        }
+const Cursor: React.FC = () => (
+  <motion.div initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: 0.65, duration: 0.45 }} viewport={{ once: true }} className="absolute -bottom-3 -right-3 z-30 rounded-full border border-white/20 bg-black px-3 py-2 text-[10px] font-bold text-white shadow-2xl">
+    <span className="mr-1 text-[#F45D9B]">+</span> IT&apos;S A MATCH
+  </motion.div>
+);
 
-        .font-monument {
-          font-family: 'Monument Extended', 'Unbounded', sans-serif;
-          font-weight: 800;
-          text-transform: uppercase;
-        }
+const DiscoverScene: React.FC = () => {
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const xOne = useTransform(scrollYProgress, [0, 0.45, 1], [-85, 12, 100]);
+  const xTwo = useTransform(scrollYProgress, [0, 0.52, 1], [90, -12, -110]);
+  const rotateOne = useTransform(scrollYProgress, [0, 0.45, 1], [-16, -5, 9]);
+  const rotateTwo = useTransform(scrollYProgress, [0, 0.52, 1], [17, 6, -9]);
 
-        .font-departure {
-          font-family: 'Departure Mono', 'Space Mono', monospace;
-        }
-
-        .font-geist {
-          font-family: 'Geist', sans-serif;
-        }
-      `}</style>
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-        
-        {/* LEFT COLUMN: Clean Copy Hierarchy with Generous Spacing */}
-        <div className="lg:col-span-6 flex flex-col items-start text-left space-y-8 sm:space-y-10">
-          
-          {/* Headline */}
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-950 font-geist leading-[1.08]">
-            College <br />
-            Just Got <br />
-            <span className="text-[#F45D9B] font-monument text-2xl sm:text-4xl md:text-5xl block pt-2 tracking-wide">MULTIPLAYER.</span>
+  return (
+    <section ref={ref} id="discover" className="relative min-h-[110svh] overflow-hidden bg-[#09030e] px-5 py-24 sm:px-10 lg:px-16 lg:py-36">
+      <div className="discover-grid absolute inset-0 opacity-40" />
+      <div className="absolute left-[8%] top-[20%] h-[34rem] w-[34rem] rounded-full bg-[#F45D9B]/20 blur-[150px]" />
+      <div className="absolute bottom-[5%] right-[8%] h-[26rem] w-[26rem] rounded-full bg-blue-500/15 blur-[130px]" />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-8">
+        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative z-10 max-w-xl">
+          <SectionKicker index="01" title="THE FIRST SIGNAL" />
+          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.75rem]">
+            You were never<br />
+            <span className="text-white/35">one swipe</span><br />
+            away.
           </h2>
-
-          {/* Geist Supporting Paragraph */}
-          <p className="text-base sm:text-xl text-gray-600 font-medium max-w-md leading-relaxed font-geist">
-            Explore a shared virtual campus, hang out between classes, and bump into people naturally.
-          </p>
-
-          {/* Departure Mono System Link to Instagram */}
-          <div>
-            <a 
-              href="https://www.instagram.com/othrhalff/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-7 py-3.5 rounded-full bg-[#07030d] text-white font-departure text-xs tracking-widest uppercase shadow-lg hover:bg-[#F45D9B] hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 inline-flex items-center gap-2.5 group"
-            >
-              <span>Watch Preview</span>
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </a>
+          <p className="mt-8 max-w-md text-base leading-relaxed text-white/65 sm:text-lg">Discover the people already orbiting your campus. Same night classes, same niche interests, same kind of strange.</p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            {['YOUR CAMPUS', 'YOUR INTENT', 'YOUR VIBE'].map((item) => <span key={item} className="rounded-full border border-white/15 bg-white/[0.035] px-3 py-2 font-mono text-[10px] font-bold tracking-[0.12em] text-white/75">{item}</span>)}
           </div>
+        </motion.div>
 
+        <div className="relative mx-auto flex h-[36rem] w-full max-w-[41rem] items-center justify-center sm:h-[42rem]">
+          <motion.div style={{ x: xOne, rotate: rotateOne }} className="absolute left-[2%] top-[12%] h-[25rem] w-[13rem] overflow-hidden rounded-[2rem] border border-white/20 bg-zinc-900 shadow-[-20px_30px_80px_rgba(0,0,0,0.55)] sm:h-[31rem] sm:w-[16rem]">
+            <img src="/mockups/phone-discover.png" alt="Othrhalff Discover screen" className="h-full w-full object-cover object-top" />
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/45 to-transparent" />
+            <span className="absolute bottom-5 left-5 font-mono text-[10px] tracking-[0.18em] text-white/75">CAMPUS / LIVE</span>
+          </motion.div>
+          <motion.div style={{ x: xTwo, rotate: rotateTwo }} className="absolute right-[1%] top-[20%] h-[23rem] w-[12rem] overflow-hidden rounded-[2rem] border border-white/20 bg-zinc-950 shadow-[20px_30px_80px_rgba(0,0,0,0.65)] sm:h-[29rem] sm:w-[15rem]">
+            <img src="/mockups/phone-nearby.png" alt="Othrhalff campus radar" className="h-full w-full object-cover object-top" />
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/45 to-transparent" />
+            <span className="absolute bottom-5 left-5 font-mono text-[10px] tracking-[0.18em] text-white/75">NEARBY / NOW</span>
+          </motion.div>
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }} transition={{ delay: 0.35, duration: 0.8, ease: sceneEase }} viewport={{ once: true }} className="relative z-20 flex h-36 w-36 items-center justify-center rounded-full border border-white/20 bg-[#F45D9B] text-center font-geist text-2xl font-black leading-none text-white shadow-[0_0_70px_rgba(244,93,155,0.75)] sm:h-44 sm:w-44 sm:text-3xl">
+            FIND<br />YOUR<br />PEOPLE
+          </motion.div>
+          <Cursor />
+          <div className="absolute bottom-[5%] left-[8%] flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-4 py-2 backdrop-blur-xl">
+            <MapPin className="h-3.5 w-3.5 text-[#F45D9B]" /><span className="font-mono text-[10px] tracking-[0.12em] text-white/70">ON CAMPUS</span>
+          </div>
         </div>
-
-        {/* RIGHT COLUMN: Game Boy Console + Screen Glow */}
-        <div className="lg:col-span-6 flex items-center justify-center relative">
-          
-          {/* Subtle Pink Screen Glow Emitting Underneath Console */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-[#F45D9B]/15 blur-3xl pointer-events-none" />
-
-          {/* Video — Seamless #FAF7EF Matched Console */}
-          <video 
-            src="/game.mp4" 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="w-full max-w-[460px] h-auto object-contain relative z-10"
-          />
-
-        </div>
-
       </div>
     </section>
   );
 };
 
-
-
-const MarqueeBar: React.FC = () => {
+const ConfessionScene: React.FC = () => {
+  const [reacted, setReacted] = useState(false);
   return (
-    <div className="relative w-full overflow-hidden flex flex-col items-center bg-[#07030d] py-0">
-      <style>{`
-        @keyframes marquee-left {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-50%); }
-        }
-        @keyframes marquee-right {
-          0% { transform: translateX(-50%); }
-          100% { transform: translateX(0%); }
-        }
-        .animate-marquee-left {
-          animation: marquee-left 40s linear infinite;
-          display: inline-flex;
-        }
-        .animate-marquee-right {
-          animation: marquee-right 40s linear infinite;
-          display: inline-flex;
-        }
-      `}</style>
+    <section id="confess" className="relative overflow-hidden bg-[#fbf8f0] px-5 py-24 text-[#0c0710] sm:px-10 lg:min-h-[110svh] lg:px-16 lg:py-36">
+      <div className="absolute inset-0 opacity-[0.42]" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.17) .75px, transparent .75px)', backgroundSize: '8px 8px' }} />
+      <motion.div animate={{ rotate: [0, 2, 0, -2, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} className="absolute -right-16 top-12 h-72 w-72 rounded-full border-[28px] border-[#F45D9B]/15" />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="relative mx-auto flex min-h-[32rem] w-full max-w-[38rem] items-center justify-center sm:min-h-[38rem]">
+          <motion.div initial={{ opacity: 0, rotate: -8, x: -65 }} whileInView={{ opacity: 1, rotate: -5, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="absolute left-0 top-10 z-10 w-[72%] overflow-hidden rounded-[2.2rem] border border-black/10 bg-[#16111a] p-2 shadow-[0_35px_65px_rgba(19,8,18,0.25)]">
+            <img src="/mockups/phone-confession.png" alt="Othrhalff Confessions feed" className="h-full w-full rounded-[1.7rem] object-cover object-top" />
+          </motion.div>
+          <motion.article initial={{ opacity: 0, rotate: 8, x: 65 }} whileInView={{ opacity: 1, rotate: 4, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ delay: 0.16, duration: 0.9, ease: sceneEase }} className="absolute right-0 top-[31%] z-20 w-[54%] rounded-[1.75rem] border border-black/10 bg-white p-5 shadow-[0_35px_65px_rgba(19,8,18,0.19)] sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0c0710] font-mono text-[10px] text-white">??</span><span className="font-mono text-[9px] font-bold tracking-[.13em] text-black/45">ANONYMOUS</span></div>
+              <span className="font-mono text-[9px] text-black/35">NOW</span>
+            </div>
+            <p className="mt-5 text-sm font-semibold leading-relaxed text-[#0c0710] sm:text-base">“Who else has had a full existential crisis in the library this week?”</p>
+            <div className="mt-5 flex items-center gap-2 border-t border-black/7 pt-4">
+              <button onClick={() => setReacted((value) => !value)} aria-label="React to confession" className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all ${reacted ? 'bg-[#F45D9B] text-white' : 'bg-[#fff0f5] text-[#F45D9B]'}`}><Heart className={`h-3.5 w-3.5 ${reacted ? 'fill-current' : ''}`} /> {reacted ? '25' : '24'}</button>
+              <span className="inline-flex items-center gap-1.5 px-1 text-[11px] text-black/45"><MessageCircle className="h-3.5 w-3.5" /> 08</span>
+            </div>
+          </motion.article>
+          <motion.div animate={{ y: [0, -11, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-4 left-[10%] z-30 rounded-full border border-black/10 bg-[#F45D9B] px-4 py-2 font-mono text-[10px] font-bold tracking-[.12em] text-white shadow-xl">SAY THE REAL THING</motion.div>
+        </div>
+        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl lg:justify-self-end">
+          <SectionKicker index="02" title="THE OPEN SECRET" tone="light" />
+          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] sm:text-7xl lg:text-[5.4rem]">For the things<br />you&apos;d never put<br /><span className="text-[#F45D9B]">on your story.</span></h2>
+          <p className="mt-8 max-w-md text-base leading-relaxed text-black/60 sm:text-lg">Confessions is the campus group chat without the names. Read the room, start a poll, leave a thought, or just be the quiet witness.</p>
+          <p className="mt-7 font-mono text-[10px] font-bold tracking-[0.16em] text-black/45">OPEN TO READ. YOUR VOICE, WHEN YOU&apos;RE READY.</p>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
 
-      {/* Top Band — tilted -2°, hot pink, scrolls left */}
-      <div className="w-[110vw] transform -rotate-2 bg-[#F45D9B]/5 backdrop-blur-md border-y border-[#F45D9B]/30 py-6 sm:py-10 shadow-[0_0_80px_rgba(244,93,155,0.1)] z-10">
-        <div className="flex whitespace-nowrap overflow-hidden py-2 border-y border-[#F45D9B]/10">
-          <div className="animate-marquee-left text-white/90 font-black text-5xl sm:text-7xl md:text-9xl uppercase tracking-tighter block">
-            <span className="mx-8 drop-shadow-[0_0_15px_rgba(244,93,155,0.8)]">FIND YOUR GYM SPOTTER • <span className="text-[#F45D9B]/70">ROW 2</span> LECTURE PARTNER • LATE NIGHT STUDY BUDDY •</span>
-            <span className="mx-8 drop-shadow-[0_0_15px_rgba(244,93,155,0.8)]">FIND YOUR GYM SPOTTER • <span className="text-[#F45D9B]/70">ROW 2</span> LECTURE PARTNER • LATE NIGHT STUDY BUDDY •</span>
+const ChatScene: React.FC = () => {
+  const [showReply, setShowReply] = useState(false);
+  const [hearted, setHearted] = useState(false);
+  useEffect(() => {
+    const interval = window.setInterval(() => setShowReply((value) => !value), 3300);
+    return () => window.clearInterval(interval);
+  }, []);
+  return (
+    <section id="chat" className="relative min-h-[110svh] overflow-hidden bg-[#05070b] px-5 py-24 sm:px-10 lg:px-16 lg:py-36">
+      <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
+      <motion.div animate={{ x: ['-10%', '10%', '-10%'], y: ['-5%', '9%', '-5%'] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }} className="absolute left-[18%] top-[28%] h-[28rem] w-[28rem] rounded-full bg-[#4c1d95]/35 blur-[135px]" />
+      <motion.div animate={{ x: ['8%', '-10%', '8%'], y: ['4%', '-7%', '4%'] }} transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-[6%] right-[12%] h-[22rem] w-[22rem] rounded-full bg-[#F45D9B]/24 blur-[125px]" />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-[0.95fr_1.05fr]">
+        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.25 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl">
+          <SectionKicker index="03" title="THE PART THAT MATTERS" />
+          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.5rem]">A conversation<br />with somewhere<br /><span className="text-[#bca7ff]">to go.</span></h2>
+          <p className="mt-8 max-w-md text-base leading-relaxed text-white/65 sm:text-lg">Typing dots become inside jokes. Inside jokes become a two-truths challenge, a call, a movie room, or something that takes longer to name.</p>
+          <div className="mt-9 flex flex-wrap gap-2.5 font-mono text-[10px] font-bold tracking-[.11em] text-white/70">
+            {['LIVE TYPING', 'READ STATUS', 'VOICE + VIDEO', 'ICEBREAKERS'].map((item) => <span key={item} className="rounded-full border border-white/15 bg-white/5 px-3 py-2">{item}</span>)}
           </div>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, scale: 0.92, rotate: 3 }} whileInView={{ opacity: 1, scale: 1, rotate: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ delay: 0.08, duration: 0.95, ease: sceneEase }} className="relative mx-auto w-full max-w-[34rem] rounded-[2.3rem] border border-white/15 bg-[#10121d]/90 p-3 shadow-[0_38px_100px_rgba(0,0,0,.65)] backdrop-blur-xl sm:p-4">
+          <div className="overflow-hidden rounded-[1.65rem] border border-white/7 bg-[#0b0d16]">
+            <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
+              <div className="flex items-center gap-3"><div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#F45D9B] to-[#7258e8] font-mono text-xs font-bold text-white">A<div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#0b0d16] bg-emerald-400" /></div><div><p className="text-sm font-bold text-white">Anon A7</p><p className="text-[10px] text-emerald-400">active now</p></div></div>
+              <div className="flex gap-3 text-white/60"><Phone className="h-4 w-4" /><Video className="h-4 w-4" /></div>
+            </div>
+            <div className="min-h-[23rem] space-y-4 px-5 py-6 sm:min-h-[25rem]">
+              <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }} viewport={{ once: true }} className="max-w-[82%] rounded-2xl rounded-tl-sm bg-white/8 px-4 py-3 text-sm leading-relaxed text-white/85">Okay, important question: which library floor has the least emotionally devastating lighting?</motion.div>
+              <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.66 }} viewport={{ once: true }} className="ml-auto max-w-[76%] rounded-2xl rounded-tr-sm bg-[#F45D9B] px-4 py-3 text-sm leading-relaxed text-white">Third floor. But only if we pretend the printer noise is ambient music.</motion.div>
+              <button onClick={() => setHearted((value) => !value)} className="ml-auto -mt-3 mr-1 flex items-center gap-1 rounded-full border border-white/10 bg-[#171827] px-2 py-1 text-[10px] text-white/70"><Heart className={`h-3 w-3 ${hearted ? 'fill-[#F45D9B] text-[#F45D9B]' : ''}`} /> {hearted ? '1' : ''}</button>
+              <AnimatePresence mode="wait">
+                {showReply ? <motion.div key="typing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="flex items-center gap-2"><div className="flex gap-1 rounded-2xl rounded-tl-sm bg-white/8 px-3 py-3"><span className="chat-dot h-1.5 w-1.5 rounded-full bg-white/65" /><span className="chat-dot h-1.5 w-1.5 rounded-full bg-white/65" /><span className="chat-dot h-1.5 w-1.5 rounded-full bg-white/65" /></div><span className="font-mono text-[9px] tracking-[.1em] text-white/35">TYPING</span></motion.div> : <motion.div key="game" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="max-w-[90%] rounded-xl border border-violet-400/25 bg-violet-400/10 p-3"><div className="flex items-center gap-2 text-[10px] font-bold tracking-[.1em] text-violet-200"><Sparkles className="h-3.5 w-3.5" /> WOULD YOU RATHER</div><p className="mt-2 text-xs text-white/80">Have a playlist made for you or make one for someone else?</p><div className="mt-3 flex gap-2"><span className="rounded-md bg-white/10 px-2 py-1 text-[10px] text-white/75">GET ONE</span><span className="rounded-md bg-white/10 px-2 py-1 text-[10px] text-white/75">MAKE ONE</span></div></motion.div>}
+              </AnimatePresence>
+            </div>
+            <div className="flex items-center gap-3 border-t border-white/8 px-4 py-3"><Plus className="h-4 w-4 text-white/45" /><div className="flex-1 rounded-full bg-white/7 px-4 py-2 text-xs text-white/35">Type something true...</div><Send className="h-4 w-4 text-[#F45D9B]" /></div>
+          </div>
+          <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }} className="absolute -right-6 top-[17%] rounded-2xl border border-white/15 bg-[#191323]/95 px-4 py-3 shadow-2xl backdrop-blur-xl"><p className="font-mono text-[9px] tracking-[.13em] text-white/50">CHEMISTRY</p><p className="mt-1 text-lg font-black text-white">86<span className="text-[#F45D9B]">%</span></p></motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+const GlimpseScene: React.FC = () => {
+  const [isLive, setIsLive] = useState(false);
+  return (
+    <section id="glimpse" className="relative overflow-hidden bg-[#e9efff] px-5 py-24 text-[#090d1e] sm:px-10 lg:min-h-[110svh] lg:px-16 lg:py-36">
+      <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(115deg, transparent 49.8%, rgba(9,13,30,.08) 50%, transparent 50.2%)', backgroundSize: '44px 44px' }} />
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 70, repeat: Infinity, ease: 'linear' }} className="absolute -left-40 top-0 h-[36rem] w-[36rem] rounded-full border-[1px] border-[#090d1e]/15" />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_0.93fr] lg:gap-20">
+        <div className="order-2 max-w-xl lg:order-1">
+          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }}>
+            <SectionKicker index="04" title="24 HOURS OF CAMPUS" tone="light" />
+            <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] sm:text-7xl lg:text-[5.45rem]">The campus is<br />always making<br /><span className="text-[#3155e8]">a little noise.</span></h2>
+            <p className="mt-8 max-w-md text-base leading-relaxed text-[#090d1e]/60 sm:text-lg">Glimpses are the moments that would disappear otherwise. A late-night floor, a bad canteen take, the exact second something became lore.</p>
+          </motion.div>
+          <button onClick={() => setIsLive((value) => !value)} className="group mt-9 inline-flex items-center gap-3 rounded-full bg-[#090d1e] px-5 py-3 font-mono text-[10px] font-bold tracking-[.13em] text-white transition-transform hover:scale-[1.03]">
+            <span className={`h-2 w-2 rounded-full ${isLive ? 'bg-[#F45D9B] shadow-[0_0_12px_#F45D9B]' : 'bg-white/35'}`} /> {isLive ? 'LIVE MOMENT SAVED' : 'TAP INTO THE MOMENT'} <ArrowDownRight className="h-4 w-4 transition-transform group-hover:translate-y-0.5 group-hover:translate-x-0.5" />
+          </button>
+        </div>
+        <motion.div initial={{ opacity: 0, y: 55, rotate: -3 }} whileInView={{ opacity: 1, y: 0, rotate: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative order-1 mx-auto w-full max-w-[29rem] lg:order-2">
+          <div className="absolute -inset-12 rounded-[3rem] bg-[#3155e8]/20 blur-3xl" />
+          <div className="relative aspect-[9/14] overflow-hidden rounded-[2.4rem] border-[7px] border-[#090d1e] bg-[#090d1e] shadow-[0_34px_70px_rgba(48,82,232,.3)]">
+            <img src="/mockups/phone-notification.png" alt="Othrhalff Glimpse and notifications" className="h-full w-full object-cover object-top opacity-90" />
+            <div className="absolute inset-x-5 top-5 flex gap-1.5">{[1, 2, 3, 4].map((bar) => <span key={bar} className={`h-1 flex-1 rounded-full ${bar < 4 ? 'bg-white' : 'bg-white/35'}`} />)}</div>
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#090d1e] via-[#090d1e]/45 to-transparent px-6 pb-6 pt-24">
+              <div className="flex items-center gap-2"><span className="h-8 w-8 rounded-full bg-[#F45D9B]" /><span className="font-mono text-[10px] font-bold tracking-[.13em] text-white">CAMPUS / 10:42 PM</span></div>
+              <p className="mt-3 text-sm font-semibold leading-relaxed text-white">The chai queue just became a support group.</p>
+              <div className="mt-4 flex items-center gap-2"><Heart className="h-4 w-4 fill-white text-white" /><span className="text-xs font-bold text-white">42</span></div>
+            </div>
+          </div>
+          <motion.div animate={{ x: [0, 13, 0], y: [0, -10, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} className="absolute -left-10 top-[24%] rounded-2xl border border-[#090d1e]/10 bg-white/90 px-4 py-3 shadow-xl backdrop-blur"><p className="font-mono text-[9px] font-bold tracking-[.12em] text-[#090d1e]/50">NEW GLIMPSE</p><p className="mt-1 text-xs font-bold">Someone is here.</p></motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+const PlaygroundScene: React.FC = () => (
+  <section id="playground" className="relative overflow-hidden bg-[#0b0710] px-5 py-24 sm:px-10 lg:min-h-[105svh] lg:px-16 lg:py-36">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(244,93,155,.17),transparent_23%),radial-gradient(circle_at_30%_75%,rgba(47,93,228,.16),transparent_28%)]" />
+    <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[.92fr_1.08fr]">
+      <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl">
+        <SectionKicker index="05" title="COLLEGE, MULTIPLAYER" />
+        <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.4rem]">Leave your<br />room without<br /><span className="text-[#F45D9B]">leaving it.</span></h2>
+        <p className="mt-8 max-w-md text-base leading-relaxed text-white/65 sm:text-lg">A shared campus made for wandering. Be a tiny avatar. Run into someone. Find the people still awake, without the “hey” that has to mean everything.</p>
+        <div className="mt-9 flex items-center gap-3"><span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" /></span><span className="font-mono text-[10px] font-bold tracking-[.14em] text-white/65">CAMPUS WORLD ONLINE</span></div>
+      </motion.div>
+      <motion.div initial={{ opacity: 0, scale: .92 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: 0.25 }} transition={{ duration: 1.05, ease: sceneEase }} className="relative mx-auto w-full max-w-[43rem]">
+        <div className="absolute -inset-5 rounded-[2rem] bg-gradient-to-tr from-[#F45D9B]/30 via-transparent to-blue-500/25 blur-2xl" />
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-[0_30px_90px_rgba(0,0,0,.5)]">
+          <video src="/game.mp4" autoPlay loop muted playsInline preload="metadata" className="aspect-[16/10] w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
+          <div className="absolute bottom-5 left-5 flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black"><Play className="h-4 w-4 fill-current" /></div><div><p className="font-mono text-[9px] font-bold tracking-[.16em] text-white/55">PLAYGROUND</p><p className="text-sm font-bold text-white">Find the room between rooms.</p></div></div>
+        </div>
+      </motion.div>
+    </div>
+  </section>
+);
+
+const DatesScene: React.FC = () => {
+  const [mode, setMode] = useState<'cinema' | 'music'>('cinema');
+  return (
+    <section id="dates" className="relative overflow-hidden bg-[#f53476] px-5 py-24 text-[#18040b] sm:px-10 lg:min-h-[105svh] lg:px-16 lg:py-36">
+      <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 23px, rgba(24,4,11,.18) 24px 25px)' }} />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[1fr_1fr]">
+        <motion.div initial={{ opacity: 0, x: -38 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative mx-auto w-full max-w-[34rem]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#18040b]/20 bg-[#18040b] p-3 shadow-[0_35px_80px_rgba(78,7,28,.35)]">
+            <div className="overflow-hidden rounded-[1.35rem] bg-[#25111a]">
+              <div className="relative aspect-video overflow-hidden">
+                <img src="/blog/virtual-dates.jpeg" alt="Othrhalff virtual date cinema room" className={`h-full w-full object-cover transition-all duration-700 ${mode === 'cinema' ? 'scale-100 opacity-85' : 'scale-110 opacity-35 grayscale'}`} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#25111a] via-transparent to-transparent" />
+                <AnimatePresence mode="wait">{mode === 'cinema' ? <motion.div key="cinema" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="absolute inset-0 flex items-center justify-center"><span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white backdrop-blur"><Play className="h-5 w-5 fill-current" /></span></motion.div> : <motion.div key="music" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-x-0 bottom-8 flex items-end justify-center gap-1">{[18, 36, 58, 28, 72, 45, 33, 64, 24, 48, 69, 30].map((height, index) => <motion.span key={index} animate={{ height: [height / 2, height, height / 1.6] }} transition={{ duration: .65 + index * .04, repeat: Infinity, repeatType: 'mirror' }} className="w-1.5 rounded-full bg-[#F45D9B]" />)}</motion.div>}</AnimatePresence>
+              </div>
+              <div className="flex items-center justify-between px-5 py-4 text-white"><div><p className="font-mono text-[9px] font-bold tracking-[.14em] text-white/45">PRIVATE ROOM / 8391</p><p className="mt-1 text-sm font-bold">{mode === 'cinema' ? 'Cinema after class' : 'The late-night playlist'}</p></div><div className="flex -space-x-2"><span className="h-8 w-8 rounded-full border-2 border-[#25111a] bg-[#F45D9B]" /><span className="h-8 w-8 rounded-full border-2 border-[#25111a] bg-[#8b7aff]" /></div></div>
+            </div>
+          </div>
+          <div className="mt-5 flex justify-center gap-2"><button onClick={() => setMode('cinema')} className={`rounded-full px-4 py-2 font-mono text-[10px] font-bold tracking-[.12em] transition-colors ${mode === 'cinema' ? 'bg-[#18040b] text-white' : 'border border-[#18040b]/25 text-[#18040b]/60'}`}>CINEMA</button><button onClick={() => setMode('music')} className={`rounded-full px-4 py-2 font-mono text-[10px] font-bold tracking-[.12em] transition-colors ${mode === 'music' ? 'bg-[#18040b] text-white' : 'border border-[#18040b]/25 text-[#18040b]/60'}`}>MUSIC JAM</button></div>
+        </motion.div>
+        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl lg:justify-self-end">
+          <SectionKicker index="06" title="A BETTER NEXT MOVE" tone="light" />
+          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] sm:text-7xl lg:text-[5.4rem]">When chat says,<br /><span className="text-[#fff3d0]">“do something?”</span></h2>
+          <p className="mt-8 max-w-md text-base leading-relaxed text-[#18040b]/70 sm:text-lg">Start a private room. Press play at the same moment. Swap songs. Keep your camera off if you want. The date is only as big as you make it.</p>
+          <div className="mt-8 flex items-center gap-3 font-mono text-[10px] font-bold tracking-[.12em] text-[#18040b]/65"><span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#18040b]/20"><Lock className="h-3 w-3" /></span> INVITE-ONLY, WHEN IT SHOULD BE</div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+const conversationStages = [
+  {
+    number: '01',
+    label: 'THE THREAD',
+    title: <>A message<br />that feels <i>alive.</i></>,
+    body: 'The tiny proof that somebody is there — exactly when they are there.',
+    features: ['Real-time messages', 'Typing indicator', 'Sent + read status', 'Reactions', 'Online + last seen'],
+    slot: 'chat-conversation-system',
+    tone: 'bg-[#f4cadb] text-[#160914]',
+    frame: 'border-[#160914]/25 bg-[#180a15] text-white',
+    accent: 'text-[#c72066]',
+  },
+  {
+    number: '02',
+    label: 'THE LEFT TURN',
+    title: <>Skip the<br /><i>small talk.</i></>,
+    body: 'The best conversations are allowed to be a little strange from the beginning.',
+    features: ['2 Truths & a Lie', 'Would You Rather', 'A game when words stall'],
+    slot: 'chat-games-system',
+    tone: 'bg-[#d9d2ff] text-[#130d28]',
+    frame: 'border-[#130d28]/25 bg-[#17102c] text-white',
+    accent: 'text-[#7657ed]',
+  },
+  {
+    number: '03',
+    label: 'THE NEXT MOVE',
+    title: <>Give the<br /><i>chat a door.</i></>,
+    body: 'A call, a private room, a shared film, the first move that does not feel like a performance.',
+    features: ['Audio + video call', 'Private virtual date invite', 'Cinema invite', 'Music invite'],
+    slot: 'chat-together-system',
+    tone: 'bg-[#17111b] text-[#fff8ee]',
+    frame: 'border-white/20 bg-[#f1e8d8] text-[#1b1118]',
+    accent: 'text-[#f45d9b]',
+  },
+] as const;
+
+const ConversationStage: React.FC<(typeof conversationStages)[number]> = ({ number, label, title, body, features, slot, tone, frame, accent }) => (
+  <motion.article
+    initial={{ opacity: 0, y: 54, rotate: -1.5 }}
+    whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+    viewport={{ once: true, amount: 0.18 }}
+    transition={{ duration: 0.9, ease: sceneEase }}
+    className={`relative overflow-hidden px-5 py-6 sm:px-9 sm:py-9 lg:px-12 lg:py-12 ${tone}`}
+  >
+    <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-current opacity-[.13]" />
+    <div className="absolute bottom-0 left-0 h-1.5 w-[36%] bg-current opacity-90" />
+    <div className="relative grid gap-8 lg:grid-cols-[.7fr_1.3fr] lg:gap-14">
+      <div className="flex flex-col justify-between">
+        <div>
+          <div className="flex items-center gap-3 font-mono text-[10px] font-bold tracking-[.16em] opacity-55"><span>{number}</span><span className="h-px w-7 bg-current" /><span>{label}</span></div>
+          <h3 className="mt-8 font-geist text-[3.15rem] font-black leading-[.82] tracking-[-.08em] sm:text-6xl lg:text-[5rem]">{title}</h3>
+          <p className="mt-7 max-w-sm text-sm leading-relaxed opacity-70 sm:text-base">{body}</p>
+        </div>
+        <ul className="mt-8 flex flex-wrap gap-x-4 gap-y-2 font-mono text-[9px] font-bold tracking-[.11em] opacity-65">
+          {features.map((feature) => <li key={feature} className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-current" />{feature}</li>)}
+        </ul>
+      </div>
+      <div data-asset-slot={slot} className={`relative aspect-[5/4] overflow-hidden border p-4 sm:p-6 ${frame}`}>
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(135deg, transparent 49.5%, currentColor 50%, transparent 50.5%)', backgroundSize: '30px 30px' }} />
+        <div className="relative flex h-full flex-col justify-between border border-current/20 p-4 sm:p-6">
+          <div className="flex justify-between font-mono text-[9px] font-bold tracking-[.15em] opacity-50"><span>PRODUCT IMAGE</span><span>{number} / 03</span></div>
+          <div><span className={`font-geist text-4xl font-black tracking-[-.08em] sm:text-6xl ${accent}`}>OH</span><p className="mt-3 max-w-[14rem] text-xs leading-relaxed opacity-55">Reserved for the real product screen you provide.</p></div>
+          <span className="font-mono text-[8px] font-bold tracking-[.16em] opacity-50">IMAGE SLOT / NO FAKE UI</span>
         </div>
       </div>
+    </div>
+  </motion.article>
+);
 
-      {/* Bottom Band — tilted +1°, blue/cyan, scrolls right, overlaps */}
-      <div className="w-[110vw] transform rotate-1 -mt-8 sm:-mt-12 bg-blue-900/10 backdrop-blur-lg border-y border-blue-500/30 py-4 sm:py-8 shadow-[0_0_80px_rgba(59,130,246,0.1)] z-0 mix-blend-screen">
-        <div className="flex whitespace-nowrap overflow-hidden py-2 border-y border-blue-500/10">
-          <div className="animate-marquee-right text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-light italic text-4xl sm:text-6xl md:text-8xl uppercase tracking-widest block">
-            <span className="mx-12">THE MICROSCOPIC GEOGRAPHY OF COLLEGE •</span>
-            <span className="mx-12">THE MICROSCOPIC GEOGRAPHY OF COLLEGE •</span>
-            <span className="mx-12">THE MICROSCOPIC GEOGRAPHY OF COLLEGE •</span>
+const ArtDirectedExperience: React.FC = () => {
+  const discoverRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: discoverRef, offset: ['start end', 'end start'] });
+  const phoneY = useTransform(scrollYProgress, [0, 0.5, 1], [60, 0, -48]);
+  const ringRotate = useTransform(scrollYProgress, [0, 1], [-8, 18]);
+
+  return (
+    <div id="experience">
+      <section ref={discoverRef} id="discover" className="relative isolate overflow-hidden bg-[#09030e] px-5 py-24 sm:px-10 sm:py-28 lg:min-h-[108svh] lg:px-16 lg:py-36">
+        <div className="discover-grid absolute inset-0 opacity-45" />
+        <motion.div style={{ rotate: ringRotate }} className="absolute -right-36 top-20 h-[31rem] w-[31rem] rounded-full border border-[#F45D9B]/25 sm:-right-20 sm:h-[43rem] sm:w-[43rem]" />
+        <div className="absolute left-[-14rem] top-[35%] h-[34rem] w-[34rem] rounded-full bg-[#7456ea]/20 blur-[130px]" />
+        <div className="absolute right-[14%] top-[22%] h-56 w-56 rounded-full bg-[#F45D9B]/25 blur-[115px]" />
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-[.83fr_1.17fr] lg:gap-8">
+          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.28 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative z-10 max-w-xl">
+            <SectionKicker index="01" title="DISCOVER / THE FIRST SIGNAL" />
+            <h2 className="mt-7 font-geist text-[3.25rem] font-black leading-[.88] tracking-[-.075em] text-white sm:text-7xl lg:text-[5.85rem]">Your campus.<br /><span className="text-white/32">Then the world.</span></h2>
+            <p className="mt-8 max-w-md text-base leading-relaxed text-white/62 sm:text-lg">Start with the people you could genuinely run into between classes. When your circle is ready to stretch, take the same curiosity beyond campus.</p>
+            <div className="mt-9 flex w-full max-w-md items-center justify-between rounded-full border border-white/15 bg-white/[.045] p-1.5 font-mono text-[10px] font-bold tracking-[.15em] text-white/55">
+              <span className="rounded-full bg-[#F45D9B] px-4 py-2.5 text-white shadow-[0_0_22px_rgba(244,93,155,.35)]">CAMPUS</span>
+              <span className="px-3 text-white/35">TO</span>
+              <span className="px-4 py-2.5">GLOBAL</span>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-3 font-mono text-[10px] font-bold tracking-[.12em] text-white/55">
+              <span className="inline-flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-[#F45D9B]" />CAMPUS FIRST</span>
+              <span className="inline-flex items-center gap-2"><Compass className="h-3.5 w-3.5 text-[#bca7ff]" />GLOBAL WHEN READY</span>
+            </div>
+          </motion.div>
+
+          <div className="relative mx-auto flex min-h-[34rem] w-full max-w-[41rem] items-center justify-center sm:min-h-[43rem]">
+            <div className="absolute h-[19rem] w-[19rem] rounded-full border border-white/10 sm:h-[26rem] sm:w-[26rem]" />
+            <div className="absolute h-[26rem] w-[26rem] rounded-full border border-dashed border-white/10 sm:h-[35rem] sm:w-[35rem]" />
+            <motion.div style={{ y: phoneY }} className="relative z-10 w-[15.75rem] drop-shadow-[0_38px_65px_rgba(0,0,0,.68)] sm:w-[20rem] lg:w-[22rem]">
+              <img src="/mockups/phone-discover.png" alt="Othrhalff Discover showing the Campus and Global switch" className="h-auto w-full object-contain" />
+            </motion.div>
+            <motion.div initial={{ opacity: 0, scale: .75, y: 12 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: .4, duration: .65, ease: sceneEase }} className="absolute bottom-[14%] right-[1%] z-20 min-w-[11.5rem] rounded-2xl border border-white/15 bg-[#14111d]/90 p-3.5 shadow-2xl backdrop-blur-xl sm:right-[4%] sm:p-4">
+              <div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F45D9B]"><Heart className="h-3.5 w-3.5 fill-current text-white" /></span><span className="font-mono text-[9px] font-bold tracking-[.15em] text-white/48">NEW MATCH</span></div>
+              <p className="mt-3 text-sm font-bold text-white">A shared signal.</p>
+              <p className="mt-1 text-[11px] text-white/48">The next move is yours.</p>
+            </motion.div>
+            <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }} className="absolute left-[2%] top-[18%] z-20 rounded-full border border-white/15 bg-black/45 px-3 py-2 font-mono text-[9px] font-bold tracking-[.14em] text-white/70 backdrop-blur-xl">NEARBY / NOW</motion.div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <section id="confess" className="relative isolate overflow-hidden bg-[#faf6ed] px-5 py-24 text-[#100913] sm:px-10 sm:py-28 lg:min-h-[108svh] lg:px-16 lg:py-36">
+        <div className="absolute inset-0 opacity-[.44]" style={{ backgroundImage: 'radial-gradient(rgba(16,9,19,.2) .7px, transparent .7px)', backgroundSize: '9px 9px' }} />
+        <div className="absolute -left-28 top-16 h-64 w-64 rounded-full border-[20px] border-[#F45D9B]/12 sm:h-96 sm:w-96" />
+        <div className="absolute bottom-[-14rem] right-[-10rem] h-[30rem] w-[30rem] rounded-full bg-[#F45D9B]/12 blur-[95px]" />
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.02fr_.98fr] lg:gap-20">
+          <div className="relative order-1 max-w-xl">
+            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: .3 }} transition={{ duration: .9, ease: sceneEase }}>
+              <SectionKicker index="02" title="CONFESSIONS / THE OPEN SECRET" tone="light" />
+              <h2 className="mt-7 font-geist text-[3.25rem] font-black leading-[.88] tracking-[-.075em] sm:text-7xl lg:text-[5.5rem]">Say the thing<br />you&apos;d never put<br /><span className="text-[#F45D9B]">on your story.</span></h2>
+              <p className="mt-8 max-w-md text-base leading-relaxed text-black/62 sm:text-lg">A living campus wall for the thought, question, and crush you&apos;d rather not attach to your name.</p>
+            </motion.div>
+            <div className="mt-9 grid max-w-lg grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="rounded-2xl border border-black/10 bg-white/75 p-4 shadow-[0_10px_30px_rgba(28,11,21,.05)]"><BadgeCheck className="h-4 w-4 text-[#F45D9B]" /><p className="mt-4 font-mono text-[9px] font-bold tracking-[.14em] text-black/42">NO LOGIN NEEDED</p><p className="mt-1.5 text-sm font-bold">Read every confession.</p></div>
+              <div className="rounded-2xl border border-black/10 bg-[#170b1d] p-4 text-white shadow-[0_10px_30px_rgba(28,11,21,.13)]"><Lock className="h-4 w-4 text-[#F45D9B]" /><p className="mt-4 font-mono text-[9px] font-bold tracking-[.14em] text-white/42">WHEN YOU JOIN</p><p className="mt-1.5 text-sm font-bold">Post, react, comment, poll.</p></div>
+            </div>
+          </div>
+          <div className="relative order-2 mx-auto flex min-h-[33rem] w-full max-w-[34rem] items-center justify-center sm:min-h-[40rem]">
+            <div className="absolute h-[21rem] w-[21rem] rotate-12 rounded-[3rem] bg-[#F45D9B]/14 sm:h-[29rem] sm:w-[29rem]" />
+            <motion.div initial={{ opacity: 0, y: 48, rotate: 5 }} whileInView={{ opacity: 1, y: 0, rotate: 0 }} viewport={{ once: true, amount: .25 }} transition={{ duration: 1, ease: sceneEase }} className="relative z-10 w-[16.5rem] drop-shadow-[0_35px_55px_rgba(28,9,24,.27)] sm:w-[21rem]">
+              <img src="/mockups/phone-confession.png" alt="Othrhalff's anonymous Confessions feed" className="h-auto w-full object-contain" />
+            </motion.div>
+            <motion.div animate={{ rotate: [-2, 2, -2], y: [0, -7, 0] }} transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-[9%] left-[1%] z-20 max-w-[12rem] rounded-2xl border border-black/10 bg-white/85 p-3.5 shadow-xl backdrop-blur"><p className="font-mono text-[8px] font-bold tracking-[.14em] text-black/42">ANONYMOUS BY DESIGN</p><p className="mt-2 text-xs font-bold leading-snug">The room gets honest when names leave it.</p></motion.div>
+          </div>
+        </div>
+      </section>
+
+      <section id="playground" className="relative isolate overflow-hidden bg-[#0c0811] px-5 py-24 sm:px-10 sm:py-28 lg:min-h-[100svh] lg:px-16 lg:py-36">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_20%,rgba(244,93,155,.21),transparent_22%),radial-gradient(circle_at_15%_82%,rgba(65,89,228,.19),transparent_29%)]" />
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-[.75fr_1.25fr] lg:gap-16">
+          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: .3 }} transition={{ duration: .9, ease: sceneEase }} className="max-w-xl">
+            <SectionKicker index="03" title="PLAYGROUND / COLLEGE, MULTIPLAYER" />
+            <h2 className="mt-7 font-geist text-[3.25rem] font-black leading-[.88] tracking-[-.075em] text-white sm:text-7xl lg:text-[5.45rem]">Meet between<br />the moments.</h2>
+            <p className="mt-8 max-w-md text-base leading-relaxed text-white/62 sm:text-lg">A shared place for games, tiny collisions, and the people who are still around after the group chat goes quiet.</p>
+            <p className="mt-8 font-mono text-[10px] font-bold tracking-[.15em] text-[#F45D9B]">GAMEPLAY VISUAL COMING FROM YOUR ASSET SET</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: .94, y: 26 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true, amount: .24 }} transition={{ duration: 1, ease: sceneEase }} className="relative mx-auto w-full max-w-[49rem]">
+            <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#F45D9B]/25 via-transparent to-[#6d63ff]/22 blur-2xl" />
+            <div data-asset-slot="playground-gameplay" className="relative aspect-[16/10] overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#11101a] p-4 shadow-[0_35px_100px_rgba(0,0,0,.5)] sm:rounded-[2.35rem] sm:p-6">
+              <div className="absolute inset-0 opacity-55" style={{ backgroundImage: 'linear-gradient(45deg, transparent 48.5%, rgba(255,255,255,.07) 49%, rgba(255,255,255,.07) 51%, transparent 51.5%), linear-gradient(-45deg, transparent 48.5%, rgba(255,255,255,.035) 49%, rgba(255,255,255,.035) 51%, transparent 51.5%)', backgroundSize: '36px 36px' }} />
+              <div className="relative flex h-full flex-col justify-between rounded-[1.3rem] border border-dashed border-white/25 px-5 py-5 sm:rounded-[1.7rem] sm:px-8 sm:py-7">
+                <div className="flex items-center justify-between font-mono text-[9px] font-bold tracking-[.16em] text-white/42"><span>PLAYGROUND / ASSET BAY</span><span>16:10</span></div>
+                <div><p className="font-geist text-3xl font-black leading-[.88] tracking-[-.06em] text-white sm:text-5xl">Drop the game<br /><span className="text-[#F45D9B]">mockup here.</span></p><p className="mt-4 max-w-sm text-xs leading-relaxed text-white/45 sm:text-sm">This is the exact frame reserved for your Playground screen. No fake gameplay stands in for the real thing.</p></div>
+                <div className="flex items-center gap-2 font-mono text-[9px] font-bold tracking-[.14em] text-white/48"><span className="h-2 w-2 rounded-full bg-[#F45D9B] shadow-[0_0_14px_#F45D9B]" />READY FOR ARTWORK</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section id="chat" className="relative overflow-hidden bg-[#0b0710] py-24 sm:py-32 lg:py-40">
+        <div className="absolute left-[-12rem] top-[10%] h-[32rem] w-[32rem] rounded-full bg-[#f45d9b]/20 blur-[155px]" />
+        <div className="absolute right-[-10rem] top-[42%] h-[26rem] w-[26rem] rounded-full bg-[#7661ef]/25 blur-[145px]" />
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-10 lg:px-16">
+          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: .25 }} transition={{ duration: .9, ease: sceneEase }} className="relative max-w-4xl text-white">
+            <SectionKicker index="04" title="CHAT / A CONVERSATION WITH SOMEWHERE TO GO" />
+            <h2 className="mt-8 font-geist text-[3.5rem] font-black leading-[.8] tracking-[-.09em] sm:text-7xl lg:text-[6.8rem]">A good chat<br />should <span className="text-[#f45d9b]">change shape.</span></h2>
+            <p className="mt-8 max-w-xl text-base leading-relaxed text-white/64 sm:text-lg">It begins with a message. Then it becomes a game, a call, a shared room, or something that is easier to feel than explain.</p>
+          </motion.div>
+        </div>
+        <div className="relative mt-16 space-y-5 sm:mt-24 sm:space-y-8">
+          {conversationStages.map((stage, index) => <div key={stage.slot} className={index === 1 ? 'mx-0 sm:ml-[4vw]' : index === 2 ? 'mx-0 sm:mr-[5vw]' : ''}><ConversationStage {...stage} /></div>)}
+        </div>
+        <div className="relative mx-auto mt-8 max-w-7xl px-5 sm:mt-12 sm:px-10 lg:px-16">
+          <div className="grid border-t border-white/12 pt-8 text-white sm:grid-cols-[.75fr_1.25fr] sm:gap-12 sm:pt-10">
+            <p className="font-mono text-[10px] font-bold tracking-[.15em] text-[#f45d9b]">OTHER SIGNALS / ALWAYS ON</p>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60 sm:mt-0 sm:text-base">Glimpse, Sparx, Vibe Rooms, anonymous posts, and campus leaderboards keep the rest of the social layer moving without turning it into another feed.</p>
+          </div>
+        </div>
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-10 lg:px-16">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: .7, ease: sceneEase }} className="hidden">
+            <div className="border-b border-white/10 p-6 md:border-b-0 md:border-r md:p-8"><p className="font-mono text-[10px] font-bold tracking-[.16em] text-[#F45D9B]">BEYOND THE THREAD</p><h3 className="mt-4 font-geist text-3xl font-black leading-[.9] tracking-[-.06em] text-white">Glimpse, Sparx,<br />and Vibe Rooms.</h3></div>
+            <div className="flex items-center p-6 text-sm leading-relaxed text-white/58 md:p-8">Short-lived campus stories, anonymous sparks, rotating leaderboards, and rooms built around a mood. They are part of Othrhalff&apos;s social layer — not another generic feed.</div>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 };
 
+const SafetyScene: React.FC = () => (
+  <section id="safety" className="relative overflow-hidden bg-[#080e0e] px-5 py-24 sm:px-10 lg:min-h-[100svh] lg:px-16 lg:py-36">
+    <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(127,255,212,.06)_1px,transparent_1px),linear-gradient(rgba(127,255,212,.06)_1px,transparent_1px)] bg-[size:44px_44px]" />
+    <div className="relative mx-auto flex max-w-6xl flex-col items-center text-center">
+      <motion.div initial={{ opacity: 0, scale: .75, y: 24 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: .9, ease: sceneEase }} className="relative flex h-44 w-44 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-300/[.07] shadow-[0_0_0_18px_rgba(116,255,211,.025),0_0_90px_rgba(116,255,211,.13)] sm:h-52 sm:w-52">
+        <div className="absolute inset-3 rounded-full border border-dashed border-emerald-200/25 animate-[spin_18s_linear_infinite]" />
+        <ShieldCheck className="h-16 w-16 text-emerald-200 sm:h-20 sm:w-20" strokeWidth={1.2} />
+        <span className="absolute -bottom-3 rounded-full border border-emerald-200/20 bg-[#080e0e] px-3 py-1.5 font-mono text-[9px] font-bold tracking-[.14em] text-emerald-100">YOUR PACE</span>
+      </motion.div>
+      <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ delay: .15, duration: .85, ease: sceneEase }}>
+        <SectionKicker index="07" title="THE PART WE DON&apos;T NEGOTIATE" />
+        <h2 className="mt-8 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.8rem]">You decide<br />what opens.</h2>
+        <p className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-white/60 sm:text-lg">Browse Confessions without an account. Be anonymous when the moment calls for it. Block, report, leave. On Othrhalff, being curious never means giving up control.</p>
+      </motion.div>
+      <motion.div initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: .45, duration: .7 }} className="mt-11 flex flex-wrap justify-center gap-2.5 font-mono text-[10px] font-bold tracking-[.12em] text-emerald-50/75">
+        {['COLLEGE IDENTITY', 'ANON CONTROLS', 'BLOCK + REPORT', 'YOUR BOUNDARIES'].map((item) => <span key={item} className="rounded-full border border-emerald-100/15 bg-emerald-50/[.04] px-3 py-2">{item}</span>)}
+      </motion.div>
+    </div>
+  </section>
+);
 
+const MarqueeBar: React.FC = () => (
+  <div className="relative w-full overflow-hidden bg-[#07030d] py-0">
+    <div className="-ml-[5vw] w-[110vw] -rotate-2 border-y border-[#F45D9B]/30 bg-[#F45D9B]/10 py-7 shadow-[0_0_80px_rgba(244,93,155,0.1)] sm:py-10">
+      <div className="landing-marquee-left flex w-max whitespace-nowrap font-geist text-5xl font-black tracking-[-.06em] text-white sm:text-7xl md:text-9xl"><span className="mx-8">FIND YOUR GYM SPOTTER <i className="not-italic text-[#F45D9B]">/</i> ROW TWO LECTURE PARTNER <i className="not-italic text-[#F45D9B]">/</i> LATE NIGHT STUDY BUDDY</span><span className="mx-8">FIND YOUR GYM SPOTTER <i className="not-italic text-[#F45D9B]">/</i> ROW TWO LECTURE PARTNER <i className="not-italic text-[#F45D9B]">/</i> LATE NIGHT STUDY BUDDY</span></div>
+    </div>
+    <div className="-ml-[5vw] -mt-10 w-[110vw] rotate-1 border-y border-blue-400/30 bg-blue-950/30 py-5 mix-blend-screen sm:-mt-14 sm:py-8"><div className="landing-marquee-right flex w-max whitespace-nowrap font-mono text-3xl tracking-[.16em] text-blue-200 sm:text-5xl md:text-7xl"><span className="mx-10">THE MICROSCOPIC GEOGRAPHY OF COLLEGE <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE IT YOURS</span><span className="mx-10">THE MICROSCOPIC GEOGRAPHY OF COLLEGE <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE IT YOURS</span></div></div>
+  </div>
+);
 
-
-
-/* RIBBIT CAPITAL STYLE MANIFESTO SECTION */
 const ManifestoSection: React.FC = () => {
-  const text1Node = (
-    <span className="flex items-center gap-6">
-      GO BEYOND DATING <span className="text-[#F45D9B]">•</span>
-    </span>
-  );
-
-  const text2Node = (
-    <span className="flex items-center gap-6">
-      FIND YOUR PEOPLE <span className="text-black/30">•</span>
-    </span>
-  );
-
+  const primary = <span className="flex items-center gap-6">GO BEYOND DATING <span className="text-[#F45D9B]">/</span></span>;
+  const secondary = <span className="flex items-center gap-6">FIND YOUR PEOPLE <span className="text-black/30">/</span></span>;
   return (
-    <section className="relative z-10 w-full bg-[#FAF7EF] text-gray-950 pt-0 pb-20 sm:pb-32 overflow-hidden border-t border-b border-gray-300/40">
-      
-      {/* VelocityScroll Framer Motion Parallax Marquee with Metallic Soft Pink Styling */}
-      <VelocityScroll
-        text1={text1Node}
-        text2={text2Node}
-        default_velocity={1.8}
-        bar1ClassName="bg-[linear-gradient(110deg,#FEDEE5_0%,#FFFFFF_45%,#FCE7F3_60%,#FEDEE5_100%)] text-[#07030d] border-b border-pink-200/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_2px_10px_rgba(244,93,155,0.08)]"
-        bar2ClassName="bg-[linear-gradient(110deg,#FBCFE8_0%,#FEDEE5_35%,#FFFFFF_50%,#F45D9B_100%)] text-black border-b border-pink-300/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_15px_rgba(244,93,155,0.12)]"
-        textClassName="font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter"
-      />
-
-      {/* Editorial Monospace Manifesto Text Block */}
-      <div className="max-w-3xl mx-auto px-6 sm:px-12 pt-16 sm:pt-24 space-y-8 sm:space-y-12 text-left font-mono">
-        
-        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          College isn't meant to be lonely. Somewhere along the way, campus life became endless swipes, fake personas, and conversations that never went anywhere. We built Othrhalff to bring back real student connections, where people meet naturally instead of being reduced to another profile.
-        </p>
-
-        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          Discover students through a swipe-based Discover page, connect when it feels right, ignore anyone without pressure, and revisit profiles anytime. Chat instantly, play ice-breakers like Truth or Dare and Would You Rather, and let conversations happen instead of forcing them.
-        </p>
-
-        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          Share anonymous confessions, campus stories, memes, photos, and videos. Create or join groups around music, movies, gaming, coding, sports, or anything you're passionate about. Stream music together, watch videos with friends, and build communities around shared interests, not just shared classes.
-        </p>
-
-        <p className="text-base sm:text-xl text-gray-800 leading-[1.85] font-normal">
-          Walk into a live 2D virtual campus as your own avatar, explore, meet new people, hang out, and interact just like you would on a real campus. Every conversation starts with curiosity instead of a notification.
-        </p>
-
-        <p className="text-base sm:text-xl text-gray-950 leading-[1.85] font-semibold border-l-4 border-[#F45D9B] pl-5 sm:pl-8 py-1">
-          No fake profiles. No paywalls. No premium subscriptions. Just one verified student identity, one growing student network, and a place where friendships, collaborations, communities, and even relationships happen naturally. <span className="text-[#F45D9B] font-bold">Not built for dating. Built for belonging.</span>
-        </p>
-
+    <section className="relative z-10 overflow-hidden border-y border-gray-300/40 bg-[#FAF7EF] pb-20 pt-0 text-gray-950 sm:pb-32">
+      <VelocityScroll text1={primary} text2={secondary} default_velocity={1.8} bar1ClassName="bg-[linear-gradient(110deg,#FEDEE5_0%,#FFFFFF_45%,#FCE7F3_60%,#FEDEE5_100%)] text-[#07030d] border-b border-pink-200/60" bar2ClassName="bg-[linear-gradient(110deg,#FBCFE8_0%,#FEDEE5_35%,#FFFFFF_50%,#F45D9B_100%)] text-black border-b border-pink-300/50" textClassName="font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter" />
+      <div className="mx-auto max-w-3xl space-y-8 px-6 pt-16 font-mono text-left sm:space-y-12 sm:px-12 sm:pt-24">
+        <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">College isn&apos;t meant to be lonely. Somewhere along the way, campus life became endless swipes, fake personas, and conversations that never went anywhere. Othrhalff is built to bring back real student connection—where people meet naturally instead of becoming another profile.</p>
+        <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">Discover people. Say the thing anonymously. Let chat turn into a call, a game, a shared movie, or an actual plan. Meet inside the campus world when curiosity needs somewhere to go.</p>
+        <p className="border-l-4 border-[#F45D9B] py-1 pl-5 text-base font-semibold leading-[1.85] text-gray-950 sm:pl-8 sm:text-xl">One verified student identity. A growing student network. Friendships, collaborations, communities, and relationships—without being forced into a box. <span className="font-bold text-[#F45D9B]">Not built for dating. Built for belonging.</span></p>
       </div>
     </section>
   );
 };
+
+const Footer: React.FC = () => (
+  <footer className="relative border-t border-gray-900 bg-black/95 pb-8 pt-12 text-white sm:pt-16">
+    <div className="mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="grid grid-cols-2 gap-8 pb-10 sm:gap-12 md:grid-cols-5 md:pb-14">
+        <div className="col-span-2 md:col-span-1"><div className="flex items-center gap-2"><Ghost className="h-5 w-5 text-[#F45D9B]" /><span className="text-lg font-bold tracking-tight">OthrHalff</span></div><p className="mt-4 max-w-sm text-sm leading-relaxed text-gray-500">The campus is already full of your people. We just make the signal easier to find.</p><div className="mt-6 flex gap-3"><a href="https://www.instagram.com/othrhalff/" target="_blank" rel="noopener noreferrer" aria-label="Othrhalff on Instagram" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/7 text-gray-400 transition-all hover:scale-110 hover:bg-[#F45D9B] hover:text-white"><Instagram className="h-5 w-5" /></a><Link href="/about" aria-label="About Othrhalff" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/7 text-gray-400 transition-all hover:scale-110 hover:bg-[#F45D9B] hover:text-white"><Ghost className="h-5 w-5" /></Link></div></div>
+        <div><h3 className="font-mono text-[10px] font-bold tracking-[.15em] text-white/50">COMPARE</h3><ul className="mt-5 space-y-3 text-sm text-gray-500"><li><Link href="/vs/tinder" className="transition-colors hover:text-[#F45D9B]">vs Tinder</Link></li><li><Link href="/vs/bumble" className="transition-colors hover:text-[#F45D9B]">vs Bumble</Link></li><li><Link href="/vs/hinge" className="transition-colors hover:text-[#F45D9B]">vs Hinge</Link></li><li><Link href="/vs-omegle" className="transition-colors hover:text-[#F45D9B]">vs Omegle</Link></li><li><Link href="/vs/yikyak" className="transition-colors hover:text-[#F45D9B]">vs Yik Yak</Link></li></ul></div>
+        <div><h3 className="font-mono text-[10px] font-bold tracking-[.15em] text-white/50">CAMPUSES</h3><ul className="mt-5 space-y-3 text-sm text-gray-500"><li><Link href="/campus/delhi-university" className="transition-colors hover:text-[#F45D9B]">Delhi Univ (DU)</Link></li><li><Link href="/campus/iit-delhi" className="transition-colors hover:text-[#F45D9B]">IIT Delhi</Link></li><li><Link href="/campus/amity-noida" className="transition-colors hover:text-[#F45D9B]">Amity Noida</Link></li><li><Link href="/campus/amity-raipur" className="transition-colors hover:text-[#F45D9B]">Amity Raipur</Link></li><li><Link href="/campus/sharda-university" className="transition-colors hover:text-[#F45D9B]">Sharda Univ</Link></li></ul></div>
+        <div><h3 className="font-mono text-[10px] font-bold tracking-[.15em] text-white/50">COMPANY</h3><ul className="mt-5 space-y-3 text-sm text-gray-500"><li><Link href="/about" className="transition-colors hover:text-[#F45D9B]">About Us</Link></li><li><Link href="/developers" className="transition-colors hover:text-[#F45D9B]">Developers</Link></li><li><Link href="/careers" className="transition-colors hover:text-[#F45D9B]">Careers</Link></li><li><Link href="/contact" className="transition-colors hover:text-[#F45D9B]">Contact</Link></li></ul></div>
+        <div><h3 className="font-mono text-[10px] font-bold tracking-[.15em] text-white/50">THE BORING STUFF</h3><ul className="mt-5 space-y-3 text-sm text-gray-500"><li><Link href="/privacy" className="transition-colors hover:text-[#F45D9B]">Privacy</Link></li><li><Link href="/terms" className="transition-colors hover:text-[#F45D9B]">Terms</Link></li><li><Link href="/safety" className="transition-colors hover:text-[#F45D9B]">Safety</Link></li><li><Link href="/guidelines" className="transition-colors hover:text-[#F45D9B]">Guidelines</Link></li></ul></div>
+      </div>
+      <div className="flex flex-col items-center justify-between gap-3 border-t border-white/8 pt-6 text-xs text-gray-600 md:flex-row"><span>© {new Date().getFullYear()} Othrhalff Inc. All rights reserved.</span><span className="font-mono text-[10px] tracking-[.12em]">MADE FOR THE IN-BETWEEN MOMENTS</span></div>
+    </div>
+  </footer>
+);
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
-  const onEnter = () => navigate.push('/login');
-
-  // Redirect authenticated users to home
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      navigate.push('/home');
-    }
-  }, [isAuthenticated, isLoading, navigate]);
-
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const navItems = [
-    { name: "Features", link: "#features" },
-    { name: "Stories", link: "/blog" },
-    { name: "Community", link: "/developers" },
-    { name: "Safety", link: "/safety" },
-  ];
-
   const [textRevealed, setTextRevealed] = useState(false);
   const [pageLoaded, setPageLoaded] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setTextRevealed(true), 100);
-    const loaderTimer = setTimeout(() => setPageLoaded(true), 1600);
-    return () => { clearTimeout(timer); clearTimeout(loaderTimer); };
-  }, []);
-
-  // Enable document scrolling on Landing page, restore default overflow on unmount
-  useEffect(() => {
-    const origHtmlOverflow = document.documentElement.style.overflow;
-    const origBodyOverflow = document.body.style.overflow;
-
-    document.documentElement.style.overflow = 'unset';
-    document.body.style.overflow = 'unset';
-
-    return () => {
-      document.documentElement.style.overflow = origHtmlOverflow;
-      document.body.style.overflow = origBodyOverflow;
-    };
-  }, []);
-
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const onEnter = () => navigate.push('/login');
+  const navItems = [{ name: 'Experience', link: '#experience' }, { name: 'Stories', link: '/blog' }, { name: 'World', link: '#playground' }, { name: 'Safety', link: '#safety' }];
+
+  const isOAuthCallback = typeof window !== 'undefined' && (
+    window.location.hash.includes('access_token=') ||
+    window.location.hash.includes('error=') ||
+    window.location.search.includes('code=')
+  );
+
+  useEffect(() => { if (!isLoading && isAuthenticated) navigate.push('/home'); }, [isAuthenticated, isLoading, navigate]);
+  useEffect(() => { const textTimer = window.setTimeout(() => setTextRevealed(true), 120); const loadTimer = window.setTimeout(() => setPageLoaded(true), 1050); return () => { window.clearTimeout(textTimer); window.clearTimeout(loadTimer); }; }, []);
+  useEffect(() => { const html = document.documentElement.style.overflow; const body = document.body.style.overflow; document.documentElement.style.overflow = 'unset'; document.body.style.overflow = 'unset'; return () => { document.documentElement.style.overflow = html; document.body.style.overflow = body; }; }, []);
+  useEffect(() => { const move = (event: MouseEvent) => setMousePos({ x: event.clientX / window.innerWidth - .5, y: event.clientY / window.innerHeight - .5 }); window.addEventListener('mousemove', move, { passive: true }); return () => window.removeEventListener('mousemove', move); }, []);
+  
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const x = (e.clientX / window.innerWidth) - 0.5;
-      setMousePos({ x, y: (e.clientY / window.innerHeight) - 0.5 });
-    };
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+    if (isOAuthCallback && typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        if (window.location.hash.includes('access_token=')) {
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOAuthCallback]);
 
-
-
-
+  if (isOAuthCallback || (isLoading && isAuthenticated)) {
+    return <LoadingState message="Signing you in..." className="bg-[#05000a] fixed inset-0 z-[999]" />;
+  }
 
   return (
-    <div className="min-h-screen bg-[#07030d] text-white font-sans selection:bg-[#F45D9B] selection:text-white relative overflow-x-clip flex flex-col">
-      {/* Branded Loader */}
-      <div 
-        className={`fixed inset-0 z-[9999] bg-[#05000a] flex flex-col items-center justify-center transition-all duration-700 ${
-          pageLoaded ? 'opacity-0 pointer-events-none scale-110' : 'opacity-100'
-        }`}
-      >
-        <div className="flex items-center gap-2 mb-6">
-          <Ghost className="w-6 h-6 text-[#F45D9B] animate-pulse" />
-          <span className="font-bold tracking-tight text-2xl text-white/95">
-            OtherHalff
-          </span>
-        </div>
-        <div className="w-48 h-[2px] bg-gray-800 rounded-full overflow-hidden">
-          <div className="h-full bg-[#F45D9B] rounded-full animate-[loading_1.4s_ease-in-out_infinite]" />
-        </div>
-        <style>{`
-          @keyframes loading {
-            0% { width: 0%; transform: translateX(0); }
-            50% { width: 100%; transform: translateX(0); }
-            100% { width: 100%; transform: translateX(100%); }
-          }
-        `}</style>
+    <div className="landing-page min-h-screen overflow-x-clip bg-[#07030d] font-sans text-white selection:bg-[#F45D9B] selection:text-white">
+      <style>{`
+        .font-geist { font-family: Geist, ui-sans-serif, system-ui, sans-serif; }
+        .discover-grid { background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 48px 48px; mask-image: radial-gradient(circle at center, black 4%, transparent 72%); }
+        .chat-dot { animation: chat-bounce 1.1s ease-in-out infinite; } .chat-dot:nth-child(2) { animation-delay: .13s; } .chat-dot:nth-child(3) { animation-delay: .26s; }
+        @keyframes chat-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+        .landing-marquee-left { animation: landing-marquee-left 34s linear infinite; } .landing-marquee-right { animation: landing-marquee-right 38s linear infinite; }
+        @keyframes landing-marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } } @keyframes landing-marquee-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+        @media (prefers-reduced-motion: reduce) { .landing-page *, .landing-page *::before, .landing-page *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
+      `}</style>
+      <div className={`fixed inset-0 z-[999] transition-all duration-700 ${pageLoaded ? 'pointer-events-none scale-110 opacity-0' : 'opacity-100'}`}>
+        <LoadingState message="Connecting signals..." className="bg-[#05000a] h-full w-full" />
       </div>
-
-      {/* Subtle noise overlay */}
-      <div className="absolute inset-0 opacity-5 mix-blend-overlay pointer-events-none z-[1]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }}></div>
-
-      {/* Full-Bleed Hero Background Image */}
-      <div 
-        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[0] overflow-hidden pointer-events-none transition-transform duration-1000 ease-out"
-        style={{
-          transform: `translate3d(${mousePos.x * -10}px, ${mousePos.y * -10}px, 0) scale(1.02)`,
-        }}
-      >
-        {/* Desktop Hero Image (Landscape 1536x1024) */}
-        <img 
-          src="/landing_hero-bg.png?v=10" 
-          alt="Hero Background Desktop" 
-          className="hidden md:block w-full h-full object-cover object-center"
-          style={{ imageRendering: '-webkit-optimize-contrast' }}
-        />
-        {/* Mobile Hero Image (Portrait 853x1844) */}
-        <img 
-          src="/landing_hero-mobile-bg.png?v=10" 
-          alt="Hero Background Mobile" 
-          className="block md:hidden w-full h-full object-cover object-center"
-          style={{ imageRendering: '-webkit-optimize-contrast' }}
-        />
-        {/* Soft sky-matching mist gradient instead of dark overlay */}
-        <div 
-          className="absolute inset-0 z-10" 
-          style={{
-            background: 'linear-gradient(to bottom, rgba(7,3,13,0.02) 0%, rgba(7,3,13,0.12) 60%, rgba(7,3,13,0.92) 100%)'
-          }}
-        />
-      </div>
-
-      {/* Top Navigation Scrim for Contrast */}
-      <div 
-        className="absolute top-0 left-0 right-0 h-[140px] z-[1] pointer-events-none"
-        style={{
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)'
-        }}
-      />
-
-      {/* Atmospheric Fog/Mist Layer behind text */}
-      <div 
-        className="absolute top-0 left-0 w-full h-[100vh] min-h-[750px] max-h-[1050px] z-[1] overflow-hidden pointer-events-none opacity-40 mix-blend-screen"
-        style={{
-          background: 'radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%)'
-        }}
-      />
-
-      {/* Cherry Blossom falling petals animation */}
-      <CherryBlossomPetals />
-
-      <Navbar>
-        {/* Desktop Navigation */}
-        <NavBody>
-          <NavbarLogo />
-          <NavItems items={navItems} />
-          <div className="flex items-center gap-4">
-            <NavbarButton variant="secondary" onClick={onEnter}>Log In</NavbarButton>
-            <NavbarButton variant="primary" onClick={onEnter}>Sign Up</NavbarButton>
-          </div>
-        </NavBody>
-
-        {/* Mobile Navigation */}
-        <MobileNav>
-          <MobileNavHeader>
-            <NavbarLogo />
-            <MobileNavToggle
-              isOpen={isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            />
-          </MobileNavHeader>
-
-          <MobileNavMenu
-            isOpen={isMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)}
-          >
-            <div className="flex flex-col">
-              {navItems.map((item, idx) => (
-                <a
-                  key={`mobile-link-${idx}`}
-                  href={item.link}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="group relative text-white/90 hover:text-white active:text-[#F45D9B] transition-colors py-3.5 text-base font-semibold border-b border-white/5 last:border-0 flex items-center justify-between"
-                >
-                  <span>{item.name}</span>
-                  <ArrowRight className="w-4 h-4 text-white/30 group-hover:text-[#F45D9B] group-hover:translate-x-1 transition-all duration-300" />
-                </a>
-              ))}
-            </div>
-            <div className="flex w-full flex-col gap-3 mt-2">
-              <NavbarButton
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onEnter();
-                }}
-                variant="secondary"
-                className="w-full text-center py-3.5 text-sm"
-              >
-                Log In
-              </NavbarButton>
-              <NavbarButton
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onEnter();
-                }}
-                variant="primary"
-                className="w-full text-center py-3.5 text-sm"
-              >
-                Sign Up
-              </NavbarButton>
-            </div>
-          </MobileNavMenu>
-        </MobileNav>
-      </Navbar>
-
-      {/* 1. HERO SECTION */}
-      <main className="relative z-10 min-h-[90vh] sm:min-h-screen flex flex-col items-center justify-center text-center px-4 pt-28 pb-16 max-w-7xl mx-auto w-full">
-        <div className="relative z-10 max-w-3xl flex flex-col items-center">
-          {/* Soft radial scrim behind text block */}
-          <div 
-            className="absolute inset-[-40px_-60px] pointer-events-none z-[-1]"
-            style={{
-              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, transparent 70%)'
-            }}
-          />
-
-          <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight text-white mb-6 leading-[1.04] font-geist max-w-3xl drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
-            {"Find your people.".split(' ').map((word, i) => (
-              <span
-                key={i}
-                className="inline-block whitespace-nowrap transition-all duration-500 mr-[0.25em]"
-                style={{
-                  opacity: textRevealed ? 1 : 0,
-                  transform: textRevealed ? 'translateY(0) rotateX(0)' : 'translateY(40px) rotateX(-90deg)',
-                  transitionDelay: `${200 + i * 120}ms`,
-                }}
-              >
-                {word}
-              </span>
-            ))}
-          </h1>
-
-          <p
-            className="text-lg sm:text-2xl text-white/95 max-w-2xl mb-10 leading-relaxed font-medium font-geist"
-            style={{
-              opacity: textRevealed ? 1 : 0,
-              transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
-              transition: 'all 0.8s ease-out 0.8s',
-              textShadow: '0 2px 10px rgba(0,0,0,0.8)'
-            }}
-          >
-            Go beyond dating. Meet students you'll naturally cross paths with every day.
-          </p>
-
-          <div
-            style={{
-              opacity: textRevealed ? 1 : 0,
-              transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.9)',
-              transition: 'all 0.6s ease-out 1.2s',
-            }}
-          >
-            <button
-              onClick={onEnter}
-              className="px-8 py-3.5 bg-white text-black font-semibold text-sm rounded-full hover:bg-white/95 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_10px_25px_rgba(255,255,255,0.08)]"
-            >
-              Find Your Othrhalff
-            </button>
-          </div>
-        </div>
-      </main>
-
-      {/* 2. RIBBIT CAPITAL STYLE MANIFESTO STATEMENT (RIGHT BELOW HERO) */}
+      <div className="pointer-events-none fixed inset-0 z-[1] opacity-[.045] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
+      <header className="relative min-h-[100svh] overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-8 transition-transform duration-1000 ease-out" style={{ transform: `translate3d(${mousePos.x * -15}px,${mousePos.y * -15}px,0) scale(1.04)` }}><img src="/landing_hero-bg.png?v=10" alt="" className="hidden h-full w-full object-cover md:block" /><img src="/landing_hero-mobile-bg.png?v=10" alt="" className="h-full w-full object-cover md:hidden" /></div><div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(7,3,13,.04),rgba(7,3,13,.12)_54%,#07030d_100%)]" /></div>
+        <Navbar><NavBody><NavbarLogo /><NavItems items={navItems} /><div className="flex items-center gap-4"><NavbarButton variant="secondary" onClick={onEnter}>Log In</NavbarButton><NavbarButton variant="primary" onClick={onEnter}>Sign Up</NavbarButton></div></NavBody><MobileNav><MobileNavHeader><NavbarLogo /><MobileNavToggle isOpen={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} /></MobileNavHeader><MobileNavMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}><div className="flex flex-col">{navItems.map((item) => <a key={item.name} href={item.link} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-between border-b border-white/5 py-3.5 text-base font-semibold text-white/90"><span>{item.name}</span><ArrowRight className="h-4 w-4 text-[#F45D9B]" /></a>)}</div><div className="mt-3 flex flex-col gap-3"><NavbarButton variant="secondary" onClick={onEnter} className="w-full">Log In</NavbarButton><NavbarButton variant="primary" onClick={onEnter} className="w-full">Sign Up</NavbarButton></div></MobileNavMenu></MobileNav></Navbar>
+        <main className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center justify-center px-5 pb-16 pt-28 text-center sm:px-8"><div className="max-w-3xl"><h1 className="font-geist text-5xl font-black leading-[.98] tracking-[-.07em] text-white drop-shadow-[0_10px_35px_rgba(0,0,0,.8)] sm:text-7xl md:text-8xl">{'Find your people.'.split(' ').map((word, index) => <span key={word} className="mr-[.25em] inline-block whitespace-nowrap transition-all duration-700" style={{ opacity: textRevealed ? 1 : 0, transform: textRevealed ? 'translateY(0) rotateX(0)' : 'translateY(42px) rotateX(-90deg)', transitionDelay: `${190 + index * 120}ms` }}>{word}</span>)}</h1><p className="mx-auto mt-7 max-w-2xl text-lg font-medium leading-relaxed text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,.8)] sm:text-2xl" style={{ opacity: textRevealed ? 1 : 0, transform: textRevealed ? 'translateY(0)' : 'translateY(20px)', transition: 'all .8s ease-out .75s' }}>Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.</p><div className="mt-10" style={{ opacity: textRevealed ? 1 : 0, transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(.9)', transition: 'all .6s ease-out 1.05s' }}><MagneticButton onClick={onEnter}>Find Your Othrhalff</MagneticButton></div></div><a href="#experience" className="absolute bottom-8 inline-flex items-center gap-2 font-mono text-[10px] font-bold tracking-[.16em] text-white/65"><span className="h-px w-7 bg-white/40" /> START THE SIGNAL <ArrowDownRight className="h-3.5 w-3.5" /></a></main>
+      </header>
       <ManifestoSection />
-
-      {/* 3. PRODUCT REVEAL SCENERY: STICKY 3D PHONE SCROLLYTELLING */}
-      <section className="relative z-10 w-full bg-[#07030d] pt-12">
-        <Scene2PhoneReveal />
-      </section>
-
-      {/* 4. VIRTUAL MEETUP GROUNDS SECTION (GAME CONSOLE MP4 & #FAF7EE BG) */}
-      <VirtualMeetupSection />
-
-      {/* 4. MARQUEE TICKER BAR */}
+      <ArtDirectedExperience />
+      <SafetyScene />
       <MarqueeBar />
-
-      {/* Footer Section */}
-      <footer className="relative z-10 border-t border-gray-900 bg-black/80 backdrop-blur-xl pt-10 sm:pt-16 pb-6 sm:pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-8 sm:mb-12">
-            <div className="col-span-2 md:col-span-2">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4 cursor-pointer group" onClick={() => navigate.push('/')}>
-                <Ghost className="w-5 h-5 text-[#F45D9B] group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
-                <span className="font-bold tracking-tight text-lg text-white/90">
-                  OtherHalff
-                </span>
-              </div>
-              <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-sm mb-4 sm:mb-6">
-                The safest way to meet people on campus. Built for students, by students.
-                Find your vibe without the pressure.
-              </p>
-              <div className="flex gap-3 sm:gap-4">
-                <a href="https://www.instagram.com/othrhalff/" target="_blank" rel="noopener noreferrer" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:bg-[#F45D9B] hover:text-white hover:scale-110 hover:rotate-6 transition-all duration-300">
-                  <Instagram className="w-4 h-4 sm:w-5 sm:h-5" />
-                </a>
-                <a href="#" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:bg-[#F45D9B] hover:text-white hover:scale-110 hover:-rotate-6 transition-all duration-300">
-                  <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
-                </a>
-                <Link href="/about" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:bg-[#F45D9B] hover:text-white hover:scale-110 hover:rotate-6 transition-all duration-300">
-                  <Ghost className="w-4 h-4 sm:w-5 sm:h-5" />
-                </Link>
-              </div>
-            </div>
- 
-            <div>
-              <h4 className="text-white font-bold uppercase tracking-widest text-xs sm:text-sm mb-4 sm:mb-6">Company</h4>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-500">
-                <li><Link href="/about" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">About Us</Link></li>
-                <li><Link href="/developers" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Developers</Link></li>
-                <li><Link href="/careers" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Careers</Link></li>
-                <li><Link href="/contact" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Contact</Link></li>
-              </ul>
-            </div>
- 
-            <div>
-              <h4 className="text-white font-bold uppercase tracking-widest text-xs sm:text-sm mb-4 sm:mb-6">Legal</h4>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-500">
-                <li><Link href="/privacy" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Privacy</Link></li>
-                <li><Link href="/terms" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Terms</Link></li>
-                <li><Link href="/safety" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Safety</Link></li>
-                <li><Link href="/guidelines" className="hover:text-[#F45D9B] hover:translate-x-1 inline-block transition-all">Guidelines</Link></li>
-              </ul>
-            </div>
-          </div>
- 
-          <div className="border-t border-gray-900 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-600 text-xs">&copy; {new Date().getFullYear()} Othrhalff Inc. All rights reserved.</p>
-            <p className="text-gray-500 text-xs font-medium flex items-center gap-1">
-              Built with <Heart className="w-3 h-3 text-[#F45D9B] fill-current animate-pulse" /> to help find what you'd love
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

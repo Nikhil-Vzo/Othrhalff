@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const maintenanceMode = process.env.MAINTENANCE_MODE === 'true';
-  const isDev = process.env.NODE_ENV === 'development';
-  
-  // Bypass maintenance mode in local development (unless explicitly forced)
+  // Never enforce maintenance mode on local development
   const isLocalhost = request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1';
-  const shouldBypass = isDev || isLocalhost;
+  if (isLocalhost) {
+    return NextResponse.next();
+  }
 
-  if (maintenanceMode && !shouldBypass) {
+  const maintenanceMode = process.env.MAINTENANCE_MODE === 'true' || process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
+
+  if (maintenanceMode) {
     const { pathname } = request.nextUrl;
 
     // Allow internal Next.js resources, static assets, API endpoints, and the maintenance page itself

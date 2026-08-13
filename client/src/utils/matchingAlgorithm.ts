@@ -9,7 +9,7 @@ export const calculateMatchPercentage = (
   user: UserProfile,
   candidate: MatchProfile | UserProfile
 ): number => {
-  if (!user.interests || !candidate.interests) return 0;
+  if (!user?.interests || !candidate?.interests) return 0;
 
   // 1. Interest Similarity (Jaccard Index)
   // Convert to lowercase sets for case-insensitive comparison

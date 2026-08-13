@@ -9,12 +9,18 @@ const ForceLogoutCountdown: React.FC<ForceLogoutCountdownProps> = ({ onComplete 
     const [count, setCount] = useState(5);
 
     useEffect(() => {
+        let isMounted = true;
         if (count <= 0) {
             onComplete();
             return;
         }
-        const timer = setTimeout(() => setCount(c => c - 1), 1000);
-        return () => clearTimeout(timer);
+        const timer = setTimeout(() => {
+            if (isMounted) setCount(c => c - 1);
+        }, 1000);
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
     }, [count, onComplete]);
 
     const radius = 36;
