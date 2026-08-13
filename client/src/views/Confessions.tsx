@@ -782,10 +782,29 @@ export const Confessions: React.FC = () => {
                                             {conf.pollOptions.map(option => {
                                                 const total = conf.pollOptions?.reduce((a, b) => a + b.votes, 0) || 0;
                                                 const pct = total > 0 ? Math.round((option.votes / total) * 100) : 0;
+                                                const isVoted = conf.userVote === option.id;
                                                 return (
-                                                    <button key={option.id} onClick={() => handlePollVote(conf.id, option.id)} disabled={!!conf.userVote} className="w-full relative h-9 rounded border border-gray-800 overflow-hidden">
-                                                        <div className="absolute top-0 left-0 h-full bg-gray-800" style={{ width: `${pct}%` }} />
-                                                        <div className="absolute inset-0 flex items-center justify-between px-3 z-10"><span className="text-xs font-medium text-gray-400">{option.text}</span>{conf.userVote && <span className="text-[10px] font-bold text-gray-500">{pct}%</span>}</div>
+                                                    <button 
+                                                        key={option.id} 
+                                                        onClick={() => handlePollVote(conf.id, option.id)} 
+                                                        disabled={!!conf.userVote} 
+                                                        className={`w-full relative h-9 rounded border overflow-hidden transition-all ${
+                                                            isVoted 
+                                                                ? 'border-neon/60 bg-neon/10 shadow-[0_0_12px_rgba(255,0,127,0.15)]' 
+                                                                : 'border-gray-800 bg-transparent'
+                                                        }`}
+                                                    >
+                                                        <div className={`absolute top-0 left-0 h-full ${isVoted ? 'bg-neon/20' : 'bg-gray-800'}`} style={{ width: `${pct}%` }} />
+                                                        <div className="absolute inset-0 flex items-center justify-between px-3 z-10">
+                                                            <span className={`text-xs font-medium ${isVoted ? 'text-neon font-bold' : 'text-gray-450'}`}>
+                                                                {option.text} {isVoted && ' ✓'}
+                                                            </span>
+                                                            {conf.userVote && (
+                                                                <span className={`text-[10px] font-bold ${isVoted ? 'text-neon' : 'text-gray-500'}`}>
+                                                                    {pct}% ({option.votes} {option.votes === 1 ? 'vote' : 'votes'})
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </button>
                                                 );
                                             })}
