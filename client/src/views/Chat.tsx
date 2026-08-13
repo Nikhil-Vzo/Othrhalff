@@ -32,6 +32,48 @@ const generateUUID = () => {
     return v.toString(16);
   });
 };
+
+const gameParseCache = new Map<string, any>();
+
+const getParsedGame = (id: string, text: string) => {
+  const cacheKey = `${id}:${text}`;
+  if (gameParseCache.has(cacheKey)) {
+    return gameParseCache.get(cacheKey);
+  }
+
+  let parsedGame = undefined;
+  if (text.startsWith('[GAME:2TL:v1]')) {
+    try {
+      parsedGame = {
+        type: '2TL' as const,
+        state: JSON.parse(text.replace('[GAME:2TL:v1] ', ''))
+      };
+    } catch (e) {
+      console.error('Error parsing 2TL game state:', e);
+    }
+  } else if (text.startsWith('[GAME:WYR:v1]')) {
+    try {
+      parsedGame = {
+        type: 'WYR' as const,
+        state: JSON.parse(text.replace('[GAME:WYR:v1] ', ''))
+      };
+    } catch (e) {
+      console.error('Error parsing WYR game state:', e);
+    }
+  } else if (text.startsWith('[INVITE:v1]')) {
+    try {
+      parsedGame = {
+        type: 'INVITE' as const,
+        state: JSON.parse(text.replace('[INVITE:v1] ', ''))
+      };
+    } catch (e) {
+      console.error('Error parsing invite state:', e);
+    }
+  }
+
+  gameParseCache.set(cacheKey, parsedGame);
+  return parsedGame;
+};
 import { 
   WYR_TEMPLATES, 
   hashString, 
@@ -501,35 +543,7 @@ export const Chat: React.FC = () => {
         return msgTime > clearedAt && !deletedIds.has(m.id);
       })
       .map(m => {
-        let parsedGame = undefined;
-        if (m.text.startsWith('[GAME:2TL:v1]')) {
-          try {
-            parsedGame = {
-              type: '2TL' as const,
-              state: JSON.parse(m.text.replace('[GAME:2TL:v1] ', ''))
-            };
-          } catch (e) {
-            console.error('Error parsing 2TL game state:', e);
-          }
-        } else if (m.text.startsWith('[GAME:WYR:v1]')) {
-          try {
-            parsedGame = {
-              type: 'WYR' as const,
-              state: JSON.parse(m.text.replace('[GAME:WYR:v1] ', ''))
-            };
-          } catch (e) {
-            console.error('Error parsing WYR game state:', e);
-          }
-        } else if (m.text.startsWith('[INVITE:v1]')) {
-          try {
-            parsedGame = {
-              type: 'INVITE' as const,
-              state: JSON.parse(m.text.replace('[INVITE:v1] ', ''))
-            };
-          } catch (e) {
-            console.error('Error parsing invite state:', e);
-          }
-        }
+        const parsedGame = getParsedGame(m.id, m.text);
         
         return {
           id: m.id,
@@ -638,7 +652,18 @@ export const Chat: React.FC = () => {
   const [customWyrB, setCustomWyrB] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const partnerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const partnerTypingExpiresAtRef = useRef<number>(0);
   const channelRef = useRef<any>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (partnerTypingExpiresAtRef.current && Date.now() > partnerTypingExpiresAtRef.current) {
+        setPartnerIsTyping(false);
+        partnerTypingExpiresAtRef.current = 0;
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   const typingSentRef = useRef(false);
   const lastTypingSentTimeRef = useRef(0);
 
@@ -1056,7 +1081,9 @@ export const Chat: React.FC = () => {
         const senderId = payload.payload?.userId;
         if (senderId && senderId !== currentUser?.id) {
           const isTyping = !!payload.payload?.isTyping;
+          const expiresAt = payload.payload?.expiresAt || 0;
           setPartnerIsTyping(isTyping);
+          partnerTypingExpiresAtRef.current = isTyping ? (expiresAt || (Date.now() + 3500)) : 0;
 
           if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
 
@@ -1064,7 +1091,8 @@ export const Chat: React.FC = () => {
           if (isTyping) {
             partnerTypingTimeoutRef.current = setTimeout(() => {
               setPartnerIsTyping(false);
-            }, 3500);
+              partnerTypingExpiresAtRef.current = 0;
+            }, expiresAt ? Math.max(100, expiresAt - Date.now()) : 3500);
           }
         }
       })
@@ -1114,7 +1142,7 @@ export const Chat: React.FC = () => {
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
-        payload: { userId: currentUser.id, isTyping: true }
+        payload: { userId: currentUser.id, isTyping: true, expiresAt: Date.now() + 3000 }
       }).catch?.(() => {});
       typingSentRef.current = true;
       lastTypingSentTimeRef.current = now;
@@ -1647,7 +1675,7 @@ export const Chat: React.FC = () => {
             />
           );
         })}
-        {partnerIsTyping && (
+        {partnerIsTyping && partnerTypingExpiresAtRef.current > Date.now() && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
