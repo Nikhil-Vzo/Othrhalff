@@ -19,22 +19,34 @@ const FALLBACK_BENCH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
   <rect x="110" y="28" width="8" height="14" fill="#4b5563" rx="2"/>
 </svg>`;
 
+const assetCandidates = (fileName: string) => [
+  path.join(process.cwd(), 'public', 'assets', fileName),
+  path.join(process.cwd(), 'client', 'public', 'assets', fileName),
+];
+
+const imageHeaders = (contentType: string) => ({
+  'Content-Type': contentType,
+  'Cache-Control': 'public, max-age=31536000, immutable',
+});
+
 export async function GET() {
   try {
-    const pngPath = path.join(process.cwd(), 'public', 'assets', 'bench.png');
-    if (existsSync(pngPath)) {
-      const file = readFileSync(pngPath);
-      return new NextResponse(file, { headers: { 'Content-Type': 'image/png' } });
+    for (const pngPath of assetCandidates('bench.png')) {
+      if (existsSync(pngPath)) {
+        const file = readFileSync(pngPath);
+        return new NextResponse(file, { headers: imageHeaders('image/png') });
+      }
     }
 
-    const svgPath = path.join(process.cwd(), 'public', 'assets', 'bench.svg');
-    if (existsSync(svgPath)) {
-      const file = readFileSync(svgPath);
-      return new NextResponse(file, { headers: { 'Content-Type': 'image/svg+xml' } });
+    for (const svgPath of assetCandidates('bench.svg')) {
+      if (existsSync(svgPath)) {
+        const file = readFileSync(svgPath);
+        return new NextResponse(file, { headers: imageHeaders('image/svg+xml') });
+      }
     }
 
-    return new NextResponse(FALLBACK_BENCH_SVG, { headers: { 'Content-Type': 'image/svg+xml' } });
+    return new NextResponse(FALLBACK_BENCH_SVG, { headers: imageHeaders('image/svg+xml') });
   } catch (error) {
-    return new NextResponse(FALLBACK_BENCH_SVG, { headers: { 'Content-Type': 'image/svg+xml' } });
+    return new NextResponse(FALLBACK_BENCH_SVG, { headers: imageHeaders('image/svg+xml') });
   }
 }
