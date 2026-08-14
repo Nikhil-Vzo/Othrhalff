@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../context/AuthContext';
+import { usePresence } from '../context/PresenceContext';
 import { supabase } from '../lib/supabase';
 import { 
   Heart, SkipForward, MessageSquare, Video, Send, 
@@ -26,6 +27,7 @@ interface ChatMessage {
 
 export const Discover: React.FC = () => {
   const { currentUser } = useAuth();
+  const { totalOnlineCount } = usePresence();
   const router = useRouter();
 
   // Mode and Scope
@@ -33,9 +35,9 @@ export const Discover: React.FC = () => {
   const [scope, setScope] = useState<DiscoverScope>(() => currentUser?.university ? 'CAMPUS' : 'GLOBAL');
   const [state, setState] = useState<DiscoverState>('IDLE');
   
-  // Realtime channel and metrics
+  // Realtime channel and metrics — initialize with totalOnlineCount or minimum 1
   const [channel, setChannel] = useState<any>(null);
-  const [activeUsersCount, setActiveUsersCount] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState<number>(() => Math.max(1, totalOnlineCount || 1));
   const [searchTime, setSearchTime] = useState(0);
 
   // Active call/session details
@@ -76,6 +78,13 @@ export const Discover: React.FC = () => {
   useEffect(() => { scopeRef.current = scope; }, [scope]);
   useEffect(() => { callInfoRef.current = callInfo; }, [callInfo]);
   useEffect(() => { channelRef.current = channel; }, [channel]);
+
+  // Sync with global totalOnlineCount if pool hasn't fully synced yet
+  useEffect(() => {
+    if (totalOnlineCount && totalOnlineCount > 0) {
+      setActiveUsersCount(prev => Math.max(prev, totalOnlineCount));
+    }
+  }, [totalOnlineCount]);
 
   // Clean recent skipped cache periodically
   useEffect(() => {
@@ -242,19 +251,37 @@ export const Discover: React.FC = () => {
   }, [handleSkip]);
 
   // =========================================================================
+  // DEDICATED POOL PRESENCE SYNC (Always active regardless of state)
+  // =========================================================================
+  const syncPoolPresence = useCallback((activeChannel: any) => {
+    if (!activeChannel) return [];
+    try {
+      const stateTree = activeChannel.presenceState();
+      const allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
+      
+      // Total count is always at least 1 (the current user) or total pool size
+      const count = Math.max(allUsers.length, totalOnlineCount || 1, 1);
+      setActiveUsersCount(count);
+      return allUsers;
+    } catch (e) {
+      return [];
+    }
+  }, [totalOnlineCount]);
+
+  // =========================================================================
   // MATCHMAKING CORE ENGINE (Deterministic & High-Speed Random Pairing)
   // =========================================================================
-  const evaluateMatchmaking = useCallback(async (activeChannel: any) => {
+  const evaluateMatchmaking = useCallback(async (activeChannel: any, presencesList?: any[]) => {
     if (!activeChannel || !currentUser || stateRef.current !== 'SEARCHING') return;
 
-    const stateTree = activeChannel.presenceState();
-    const allUsers = Object.keys(stateTree).map(key => stateTree[key][0] as any).filter(Boolean);
-
-    // Update telemetry count
-    setActiveUsersCount(allUsers.length);
+    let allUsers = presencesList;
+    if (!allUsers || allUsers.length === 0) {
+      const stateTree = activeChannel.presenceState();
+      allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
+    }
 
     // Filter available candidates searching in the same mode
-    const candidates = allUsers.filter(u => 
+    const candidates = (allUsers || []).filter(u => 
       u.status === 'SEARCHING' && 
       u.mode === modeRef.current && 
       u.id !== currentUser.id
@@ -380,7 +407,24 @@ export const Discover: React.FC = () => {
 
     // 1. Presence Sync Handler
     newChannel.on('presence', { event: 'sync' }, () => {
-      evaluateMatchmaking(newChannel);
+      const allUsers = syncPoolPresence(newChannel);
+      if (stateRef.current === 'SEARCHING') {
+        evaluateMatchmaking(newChannel, allUsers);
+      }
+    });
+
+    newChannel.on('presence', { event: 'join' }, () => {
+      const allUsers = syncPoolPresence(newChannel);
+      if (stateRef.current === 'SEARCHING') {
+        evaluateMatchmaking(newChannel, allUsers);
+      }
+    });
+
+    newChannel.on('presence', { event: 'leave' }, () => {
+      const allUsers = syncPoolPresence(newChannel);
+      if (stateRef.current === 'SEARCHING') {
+        evaluateMatchmaking(newChannel, allUsers);
+      }
     });
 
     // 2. Incoming Match Proposal Handler (Receiver)
@@ -516,6 +560,7 @@ export const Discover: React.FC = () => {
           mode: modeRef.current,
           scope: scopeRef.current
         });
+        syncPoolPresence(newChannel);
       }
     });
 
@@ -525,7 +570,7 @@ export const Discover: React.FC = () => {
       supabase.removeChannel(newChannel);
       setChannel(null);
     };
-  }, [currentUser?.id, evaluateMatchmaking]);
+  }, [currentUser?.id, evaluateMatchmaking, syncPoolPresence]);
 
   // Sync state & mode changes to the realtime pool presence
   useEffect(() => {
@@ -542,17 +587,20 @@ export const Discover: React.FC = () => {
     }
   }, [state, mode, scope, channel, currentUser?.id]);
 
-  // Active Matchmaking Evaluation Loop (Ticks every 1.5s while SEARCHING)
+  // Active Matchmaking & Presence Loop (Ticks every 1.5s)
   useEffect(() => {
-    if (state !== 'SEARCHING' || !channel) return;
+    if (!channel) return;
 
-    evaluateMatchmaking(channel);
+    syncPoolPresence(channel);
     const matchmakingInterval = setInterval(() => {
-      evaluateMatchmaking(channel);
+      const allUsers = syncPoolPresence(channel);
+      if (stateRef.current === 'SEARCHING') {
+        evaluateMatchmaking(channel, allUsers);
+      }
     }, 1500);
 
     return () => clearInterval(matchmakingInterval);
-  }, [state, channel, evaluateMatchmaking]);
+  }, [channel, syncPoolPresence, evaluateMatchmaking]);
 
   // Fail-Safe: Reset from CONNECTING to SEARCHING if handshake stalls past 5s
   useEffect(() => {

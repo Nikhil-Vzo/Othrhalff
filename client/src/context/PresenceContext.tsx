@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface PresenceContextType {
     onlineUsers: Map<string, boolean>;
     lastSeenMap: Map<string, Date>;
+    totalOnlineCount: number;
     subscribeToUser: (userId: string) => void;
     subscribeToUsers: (userIds: string[]) => void;
     unsubscribeFromUser: (userId: string) => void;
@@ -18,6 +19,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const { currentUser } = useAuth();
     const [onlineUsers, setOnlineUsers] = useState<Map<string, boolean>>(new Map());
     const [lastSeenMap, setLastSeenMap] = useState<Map<string, Date>>(new Map());
+    const [totalOnlineCount, setTotalOnlineCount] = useState<number>(1);
     const trackedUsersRef = useRef<Map<string, number>>(new Map());
     const globalChannelRef = useRef<any>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -206,6 +208,10 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         channel
             .on('presence', { event: 'sync' }, () => {
                 const presenceState = channel.presenceState();
+                const totalKeys = Object.keys(presenceState).length;
+                if (totalKeys > 0) {
+                    setTotalOnlineCount(totalKeys);
+                }
                 
                 setOnlineUsers(prev => {
                     let changed = false;
@@ -434,6 +440,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const providerValue = useMemo(() => ({
         onlineUsers,
         lastSeenMap,
+        totalOnlineCount,
         subscribeToUser,
         subscribeToUsers,
         unsubscribeFromUser,
@@ -442,6 +449,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }), [
         onlineUsers,
         lastSeenMap,
+        totalOnlineCount,
         subscribeToUser,
         subscribeToUsers,
         unsubscribeFromUser,
