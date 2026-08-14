@@ -412,13 +412,11 @@ export const Discover: React.FC = () => {
         if (callInfoRef.current?.partnerId) {
           recentSkippedPartnersRef.current.set(callInfoRef.current.partnerId, Date.now() + 25000);
         }
-        if (modeRef.current === 'VIDEO') {
-          setTimeout(() => {
-            if (stateRef.current === 'CONNECTED') {
-              cleanupAndResetState('SEARCHING');
-            }
-          }, 1000);
-        }
+        setTimeout(() => {
+          if (stateRef.current === 'CONNECTED') {
+            cleanupAndResetState('SEARCHING');
+          }
+        }, 1200);
       }
     });
 

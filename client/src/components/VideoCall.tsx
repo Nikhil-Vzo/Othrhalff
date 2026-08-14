@@ -103,6 +103,12 @@ export const VideoCall: React.FC<VideoCallProps> = ({
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const { showToast } = useToast();
   
+  // Ref-based callbacks to eliminate infinite reconnect loops
+  const onLeaveRef = useRef(onLeave);
+  const onPartnerDisconnectRef = useRef(onPartnerDisconnect);
+  useEffect(() => { onLeaveRef.current = onLeave; }, [onLeave]);
+  useEffect(() => { onPartnerDisconnectRef.current = onPartnerDisconnect; }, [onPartnerDisconnect]);
+
   // Track client in a ref to guard against StrictMode double-mounting
   const clientRef = useRef<any>(null);
 
@@ -144,17 +150,18 @@ export const VideoCall: React.FC<VideoCallProps> = ({
         const state = clientRef.current.connectionState;
         console.log('[Agora] Tab became visible, connection state:', state);
         if (state === 'DISCONNECTED') {
-          if (onPartnerDisconnect) onPartnerDisconnect();
-          else onLeave();
+          if (onPartnerDisconnectRef.current) onPartnerDisconnectRef.current();
+          else onLeaveRef.current();
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [onPartnerDisconnect, onLeave]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
+    let noShowTimeout: NodeJS.Timeout | null = null;
     
     // Guard against StrictMode duplicate client instantiations
     let client = clientRef.current;
@@ -167,6 +174,10 @@ export const VideoCall: React.FC<VideoCallProps> = ({
       try {
         // Set up event listeners
         client.on('user-published', async (user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video') => {
+          if (noShowTimeout) {
+            clearTimeout(noShowTimeout);
+            noShowTimeout = null;
+          }
           if (!isMounted) return;
           await client.subscribe(user, mediaType);
           console.log('[Agora] Subscribed to remote user:', user.uid, mediaType);
@@ -200,10 +211,10 @@ export const VideoCall: React.FC<VideoCallProps> = ({
         client.on('user-left', (user: IAgoraRTCRemoteUser) => {
           console.log('[Agora] Remote user left channel:', user.uid);
           setRemoteUsers((prev) => prev.filter(u => u.uid !== user.uid));
-          if (onPartnerDisconnect) {
-            onPartnerDisconnect();
+          if (onPartnerDisconnectRef.current) {
+            onPartnerDisconnectRef.current();
           } else {
-            onLeave();
+            onLeaveRef.current();
           }
         });
 
@@ -221,10 +232,10 @@ export const VideoCall: React.FC<VideoCallProps> = ({
             setIsReconnecting(false);
           } else if (curState === 'DISCONNECTED' && isMounted) {
             setIsReconnecting(false);
-            if (onPartnerDisconnect) {
-              onPartnerDisconnect();
+            if (onPartnerDisconnectRef.current) {
+              onPartnerDisconnectRef.current();
             } else {
-              onLeave();
+              onLeaveRef.current();
             }
           }
         });
@@ -232,6 +243,15 @@ export const VideoCall: React.FC<VideoCallProps> = ({
         // Join channel
         await client.join(appId, channelName, token || null, null);
         console.log('[Agora] Joined channel successfully:', channelName);
+
+        // GHOST CALL DETECTION: If partner doesn't publish within 6s, auto-advance
+        noShowTimeout = setTimeout(() => {
+          if (isMounted) {
+            console.warn('[Agora] Partner no-show after 6s, forcing auto-advance...');
+            if (onPartnerDisconnectRef.current) onPartnerDisconnectRef.current();
+            else onLeaveRef.current();
+          }
+        }, 6000);
 
         // Create and publish local tracks based on call type
         let audioTrack: IMicrophoneAudioTrack;
@@ -260,7 +280,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
           } else {
             showToast('Failed to access media devices: ' + mediaError.message, 'error');
           }
-          onLeave();
+          onLeaveRef.current();
           return;
         }
 
@@ -288,7 +308,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
         }
         console.error('[Agora] Failed to join channel:', error);
         showToast('Failed to join call: ' + (error as Error).message, 'error');
-        onLeave();
+        onLeaveRef.current();
       }
     };
 
@@ -296,6 +316,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
 
     return () => {
       isMounted = false;
+      if (noShowTimeout) clearTimeout(noShowTimeout);
       try {
         localAudioTrackRef.current?.stop();
         localAudioTrackRef.current?.close();
@@ -310,7 +331,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
       }
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [appId, channelName, token, callType, onLeave, onPartnerDisconnect, showToast]);
+  }, [appId, channelName, token, callType, showToast]);
 
   // Listen for call ended by partner in standard 1-on-1 calls
   useEffect(() => {
@@ -330,7 +351,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
           const updatedSession = payload.new as any;
           if (updatedSession.status === 'ended') {
             console.log('Call ended by partner');
-            onLeave();
+            onLeaveRef.current();
           }
         }
       )
@@ -339,7 +360,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [callSessionId, onLeave]);
+  }, [callSessionId]);
 
   const toggleMute = async () => {
     if (localAudioTrackRef.current) {
@@ -373,7 +394,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({
     } catch (err) {
       console.error('Error ending call API:', err);
     }
-    onLeave();
+    onLeaveRef.current();
   };
 
   const getNetworkIcon = () => {
