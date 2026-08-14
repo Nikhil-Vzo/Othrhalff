@@ -493,18 +493,18 @@ export const Discover: React.FC = () => {
     return (
       <div className="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-between p-4 md:p-8 max-w-4xl mx-auto select-none">
         {/* Top Floating Header with Scope Toggle & Active Count */}
-        <div className="w-full flex items-center justify-between gap-4 pt-2">
+        <div className="w-full flex items-center justify-between gap-3 pt-2">
           {/* Scope Toggle */}
-          <div className="flex bg-zinc-900/90 border border-white/10 p-1 rounded-full backdrop-blur-xl shadow-lg">
+          <div className="inline-flex items-center bg-zinc-900/90 border border-white/10 p-1 rounded-full backdrop-blur-xl shadow-lg h-10">
             <button
               onClick={() => setScope('GLOBAL')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 scope === 'GLOBAL'
                   ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <Globe className="w-3.5 h-3.5" />
+              <Globe className="w-3.5 h-3.5 shrink-0" />
               <span>Global</span>
             </button>
             <button
@@ -515,21 +515,21 @@ export const Discover: React.FC = () => {
                 }
                 setScope('CAMPUS');
               }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 scope === 'CAMPUS'
                   ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <School className="w-3.5 h-3.5" />
+              <School className="w-3.5 h-3.5 shrink-0" />
               <span>Campus</span>
             </button>
           </div>
 
           {/* Active Online Counter Pill */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-xl shadow-lg font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>{activeUsersCount} student{activeUsersCount !== 1 ? 's' : ''} online</span>
+          <div className="inline-flex items-center gap-2 px-3.5 h-10 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-xl shadow-lg font-mono whitespace-nowrap shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="leading-none">{activeUsersCount} student{activeUsersCount !== 1 ? 's' : ''} online</span>
           </div>
         </div>
 
@@ -537,7 +537,7 @@ export const Discover: React.FC = () => {
         <div className="w-full flex-1 flex flex-col items-center justify-center my-8 text-center max-w-lg">
           <div className="relative mb-6">
             <div className="absolute inset-0 bg-gradient-to-tr from-neon/30 to-purple-600/30 rounded-full blur-3xl -z-10 animate-pulse" />
-            <div className="w-24 h-24 rounded-3xl bg-zinc-900/80 border border-white/15 flex items-center justify-center text-white shadow-2xl backdrop-blur-2xl">
+            <div className="w-24 h-24 rounded-3xl bg-zinc-900/90 border border-white/15 flex items-center justify-center text-white shadow-[0_0_40px_rgba(255,0,127,0.25)] backdrop-blur-2xl">
               {mode === 'VIDEO' ? (
                 <Video className="w-12 h-12 text-neon" />
               ) : (
@@ -554,10 +554,10 @@ export const Discover: React.FC = () => {
           </p>
 
           {/* Mode Selector Tabs (Text vs Video) */}
-          <div className="grid grid-cols-2 gap-3 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-2xl mb-8 backdrop-blur-xl">
+          <div className="grid grid-cols-2 gap-2 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-full mb-8 backdrop-blur-xl">
             <button
               onClick={() => setMode('TEXT')}
-              className={`flex items-center justify-center gap-2.5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-2 py-3.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
                 mode === 'TEXT'
                   ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25 scale-[1.02]'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -568,7 +568,7 @@ export const Discover: React.FC = () => {
             </button>
             <button
               onClick={() => setMode('VIDEO')}
-              className={`flex items-center justify-center gap-2.5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-2 py-3.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
                 mode === 'VIDEO'
                   ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25 scale-[1.02]'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -582,7 +582,7 @@ export const Discover: React.FC = () => {
           {/* Start Discovering CTA Button */}
           <button
             onClick={handleStartSearching}
-            className="w-full py-4 bg-gradient-to-r from-neon via-pink-600 to-purple-600 hover:from-neon hover:to-pink-500 text-white font-extrabold rounded-full uppercase tracking-widest text-sm shadow-xl shadow-neon/30 hover:shadow-neon/50 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4.5 bg-gradient-to-r from-neon via-pink-600 to-purple-600 hover:from-neon hover:to-pink-500 text-white font-extrabold rounded-full uppercase tracking-widest text-sm shadow-[0_0_35px_rgba(255,0,127,0.4)] hover:shadow-[0_0_50px_rgba(255,0,127,0.6)] active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <Zap className="w-5 h-5 fill-current" />
             <span>Start Discovering</span>
@@ -605,17 +605,17 @@ export const Discover: React.FC = () => {
     return (
       <div className="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-between p-4 md:p-8 max-w-lg mx-auto select-none">
         {/* Top Status Pill */}
-        <div className="w-full flex items-center justify-between pt-2">
+        <div className="w-full flex items-center justify-between gap-3 pt-2">
           <button
             onClick={handleCancelSearching}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-semibold text-gray-400 hover:text-white transition-colors backdrop-blur-xl shadow-lg"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Cancel</span>
           </button>
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-gray-300">
+          <div className="inline-flex items-center gap-2 px-3.5 h-10 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-mono text-gray-300 backdrop-blur-xl shadow-lg whitespace-nowrap">
             <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
-            <span>{activeUsersCount} online</span>
+            <span className="leading-none">{activeUsersCount} online</span>
           </div>
         </div>
 
