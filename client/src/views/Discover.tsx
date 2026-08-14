@@ -3,8 +3,8 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
-  Heart, Search, SkipForward, MessageSquare, Video, Send, 
-  ArrowLeft, User, Globe, School, Sparkles, RefreshCw, Zap
+  Heart, SkipForward, MessageSquare, Video, Send, 
+  ArrowLeft, Globe, School, Sparkles, RefreshCw, Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -36,8 +36,6 @@ export const Discover: React.FC = () => {
   // Realtime channel and metrics
   const [channel, setChannel] = useState<any>(null);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
-  const [textSearchingCount, setTextSearchingCount] = useState(0);
-  const [videoSearchingCount, setVideoSearchingCount] = useState(0);
   const [searchTime, setSearchTime] = useState(0);
 
   // Active call/session details
@@ -252,10 +250,8 @@ export const Discover: React.FC = () => {
     const stateTree = activeChannel.presenceState();
     const allUsers = Object.keys(stateTree).map(key => stateTree[key][0] as any).filter(Boolean);
 
-    // Update telemetry counts
+    // Update telemetry count
     setActiveUsersCount(allUsers.length);
-    setTextSearchingCount(allUsers.filter(u => u.status === 'SEARCHING' && u.mode === 'TEXT').length);
-    setVideoSearchingCount(allUsers.filter(u => u.status === 'SEARCHING' && u.mode === 'VIDEO').length);
 
     // Filter available candidates searching in the same mode
     const candidates = allUsers.filter(u => 
@@ -275,11 +271,14 @@ export const Discover: React.FC = () => {
 
     const candidatePool = freshCandidates.length > 0 ? freshCandidates : candidates;
 
-    // If in Campus scope, prefer same university candidate
-    let partner = candidatePool[0];
+    // Accurate Scope Evaluation:
+    // CAMPUS scope: Pair only with users having the same university
+    // GLOBAL scope: Pair with anyone in candidate pool
+    let partner: any = null;
     if (scopeRef.current === 'CAMPUS' && currentUser.university) {
-      const campusMatch = candidatePool.find(u => u.university === currentUser.university);
-      if (campusMatch) partner = campusMatch;
+      partner = candidatePool.find(u => u.university === currentUser.university);
+    } else {
+      partner = candidatePool[0];
     }
 
     if (!partner) return;
@@ -388,7 +387,6 @@ export const Discover: React.FC = () => {
     newChannel.on('broadcast', { event: 'PROPOSE_MATCH' }, async ({ payload }) => {
       if (payload.targetId !== currentUser.id) return;
       if (stateRef.current !== 'SEARCHING') {
-        // User already connected or not searching - send BUSY reject
         newChannel.send({
           type: 'broadcast',
           event: 'BUSY_MATCH',
@@ -515,7 +513,8 @@ export const Discover: React.FC = () => {
           avatar: currentUser.avatar,
           university: currentUser.university,
           status: stateRef.current,
-          mode: modeRef.current
+          mode: modeRef.current,
+          scope: scopeRef.current
         });
       }
     });
@@ -537,10 +536,11 @@ export const Discover: React.FC = () => {
         avatar: currentUser.avatar,
         university: currentUser.university,
         status: state,
-        mode: mode
+        mode: mode,
+        scope: scope
       });
     }
-  }, [state, mode, channel, currentUser?.id]);
+  }, [state, mode, scope, channel, currentUser?.id]);
 
   // Active Matchmaking Evaluation Loop (Ticks every 1.5s while SEARCHING)
   useEffect(() => {
@@ -568,6 +568,28 @@ export const Discover: React.FC = () => {
     return () => { if (timeoutId) clearTimeout(timeoutId); };
   }, [state]);
 
+  // Helper to render user avatar cleanly without raw box placeholders
+  const renderAvatar = (avatarUrl?: string, name?: string, sizeClass = "w-20 h-20", textClass = "text-2xl") => {
+    const displayName = name || 'Student';
+    const initial = displayName.charAt(0).toUpperCase();
+
+    if (avatarUrl && avatarUrl.startsWith('http')) {
+      return (
+        <img 
+          src={avatarUrl} 
+          alt={displayName} 
+          className={`${sizeClass} rounded-full object-cover border-2 border-neon shadow-[0_0_30px_rgba(255,0,127,0.4)]`} 
+        />
+      );
+    }
+
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-br from-neon via-pink-600 to-purple-600 border-2 border-white/20 flex items-center justify-center text-white font-black ${textClass} shadow-[0_0_30px_rgba(255,0,127,0.4)] select-none`}>
+        {initial}
+      </div>
+    );
+  };
+
   if (!currentUser) return null;
 
   // =========================================================================
@@ -576,49 +598,25 @@ export const Discover: React.FC = () => {
   if (state === 'IDLE') {
     return (
       <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
-        {/* Top Header */}
-        <div className="w-full max-w-md flex items-center justify-between z-10">
+        {/* Top Header — Matching App Standards (Back button + Campus/Global Toggle + Online Count) */}
+        <div className="w-full max-w-lg flex items-center justify-between z-30 pt-1">
+          {/* Back Button */}
           <button
             onClick={() => router.push('/home')}
-            className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+            className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0 shadow-lg"
             aria-label="Back to Home"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 bg-gray-900/90 border border-gray-800 px-3.5 py-1.5 rounded-full shadow-md">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-bold text-gray-200 font-mono">
-              {activeUsersCount} Online
-            </span>
-          </div>
-        </div>
-
-        {/* Hero Content */}
-        <div className="w-full max-w-md flex flex-col items-center text-center my-auto py-6">
-          <div className="relative mb-6">
-            <div className="w-20 h-20 rounded-full bg-neon/20 border border-neon/40 flex items-center justify-center shadow-[0_0_40px_rgba(255,0,127,0.35)]">
-              <Zap className="w-9 h-9 text-neon animate-pulse" />
-            </div>
-            <div className="absolute -top-1 -right-1 px-2 py-0.5 bg-neon text-[10px] font-black uppercase tracking-wider text-white rounded-full">
-              Live
-            </div>
-          </div>
-
-          <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">
-            Discover Live
-          </h1>
-          <p className="text-gray-400 text-xs text-center max-w-xs mb-6">
-            Instant 1-on-1 random speed matching. Pair with anyone live right now.
-          </p>
-
-          {/* Scope Selector: Campus vs Global */}
-          <div className="flex bg-gray-900/90 p-1 rounded-full border border-gray-800 mb-4 w-full max-w-xs">
+          {/* Campus / Global Toggle at Header */}
+          <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl">
             <button
               onClick={() => setScope('CAMPUS')}
-              className={`flex-1 py-2 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              title={`Campus Mode: Only pair with students from ${currentUser.university || 'your university'}`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${
                 scope === 'CAMPUS'
-                  ? 'bg-white/15 text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -627,9 +625,10 @@ export const Discover: React.FC = () => {
             </button>
             <button
               onClick={() => setScope('GLOBAL')}
-              className={`flex-1 py-2 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              title="Global Mode: Pair with students from any university"
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${
                 scope === 'GLOBAL'
-                  ? 'bg-white/15 text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -638,44 +637,63 @@ export const Discover: React.FC = () => {
             </button>
           </div>
 
-          {/* Mode Switcher: Text vs Video */}
-          <div className="flex bg-gray-900 p-1 rounded-full border border-gray-800 mb-8 w-full max-w-xs">
+          {/* Live Online Badge */}
+          <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-lg shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-bold text-gray-200 font-mono">
+              {activeUsersCount} Online
+            </span>
+          </div>
+        </div>
+
+        {/* Hero Content */}
+        <div className="w-full max-w-md flex flex-col items-center text-center my-auto py-8">
+          <div className="relative mb-6">
+            <div className="w-20 h-20 rounded-full bg-neon/15 border border-neon/30 flex items-center justify-center shadow-[0_0_40px_rgba(255,0,127,0.3)]">
+              <Zap className="w-9 h-9 text-neon animate-pulse" />
+            </div>
+            <div className="absolute -top-1 -right-1 px-2.5 py-0.5 bg-neon text-[10px] font-black uppercase tracking-wider text-white rounded-full shadow-md shadow-neon/40">
+              Live
+            </div>
+          </div>
+
+          <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight mb-2">
+            Discover Live
+          </h1>
+          <p className="text-gray-400 text-xs md:text-sm text-center max-w-xs mb-8">
+            Instant 1-on-1 random chat & video. Pair with any active student live right now.
+          </p>
+
+          {/* Mode Switcher: Text vs Video (Clean & Sleek) */}
+          <div className="flex bg-black/60 backdrop-blur-xl p-1 rounded-full border border-white/10 mb-8 w-full max-w-xs shadow-xl">
             <button
               onClick={() => setMode('TEXT')}
-              className={`flex-1 py-2.5 rounded-full text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                 mode === 'TEXT'
-                  ? 'bg-neon text-white shadow-md shadow-neon/25'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Text ({textSearchingCount || activeUsersCount})</span>
+              <span>Text Chat</span>
             </button>
             <button
               onClick={() => setMode('VIDEO')}
-              className={`flex-1 py-2.5 rounded-full text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                 mode === 'VIDEO'
-                  ? 'bg-neon text-white shadow-md shadow-neon/25'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <Video className="w-4 h-4" />
-              <span>Video ({videoSearchingCount || activeUsersCount})</span>
+              <span>Video Call</span>
             </button>
           </div>
-
-          {/* Single User Online Telemetry Banner */}
-          {activeUsersCount <= 1 && (
-            <div className="mb-6 px-3.5 py-1.5 rounded-full bg-gray-900 border border-gray-800 text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-neon" />
-              <span>You're the first in pool. Click start to wait for someone!</span>
-            </div>
-          )}
 
           {/* Start Button */}
           <button
             onClick={() => setState('SEARCHING')}
-            className="w-full max-w-xs py-4 bg-neon text-white font-black rounded-full uppercase tracking-widest text-xs shadow-[0_4px_20px_rgba(255,0,127,0.4)] active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2"
+            className="w-full max-w-xs py-4 bg-gradient-to-r from-neon to-pink-600 text-white font-black rounded-full uppercase tracking-widest text-xs shadow-[0_4px_25px_rgba(255,0,127,0.45)] active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2"
           >
             <Sparkles className="w-4 h-4 fill-white" />
             <span>Start Discovering</span>
@@ -684,7 +702,7 @@ export const Discover: React.FC = () => {
 
         {/* Footer info */}
         <div className="w-full max-w-md text-center py-2">
-          <p className="text-[11px] text-gray-500">
+          <p className="text-[11px] text-gray-500 font-medium">
             Independent random chat. Tap ❤️ anytime to unlock a permanent match.
           </p>
         </div>
@@ -698,58 +716,70 @@ export const Discover: React.FC = () => {
   if (state === 'SEARCHING' || state === 'CONNECTING') {
     return (
       <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
-        <div className="w-full max-w-md flex items-center justify-between z-10">
+        {/* Header */}
+        <div className="w-full max-w-lg flex items-center justify-between z-30 pt-1">
           <button
             onClick={() => setState('IDLE')}
-            className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+            className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 bg-gray-900/90 border border-gray-800 px-3.5 py-1.5 rounded-full">
+          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl border border-white/10 px-3.5 py-1.5 rounded-full shadow-lg">
             <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
-            <span className="text-xs font-bold text-gray-300 font-mono">
-              {state === 'SEARCHING' ? `Searching (${searchTime}s)` : 'Handshaking...'}
+            <span className="text-[11px] font-bold text-gray-200 font-mono">
+              {state === 'SEARCHING' ? `Searching (${searchTime}s)` : 'Connecting...'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-lg">
+            {scope === 'CAMPUS' ? <School className="w-3.5 h-3.5 text-neon" /> : <Globe className="w-3.5 h-3.5 text-blue-400" />}
+            <span className="text-[11px] font-bold text-gray-300">
+              {scope === 'CAMPUS' ? 'Campus' : 'Global'}
             </span>
           </div>
         </div>
 
+        {/* Pulsing Radar Wave UI */}
         <div className="flex flex-col items-center justify-center my-auto text-center py-6">
-          <div className="relative w-28 h-28 mb-6 flex items-center justify-center">
-            <div className="absolute inset-0 border-2 border-neon rounded-full opacity-30 animate-ping" />
-            <img 
-              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
-              alt="Me" 
-              className="w-16 h-16 rounded-full border-2 border-neon object-cover" 
-            />
+          <div className="relative w-36 h-36 mb-8 flex items-center justify-center">
+            {/* Outer concentric pulsing rings */}
+            <div className="absolute inset-0 rounded-full border border-neon/20 animate-ping opacity-30" />
+            <div className="absolute -inset-4 rounded-full border border-neon/15 animate-pulse opacity-40" />
+            <div className="absolute -inset-8 rounded-full border border-neon/10 animate-pulse opacity-20" />
+            
+            {/* Center User Avatar */}
+            {renderAvatar(
+              currentUser.avatar, 
+              currentUser.realName || currentUser.anonymousId, 
+              "w-20 h-20", 
+              "text-2xl"
+            )}
           </div>
 
-          <h2 className="text-xl font-bold text-white mb-1.5 animate-pulse">
-            {state === 'SEARCHING' ? 'Looking for someone online...' : 'Connecting with partner...'}
+          <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
+            {state === 'SEARCHING' ? 'Looking for someone online...' : 'Handshaking partner...'}
           </h2>
-          <p className="text-gray-400 text-xs mb-3 font-medium">
-            {mode === 'TEXT' ? 'Random Text Mode' : 'Speed Video Mode'} • {scope === 'CAMPUS' ? 'Campus Scope' : 'Global Scope'}
+          <p className="text-gray-400 text-xs mb-4 font-medium">
+            {mode === 'TEXT' ? 'Random 1-on-1 Text Chat' : 'Speed Video Call'} • {scope === 'CAMPUS' ? `Campus Scope (${currentUser.university || 'My College'})` : 'Global Scope'}
           </p>
 
-          {/* Quick Realtime Pool Feedback */}
-          {state === 'SEARCHING' && activeUsersCount <= 1 && (
-            <p className="text-xs font-mono text-neon/90 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800">
-              Waiting for someone to join the pool...
-            </p>
-          )}
-
-          {state === 'SEARCHING' && activeUsersCount > 1 && (
-            <p className="text-xs font-mono text-green-400 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800 flex items-center gap-1.5 justify-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span>{activeUsersCount} online • pairing active candidates...</span>
-            </p>
-          )}
+          {/* Quick status pill */}
+          <div className="px-4 py-2 rounded-full bg-black/60 border border-white/10 text-xs font-mono text-gray-300 flex items-center gap-2 shadow-lg">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
+              {activeUsersCount > 1 
+                ? `${activeUsersCount} online • pairing live candidates...` 
+                : 'Waiting for someone to join the pool...'}
+            </span>
+          </div>
         </div>
 
-        <div className="w-full max-w-md flex justify-center pb-2">
+        {/* Bottom Cancel Button */}
+        <div className="w-full max-w-xs flex justify-center pb-2">
           <button
             onClick={() => setState('IDLE')}
-            className="px-6 py-2.5 text-xs text-gray-400 font-bold uppercase border border-gray-800 rounded-full bg-gray-900 hover:text-white transition-colors active:scale-95"
+            className="w-full py-3.5 text-xs text-gray-300 hover:text-white font-bold uppercase tracking-wider border border-white/10 rounded-full bg-black/60 backdrop-blur-xl hover:bg-white/10 transition-colors active:scale-95"
           >
             Cancel Search
           </button>
@@ -765,15 +795,9 @@ export const Discover: React.FC = () => {
     return (
       <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto z-50">
         <div className="flex items-center gap-4 mb-8">
-          <img 
-            src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
-            className="w-20 h-20 rounded-full border-2 border-neon object-cover shadow-[0_0_25px_rgba(255,0,127,0.5)]" 
-          />
+          {renderAvatar(currentUser.avatar, currentUser.realName || currentUser.anonymousId, "w-20 h-20", "text-2xl")}
           <Heart className="w-8 h-8 text-neon animate-bounce fill-current" />
-          <img 
-            src={callInfo?.partnerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
-            className="w-20 h-20 rounded-full border-2 border-neon object-cover shadow-[0_0_25px_rgba(255,0,127,0.5)]" 
-          />
+          {renderAvatar(callInfo?.partnerAvatar, callInfo?.partnerName, "w-20 h-20", "text-2xl")}
         </div>
 
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">It's a Match!</h1>
@@ -784,13 +808,13 @@ export const Discover: React.FC = () => {
         <div className="w-full max-w-xs space-y-3">
           <button
             onClick={() => router.push('/matches')}
-            className="w-full py-4 bg-neon text-white font-bold rounded-full uppercase tracking-widest text-xs shadow-[0_4px_14px_rgba(255,0,127,0.4)] active:scale-95 transition-transform"
+            className="w-full py-4 bg-gradient-to-r from-neon to-pink-600 text-white font-bold rounded-full uppercase tracking-widest text-xs shadow-[0_4px_20px_rgba(255,0,127,0.4)] active:scale-95 transition-transform"
           >
             Go to Messages
           </button>
           <button
             onClick={() => cleanupAndResetState('SEARCHING')}
-            className="w-full py-4 bg-gray-900 border border-gray-800 text-gray-300 font-bold rounded-full uppercase tracking-widest text-xs active:scale-95 transition-transform"
+            className="w-full py-4 bg-black/60 border border-white/10 text-gray-300 font-bold rounded-full uppercase tracking-widest text-xs active:scale-95 transition-transform hover:bg-white/10"
           >
             Keep Discovering
           </button>
@@ -806,28 +830,25 @@ export const Discover: React.FC = () => {
     return (
       <div className="w-full h-[100dvh] flex flex-col bg-black text-white relative overflow-hidden">
         {/* Top Header */}
-        <div className="w-full bg-gray-900/70 border-b border-gray-800 p-3 md:p-4 flex items-center justify-between z-10 backdrop-blur-md shrink-0">
+        <div className="w-full bg-black/70 border-b border-white/10 p-3 md:p-4 flex items-center justify-between z-10 backdrop-blur-xl shrink-0">
           <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
             <button
               onClick={() => {
                 handleSkip();
                 setState('IDLE');
               }}
-              className="w-9 h-9 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0"
+              className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0"
               aria-label="Back"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <img 
-              src={callInfo?.partnerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
-              className="w-9 h-9 rounded-full object-cover border border-gray-800 shrink-0" 
-            />
+            {renderAvatar(callInfo?.partnerAvatar, callInfo?.partnerName, "w-9 h-9", "text-sm")}
             <div className="truncate">
               <h3 className="font-bold text-sm text-gray-100 truncate">
                 {callInfo?.partnerName || 'Student'}
               </h3>
-              <p className="text-[10px] text-green-500 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> 
+              <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> 
                 Connected {callInfo?.partnerUniversity ? `• ${callInfo.partnerUniversity}` : ''}
               </p>
             </div>
@@ -838,8 +859,8 @@ export const Discover: React.FC = () => {
               onClick={handleLike}
               className={`w-9 h-9 md:w-10 md:h-10 rounded-full border flex items-center justify-center transition-all ${
                 hasLiked
-                  ? 'bg-neon border-neon text-white shadow-lg shadow-neon/30'
-                  : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
+                  ? 'bg-neon border-neon text-white shadow-lg shadow-neon/40'
+                  : 'bg-black/60 border-white/10 text-gray-400 hover:text-white'
               }`}
               title="Like Partner"
               aria-label="Like"
@@ -848,7 +869,7 @@ export const Discover: React.FC = () => {
             </button>
             <button
               onClick={handleSkip}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors active:scale-95"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors active:scale-95"
               title="Next Person (or press ESC)"
               aria-label="Next"
             >
@@ -868,8 +889,8 @@ export const Discover: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {messages.length === 0 && !isPartnerDisconnected && (
             <div className="text-center py-12">
-              <p className="text-xs text-gray-500">You are connected to a random student. Say hi!</p>
-              <p className="text-[10px] text-gray-600 mt-1">Press ESC anytime to skip to the next person.</p>
+              <p className="text-xs text-gray-400 font-medium">You are connected to a random student. Say hi!</p>
+              <p className="text-[10px] text-gray-500 mt-1">Press ESC anytime to skip to the next person.</p>
             </div>
           )}
 
@@ -879,8 +900,8 @@ export const Discover: React.FC = () => {
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[80%] md:max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
                   isMe 
-                    ? 'bg-neon text-white rounded-br-none shadow-sm' 
-                    : 'bg-gray-900 text-gray-200 border border-gray-800 rounded-bl-none'
+                    ? 'bg-gradient-to-r from-neon to-pink-600 text-white rounded-br-none shadow-sm' 
+                    : 'bg-zinc-900 text-gray-200 border border-white/10 rounded-bl-none'
                 }`}>
                   {msg.text}
                 </div>
@@ -890,7 +911,7 @@ export const Discover: React.FC = () => {
 
           {isPartnerTyping && (
             <div className="flex justify-start">
-              <div className="bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-full text-[11px] text-gray-500 font-mono animate-pulse">
+              <div className="bg-zinc-900 border border-white/10 px-3 py-1.5 rounded-full text-[11px] text-gray-400 font-mono animate-pulse">
                 Typing...
               </div>
             </div>
@@ -901,30 +922,30 @@ export const Discover: React.FC = () => {
 
         {/* Chat Input or Partner Disconnected Bar */}
         {isPartnerDisconnected ? (
-          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gray-900 border-t border-gray-800 text-center shrink-0">
+          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-zinc-900 border-t border-white/10 text-center shrink-0">
             <p className="text-xs text-gray-400 mb-3">Partner has disconnected.</p>
             <button
               onClick={() => cleanupAndResetState('SEARCHING')}
-              className="w-full py-3.5 bg-neon text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-lg shadow-neon/25 active:scale-95 transition-transform flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-neon to-pink-600 text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-lg shadow-neon/25 active:scale-95 transition-transform flex items-center justify-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Find Next Person</span>
             </button>
           </div>
         ) : (
-          <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gray-900/90 border-t border-gray-800 backdrop-blur-md flex items-center gap-2 shrink-0">
+          <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-black/80 border-t border-white/10 backdrop-blur-xl flex items-center gap-2 shrink-0">
             <input
               type="text"
               value={chatInput}
               onChange={handleTyping}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               placeholder="Type a message... (ESC to skip)"
-              className="flex-1 bg-gray-900 border border-gray-800 focus:border-gray-700 text-white placeholder-gray-500 rounded-full px-4 py-2.5 text-xs outline-none"
+              className="flex-1 bg-zinc-900 border border-white/10 focus:border-neon/40 text-white placeholder-gray-500 rounded-full px-4 py-2.5 text-xs outline-none transition-colors"
             />
             <button
               onClick={() => handleSendMessage()}
               disabled={!chatInput.trim()}
-              className="w-9 h-9 bg-neon disabled:opacity-40 text-white rounded-full flex items-center justify-center transition-all shadow-md shadow-neon/20 shrink-0"
+              className="w-9 h-9 bg-gradient-to-r from-neon to-pink-600 disabled:opacity-40 text-white rounded-full flex items-center justify-center transition-all shadow-md shadow-neon/20 shrink-0"
               aria-label="Send message"
             >
               <Send className="w-4 h-4" />
@@ -948,7 +969,7 @@ export const Discover: React.FC = () => {
               handleSkip();
               setState('IDLE');
             }}
-            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 border border-gray-800 flex items-center justify-center text-white transition-colors"
+            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 border border-white/10 flex items-center justify-center text-white transition-colors"
             aria-label="Exit video chat"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -969,7 +990,7 @@ export const Discover: React.FC = () => {
             <div className="flex items-center gap-2 md:gap-3">
               <button 
                 onClick={handleSkip}
-                className="w-12 h-12 md:w-14 md:h-14 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform shrink-0"
+                className="w-12 h-12 md:w-14 md:h-14 bg-black/60 border border-white/10 hover:bg-white/10 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform shrink-0"
                 title="Next Person (or press ESC)"
                 aria-label="Next Person"
               >
@@ -979,8 +1000,8 @@ export const Discover: React.FC = () => {
                 onClick={handleLike}
                 className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all shrink-0 ${
                   hasLiked 
-                    ? 'bg-neon shadow-[0_0_20px_rgba(255,0,127,0.8)] scale-105' 
-                    : 'bg-gray-800 hover:bg-neon/30'
+                    ? 'bg-neon shadow-[0_0_25px_rgba(255,0,127,0.8)] scale-105' 
+                    : 'bg-black/60 border border-white/10 hover:bg-neon/30'
                 }`}
                 title="Like Person"
                 aria-label="Like Person"
