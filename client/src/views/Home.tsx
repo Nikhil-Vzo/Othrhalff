@@ -729,13 +729,6 @@ export const Home: React.FC = () => {
                         )}
                     </button>
                 </div>
-
-                {/* Scope Explanation Label */}
-                <p className="text-[9px] text-gray-400 font-medium tracking-wide bg-zinc-950/80 border border-white/5 rounded-md px-2 py-0.5 pointer-events-none select-none max-w-xs text-right truncate">
-                    {filterMode === 'campus' 
-                        ? `Campus: Only showing students from ${currentUser?.university ? currentUser.university.split('|')[0] : 'your university'}` 
-                        : 'Global: Showing students from all universities'}
-                </p>
             </div>
 
             {/* === MAIN CONTENT === */}
