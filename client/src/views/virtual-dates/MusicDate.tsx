@@ -153,18 +153,18 @@ export const MusicDate = () => {
 
     const handleHostDisconnect = async () => {
         setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
-        
+
         const remainingPeerIds = [myPeerIdRef.current, ...peersRef.current.map(p => p.peerId)].sort();
-        
+
         if (remainingPeerIds.length === 0) return;
-        
+
         const newHostId = remainingPeerIds[0];
-        
+
         if (newHostId === myPeerIdRef.current) {
             console.log("We have been elected as the new host!");
             setIsHost(true);
             setRoomHostId(myPeerIdRef.current);
-            
+
             if (supabase) {
                 try {
                     await supabase
@@ -277,7 +277,7 @@ export const MusicDate = () => {
                     .from('matches')
                     .select('id, user_a, user_b')
                     .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
-                
+
                 if (matchesError) throw matchesError;
                 if (!matchesData || matchesData.length === 0) return;
 
@@ -311,6 +311,11 @@ export const MusicDate = () => {
         setIsConnecting(true);
         setError(null);
         try {
+            const roomUuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : Math.random().toString(36).substring(2, 15) + '-' + Math.random().toString(36).substring(2, 15);
+
+            const inviteText = `[SYSTEM] [INVITE:v1] ${JSON.stringify({
             const unifiedCode = generateRoomCode();
             const roomUuid = `music_jam_${unifiedCode}`;
             
@@ -421,6 +426,24 @@ export const MusicDate = () => {
                 if (queryCreateName) {
                     setRoomName(queryCreateName);
                     setIsHost(true);
+                    setMode('room');
+                    if (queryPrivate === 'true') setIsPrivateRoom(true);
+                    if (queryPasscode) setRoomPasscode(queryPasscode);
+                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
+                    setError(null);
+                    return;
+                }
+                
+                setRoomCode(queryRoom);
+                setRoomName(parseRoomName(queryRoom));
+
+                if (queryPrivate === 'true') setIsPrivateRoom(true);
+                if (queryPasscode) setRoomPasscode(queryPasscode);
+
+                if (queryPrivate || queryPasscode) {
+                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
+                }
+
                     setMode('create_room');
                     sessionStorage.setItem('host_room_code', queryRoom);
                 } else {
@@ -478,7 +501,7 @@ export const MusicDate = () => {
                                 .select('host_peer_id, is_private, passcode')
                                 .eq('room_id', roomCode)
                                 .maybeSingle();
-                            
+
                             if (!queryError && data) {
                                 activeHostId = data.host_peer_id;
                                 dbIsPrivate = data.is_private;
@@ -625,14 +648,16 @@ export const MusicDate = () => {
                         call.on('stream', (remoteStream) => {
                             setPeers(prev => {
                                 if (prev.find(p => p.peerId === call.peer)) return prev;
-                                
+
                                 setCamPositions(prevPos => {
                                     if (!prevPos[call.peer]) {
                                         const peerCount = prev.length;
-                                        return { ...prevPos, [call.peer]: { 
-                                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
-                                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
-                                        }};
+                                        return {
+                                            ...prevPos, [call.peer]: {
+                                                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400,
+                                                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300
+                                            }
+                                        };
                                     }
                                     return prevPos;
                                 });
@@ -719,14 +744,16 @@ export const MusicDate = () => {
         call.on('stream', (remoteStream) => {
             setPeers(prev => {
                 if (prev.find(p => p.peerId === targetId)) return prev;
-                
+
                 setCamPositions(prevPos => {
                     if (!prevPos[targetId]) {
                         const peerCount = prev.length;
-                        return { ...prevPos, [targetId]: { 
-                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
-                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
-                        }};
+                        return {
+                            ...prevPos, [targetId]: {
+                                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400,
+                                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300
+                            }
+                        };
                     }
                     return prevPos;
                 });
@@ -833,9 +860,9 @@ export const MusicDate = () => {
     useEffect(() => {
         setCamPositions(prev => ({
             ...prev,
-            'me': { 
-                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
-                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 : 300 
+            'me': {
+                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400,
+                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 : 300
             }
         }));
     }, []);
@@ -881,10 +908,10 @@ export const MusicDate = () => {
     // Load audio as Blob to prevent 429 Too Many Requests from excessive browser range requests
     useEffect(() => {
         if (!currentTrack || !audioRef.current) return;
-        
+
         setAudioReady(false);
         const controller = new AbortController();
-        
+
         const loadAudioAsBlob = async () => {
             try {
                 // Fetch the full audio file once instead of letting the browser make multiple range requests
@@ -894,7 +921,7 @@ export const MusicDate = () => {
                 }
                 const blob = await response.blob();
                 const objectUrl = URL.createObjectURL(blob);
-                
+
                 if (audioRef.current) {
                     audioRef.current.src = objectUrl;
                     audioRef.current.volume = musicVolume;
@@ -913,7 +940,7 @@ export const MusicDate = () => {
                 }
             }
         };
-        
+
         loadAudioAsBlob();
 
         return () => {
@@ -1177,6 +1204,9 @@ export const MusicDate = () => {
         }
         setIsConnecting(true);
         const nameSlug = roomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
+        const uniqueId = Math.random().toString(36).substring(2, 7);
+        const code = `music_${nameSlug}_${uniqueId}`;
+
         const unifiedCode = generateRoomCode();
         const code = `music_${nameSlug}_${unifiedCode}`;
         
@@ -1200,9 +1230,9 @@ export const MusicDate = () => {
             setError('Please enter a valid 7-character room code (e.g., ABC-123)');
             return;
         }
-        
+
         setIsConnecting(true);
-        
+
         if (supabase) {
             try {
                 const { data, error } = await supabase
@@ -1210,9 +1240,9 @@ export const MusicDate = () => {
                     .select('room_id, is_private')
                     .like('room_id', `%_${entered}`)
                     .maybeSingle();
-                    
+
                 if (error) throw error;
-                
+
                 if (data) {
                     setRoomCode(data.room_id);
                     setRoomName('Joined Room');
@@ -1371,7 +1401,7 @@ export const MusicDate = () => {
                             <Users className="w-5 h-5 text-violet-400" />
                             <span>Invite Active Match</span>
                         </button>
-                        
+
                         {showInviteMenu && (
                             <div className="absolute top-[110%] left-0 right-0 mt-2 bg-[#0d071a]/95 border border-white/10 rounded-2xl shadow-2xl p-2 z-50 max-h-60 overflow-y-auto custom-scrollbar backdrop-blur-xl animate-fade-in">
                                 {matches.length === 0 ? (
@@ -1415,13 +1445,13 @@ export const MusicDate = () => {
                         <p className="text-sm text-zinc-400 mb-6">
                             This room is locked. Please enter the passcode to join.
                         </p>
-                        
+
                         {passcodeError && (
                             <div className="mb-4 text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-3 px-4 rounded-xl">
                                 {passcodeError}
                             </div>
                         )}
-                        
+
                         <input
                             type="text"
                             placeholder="0000"
@@ -1434,7 +1464,7 @@ export const MusicDate = () => {
                             className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-4 text-white text-center text-3xl tracking-widest font-mono placeholder-zinc-700 focus:border-violet-500 focus:outline-none transition-colors mb-6"
                             autoFocus
                         />
-                        
+
                         <div className="flex gap-3">
                             <button
                                 onClick={() => navigate.push('/sparx')}
@@ -1507,8 +1537,8 @@ export const MusicDate = () => {
                                         onChange={(e) => setIsPrivateRoom(e.target.checked)}
                                         className="w-4.5 h-4.5 rounded border-white/10 bg-[#0a001a]/50 text-violet-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-violet-500"
                                     />
-                                    <label 
-                                        htmlFor="private-room-toggle" 
+                                    <label
+                                        htmlFor="private-room-toggle"
                                         className="text-sm font-semibold text-white/70 hover:text-white cursor-pointer select-none flex items-center gap-1.5"
                                     >
                                         <Lock className="w-4 h-4 text-white/40" />
@@ -1703,7 +1733,7 @@ export const MusicDate = () => {
                                     />
                                 )}
                             </div>
-                            
+
                             <button
                                 onClick={toggleLyrics}
                                 className="absolute top-8 right-8 bg-violet-600 hover:bg-violet-500 p-4 rounded-full text-white shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300 hover:scale-110 active:scale-95 border border-violet-400 z-50 flex items-center justify-center group"
