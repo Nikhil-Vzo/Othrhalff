@@ -537,14 +537,12 @@ export const Discover: React.FC = () => {
         <div className="w-full flex-1 flex flex-col items-center justify-center my-8 text-center max-w-lg">
           <div className="relative mb-6">
             <div className="absolute inset-0 bg-gradient-to-tr from-neon/30 to-purple-600/30 rounded-full blur-3xl -z-10 animate-pulse" />
-            <div className="w-24 h-24 rounded-3xl bg-zinc-900/90 border border-white/15 flex items-center justify-center text-white shadow-[0_0_40px_rgba(255,0,127,0.25)] backdrop-blur-2xl overflow-hidden p-2">
-              {/* If you have a custom image, you can set the src below. Adjust width & height as needed */}
-              {/* <img src="/your-custom-image.png" alt="Discover" className="w-16 h-16 object-contain" /> */}
-              {mode === 'VIDEO' ? (
-                <Video className="w-12 h-12 text-neon" />
-              ) : (
-                <MessageSquare className="w-12 h-12 text-neon" />
-              )}
+            <div className="w-24 h-24 rounded-3xl bg-zinc-900/90 border border-white/15 flex items-center justify-center text-white shadow-[0_0_40px_rgba(255,0,127,0.25)] backdrop-blur-2xl overflow-hidden p-3">
+              <img 
+                src="/discover_icon.webp" 
+                alt="Discover" 
+                className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]" 
+              />
             </div>
           </div>
 
