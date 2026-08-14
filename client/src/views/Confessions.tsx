@@ -218,11 +218,23 @@ export const Confessions: React.FC = () => {
                     if (feedMode === 'global' && isMatch) return;
                 }
 
+                const isVideo = p.type === 'video' || (p.image_url && /\.(mp4|webm|mov)(\?.*)?$/i.test(p.image_url));
+
                 const newConfession: Confession = {
-                    id: p.id, userId: 'Anonymous', text: p.text || '', imageUrl: p.image_url,
-                    timestamp: new Date(p.created_at).getTime(), likes: 0, reactions: {}, comments: [],
-                    university: p.university, type: p.type as 'text' | 'poll', pollOptions: [],
-                    userVote: undefined, userReaction: undefined
+                    id: p.id, 
+                    userId: 'Anonymous', 
+                    text: p.text || '', 
+                    imageUrl: isVideo ? undefined : p.image_url,
+                    videoUrl: isVideo ? p.image_url : undefined,
+                    timestamp: new Date(p.created_at).getTime(), 
+                    likes: 0, 
+                    reactions: {}, 
+                    comments: [],
+                    university: p.university, 
+                    type: (isVideo ? 'video' : p.type) as 'text' | 'poll' | 'video', 
+                    pollOptions: [],
+                    userVote: undefined, 
+                    userReaction: undefined
                 };
                 setConfessions(prev => {
                     const updated = [newConfession, ...prev];
@@ -278,7 +290,7 @@ export const Confessions: React.FC = () => {
                 confession_reactions (emoji, user_id), 
                 confession_comments (
                     id, text, created_at, user_id, 
-                    profiles (anonymous_id, avatar)
+                    profiles:user_id (anonymous_id)
                 ),
                 comment_count:confession_comments(count)
             `)
@@ -326,10 +338,17 @@ export const Confessions: React.FC = () => {
             const reactionCounts: Record<string, number> = {};
             p.confession_reactions.forEach((r: any) => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
 
+            const isVideo = p.type === 'video' || (p.image_url && /\.(mp4|webm|mov)(\?.*)?$/i.test(p.image_url));
+
             return {
-                id: p.id, userId: 'Anonymous', text: p.text || '', imageUrl: p.image_url,
+                id: p.id, 
+                userId: 'Anonymous', 
+                text: p.text || '', 
+                imageUrl: isVideo ? undefined : p.image_url,
+                videoUrl: isVideo ? p.image_url : undefined,
                 timestamp: new Date(p.created_at).getTime(),
-                likes: p.confession_reactions.length, reactions: reactionCounts,
+                likes: p.confession_reactions.length, 
+                reactions: reactionCounts,
                 comments: p.confession_comments?.map((c: any) => ({
                     id: c.id,
                     userId: c.profiles?.anonymous_id || 'Anonymous',
@@ -337,7 +356,8 @@ export const Confessions: React.FC = () => {
                     timestamp: new Date(c.created_at).getTime()
                 })) || [],
                 commentCount: (p as any).comment_count?.[0]?.count || p.confession_comments?.length || 0,
-                university: p.university, type: p.type as 'text' | 'poll',
+                university: p.university, 
+                type: (isVideo ? 'video' : p.type) as 'text' | 'poll' | 'video',
                 pollOptions: p.poll_options?.map((opt: any) => ({ id: opt.id, text: opt.text, votes: opt.vote_count })),
                 userVote: myVoteMap.get(p.id),
                 userReaction: currentUser ? p.confession_reactions.find((r: any) => r.user_id === currentUser.id)?.emoji : undefined
@@ -623,12 +643,33 @@ export const Confessions: React.FC = () => {
         if (!file) return;
 
         if (file.size > 20 * 1024 * 1024) {
-            alert("Video exceeds 20MB limit. Please choose a shorter clip.");
+            alert("Video exceeds 20MB limit. Please choose a smaller file.");
             return;
         }
 
         setVideoUploading(true);
         try {
+            // Client-side 60-second duration validation
+            const duration = await new Promise<number>((resolve) => {
+                const tempVideo = document.createElement('video');
+                tempVideo.preload = 'metadata';
+                tempVideo.onloadedmetadata = () => {
+                    window.URL.revokeObjectURL(tempVideo.src);
+                    resolve(tempVideo.duration);
+                };
+                tempVideo.onerror = () => {
+                    window.URL.revokeObjectURL(tempVideo.src);
+                    resolve(0);
+                };
+                tempVideo.src = URL.createObjectURL(file);
+            });
+
+            if (duration > 60) {
+                alert(`Video duration is ${Math.round(duration)}s. Maximum allowed duration is 60 seconds.`);
+                setVideoUploading(false);
+                return;
+            }
+
             const fileExt = file.name.split('.').pop() || 'mp4';
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || '';
 

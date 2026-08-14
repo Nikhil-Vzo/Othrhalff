@@ -27,6 +27,7 @@ function guestConfessionFingerprint(userId, payload) {
     branch: String(payload.branch || '').trim(),
     text: String(payload.text || '').trim(),
     imageUrl: String(payload.imageUrl || '').trim(),
+    videoUrl: String(payload.videoUrl || '').trim(),
     type: String(payload.type || '').trim(),
     pollOptions: normalizePollOptions(payload.pollOptions)
   };
