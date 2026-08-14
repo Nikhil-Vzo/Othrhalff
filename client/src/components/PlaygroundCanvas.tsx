@@ -100,9 +100,20 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     const benchCollisionRadius = 30;
     for (const zone of BENCH_ZONES) {
       if (zone.id === activeBenchRef.current) continue;
+      
       const dx = x - zone.x;
       const dy = y - (zone.y + 10);
       const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // If stood up recently, allow walking out until clear
+      if (zone.id === lastActiveBenchRef.current) {
+        if (dist > benchCollisionRadius + 2) {
+          lastActiveBenchRef.current = null;
+        } else {
+          continue;
+        }
+      }
+
       if (dist < benchCollisionRadius) return true;
     }
 
@@ -259,48 +270,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     }
 
     let lastBroadcastTime = 0;
-
-    // Pixel Collision Checker
-    const checkPixelCollision = (x: number, y: number, size: number) => {
-      // Hard boundary check
-      if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
-
-      // Check Bench Collision
-      const benchCollisionRadius = 30; // Solid physics core
-      for (const zone of BENCH_ZONES) {
-        if (zone.id === activeBenchRef.current) continue; // Allow standing up from current bench
-        
-        const dx = x - zone.x;
-        const dy = y - (zone.y + 10); // Center of physical bench block
-        const dist = Math.sqrt(dx*dx + dy*dy);
-
-        // If they just stood up, they are still inside the bench radius. 
-        // We let them walk OUT, and lock the wall behind them only once they are fully clear.
-        if (zone.id === lastActiveBenchRef.current) {
-          if (dist > benchCollisionRadius + 2) {
-            lastActiveBenchRef.current = null; // They are out! Clear it.
-          } else {
-            continue; // Still inside, let them move freely
-          }
-        }
-
-        if (dist < benchCollisionRadius) {
-          return true; // Hit a bench!
-        }
-      }
-
-
-      // If mask isn't loaded, don't block
-      if (!collisionPixelsRef.current) return false;
-
-      const checkX = Math.round(x);
-      const checkY = Math.round(y + size / 2);
-      if (checkX < 0 || checkX >= WORLD_WIDTH || checkY < 0 || checkY >= WORLD_HEIGHT) return true;
-
-      // Fast array index lookup (4 bytes per pixel: R, G, B, A)
-      const index = (checkY * WORLD_WIDTH + checkX) * 4;
-      return collisionPixelsRef.current[index] < 50;
-    };
 
     const updateLoop = (timestamp: number) => {
       let dx = 0;
