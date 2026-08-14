@@ -30,8 +30,8 @@ export const Discover: React.FC = () => {
   const { totalOnlineCount } = usePresence();
   const router = useRouter();
 
-  // Mode and Scope
-  const [mode, setMode] = useState<DiscoverMode>('TEXT');
+  // Mode and Scope (Default to Video Call)
+  const [mode, setMode] = useState<DiscoverMode>('VIDEO');
   const [scope, setScope] = useState<DiscoverScope>(() => currentUser?.university ? 'CAMPUS' : 'GLOBAL');
   const [state, setState] = useState<DiscoverState>('IDLE');
 
@@ -552,18 +552,8 @@ export const Discover: React.FC = () => {
 
           {/* Controls Container (Matching Width) */}
           <div className="w-full max-w-sm flex flex-col gap-4 mb-8">
-            {/* Mode Selector Tabs (Text vs Video) */}
+            {/* Mode Selector Tabs (Video Call first, Text Chat second) */}
             <div className="grid grid-cols-2 gap-1.5 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-full backdrop-blur-xl">
-              <button
-                onClick={() => setMode('TEXT')}
-                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${mode === 'TEXT'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-              >
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                <span>Text Chat</span>
-              </button>
               <button
                 onClick={() => setMode('VIDEO')}
                 className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${mode === 'VIDEO'
@@ -573,6 +563,16 @@ export const Discover: React.FC = () => {
               >
                 <Video className="w-4 h-4 shrink-0" />
                 <span>Video Call</span>
+              </button>
+              <button
+                onClick={() => setMode('TEXT')}
+                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${mode === 'TEXT'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span>Text Chat</span>
               </button>
             </div>
 
@@ -585,12 +585,6 @@ export const Discover: React.FC = () => {
               <span>Start Discovering</span>
             </button>
           </div>
-        </div>
-
-        {/* Bottom Safety & Privacy Note */}
-        <div className="text-center text-[11px] text-gray-500 pb-2 flex items-center justify-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-neon" />
-          <span>Encrypted 1-on-1 connections. Skip anytime by pressing ESC.</span>
         </div>
       </div>
     );
