@@ -282,6 +282,12 @@ export const Playground: React.FC = () => {
   };
 
   // 2. Geolocation Sync Engine
+  const myPosRef = useRef(myPos);
+  const handlePositionChangeRef = useRef(handlePositionChange);
+
+  useEffect(() => { myPosRef.current = myPos; }, [myPos]);
+  useEffect(() => { handlePositionChangeRef.current = handlePositionChange; }, [handlePositionChange]);
+
   const toggleGpsMode = useCallback(() => {
     setGpsEnabled(prev => {
       const nextState = !prev;
@@ -289,15 +295,15 @@ export const Playground: React.FC = () => {
       if (currentUser?.id) {
         db.playground_settings.put({
           id: currentUser.id,
-          last_x: Math.round(myPos.x),
-          last_y: Math.round(myPos.y),
+          last_x: Math.round(myPosRef.current.x),
+          last_y: Math.round(myPosRef.current.y),
           gps_enabled: nextState,
           updated_at: Date.now()
         }).catch(() => {});
       }
       return nextState;
     });
-  }, [currentUser?.id, myPos.x, myPos.y]);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (!gpsEnabled) {
@@ -323,7 +329,7 @@ export const Playground: React.FC = () => {
         setGpsStatus('LOCKED');
 
         if (!gpsAnchorRef.current) {
-          gpsAnchorRef.current = { lat: latitude, lng: longitude, x: myPos.x, y: myPos.y };
+          gpsAnchorRef.current = { lat: latitude, lng: longitude, x: myPosRef.current.x, y: myPosRef.current.y };
           return;
         }
 
@@ -346,8 +352,8 @@ export const Playground: React.FC = () => {
           finalY = validated.y;
         }
 
-        const dx = finalX - myPos.x;
-        const dy = finalY - myPos.y;
+        const dx = finalX - myPosRef.current.x;
+        const dy = finalY - myPosRef.current.y;
 
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
           let dir: 'up' | 'down' | 'left' | 'right' = 'down';
@@ -357,7 +363,7 @@ export const Playground: React.FC = () => {
             dir = dx < 0 ? 'left' : 'right';
           }
 
-          handlePositionChange(finalX, finalY, dir, true);
+          handlePositionChangeRef.current(finalX, finalY, dir, true);
         }
       },
       (err) => {
@@ -375,7 +381,7 @@ export const Playground: React.FC = () => {
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [gpsEnabled, handlePositionChange, myPos.x, myPos.y]);
+  }, [gpsEnabled]);
 
   if (!mounted || !currentUser) {
     return <div className="flex h-full items-center justify-center text-white">Loading Playground...</div>;
