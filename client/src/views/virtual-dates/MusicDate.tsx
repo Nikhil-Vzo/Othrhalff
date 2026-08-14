@@ -412,6 +412,31 @@ export const MusicDate = () => {
 
     const [pcoPlaylist, setPcoPlaylist] = useState<Track[]>([]);
 
+    // Seeded deterministic PRNG shuffle so 300+ romantic songs are randomized yet 100% synchronized across all listeners
+    const seededShuffle = <T,>(array: T[], seed: number = 789456): T[] => {
+        const arr = [...array];
+        let m = arr.length;
+        let t: T;
+        let i: number;
+        let s = seed;
+
+        const random = () => {
+            s |= 0;
+            s = (s + 0x6D2B79F5) | 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+
+        while (m) {
+            i = Math.floor(random() * m--);
+            t = arr[m];
+            arr[m] = arr[i];
+            arr[i] = t;
+        }
+        return arr;
+    };
+
     const fetchPcoRealSongs = async (): Promise<Track[]> => {
         let allTracks: Track[] = curatedRomanticTracks.map(t => ({
             id: t.id,
@@ -423,8 +448,8 @@ export const MusicDate = () => {
         }));
 
         try {
-            // Fetch multiple trending queries concurrently
-            const fetchPromises = trendingRomanticQueries.slice(0, 8).map(async (query) => {
+            // Fetch multiple trending romantic queries concurrently
+            const fetchPromises = trendingRomanticQueries.slice(0, 10).map(async (query) => {
                 try {
                     const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(query)}`);
                     if (!res.ok) return [];
@@ -468,9 +493,12 @@ export const MusicDate = () => {
             }
         }
 
-        // Deterministic sort for perfect multi-user radio synchronization
+        // 1. Sort by ID to ensure identical baseline across varying network latencies
         uniqueTracks.sort((a, b) => a.id.localeCompare(b.id));
-        return uniqueTracks.length > 0 ? uniqueTracks : (curatedRomanticTracks as Track[]);
+
+        // 2. Deterministically shuffle with seed so songs are randomized yet 100% identical for everyone
+        const baseList = uniqueTracks.length > 0 ? uniqueTracks : (curatedRomanticTracks as Track[]);
+        return seededShuffle(baseList, 789456);
     };
 
     const getPcoSyncedTrack = (tracks: Track[]) => {
@@ -567,13 +595,14 @@ export const MusicDate = () => {
             })
             .on('broadcast', { event: 'PCO_SONG_REQUEST' }, ({ payload }) => {
                 if (payload && payload.track) {
-                    triggerPinnedBanner(`📢 ${payload.requester} requested: "${payload.track.song}"`);
-                    addFloatingNotification('System', `${payload.requester} requested: "${payload.track.song}"`);
+                    // Queue song to play NEXT for all listeners
+                    setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
+                    triggerPinnedBanner(`📢 Playing Next: "${payload.track.song}" (Requested by ${payload.requester})`);
+                    addFloatingNotification('System', `Playing Next: "${payload.track.song}" (by ${payload.requester})`);
+                    setMessages(prev => [...prev, { user: 'System', text: `⏭️ Queued Next: "${payload.track.song}" (Requested by ${payload.requester})` }]);
+                    
                     if (isAdminUser) {
                         setAdminRequestModal({ requester: payload.requester, track: payload.track });
-                    } else {
-                        setQueue(prev => [...prev, payload.track]);
-                        setMessages(prev => [...prev, { user: 'System', text: `${payload.requester} requested: "${payload.track.song}"` }]);
                     }
                 }
             })
@@ -588,7 +617,7 @@ export const MusicDate = () => {
             })
             .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
                 if (payload && payload.track) {
-                    setQueue(prev => [payload.track, ...prev]);
+                    setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
                     triggerPinnedBanner(`⏭️ Playing Next: "${payload.track.song}"`);
                     addFloatingNotification('System', `Admin Queued Next: "${payload.track.song}"`);
                     setMessages(prev => [...prev, { user: 'System', text: `Admin Queued Next: "${payload.track.song}"` }]);
@@ -600,15 +629,6 @@ export const MusicDate = () => {
                     triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
                     addFloatingNotification('System', `Added to Queue: "${payload.track.song}"`);
                     setMessages(prev => [...prev, { user: 'System', text: `Added to Queue: "${payload.track.song}"` }]);
-                }
-            })
-            .on('broadcast', { event: 'PCO_ADMIN_HEARTBEAT' }, ({ payload }) => {
-                if (payload && payload.track && !isAdminUser) {
-                    setCurrentTrack(payload.track);
-                    setIsPlaying(payload.isPlaying);
-                    if (audioRef.current && Math.abs(audioRef.current.currentTime - payload.currentTime) > 2.5) {
-                        audioRef.current.currentTime = payload.currentTime;
-                    }
                 }
             })
             .subscribe(async (status) => {
@@ -647,24 +667,7 @@ export const MusicDate = () => {
         };
     }, []);
 
-    // Admin Heartbeat Sync Broadcast
-    useEffect(() => {
-        if (!isAdminUser || !roomCode.includes('Campus_PCO') || !supabase || !currentTrack) return;
 
-        const interval = setInterval(() => {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_ADMIN_HEARTBEAT',
-                payload: {
-                    track: currentTrack,
-                    isPlaying,
-                    currentTime: audioRef.current?.currentTime || 0
-                }
-            });
-        }, 3500);
-
-        return () => clearInterval(interval);
-    }, [isAdminUser, roomCode, currentTrack, isPlaying]);
 
     // Warn on tab close / refresh while in a room
     useEffect(() => {
@@ -1545,6 +1548,11 @@ export const MusicDate = () => {
         if (!isAdminUser) {
             incrementDailyRequests();
         }
+
+        // Queue locally to play NEXT for immediate feedback
+        setQueue(prev => [track, ...prev.filter(t => t.id !== track.id)]);
+        triggerPinnedBanner(`📢 Requested Next: "${track.song}" (by ${displayName})`);
+        addFloatingNotification('System', `Queued Next: "${track.song}"`);
 
         if (supabase && roomCode.includes('Campus_PCO')) {
             supabase.channel('campus_pco_live_chat').send({
