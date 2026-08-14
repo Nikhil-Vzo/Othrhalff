@@ -497,7 +497,7 @@ export const Discover: React.FC = () => {
           {/* Active Online Counter Pill (Left) */}
           <div className="inline-flex items-center gap-2 px-3.5 h-10 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-xl shadow-lg font-mono whitespace-nowrap shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="leading-none">{activeUsersCount} student{activeUsersCount !== 1 ? 's' : ''} online</span>
+            <span className="leading-none">{activeUsersCount} online</span>
           </div>
 
           {/* Scope Toggle (Top Right Corner) */}
