@@ -519,6 +519,14 @@ export const Discover: React.FC = () => {
     newChannel.on('broadcast', { event: 'SKIP' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTED') {
         setIsPartnerDisconnected(true);
+        if (modeRef.current === 'VIDEO') {
+          // Smoothly advance to searching for next partner after brief notice
+          setTimeout(() => {
+            if (stateRef.current === 'CONNECTED') {
+              cleanupAndResetState('SEARCHING');
+            }
+          }, 900);
+        }
       }
     });
 
@@ -1047,7 +1055,14 @@ export const Discover: React.FC = () => {
           }
         />
 
-        {partnerLiked && !hasLiked && (
+        {isPartnerDisconnected && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl px-6 py-2.5 rounded-full border border-neon/40 z-[130] animate-bounce shadow-2xl flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
+            <span className="text-white font-bold text-xs">Partner skipped • Finding next match...</span>
+          </div>
+        )}
+
+        {partnerLiked && !hasLiked && !isPartnerDisconnected && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-6 py-2 rounded-full border border-neon/30 z-[120]">
             <span className="text-neon font-bold text-xs flex items-center gap-2">
               <Heart className="w-4 h-4 fill-current" /> They liked you! Tap heart to match.

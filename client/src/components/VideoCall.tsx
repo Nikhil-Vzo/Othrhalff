@@ -21,6 +21,66 @@ interface VideoCallProps {
   customControls?: React.ReactNode;
 }
 
+// Dedicated Remote Video Renderer that guarantees DOM attachment & play
+const RemoteVideoView: React.FC<{ user: IAgoraRTCRemoteUser }> = ({ user }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !user.videoTrack) return;
+
+    try {
+      user.videoTrack.play(container, { fit: 'cover' });
+      console.log('[Agora] Playing remote video for user:', user.uid);
+    } catch (err) {
+      console.error('[Agora] Error playing remote video track:', err);
+    }
+
+    return () => {
+      try {
+        user.videoTrack?.stop();
+      } catch (e) {}
+    };
+  }, [user.videoTrack, user.uid]);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full [&>div]:!w-full [&>div]:!h-full [&_video]:!object-cover [&_video]:!w-full [&_video]:!h-full" 
+    />
+  );
+};
+
+// Dedicated Local Video Renderer
+const LocalVideoView: React.FC<{ track: ICameraVideoTrack | null; isVideoOff: boolean }> = ({ track, isVideoOff }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !track || isVideoOff) return;
+
+    try {
+      track.play(container, { fit: 'cover', mirror: true });
+      console.log('[Agora] Playing local video');
+    } catch (err) {
+      console.error('[Agora] Error playing local video track:', err);
+    }
+
+    return () => {
+      try {
+        track?.stop();
+      } catch (e) {}
+    };
+  }, [track, isVideoOff]);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full [&>div]:!w-full [&>div]:!h-full [&_video]:!object-cover [&_video]:!w-full [&_video]:!h-full" 
+    />
+  );
+};
+
 export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token, onLeave, partnerName, partnerAvatar, callType, callSessionId, customControls }) => {
   const [localVideoTrack, setLocalVideoTrack] = useState<ICameraVideoTrack | null>(null);
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null);
@@ -34,13 +94,13 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
   // Track client in a ref so we can use it in cleanup
   const clientRef = useRef<any>(null);
 
-  // === FIX 1: Use refs to avoid stale closures in cleanup ===
+  // Refs to avoid stale closures in cleanup
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
   useEffect(() => { localVideoTrackRef.current = localVideoTrack; }, [localVideoTrack]);
   useEffect(() => { localAudioTrackRef.current = localAudioTrack; }, [localAudioTrack]);
 
-  // === FIX 2: Call duration timer ===
+  // Call duration timer
   const [callDuration, setCallDuration] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -59,10 +119,10 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
     return `${m}:${s}`;
   };
 
-  // === FIX 3: Network quality indicator ===
-  const [networkQuality, setNetworkQuality] = useState<number>(0); // 0=unknown, 1=excellent, 2=good, 3=poor, 4=bad, 5=very bad, 6=disconnected
+  // Network quality indicator
+  const [networkQuality, setNetworkQuality] = useState<number>(0);
 
-  // === FIX 4: Reconnection state ===
+  // Reconnection state
   const [isReconnecting, setIsReconnecting] = useState(false);
 
   useEffect(() => {
@@ -77,25 +137,19 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
         client.on('user-published', async (user, mediaType) => {
           if (!isMounted) return;
           await client.subscribe(user, mediaType);
-          console.log('Subscribed to user:', user.uid);
+          console.log('[Agora] Subscribed to remote user:', user.uid, mediaType);
 
-          // Update user in state (replace or add) to trigger effects and re-renders
+          // Update user in state with a new array reference to trigger re-render
           setRemoteUsers((prev) => {
-            const index = prev.findIndex(u => u.uid === user.uid);
-            if (index !== -1) {
-              // Create new array with updated user object to trigger re-render
-              const newUsers = [...prev];
-              newUsers[index] = user;
-              return newUsers;
-            }
-            return [...prev, user];
+            const next = prev.filter(u => u.uid !== user.uid);
+            return [...next, user];
           });
 
           if (mediaType === 'audio') {
             try {
               await user.audioTrack?.play();
             } catch (err: any) {
-              console.error('Remote audio autoplay blocked:', err);
+              console.error('[Agora] Remote audio autoplay blocked:', err);
               if (err.code === 4016 || err.name === 'NotAllowedError' || String(err).includes('autoplay')) {
                 setAutoplayBlocked(true);
               }
@@ -104,15 +158,15 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
         });
 
         client.on('user-unpublished', (user, mediaType) => {
-          console.log('User unpublished:', user.uid, mediaType);
-          if (mediaType === 'video') {
-            // For video calls, if they turn off video, we might want to keep them in the list 
-            // but just show avatar.
-          }
+          console.log('[Agora] User unpublished:', user.uid, mediaType);
+          setRemoteUsers((prev) => {
+            const next = prev.filter(u => u.uid !== user.uid);
+            return [...next, user];
+          });
         });
 
         client.on('user-left', (user) => {
-          console.log('User left:', user.uid);
+          console.log('[Agora] User left:', user.uid);
           setRemoteUsers((prev) => prev.filter(u => u.uid !== user.uid));
         });
 
@@ -123,7 +177,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
         // Auto-reconnection handling
         client.on('connection-state-change', (curState, prevState) => {
-          console.log(`[Call] Connection: ${prevState} → ${curState}`);
+          console.log(`[Agora] Connection state: ${prevState} → ${curState}`);
           if (curState === 'RECONNECTING') {
             setIsReconnecting(true);
           } else if (curState === 'CONNECTED') {
@@ -134,61 +188,9 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           }
         });
 
-        // Token renewal logic
-        let isRenewing = false;
-        const renewToken = async () => {
-          if (isRenewing) {
-            console.log('[Agora] Token renewal already in progress, skipping duplicate request.');
-            return;
-          }
-          isRenewing = true;
-          try {
-            console.log('[Agora] Attempting token renewal for channel:', channelName);
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-              console.error('[Agora] No active Supabase session found for token renewal.');
-              return;
-            }
-
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-            const res = await fetch(`${apiUrl}/api/agora-token`, {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-              },
-              body: JSON.stringify({ channelName })
-            });
-
-            if (!res.ok) {
-              const errData = await res.json();
-              throw new Error(errData.error || 'Failed to fetch renewal token');
-            }
-
-            const data = await res.json();
-            if (!isMounted) return;
-            console.log('[Agora] Successfully fetched new token, renewing client...');
-            await client.renewToken(data.token);
-            showToast('Call security credentials renewed successfully.', 'success');
-          } catch (err: any) {
-            console.error('[Agora] Failed to renew Agora token:', err);
-            if (isMounted) {
-              showToast('Warning: Call connection may drop due to token expiry.', 'error');
-            }
-          } finally {
-            isRenewing = false;
-          }
-        };
-
-        client.on('token-privilege-will-expire', renewToken);
-        client.on('token-privilege-did-expire', async () => {
-          console.warn('[Agora] Token expired. Attempting emergency renewal...');
-          await renewToken();
-        });
-
         // Join channel
-        await client.join(appId, channelName, token, null);
-        console.log('Joined channel successfully');
+        await client.join(appId, channelName, token || null, null);
+        console.log('[Agora] Joined channel successfully:', channelName);
 
         // Create and publish local tracks based on call type
         let audioTrack: IMicrophoneAudioTrack;
@@ -196,14 +198,12 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
         try {
           if (callType === 'audio') {
-            // Audio-only: Only request microphone
             audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
             if (!isMounted) {
               audioTrack.close();
               return;
             }
           } else {
-            // Video call: Request both
             [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
             if (!isMounted) {
               audioTrack.close();
@@ -212,15 +212,13 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
             }
           }
         } catch (mediaError: any) {
-          console.error('Media permission error:', mediaError);
+          console.error('[Agora] Media permission error:', mediaError);
           if (!isMounted) return;
           if (mediaError.code === 'PERMISSION_DENIED' || mediaError.name === 'NotAllowedError') {
             showToast('Microphone/Camera permission denied. Please enable them in browser settings.', 'error');
           } else {
             showToast('Failed to access media devices: ' + mediaError.message, 'error');
           }
-          // Don't leave immediately, user might fix permissions? No, we need fresh tracks.
-          // Better to leave and let them try again.
           onLeave();
           return;
         }
@@ -230,26 +228,24 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           setLocalVideoTrack(videoTrack);
           if (isMounted) {
             await client.publish([audioTrack, videoTrack]);
-            videoTrack.play('local-video');
+            console.log('[Agora] Published local audio and video tracks');
           }
         } else {
           if (isMounted) {
             await client.publish([audioTrack]);
+            console.log('[Agora] Published local audio track');
           }
         }
 
         if (isMounted) {
-          console.log('Published local tracks');
           setIsJoined(true);
         }
 
       } catch (error: any) {
-        // If aborted due to Strict Mode unmount, ignore it
         if (!isMounted || error?.message?.includes('cancel') || error?.message?.includes('ABORT')) {
-           console.log("Join aborted (likely due to Strict Mode unmount). Ignoring.");
            return;
         }
-        console.error('Failed to join channel:', error);
+        console.error('[Agora] Failed to join channel:', error);
         showToast('Failed to join call: ' + (error as Error).message, 'error');
         onLeave();
       }
@@ -259,19 +255,18 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
     return () => {
       isMounted = false;
-      // Cleanup using refs (avoids stale closure bug)
       localAudioTrackRef.current?.close();
       localVideoTrackRef.current?.close();
       if (clientRef.current) {
-         clientRef.current.leave();
+         clientRef.current.leave().catch(() => {});
       }
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [appId, channelName, token, callType, onLeave, showToast]);
 
-  // Listen for call ended by partner
+  // Listen for call ended by partner in standard 1-on-1 calls
   useEffect(() => {
-    if (!callSessionId) return;
+    if (!callSessionId || callSessionId === 'discover_session') return;
 
     const channel = supabase
       .channel(`call_status:${callSessionId}`)
@@ -287,7 +282,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           const updatedSession = payload.new as any;
           if (updatedSession.status === 'ended') {
             console.log('Call ended by partner');
-            onLeave(); // Exit locally
+            onLeave();
           }
         }
       )
@@ -297,30 +292,6 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       supabase.removeChannel(channel);
     };
   }, [callSessionId, onLeave]);
-
-  // Play remote video when users join or update
-  useEffect(() => {
-    remoteUsers.forEach((user) => {
-      if (user.videoTrack) {
-        try {
-          // Verify container exists
-          const containerId = `remote-video-${user.uid}`;
-          const container = document.getElementById(containerId);
-          if (container) {
-            if (!user.videoTrack.isPlaying) {
-              user.videoTrack.play(containerId);
-              console.log(`Playing video for user ${user.uid}`);
-            }
-          } else {
-            console.warn(`Video container ${containerId} not found, retrying...`);
-            // Determine why container is missing. It should be rendered if user is in remoteUsers.
-          }
-        } catch (error) {
-          console.error('Error playing remote video:', error);
-        }
-      }
-    });
-  }, [remoteUsers]);
 
   const toggleMute = async () => {
     if (localAudioTrackRef.current) {
@@ -348,49 +319,38 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
   const handleEndCall = async () => {
     try {
-      if (clientRef.current) {
-         await clientRef.current.leave();
+      if (callSessionId && callSessionId !== 'discover_session') {
+        await endCallAPI(callSessionId);
       }
-    } catch (e) {
-      console.error('Error leaving channel:', e);
+    } catch (err) {
+      console.error('Error ending call API:', err);
     }
-
-    // Use refs to ensure we close the actual current tracks
-    localAudioTrackRef.current?.close();
-    localVideoTrackRef.current?.close();
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    // Update DB status to 'ended'
-    if (callSessionId) {
-      await endCallAPI(callSessionId);
-    }
-
     onLeave();
   };
 
-  // Network quality helper
   const getNetworkIcon = () => {
-    if (networkQuality <= 2) return <Wifi className="w-4 h-4 text-green-400" />;
-    if (networkQuality <= 4) return <Wifi className="w-4 h-4 text-yellow-400" />;
-    return <WifiOff className="w-4 h-4 text-red-400" />;
+    if (networkQuality === 0) return null;
+    if (networkQuality <= 2) return <Wifi className="w-3.5 h-3.5 text-emerald-400" />;
+    if (networkQuality <= 4) return <Wifi className="w-3.5 h-3.5 text-yellow-400" />;
+    return <WifiOff className="w-3.5 h-3.5 text-red-400" />;
   };
 
   const getNetworkLabel = () => {
     if (networkQuality === 0) return '';
-    if (networkQuality <= 2) return 'Strong';
-    if (networkQuality <= 4) return 'Weak';
+    if (networkQuality <= 2) return 'HD';
+    if (networkQuality <= 4) return 'SD';
     return 'Poor';
   };
 
   const handleResumeAudio = async () => {
-    console.log('[Autoplay] Attempting to resume remote audio tracks...');
+    console.log('[Autoplay] Resuming remote audio tracks...');
     let success = true;
     for (const user of remoteUsers) {
       if (user.audioTrack) {
         try {
           await user.audioTrack.play();
         } catch (err) {
-          console.error(`[Autoplay] Failed to play audio track for user ${user.uid}:`, err);
+          console.error(`[Autoplay] Failed to play audio for user ${user.uid}:`, err);
           success = false;
         }
       }
@@ -402,6 +362,8 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       showToast('Failed to enable some audio tracks. Please try again.', 'error');
     }
   };
+
+  const activeRemoteUser = remoteUsers.find(u => u.videoTrack);
 
   return (
     <div className="fixed inset-0 z-50 bg-[#03000a] flex flex-col font-sans select-none">
@@ -440,18 +402,14 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
       {/* Video Container */}
       <div className="flex-1 relative bg-gradient-to-b from-[#08020f] to-black flex items-center justify-center overflow-hidden">
-        {/* Render ALL remote users hidden or visible */}
+        {/* Render ALL remote users hidden or visible with dedicated RemoteVideoView */}
         {remoteUsers.map((user) => (
           <div
             key={user.uid}
             className={`absolute inset-0 ${user.videoTrack ? 'z-10' : '-z-10'}`}
             style={{ display: user.videoTrack ? 'block' : 'none' }}
           >
-            <div
-              id={`remote-video-${user.uid}`}
-              className="w-full h-full"
-              style={{ objectFit: 'cover' }}
-            />
+            <RemoteVideoView user={user} />
           </div>
         ))}
 
@@ -490,18 +448,14 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
             <h2 className="text-2xl font-bold text-white mb-1.5 tracking-tight">{partnerName}</h2>
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-neon animate-pulse" />
-              <span>{remoteUsers.length > 0 ? 'Connected • Live Audio' : 'Establishing connection...'}</span>
+              <span>{remoteUsers.length > 0 ? 'Connected • Live Audio' : 'Establishing video feed...'}</span>
             </div>
           </div>
         )}
 
         {/* Local Video (picture-in-picture) */}
         <div className={`absolute top-24 right-4 w-32 h-44 md:w-40 md:h-56 bg-black/80 backdrop-blur-md rounded-2xl overflow-hidden border-2 border-white/20 shadow-[0_15px_35px_rgba(0,0,0,0.8)] transition-all duration-300 z-30 ${(!localVideoTrack || isVideoOff) ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 scale-100'}`}>
-          <div
-            id="local-video"
-            className="w-full h-full"
-            style={{ objectFit: 'cover', transform: 'scaleX(-1)' }}
-          />
+          <LocalVideoView track={localVideoTrack} isVideoOff={isVideoOff} />
           <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm border border-white/10 text-[9px] font-bold uppercase tracking-wider text-white">
             You
           </div>
@@ -512,31 +466,32 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/95 via-black/70 to-transparent backdrop-blur-sm flex flex-wrap items-center justify-center gap-2.5 md:gap-6 z-40">
         <button
           onClick={toggleMute}
-          className={`p-3 md:p-4 rounded-full transition-all shrink-0 ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
-            }`}
+          className={`p-3 md:p-4 rounded-full transition-all shrink-0 ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'}`}
           aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
         >
           {isMuted ? <MicOff className="w-5 h-5 md:w-6 md:h-6 text-white" /> : <Mic className="w-5 h-5 md:w-6 md:h-6 text-white" />}
         </button>
 
-        <button
-          onClick={handleEndCall}
-          className="p-3.5 md:p-5 rounded-full bg-red-600 hover:bg-red-700 transition-all shadow-lg hover:scale-110 shrink-0"
-          aria-label="End call"
-        >
-          <PhoneOff className="w-6 h-6 md:w-8 md:h-8 text-white" />
-        </button>
+        {!customControls && (
+          <button
+            onClick={handleEndCall}
+            className="p-3.5 md:p-5 rounded-full bg-red-600 hover:bg-red-700 transition-all shadow-lg hover:scale-110 shrink-0"
+            aria-label="End call"
+          >
+            <PhoneOff className="w-6 h-6 md:w-8 md:h-8 text-white" />
+          </button>
+        )}
 
         {callType === 'video' && (
           <button
             onClick={toggleVideo}
-            className={`p-3 md:p-4 rounded-full transition-all shrink-0 ${isVideoOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
-              }`}
+            className={`p-3 md:p-4 rounded-full transition-all shrink-0 ${isVideoOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'}`}
             aria-label={isVideoOff ? "Turn on camera" : "Turn off camera"}
           >
             {isVideoOff ? <VideoOff className="w-5 h-5 md:w-6 md:h-6 text-white" /> : <VideoIcon className="w-5 h-5 md:w-6 md:h-6 text-white" />}
           </button>
         )}
+        
         {customControls}
       </div>
 
