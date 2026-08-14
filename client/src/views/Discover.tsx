@@ -192,9 +192,13 @@ export const Discover: React.FC = () => {
   }, [hasLiked, partnerLiked, state, currentUser]);
 
   // Send text message
+  const myTypingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleSendMessage = useCallback((textToSend?: string) => {
     const text = textToSend !== undefined ? textToSend : chatInput;
-    if (!text.trim() || !callInfoRef.current || !currentUser) return;
+    if (!text.trim() || !callInfoRef.current || !currentUser || isPartnerDisconnected) return;
+
+    if (myTypingTimerRef.current) clearTimeout(myTypingTimerRef.current);
 
     const newMessage: ChatMessage = {
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -212,12 +216,20 @@ export const Discover: React.FC = () => {
     });
 
     safeBroadcast('TYPING_STOP', { targetId: callInfoRef.current.partnerId });
-  }, [chatInput, currentUser, safeBroadcast]);
+  }, [chatInput, currentUser, isPartnerDisconnected, safeBroadcast]);
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setChatInput(e.target.value);
     if (!callInfoRef.current) return;
+    
     safeBroadcast('TYPING_START', { targetId: callInfoRef.current.partnerId });
+
+    if (myTypingTimerRef.current) clearTimeout(myTypingTimerRef.current);
+    myTypingTimerRef.current = setTimeout(() => {
+      if (callInfoRef.current) {
+        safeBroadcast('TYPING_STOP', { targetId: callInfoRef.current.partnerId });
+      }
+    }, 1500);
   };
 
   // Keyboard shortcut listener for Omegle-style navigation (ESC to skip)
@@ -981,7 +993,12 @@ export const Discover: React.FC = () => {
               type="text"
               value={chatInput}
               onChange={handleTyping}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
               placeholder="Type a message... (ESC to skip)"
               className="flex-1 bg-zinc-900 border border-white/10 focus:border-neon/40 text-white placeholder-gray-500 rounded-full px-4 py-2.5 text-xs outline-none transition-colors"
             />
