@@ -58,7 +58,20 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
       });
     }
 
-    const { college, branch, text, imageUrl, type, pollOptions } = req.body;
+    const { college, branch, text, imageUrl, videoUrl, type, pollOptions } = req.body;
+
+    // Strict media URL validation for security
+    const mediaUrl = videoUrl || imageUrl;
+    if (mediaUrl) {
+      try {
+        const parsed = new URL(mediaUrl);
+        if (!parsed.hostname.endsWith('supabase.co') || !parsed.pathname.includes('/storage/v1/object/public/')) {
+          return res.status(400).json({ error: 'Invalid media host URL' });
+        }
+      } catch (e) {
+        return res.status(400).json({ error: 'Malformed media URL' });
+      }
+    }
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -70,14 +83,15 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Attribute the guest confession to the shared proxy guest profile
+    const finalType = videoUrl ? 'video' : (type || 'text');
     const { data: post, error } = await supabase
       .from('confessions')
       .insert({
         user_id: GUEST_PROXY_PROFILE_ID,
         university: `${college}|${branch}`,
         text: text,
-        image_url: imageUrl,
-        type: type
+        image_url: mediaUrl || null,
+        type: finalType
       })
       .select().single();
 

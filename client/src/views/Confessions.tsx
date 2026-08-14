@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Confession } from '../types';
-import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost, School, Globe, Heart, Flame, Laugh, Sparkles, Eye, Check, MoreVertical, Share2, Copy } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost, School, Globe, Heart, Flame, Laugh, Sparkles, Eye, Check, MoreVertical, Share2, Copy, Video as VideoIcon } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
+import { VideoPlayer } from '../components/VideoPlayer';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 import { LoadingState } from '../components/LoadingState';
@@ -109,6 +110,8 @@ export const Confessions: React.FC = () => {
 
     const [newText, setNewText] = useState('');
     const [newImage, setNewImage] = useState<string | null>(null);
+    const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
+    const [videoUploading, setVideoUploading] = useState(false);
     const [isPosting, setIsPosting] = useState(false);
     const [viewImage, setViewImage] = useState<string | null>(null);
 
@@ -396,13 +399,14 @@ export const Confessions: React.FC = () => {
             id: optimisticId,
             userId: 'You',
             text: newText,
-            imageUrl: newImage || undefined,
+            imageUrl: uploadedVideoUrl ? undefined : (newImage || undefined),
+            videoUrl: uploadedVideoUrl || undefined,
             timestamp: Date.now(),
             likes: 0,
             reactions: {},
             comments: [],
             university: `${college}|${branch}`,
-            type: isPollMode ? 'poll' : 'text',
+            type: uploadedVideoUrl ? 'video' : (isPollMode ? 'poll' : 'text'),
             pollOptions: isPollMode ? pollOptions.filter(o => o.trim()).map((t, i) => ({ id: 'opt-opt-' + i, text: t, votes: 0 })) : undefined
         };
 
@@ -413,7 +417,7 @@ export const Confessions: React.FC = () => {
         });
 
         // Reset inputs immediately
-        setNewText(''); setNewImage(null); setIsPollMode(false); setPollOptions(['', '']);
+        setNewText(''); setNewImage(null); setUploadedVideoUrl(null); setIsPollMode(false); setPollOptions(['', '']);
 
         try {
             const userId = currentUser ? currentUser.id : 'a3e96230-6a78-4215-bcd0-882e1af61127';
@@ -458,7 +462,7 @@ export const Confessions: React.FC = () => {
                         user_id: userId,
                         university: `${college}|${branch}`,
                         text: optimisticPost.text,
-                        image_url: optimisticPost.imageUrl,
+                        image_url: optimisticPost.videoUrl || optimisticPost.imageUrl,
                         type: optimisticPost.type
                     })
                     .select().single();
@@ -489,6 +493,7 @@ export const Confessions: React.FC = () => {
                         branch,
                         text: optimisticPost.text,
                         imageUrl: optimisticPost.imageUrl,
+                        videoUrl: optimisticPost.videoUrl,
                         type: optimisticPost.type,
                         pollOptions: isPollMode ? pollOptions : undefined
                     })
@@ -503,7 +508,7 @@ export const Confessions: React.FC = () => {
                 post = resData.post;
             }
 
-            analytics.confessionPost(isPollMode ? 'poll' : newImage ? 'image' : 'text');
+            analytics.confessionPost(isPollMode ? 'poll' : uploadedVideoUrl ? 'video' : newImage ? 'image' : 'text');
 
             if (!currentUser) {
                 localStorage.setItem('otherhalf_guest_last_post_time', String(Date.now()));
@@ -529,7 +534,7 @@ export const Confessions: React.FC = () => {
     };
 
     const handlePost = async () => {
-        if (!isPollMode && !newText.trim() && !newImage) return;
+        if (!isPollMode && !newText.trim() && !newImage && !uploadedVideoUrl) return;
         if (isPollMode && (pollOptions.filter(o => o.trim()).length < 2 || !newText.trim())) return;
 
         if (!currentUser) {
@@ -603,7 +608,47 @@ export const Confessions: React.FC = () => {
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) { const reader = new FileReader(); reader.onloadend = () => setNewImage(reader.result as string); reader.readAsDataURL(file); }
+        if (file) { 
+            const reader = new FileReader(); 
+            reader.onloadend = () => {
+                setNewImage(reader.result as string);
+                setUploadedVideoUrl(null);
+            }; 
+            reader.readAsDataURL(file); 
+        }
+    };
+
+    const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) {
+            alert("Video exceeds 20MB limit. Please choose a shorter clip.");
+            return;
+        }
+
+        setVideoUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop() || 'mp4';
+            const fileName = `videos/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+
+            const { error: vErr } = await supabase.storage.from('confession-media').upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+            if (vErr) throw vErr;
+
+            const { data: { publicUrl } } = supabase.storage.from('confession-media').getPublicUrl(fileName);
+            setUploadedVideoUrl(publicUrl);
+            setNewImage(null);
+            setIsPollMode(false);
+            showToast('Video attached! 🎬');
+        } catch (err: any) {
+            console.error('Video upload error:', err);
+            alert(err.message || "Failed to upload video.");
+        } finally {
+            setVideoUploading(false);
+        }
     };
 
     const toggleComments = async (id: string) => {
@@ -825,7 +870,23 @@ export const Confessions: React.FC = () => {
                                         </div>
                                     </div>
                                     <p className="text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{conf.text}</p>
-                                    {conf.imageUrl && <div className="mb-4 rounded-lg overflow-hidden border border-gray-900 bg-black aspect-video" onClick={() => setViewImage(conf.imageUrl || null)}><img src={conf.imageUrl} className="w-full h-full object-cover" alt="Confession image" /></div>}
+                                    
+                                    {/* Image Media */}
+                                    {conf.imageUrl && !conf.imageUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i) && conf.type !== 'video' && (
+                                        <div className="mb-4 rounded-lg overflow-hidden border border-gray-900 bg-black aspect-video cursor-pointer" onClick={() => setViewImage(conf.imageUrl || null)}>
+                                            <img src={conf.imageUrl} className="w-full h-full object-cover" alt="Confession image" />
+                                        </div>
+                                    )}
+
+                                    {/* Video Media */}
+                                    {(conf.type === 'video' || conf.videoUrl || conf.imageUrl?.match(/\.(mp4|webm|mov)(\?.*)?$/i)) && (
+                                        <div className="mb-4">
+                                            <VideoPlayer 
+                                                src={conf.videoUrl || conf.imageUrl!} 
+                                                onDoubleTap={() => handleReaction(conf.id, '❤️')} 
+                                            />
+                                        </div>
+                                    )}
 
                                     {conf.type === 'poll' && conf.pollOptions && (
                                         <div className="mb-4 space-y-2.5 bg-black/40 p-3.5 rounded-2xl border border-white/10">
@@ -858,11 +919,7 @@ export const Confessions: React.FC = () => {
                                                                 {option.text}
                                                                 {isVoted && <Check className="w-3.5 h-3.5 text-neon stroke-[3]" />}
                                                             </span>
-                                                            {conf.userVote && (
-                                                                <span className={`text-[11px] font-bold font-mono ${isVoted ? 'text-neon' : 'text-gray-400'}`}>
-                                                                    {pct}% <span className="text-[9px] font-normal text-gray-500">({option.votes})</span>
-                                                                </span>
-                                                            )}
+                                                            <span className="text-[11px] font-mono text-gray-400 font-bold">{pct}%</span>
                                                         </div>
                                                     </button>
                                                 );
@@ -870,69 +927,56 @@ export const Confessions: React.FC = () => {
                                         </div>
                                     )}
 
-                                    <div className="flex flex-col gap-2 border-t border-gray-900 pt-3">
-                                        {/* Emoji Reaction Badges */}
-                                        {conf.reactions && Object.values(conf.reactions).some(v => v > 0) && (
-                                            <div className="flex flex-wrap gap-1.5 mb-2">
-                                                {Object.entries(conf.reactions).map(([e, c]) => {
-                                                    if (c <= 0) return null;
-                                                    return (
-                                                        <button
-                                                            key={e}
-                                                            onClick={() => handleReaction(conf.id, e)}
-                                                            className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all active:scale-95 ${
-                                                                conf.userReaction === e
-                                                                    ? 'bg-neon/20 border-neon text-white shadow-[0_0_8px_rgba(255,0,127,0.3)]'
-                                                                    : 'bg-gray-900 text-gray-400 border-gray-800 hover:border-gray-700'
-                                                            }`}
-                                                        >
-                                                            <span>{e}</span>
-                                                            <b className="font-mono">{c}</b>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                    {/* Action Row */}
+                                    <div className="flex items-center gap-3 pt-1 text-gray-400 border-t border-gray-800/40">
+                                        <button 
+                                            onClick={(e) => handleReactionClick(e, conf.id)}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                                conf.userReaction 
+                                                    ? 'bg-[#ff007f]/10 border-[#ff007f]/40 text-neon shadow-[0_0_15px_rgba(255,0,127,0.15)]' 
+                                                    : 'border-white/5 bg-white/5 hover:border-white/15 text-gray-300'
+                                            }`}
+                                        >
+                                            <span className="text-sm">{conf.userReaction || '❤️'}</span>
+                                            <span className="font-bold">{conf.likes > 0 ? conf.likes : 'Vibe'}</span>
+                                        </button>
 
-                                        {/* Comment Preview (Attraction Feature) */}
-                                        {!expandedComments[conf.id] && conf.comments && conf.comments.length > 0 && (
-                                            <div className="mb-3 bg-gray-900/20 p-2 rounded-lg border border-gray-800/50" onClick={() => toggleComments(conf.id)}>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-bold text-gray-500">{conf.comments[conf.comments.length - 1].userId}</span>
-                                                    <span className="text-[9px] text-gray-600">• Recent</span>
-                                                </div>
-                                                <p className="text-xs text-gray-400 truncate italic">"{conf.comments[conf.comments.length - 1].text.length > 60 ? conf.comments[conf.comments.length - 1].text.slice(0, 60) + '...' : conf.comments[conf.comments.length - 1].text}"</p>
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={(e) => handleReactionClick(e, conf.id)} className="flex items-center gap-2 text-gray-500 hover:text-white text-xs px-2 py-1 rounded-md hover:bg-gray-900"><SmilePlus className="w-4 h-4" /> React</button>
-                                            <button onClick={() => toggleComments(conf.id)} className="flex items-center gap-2 text-gray-500 hover:text-blue-400 text-xs px-2 py-1 rounded-md hover:bg-gray-900"><MessageCircle className="w-4 h-4" /> {conf.commentCount ?? conf.comments?.length ?? 0}</button>
-                                        </div>
+                                        <button 
+                                            onClick={() => toggleComments(conf.id)} 
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                                expandedComments[conf.id]
+                                                    ? 'bg-white/10 border-white/20 text-white'
+                                                    : 'border-white/5 bg-white/5 hover:border-white/15 text-gray-400 hover:text-gray-200'
+                                            }`}
+                                        >
+                                            <MessageCircle className="w-3.5 h-3.5" />
+                                            <span>{conf.comments?.length || conf.commentCount || 0}</span>
+                                        </button>
                                     </div>
 
+                                    {/* Expanded Comments */}
                                     {expandedComments[conf.id] && (
-                                        <div className="mt-3 pt-3 border-t border-gray-900">
-                                            <div className="space-y-2 mb-3 max-h-96 overflow-y-auto">
-                                                {conf.comments?.map(c => <div key={c.id} className="bg-gray-900/40 p-2 rounded-lg"><div className="flex justify-between mb-1"><span className="text-[10px] font-bold text-gray-500">{c.userId}</span></div><p className="text-xs text-gray-300">{c.text}</p></div>)}
+                                        <div className="mt-3 pt-3 border-t border-gray-800/50 space-y-2">
+                                            <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                                                {conf.comments?.map(com => (
+                                                    <div key={com.id} className="text-xs bg-gray-900/40 border border-gray-800/40 rounded-lg p-2 flex justify-between gap-2">
+                                                        <div>
+                                                            <span className="font-bold text-gray-400 block text-[10px]">{com.userId}</span>
+                                                            <p className="text-gray-300 mt-0.5">{com.text}</p>
+                                                        </div>
+                                                        <span className="text-[9px] text-gray-600 font-mono shrink-0">{com.timestamp ? new Date(com.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 mt-2">
                                                 <input 
-                                                    className="flex-1 bg-black border border-gray-800 rounded-lg px-3 py-2 text-xs text-white" 
-                                                    placeholder="Comment..." 
                                                     value={commentInputs[conf.id] || ''} 
-                                                    onChange={e => setCommentInputs(p => ({ ...p, [conf.id]: e.target.value }))} 
+                                                    onChange={e => setCommentInputs({ ...commentInputs, [conf.id]: e.target.value })} 
                                                     onKeyDown={e => e.key === 'Enter' && handleCommentSubmit(conf.id)} 
-                                                    onFocus={(e) => {
-                                                        if (!currentUser) {
-                                                            setShowAuthModal(true);
-                                                            e.currentTarget.blur();
-                                                        }
-                                                    }}
+                                                    placeholder="Add anonymous comment..." 
+                                                    className="flex-1 bg-gray-900/60 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 outline-none focus:border-gray-700" 
                                                 />
-                                                <button onClick={() => handleCommentSubmit(conf.id)} aria-label="Submit comment" className="p-2 bg-gray-800 text-white rounded-lg">
-                                                    <Send className="w-3.5 h-3.5" aria-hidden="true" />
-                                                </button>
+                                                <button onClick={() => handleCommentSubmit(conf.id)} className="p-1.5 bg-neon rounded-lg text-white hover:bg-neon/80"><Send className="w-3.5 h-3.5" /></button>
                                             </div>
                                         </div>
                                     )}
@@ -950,11 +994,26 @@ export const Confessions: React.FC = () => {
             <div className="fixed bottom-20 md:bottom-0 left-0 right-0 z-30 p-3 pointer-events-none flex justify-center w-full bg-gradient-to-t from-black via-black to-transparent pb-6 pt-10">
                 <div className="max-w-xl w-full pointer-events-auto">
                     <div className="bg-black border border-gray-800 rounded-full p-2 shadow-2xl flex items-center gap-2">
-                        {newImage && !isPollMode && <div className="relative w-10 h-10 ml-1"><img src={newImage} className="w-full h-full object-cover rounded-lg" /><button onClick={() => setNewImage(null)} className="absolute -top-1 -right-1 bg-gray-800 rounded-full p-0.5"><X className="w-2.5 h-2.5" /></button></div>}
+                        {newImage && !isPollMode && (
+                            <div className="relative w-10 h-10 ml-1 shrink-0">
+                                <img src={newImage} className="w-full h-full object-cover rounded-lg" alt="Preview" />
+                                <button onClick={() => setNewImage(null)} className="absolute -top-1 -right-1 bg-gray-800 rounded-full p-0.5"><X className="w-2.5 h-2.5" /></button>
+                            </div>
+                        )}
+                        {uploadedVideoUrl && !isPollMode && (
+                            <div className="relative flex items-center gap-1.5 bg-neon/15 border border-neon/30 rounded-xl px-2.5 py-1.5 ml-1 shrink-0">
+                                <VideoIcon className="w-4 h-4 text-neon" />
+                                <span className="text-[10px] font-bold text-neon uppercase tracking-wider">Video</span>
+                                <button onClick={() => setUploadedVideoUrl(null)} className="bg-black/60 hover:bg-black rounded-full p-0.5 text-gray-300 hover:text-white">
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        )}
                         <button 
                             onClick={() => { 
                                 setIsPollMode(!isPollMode); 
                                 setNewImage(null); 
+                                setUploadedVideoUrl(null);
                             }} 
                             aria-label={isPollMode ? 'Cancel poll mode' : 'Create a poll'}
                             aria-pressed={isPollMode}
@@ -963,25 +1022,48 @@ export const Confessions: React.FC = () => {
                             <BarChart2 className="w-5 h-5" aria-hidden="true" />
                         </button>
                         <div className="h-4 w-px bg-gray-800"></div>
+                        
+                        {/* Image picker */}
                         <input id="confession-image-input" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                         <button 
                             onClick={() => {
                                 document.getElementById('confession-image-input')?.click();
                             }} 
-                            disabled={isPollMode} 
+                            disabled={isPollMode || !!uploadedVideoUrl} 
                             aria-label="Upload image"
-                            className="p-2 text-gray-500"
+                            className="p-2 text-gray-500 hover:text-gray-300 disabled:opacity-30"
                         >
                             <ImageIcon className="w-5 h-5" aria-hidden="true" />
                         </button>
+
+                        {/* Video picker */}
+                        <input id="confession-video-input" type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleVideoUpload} />
+                        <button 
+                            onClick={() => {
+                                document.getElementById('confession-video-input')?.click();
+                            }} 
+                            disabled={isPollMode || !!newImage || videoUploading} 
+                            aria-label="Upload video"
+                            className={`p-2 transition-colors ${uploadedVideoUrl ? 'text-neon' : 'text-gray-500 hover:text-gray-300'} disabled:opacity-30`}
+                        >
+                            {videoUploading ? <Loader2 className="w-5 h-5 animate-spin text-neon" /> : <VideoIcon className="w-5 h-5" />}
+                        </button>
+
                         <input 
                             value={newText} 
                             onChange={e => setNewText(e.target.value)} 
-                            placeholder={isPollMode ? "Poll question..." : "Confess anonymously..."} 
+                            placeholder={isPollMode ? "Poll question..." : (uploadedVideoUrl ? "Add video caption..." : "Confess anonymously...")} 
                             aria-label={isPollMode ? 'Poll question' : 'Anonymous confession text'}
                             className="flex-1 bg-transparent text-white px-2 outline-none text-xs font-medium" 
                         />
-                        <button onClick={handlePost} aria-label="Post confession" disabled={isPosting || (!newText.trim() && !newImage)} className="p-2.5 bg-white rounded-full text-black hover:bg-gray-200">{isPosting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Send className="w-4 h-4" aria-hidden="true" />}</button>
+                        <button 
+                            onClick={handlePost} 
+                            aria-label="Post confession" 
+                            disabled={isPosting || videoUploading || (!newText.trim() && !newImage && !uploadedVideoUrl)} 
+                            className="p-2.5 bg-white rounded-full text-black hover:bg-gray-200 disabled:opacity-40"
+                        >
+                            {isPosting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Send className="w-4 h-4" aria-hidden="true" />}
+                        </button>
                     </div>
                     {isPollMode && (
                         <div className="mt-2 bg-black border border-gray-800 rounded-xl p-3 mx-2">

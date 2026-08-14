@@ -72,13 +72,14 @@ export interface Confession {
   userId: string;
   text: string;
   imageUrl?: string;
+  videoUrl?: string;
   timestamp: number;
   likes: number;
   reactions?: Record<string, number>;
   comments: Comment[];
   commentCount?: number; // Total count, separate from limited comments array
   university: string;
-  type?: 'text' | 'poll';
+  type?: 'text' | 'poll' | 'video';
   pollOptions?: PollOption[];
   userVote?: string;
   userReaction?: string; // Emoji user reacted with
