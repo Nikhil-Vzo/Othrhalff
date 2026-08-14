@@ -166,8 +166,9 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
         });
 
         client.on('user-left', (user) => {
-          console.log('[Agora] User left:', user.uid);
+          console.log('[Agora] Remote user left channel:', user.uid);
           setRemoteUsers((prev) => prev.filter(u => u.uid !== user.uid));
+          onLeave();
         });
 
         // Network quality monitoring
@@ -185,6 +186,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           } else if (curState === 'DISCONNECTED' && isMounted) {
             setIsReconnecting(false);
             showToast('Call disconnected', 'error');
+            onLeave();
           }
         });
 
@@ -255,8 +257,14 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
     return () => {
       isMounted = false;
-      localAudioTrackRef.current?.close();
-      localVideoTrackRef.current?.close();
+      try {
+        localAudioTrackRef.current?.stop();
+        localAudioTrackRef.current?.close();
+      } catch (e) {}
+      try {
+        localVideoTrackRef.current?.stop();
+        localVideoTrackRef.current?.close();
+      } catch (e) {}
       if (clientRef.current) {
          clientRef.current.leave().catch(() => {});
       }
