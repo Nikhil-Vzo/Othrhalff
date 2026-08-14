@@ -90,8 +90,9 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     }
   }, [activeBench]);
 
-  // COLLISION MASK ENGINE
+  // COLLISION MASK ENGINE (Cached Uint8ClampedArray for instant zero-copy lookups)
   const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const collisionPixelsRef = useRef<Uint8ClampedArray | null>(null);
 
   const checkPixelCollision = useCallback((x: number, y: number, size: number = 32) => {
     if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
@@ -105,14 +106,15 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (dist < benchCollisionRadius) return true;
     }
 
-    if (!maskCtxRef.current) return false;
+    if (!collisionPixelsRef.current) return false;
 
-    try {
-      const pixel = maskCtxRef.current.getImageData(Math.round(x), Math.round(y + size / 2), 1, 1).data;
-      return pixel[0] < 50;
-    } catch (e) {
-      return false;
-    }
+    const checkX = Math.round(x);
+    const checkY = Math.round(y + size / 2);
+    if (checkX < 0 || checkX >= WORLD_WIDTH || checkY < 0 || checkY >= WORLD_HEIGHT) return true;
+
+    // Fast array index lookup (4 bytes per pixel: R, G, B, A)
+    const index = (checkY * WORLD_WIDTH + checkX) * 4;
+    return collisionPixelsRef.current[index] < 50;
   }, []);
 
   const findNearestWalkablePosition = useCallback((startX: number, startY: number) => {
@@ -145,7 +147,13 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (ctx) {
         ctx.drawImage(maskImg, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         maskCtxRef.current = ctx;
-        console.log("Collision mask loaded successfully!");
+        try {
+          const imageData = ctx.getImageData(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+          collisionPixelsRef.current = imageData.data;
+          console.log("Collision mask pixels cached successfully!");
+        } catch (e) {
+          console.warn("Could not extract collision mask pixel buffer:", e);
+        }
         if (onCollisionCheckerReady) {
           onCollisionCheckerReady(findNearestWalkablePosition);
         }
@@ -283,20 +291,15 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
 
       // If mask isn't loaded, don't block
-      if (!maskCtxRef.current) return false;
+      if (!collisionPixelsRef.current) return false;
 
-      try {
-        // We check the pixel exactly at the character's feet (y + size/2)
-        const pixel = maskCtxRef.current.getImageData(Math.round(x), Math.round(y + size / 2), 1, 1).data;
-        // pixel is [R, G, B, A]. Black is [0, 0, 0, 255].
-        // If the red channel is very dark (e.g., < 50), we consider it a solid wall.
-        if (pixel[0] < 50) {
-          return true; // Collision!
-        }
-        return false;
-      } catch (e) {
-        return false;
-      }
+      const checkX = Math.round(x);
+      const checkY = Math.round(y + size / 2);
+      if (checkX < 0 || checkX >= WORLD_WIDTH || checkY < 0 || checkY >= WORLD_HEIGHT) return true;
+
+      // Fast array index lookup (4 bytes per pixel: R, G, B, A)
+      const index = (checkY * WORLD_WIDTH + checkX) * 4;
+      return collisionPixelsRef.current[index] < 50;
     };
 
     const updateLoop = (timestamp: number) => {
@@ -392,9 +395,9 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y + (sitState === 'SITTING' ? 15 : 0)}px, 0) scale(0.6)`;
       }
 
-      // Network broadcast: Instant (0ms) on start/stop/turn, 50ms continuous for 60fps real-time sync
+      // Network broadcast: Instant (0ms) on start/stop/turn, 100ms continuous for smooth real-time sync
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
-      if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 50))) {
+      if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 100))) {
         onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving, activeBenchRef.current);
         lastBroadcastTime = timestamp;
       }

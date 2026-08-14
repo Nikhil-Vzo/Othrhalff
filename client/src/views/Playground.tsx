@@ -41,6 +41,7 @@ export const Playground: React.FC = () => {
   const [gpsStatus, setGpsStatus] = useState<'DISABLED' | 'ACQUIRING' | 'LOCKED' | 'ERROR'>('DISABLED');
   const gpsAnchorRef = useRef<{ lat: number; lng: number; x: number; y: number } | null>(null);
   const collisionCheckerRef = useRef<((x: number, y: number) => { x: number; y: number; isBlocked: boolean }) | null>(null);
+  const dexieSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleCollisionCheckerReady = useCallback((checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => {
     collisionCheckerRef.current = checker;
@@ -48,6 +49,36 @@ export const Playground: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Periodic cleanup for speech bubbles (sweeps expired bubbles every second, avoids memory leaks)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSpeechBubbles(prev => {
+        if (prev.size === 0) return prev;
+        const now = Date.now();
+        let changed = false;
+        const newMap = new Map(prev);
+        newMap.forEach((bubble, id) => {
+          if (now - bubble.timestamp > 7000) {
+            newMap.delete(id);
+            changed = true;
+          }
+        });
+        return changed ? newMap : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Clean up Dexie debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dexieSaveTimeoutRef.current) {
+        clearTimeout(dexieSaveTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Load saved position and GPS preferences from Dexie IndexedDB
@@ -104,23 +135,13 @@ export const Playground: React.FC = () => {
       setOnlineCount(Object.keys(state).length);
     });
 
-    // Handle Speech Bubbles
+    // Handle Speech Bubbles (automatic sweeping interval manages expiration)
     channel.on('broadcast', { event: 'speech_bubble' }, ({ payload }) => {
       setSpeechBubbles(prev => {
         const newMap = new Map(prev);
         newMap.set(payload.id, { text: payload.text, timestamp: Date.now() });
         return newMap;
       });
-      
-      // Auto-clear bubble after 7 seconds
-      setTimeout(() => {
-        setSpeechBubbles(prev => {
-          const m = new Map(prev);
-          const current = m.get(payload.id);
-          m.delete(payload.id);
-          return m;
-        });
-      }, 7000);
     });
 
     channel.on('presence', { event: 'leave' }, ({ key }) => {
@@ -192,15 +213,18 @@ export const Playground: React.FC = () => {
     }
     broadcastPosition(x, y, dir, moving, sittingOn);
 
-    // Save to Dexie IndexedDB
+    // Debounce Save to Dexie IndexedDB (saves 2s after movement stops, avoiding 20 writes/sec battery drain)
     if (currentUser?.id) {
-      db.playground_settings.put({
-        id: currentUser.id,
-        last_x: Math.round(x),
-        last_y: Math.round(y),
-        gps_enabled: gpsEnabled,
-        updated_at: Date.now()
-      }).catch(() => {});
+      if (dexieSaveTimeoutRef.current) clearTimeout(dexieSaveTimeoutRef.current);
+      dexieSaveTimeoutRef.current = setTimeout(() => {
+        db.playground_settings.put({
+          id: currentUser.id,
+          last_x: Math.round(x),
+          last_y: Math.round(y),
+          gps_enabled: gpsEnabled,
+          updated_at: Date.now()
+        }).catch(() => {});
+      }, 2000);
     }
   }, [broadcastPosition, sitState, currentUser?.id, gpsEnabled]);
 
@@ -217,21 +241,12 @@ export const Playground: React.FC = () => {
       payload: { id: sessionId, text }
     });
 
-    // Show locally immediately
+    // Show locally immediately (sweeping interval will clean up)
     setSpeechBubbles(prev => {
       const newMap = new Map(prev);
       newMap.set(sessionId, { text, timestamp: Date.now() });
       return newMap;
     });
-
-    // Auto-clear local
-    setTimeout(() => {
-      setSpeechBubbles(prev => {
-        const m = new Map(prev);
-        m.delete(sessionId);
-        return m;
-      });
-    }, 7000);
 
     setChatInput('');
     setShowEmojiPicker(false);
