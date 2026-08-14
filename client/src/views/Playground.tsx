@@ -4,17 +4,13 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MapPin, MapPinOff, Users, Smile, Send, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { MapPin, MapPinOff, Users, Smile, Send } from 'lucide-react';
 import { db } from '../lib/db';
-import { LiveKitRoom, useTracks, RoomAudioRenderer } from '@livekit/components-react';
+import { useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useSpatialAudio } from '../hooks/useSpatialAudio';
 
-interface PlaygroundContentProps {
-  isVoiceConnected?: boolean;
-}
-
-const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected = false }) => {
+export const Playground: React.FC = () => {
   const { currentUser } = useAuth();
   const [remotePlayers, setRemotePlayers] = useState<Map<string, Player>>(new Map());
   const [onlineCount, setOnlineCount] = useState(0);
@@ -50,18 +46,16 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
   const collisionCheckerRef = useRef<((x: number, y: number) => { x: number; y: number; isBlocked: boolean }) | null>(null);
   const dexieSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🎙️ LiveKit Spatial Proximity Audio integration
+  // 🎙️ LiveKit Spatial Proximity Audio
   let tracks: any[] = [];
   try {
-    if (isVoiceConnected) {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      tracks = useTracks([Track.Source.Microphone]);
-    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    tracks = useTracks([Track.Source.Microphone]);
   } catch {
-    // Graceful fallback if not wrapped in LiveKitRoom
+    // Graceful fallback if rendered standalone without LiveKitRoom
   }
 
-  // Ref map of remote player coordinates for audio attenuation
+  // Ref map of remote player coordinates for spatial audio calculation
   const remotePosMap = useRef(new Map<string, { x: number; y: number }>());
 
   useEffect(() => {
@@ -70,7 +64,7 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
     });
   }, [remotePlayers]);
 
-  // Hook dynamically attenuates gain based on player distance
+  // Hook dynamically attenuates volume based on distance in the 2D world
   useSpatialAudio(myPos, remotePosMap.current, tracks, 500);
 
   const handleCollisionCheckerReady = useCallback((checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => {
@@ -140,6 +134,7 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
     let isSubscribed = true;
     setConnectionStatus('CONNECTING');
 
+    // Use a clean, global channel name without complex config overrides
     const channel = supabase.channel('playground-global');
 
     channel.on('broadcast', { event: 'move' }, ({ payload }) => {
@@ -300,6 +295,7 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
       seatX = benchX - 25; // Right is taken
     }
 
+    // Move the avatar further down so they sit on the grey seat area instead of floating on the backrest
     const seatY = benchY + 15;
     
     setSitState('SITTING');
@@ -420,12 +416,12 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
       {/* Instructions Overlay */}
       <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
         <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
-          {gpsEnabled ? 'GPS Tracking Active • Walk outside to move' : 'Use W A S D or Touch to Move'}
+          {gpsEnabled ? 'GPS Tracking Active • Walk outside to move' : 'Use W A S D or Arrow Keys to Move'}
         </p>
       </div>
 
       {/* Top HUD overlay */}
-      <div className="absolute top-4 left-4 z-20 flex gap-3 pointer-events-none items-center flex-wrap">
+      <div className="absolute top-4 left-4 z-20 flex gap-4 pointer-events-none items-center flex-wrap">
         {/* User Profile Pic */}
         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 bg-gray-900 pointer-events-auto cursor-pointer shadow-lg hover:border-neon transition-colors" onClick={() => window.location.href = '/profile'}>
           {currentUser.avatar ? (
@@ -482,7 +478,7 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
       </div>
 
       {/* The 2D World */}
-      <div className="flex-1 relative pb-16">
+      <div className="flex-1 relative pb-16"> {/* Add padding for the chat bar */}
         <PlaygroundCanvas
           localPlayerId={currentUser.id}
           localSessionId={sessionId}
@@ -549,80 +545,5 @@ const PlaygroundContent: React.FC<PlaygroundContentProps> = ({ isVoiceConnected 
   );
 };
 
-export const Playground: React.FC = () => {
-  const [livekitToken, setLivekitToken] = useState<string | null>(null);
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
-  const { currentUser } = useAuth();
 
-  const handleToggleVoice = async () => {
-    if (voiceEnabled) {
-      setVoiceEnabled(false);
-      return;
-    }
 
-    try {
-      setIsVoiceLoading(true);
-      const identity = currentUser?.id || `anon-${Math.random().toString(36).substring(2, 9)}`;
-      const name = currentUser?.realName || 'Student';
-      const res = await fetch(`/api/livekit-token?room=playground-global-voice&identity=${encodeURIComponent(identity)}&name=${encodeURIComponent(name)}`);
-      const data = await res.json();
-      if (data.token) {
-        setLivekitToken(data.token);
-        setVoiceEnabled(true);
-      }
-    } catch (err) {
-      console.warn('[LiveKit Token Fetch Error]:', err);
-    } finally {
-      setIsVoiceLoading(false);
-    }
-  };
-
-  const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://othrhalff-tmqcxj0g.livekit.cloud';
-
-  return (
-    <div className="relative w-full h-full">
-      {/* Floating Proximity Voice Toggle Button */}
-      <div className="absolute top-4 right-4 z-40">
-        <button
-          onClick={handleToggleVoice}
-          disabled={isVoiceLoading}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-xl backdrop-blur-md transition-all active:scale-95 cursor-pointer font-bold text-xs ${
-            voiceEnabled
-              ? 'bg-emerald-950/80 border-emerald-400 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.4)]'
-              : 'bg-gray-900/80 border-white/15 text-gray-300 hover:text-white hover:border-white/30'
-          }`}
-          title="Toggle 2D Proximity Voice Chat"
-        >
-          {voiceEnabled ? (
-            <>
-              <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span>Voice ON (Proximity)</span>
-            </>
-          ) : (
-            <>
-              <MicOff className="w-4 h-4 text-gray-400" />
-              <span>{isVoiceLoading ? 'Connecting Voice...' : 'Enable Proximity Voice'}</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {voiceEnabled && livekitToken ? (
-        <LiveKitRoom
-          serverUrl={livekitUrl}
-          token={livekitToken}
-          connect={true}
-          audio={true}
-          video={false}
-          className="w-full h-full"
-        >
-          <RoomAudioRenderer />
-          <PlaygroundContent isVoiceConnected={true} />
-        </LiveKitRoom>
-      ) : (
-        <PlaygroundContent isVoiceConnected={false} />
-      )}
-    </div>
-  );
-};
