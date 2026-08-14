@@ -1,5 +1,5 @@
 export const loadingQuotes = [
-    "Patience is the key to the heart (speaking from experience!).",
+    "Patience is the key to the heart (personal experience!).",
     "Good things come to those who wait.",
     "Searching for your other half across the crowd...",
     "A real connection is always worth the wait.",

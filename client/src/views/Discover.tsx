@@ -3,8 +3,8 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { supabase } from '../lib/supabase';
-import { 
-  Heart, SkipForward, MessageSquare, Video, Send, 
+import {
+  Heart, SkipForward, MessageSquare, Video, Send,
   ArrowLeft, Globe, School, Sparkles, RefreshCw, Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -30,11 +30,11 @@ export const Discover: React.FC = () => {
   const { totalOnlineCount } = usePresence();
   const router = useRouter();
 
-  // Mode and Scope (Default to Video Call)
-  const [mode, setMode] = useState<DiscoverMode>('VIDEO');
+  // Mode and Scope
+  const [mode, setMode] = useState<DiscoverMode>('TEXT');
   const [scope, setScope] = useState<DiscoverScope>(() => currentUser?.university ? 'CAMPUS' : 'GLOBAL');
   const [state, setState] = useState<DiscoverState>('IDLE');
-  
+
   // Realtime channel and metrics — initialize with 1 minimum
   const [channel, setChannel] = useState<any>(null);
   const [activeUsersCount, setActiveUsersCount] = useState<number>(1);
@@ -73,7 +73,7 @@ export const Discover: React.FC = () => {
   const callInfoRef = useRef(callInfo);
   const channelRef = useRef<any>(null);
   const isSubscribedRef = useRef(false);
-  
+
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { scopeRef.current = scope; }, [scope]);
@@ -162,7 +162,7 @@ export const Discover: React.FC = () => {
   const handleLike = useCallback(async () => {
     if (hasLiked || !callInfoRef.current || !currentUser) return;
     setHasLiked(true);
-    
+
     safeBroadcast('LIKE', { targetId: callInfoRef.current.partnerId });
 
     if (partnerLiked) {
@@ -230,7 +230,7 @@ export const Discover: React.FC = () => {
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setChatInput(e.target.value);
     if (!callInfoRef.current) return;
-    
+
     safeBroadcast('TYPING_START', { targetId: callInfoRef.current.partnerId });
 
     if (myTypingTimerRef.current) clearTimeout(myTypingTimerRef.current);
@@ -263,7 +263,7 @@ export const Discover: React.FC = () => {
     try {
       const stateTree = activeChannel.presenceState();
       const allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
-      
+
       const realPoolCount = Math.max(allUsers.length, 1);
       setActiveUsersCount(realPoolCount);
       return allUsers;
@@ -349,7 +349,7 @@ export const Discover: React.FC = () => {
               'Authorization': `Bearer ${data.session.access_token}`
             },
             body: JSON.stringify({ userId: currentUser.id })
-          }).catch(() => {});
+          }).catch(() => { });
         }
       });
     };
@@ -365,7 +365,7 @@ export const Discover: React.FC = () => {
     }
 
     const newChannel = supabase.channel('discover-pool', {
-      config: { 
+      config: {
         presence: { key: currentUser.id },
         broadcast: { self: false, ack: false }
       }
@@ -510,22 +510,20 @@ export const Discover: React.FC = () => {
                 }
                 setScope('CAMPUS');
               }}
-              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                scope === 'CAMPUS'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${scope === 'CAMPUS'
+                ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
+                : 'text-gray-400 hover:text-white'
+                }`}
             >
               <School className="w-3.5 h-3.5 shrink-0" />
               <span>Campus</span>
             </button>
             <button
               onClick={() => setScope('GLOBAL')}
-              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                scope === 'GLOBAL'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${scope === 'GLOBAL'
+                ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
+                : 'text-gray-400 hover:text-white'
+                }`}
             >
               <Globe className="w-3.5 h-3.5 shrink-0" />
               <span>Global</span>
@@ -538,10 +536,10 @@ export const Discover: React.FC = () => {
           <div className="relative mb-6">
             <div className="absolute inset-0 bg-gradient-to-tr from-neon/30 to-purple-600/30 rounded-full blur-3xl -z-10 animate-pulse" />
             <div className="w-24 h-24 rounded-3xl bg-zinc-900/90 border border-white/15 flex items-center justify-center text-white shadow-[0_0_40px_rgba(255,0,127,0.25)] backdrop-blur-2xl overflow-hidden p-3">
-              <img 
-                src="/discover_icon.webp" 
-                alt="Discover" 
-                className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]" 
+              <img
+                src="/discover_icon.webp"
+                alt="Discover"
+                className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]"
               />
             </div>
           </div>
@@ -550,34 +548,32 @@ export const Discover: React.FC = () => {
             Speed <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon to-pink-500">Discover</span>
           </h1>
           <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-8">
-            Connect instantly with verified college students. Match anonymously, chat or video call, and tap ❤️ if you vibe.
+            Chat or video call with random people around you.
           </p>
 
           {/* Controls Container (Matching Width) */}
           <div className="w-full max-w-sm flex flex-col gap-4 mb-8">
-            {/* Mode Selector Tabs (Video Call first, Text Chat second) */}
+            {/* Mode Selector Tabs (Text vs Video) */}
             <div className="grid grid-cols-2 gap-1.5 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-full backdrop-blur-xl">
               <button
-                onClick={() => setMode('VIDEO')}
-                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
-                  mode === 'VIDEO'
-                    ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Video className="w-4 h-4 shrink-0" />
-                <span>Video Call</span>
-              </button>
-              <button
                 onClick={() => setMode('TEXT')}
-                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
-                  mode === 'TEXT'
-                    ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${mode === 'TEXT'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
               >
                 <MessageSquare className="w-4 h-4 shrink-0" />
                 <span>Text Chat</span>
+              </button>
+              <button
+                onClick={() => setMode('VIDEO')}
+                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${mode === 'VIDEO'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+              >
+                <Video className="w-4 h-4 shrink-0" />
+                <span>Video Call</span>
               </button>
             </div>
 
@@ -642,7 +638,7 @@ export const Discover: React.FC = () => {
             Searching for a Match...
           </h2>
           <p className="text-gray-400 text-xs md:text-sm font-mono mb-4">
-            {scope === 'CAMPUS' && currentUser?.university 
+            {scope === 'CAMPUS' && currentUser?.university
               ? `Looking within ${currentUser.university}...`
               : 'Looking for verified students globally...'}
           </p>
@@ -735,7 +731,7 @@ export const Discover: React.FC = () => {
                 {callInfo?.partnerName || 'Student'}
               </h3>
               <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> 
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Connected {callInfo?.partnerUniversity ? `• ${callInfo.partnerUniversity}` : ''}
               </p>
             </div>
@@ -744,11 +740,10 @@ export const Discover: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleLike}
-              className={`w-9 h-9 md:w-10 md:h-10 rounded-full border flex items-center justify-center transition-all ${
-                hasLiked
-                  ? 'bg-neon border-neon text-white shadow-lg shadow-neon/40'
-                  : 'bg-black/60 border-white/10 text-gray-400 hover:text-white'
-              }`}
+              className={`w-9 h-9 md:w-10 md:h-10 rounded-full border flex items-center justify-center transition-all ${hasLiked
+                ? 'bg-neon border-neon text-white shadow-lg shadow-neon/40'
+                : 'bg-black/60 border-white/10 text-gray-400 hover:text-white'
+                }`}
               title="Like Partner"
               aria-label="Like"
             >
@@ -785,11 +780,10 @@ export const Discover: React.FC = () => {
             const isMe = msg.senderId === currentUser?.id;
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] md:max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                  isMe 
-                    ? 'bg-gradient-to-r from-neon to-pink-600 text-white rounded-br-none shadow-sm' 
-                    : 'bg-zinc-900 text-gray-200 border border-white/10 rounded-bl-none'
-                }`}>
+                <div className={`max-w-[80%] md:max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${isMe
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white rounded-br-none shadow-sm'
+                  : 'bg-zinc-900 text-gray-200 border border-white/10 rounded-bl-none'
+                  }`}>
                   {msg.text}
                 </div>
               </div>
@@ -890,7 +884,7 @@ export const Discover: React.FC = () => {
           callSessionId="discover_session"
           customControls={
             <div className="flex items-center gap-2 md:gap-3">
-              <button 
+              <button
                 onClick={handleSkip}
                 className="w-12 h-12 md:w-14 md:h-14 bg-black/60 border border-white/10 hover:bg-white/10 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform shrink-0"
                 title="Next Person (or press ESC)"
@@ -898,13 +892,12 @@ export const Discover: React.FC = () => {
               >
                 <SkipForward className="w-5 h-5 md:w-6 md:h-6" />
               </button>
-              <button 
+              <button
                 onClick={handleLike}
-                className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all shrink-0 ${
-                  hasLiked 
-                    ? 'bg-neon shadow-[0_0_25px_rgba(255,0,127,0.8)] scale-105' 
-                    : 'bg-black/60 border border-white/10 hover:bg-neon/30'
-                }`}
+                className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all shrink-0 ${hasLiked
+                  ? 'bg-neon shadow-[0_0_25px_rgba(255,0,127,0.8)] scale-105'
+                  : 'bg-black/60 border border-white/10 hover:bg-neon/30'
+                  }`}
                 title="Like Person"
                 aria-label="Like Person"
               >
