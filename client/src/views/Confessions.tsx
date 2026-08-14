@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Confession } from '../types';
-import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost, School, Globe, Heart, Flame, Laugh, Sparkles, Eye, Check } from 'lucide-react';
-import { EmojiClickData } from 'emoji-picker-react';
+import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost, School, Globe, Heart, Flame, Laugh, Sparkles, Eye, Check, MoreVertical, Share2, Copy } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
@@ -129,6 +128,56 @@ export const Confessions: React.FC = () => {
     // Pagination State
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
+
+    // 3-Dot Card Menu & Toast State
+    const [activeCardMenu, setActiveCardMenu] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 2200);
+    };
+
+    const handleShareConfession = async (conf: Confession) => {
+        const { college } = parseUniversity(conf.university);
+        const cleanCollege = college
+            ? college.split(',')[0].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')
+            : 'global';
+        const shareUrl = `${window.location.origin}/tea/${encodeURIComponent(cleanCollege)}/${conf.id}`;
+        const shareText = conf.text.length > 120 ? conf.text.substring(0, 120) + '...' : conf.text;
+
+        if (typeof navigator !== 'undefined' && navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Othrhalff Campus Tea',
+                    text: shareText,
+                    url: shareUrl,
+                });
+            } catch (err) {
+                // User dismissed native share sheet
+            }
+        } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                showToast('Link copied to clipboard! 🔗');
+            } catch (err) {
+                console.error('Failed to copy share link:', err);
+            }
+        }
+        setActiveCardMenu(null);
+    };
+
+    const handleCopyText = async (conf: Confession) => {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            try {
+                await navigator.clipboard.writeText(conf.text);
+                showToast('Confession text copied! 📋');
+            } catch (err) {
+                console.error('Failed to copy text:', err);
+            }
+        }
+        setActiveCardMenu(null);
+    };
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -174,39 +223,6 @@ export const Confessions: React.FC = () => {
                 };
                 setConfessions(prev => {
                     const updated = [newConfession, ...prev];
-                    writeCache(feedMode, updated);
-                    return updated;
-                });
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'confession_reactions' }, (payload) => {
-                const event = payload.eventType;
-                const record = (event === 'DELETE' ? payload.old : payload.new) as any;
-                const confessionId = record.confession_id;
-
-                // Skip own reactions — already handled optimistically in handleReaction
-                if (currentUser && record.user_id === currentUser.id) return;
-
-                setConfessions(prev => {
-                    const exists = prev.some(c => c.id === confessionId);
-                    if (!exists) return prev;
-                    const updated = prev.map(c => {
-                        if (c.id !== confessionId) return c;
-                        const newReactions = { ...c.reactions };
-                        let newLikes = c.likes;
-
-                        if (event === 'INSERT') {
-                            newReactions[record.emoji] = (newReactions[record.emoji] || 0) + 1;
-                            newLikes += 1;
-                        } else if (event === 'DELETE') {
-                            newReactions[record.emoji] = Math.max(0, (newReactions[record.emoji] || 1) - 1);
-                            newLikes = Math.max(0, newLikes - 1);
-                        } else if (event === 'UPDATE') {
-                            const oldEmoji = (payload.old as any)?.emoji;
-                            if (oldEmoji) newReactions[oldEmoji] = Math.max(0, (newReactions[oldEmoji] || 1) - 1);
-                            newReactions[record.emoji] = (newReactions[record.emoji] || 0) + 1;
-                        }
-                        return { ...c, reactions: newReactions, likes: newLikes };
-                    });
                     writeCache(feedMode, updated);
                     return updated;
                 });
@@ -749,7 +765,7 @@ export const Confessions: React.FC = () => {
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? 'bg-neon text-white' : 'bg-gray-900 border border-gray-800'}`}>
                                             {conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? <Crown className="w-5 h-5" /> : <span className="text-sm font-bold text-gray-500">?</span>}
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className={`text-sm font-bold ${conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? 'text-neon' : 'text-gray-300'}`}>{conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? 'Team Other Half' : conf.userId}</span>
                                                 {feedMode === 'global' && college && (
@@ -758,12 +774,54 @@ export const Confessions: React.FC = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex justify-between mt-0.5">
+                                            <div className="flex justify-between items-center mt-0.5">
                                                 <p className="text-[10px] text-gray-600 uppercase font-bold">
                                                     {department || 'General'}
                                                 </p>
                                                 <span className="text-[10px] text-gray-600 font-mono">{new Date(conf.timestamp).toLocaleDateString()}</span>
                                             </div>
+                                        </div>
+
+                                        {/* 3-Dot Action Menu (Share & Copy) */}
+                                        <div className="relative shrink-0">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveCardMenu(activeCardMenu === conf.id ? null : conf.id);
+                                                }}
+                                                aria-label="Post actions"
+                                                className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                                            >
+                                                <MoreVertical className="w-4 h-4" />
+                                            </button>
+
+                                            {activeCardMenu === conf.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-30 bg-transparent" onClick={() => setActiveCardMenu(null)} />
+                                                    <div className="absolute right-0 top-8 w-40 bg-[#0d0714]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.85)] z-40 animate-in fade-in zoom-in-95 duration-100">
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleShareConfession(conf);
+                                                            }}
+                                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                                                        >
+                                                            <Share2 className="w-4 h-4 text-neon shrink-0" />
+                                                            <span>Share Link</span>
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleCopyText(conf);
+                                                            }}
+                                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                                                        >
+                                                            <Copy className="w-4 h-4 text-gray-400 shrink-0" />
+                                                            <span>Copy Text</span>
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                     <p className="text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{conf.text}</p>
@@ -958,6 +1016,14 @@ export const Confessions: React.FC = () => {
             )}
             {viewImage && <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4" onClick={() => setViewImage(null)}><img src={viewImage} className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} /></div>}
             
+            {/* Action Feedback Toast */}
+            {toastMessage && (
+                <div className="fixed bottom-24 md:bottom-12 left-1/2 -translate-x-1/2 z-50 bg-[#160b24]/95 border border-white/20 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-[0_10px_30px_rgba(255,0,127,0.3)] backdrop-blur-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <Check className="w-4 h-4 text-neon" />
+                    <span>{toastMessage}</span>
+                </div>
+            )}
+
             <AuthPromptModal
                 isOpen={showAuthModal}
                 onClose={() => {
