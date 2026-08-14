@@ -94,6 +94,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     pathname === '/matches' ||
     pathname === '/confessions' ||
     pathname === '/notifications' ||
+    pathname === '/playground' ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/chat') ||
     pathname.startsWith('/sparx');
