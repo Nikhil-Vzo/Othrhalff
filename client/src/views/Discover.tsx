@@ -533,15 +533,14 @@ export const Discover: React.FC = () => {
 
         {/* Center Hero Section */}
         <div className="w-full flex-1 flex flex-col items-center justify-center my-8 text-center max-w-lg">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-gradient-to-tr from-neon/30 to-purple-600/30 rounded-full blur-3xl -z-10 animate-pulse" />
-            <div className="w-24 h-24 rounded-3xl bg-zinc-900/90 border border-white/15 flex items-center justify-center text-white shadow-[0_0_40px_rgba(255,0,127,0.25)] backdrop-blur-2xl overflow-hidden p-3">
-              <img
-                src="/discover_icon.webp"
-                alt="Discover"
-                className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]"
-              />
-            </div>
+          {/* Center Hero Icon (Scaled 2x) */}
+          <div className="relative mb-6 flex items-center justify-center">
+            <div className="absolute inset-0 max-w-[280px] max-h-[280px] mx-auto bg-gradient-to-tr from-neon/35 via-purple-600/30 to-pink-500/25 rounded-full blur-3xl -z-10 animate-pulse" />
+            <img
+              src="/discover_icon.webp"
+              alt="Discover Icon"
+              className="w-56 h-56 md:w-64 md:h-64 object-contain drop-shadow-[0_16px_50px_rgba(255,0,127,0.4)] select-none hover:scale-105 transition-transform duration-300 pointer-events-none"
+            />
           </div>
 
           <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
