@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
+import { curatedRomanticTracks, trendingRomanticQueries } from '../../data/pcoRomanticTracks';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'room';
 type LyricLine = { time: number; text: string };
@@ -153,18 +154,18 @@ export const MusicDate = () => {
 
     const handleHostDisconnect = async () => {
         setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
-
+        
         const remainingPeerIds = [myPeerIdRef.current, ...peersRef.current.map(p => p.peerId)].sort();
-
+        
         if (remainingPeerIds.length === 0) return;
-
+        
         const newHostId = remainingPeerIds[0];
-
+        
         if (newHostId === myPeerIdRef.current) {
             console.log("We have been elected as the new host!");
             setIsHost(true);
             setRoomHostId(myPeerIdRef.current);
-
+            
             if (supabase) {
                 try {
                     await supabase
@@ -277,7 +278,7 @@ export const MusicDate = () => {
                     .from('matches')
                     .select('id, user_a, user_b')
                     .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
-
+                
                 if (matchesError) throw matchesError;
                 if (!matchesData || matchesData.length === 0) return;
 
@@ -381,6 +382,290 @@ export const MusicDate = () => {
         };
     }, [mode]);
 
+    // Admin & PCO State
+    const isAdminUser = ['avneesh', 'othrhalff'].includes(
+        (currentUser?.realName || currentUser?.anonymousId || '').toLowerCase()
+    );
+    const [dailyRequestsUsed, setDailyRequestsUsed] = useState(0);
+    const [isSidebarHidden, setIsSidebarHidden] = useState(false);
+    const [isMobilePcoPanel, setIsMobilePcoPanel] = useState(false);
+    const [floatingNotifications, setFloatingNotifications] = useState<{ id: string; user: string; text: string }[]>([]);
+
+    // Playlist Link Import State (For standard Soul Sync rooms)
+    const [isImportingPlaylist, setIsImportingPlaylist] = useState(false);
+    const [importStatus, setImportStatus] = useState<string | null>(null);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [playlistUrlInput, setPlaylistUrlInput] = useState('');
+
+    const addFloatingNotification = (user: string, text: string) => {
+        const id = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        setFloatingNotifications(prev => [...prev.slice(-3), { id, user, text }]);
+        setTimeout(() => {
+            setFloatingNotifications(prev => prev.filter(item => item.id !== id));
+        }, 2000);
+    };
+
+    const [adminRequestModal, setAdminRequestModal] = useState<{ requester: string; track: Track } | null>(null);
+    const [pinnedBanner, setPinnedBanner] = useState<{ text: string; expiresAt: number } | null>(null);
+    const [listenerCount, setListenerCount] = useState(1);
+    const [presenceUsers, setPresenceUsers] = useState<string[]>([]);
+
+    const [pcoPlaylist, setPcoPlaylist] = useState<Track[]>([]);
+
+    const fetchPcoRealSongs = async (): Promise<Track[]> => {
+        let allTracks: Track[] = curatedRomanticTracks.map(t => ({
+            id: t.id,
+            song: t.song,
+            singers: t.singers,
+            image: t.image,
+            media_url: t.media_url,
+            duration: t.duration
+        }));
+
+        try {
+            // Fetch multiple trending queries concurrently
+            const fetchPromises = trendingRomanticQueries.slice(0, 8).map(async (query) => {
+                try {
+                    const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(query)}`);
+                    if (!res.ok) return [];
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        return data.map((t: any) => ({
+                            id: String(t.id || Math.random().toString(36).substring(2, 9)),
+                            song: t.song,
+                            singers: t.singers || t.primary_artists || 'Romantic Special',
+                            image: t.image ? t.image.replace('150x150', '500x500') : 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
+                            media_url: t.media_url,
+                            media_preview_url: t.media_preview_url,
+                            duration: t.duration || '240'
+                        }));
+                    }
+                } catch (e) {
+                    return [];
+                }
+                return [];
+            });
+
+            const results = await Promise.all(fetchPromises);
+            results.forEach(trackList => {
+                if (trackList && trackList.length > 0) {
+                    allTracks.push(...trackList);
+                }
+            });
+        } catch (e) {
+            console.error("Failed to fetch dynamic tracks:", e);
+        }
+
+        // Deduplicate tracks by song name
+        const seen = new Set<string>();
+        const uniqueTracks: Track[] = [];
+        for (const t of allTracks) {
+            if (!t.media_url) continue;
+            const key = t.song.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueTracks.push(t);
+            }
+        }
+
+        // Deterministic sort for perfect multi-user radio synchronization
+        uniqueTracks.sort((a, b) => a.id.localeCompare(b.id));
+        return uniqueTracks.length > 0 ? uniqueTracks : (curatedRomanticTracks as Track[]);
+    };
+
+    const getPcoSyncedTrack = (tracks: Track[]) => {
+        const totalDuration = tracks.reduce((acc, t) => acc + (parseInt(t.duration, 10) || 240), 0);
+        const nowSec = Math.floor(Date.now() / 1000);
+        let cycleTime = nowSec % totalDuration;
+
+        for (const track of tracks) {
+            const dur = parseInt(track.duration, 10) || 240;
+            if (cycleTime < dur) {
+                return { track, offsetSec: cycleTime };
+            }
+            cycleTime -= dur;
+        }
+        return { track: tracks[0], offsetSec: 0 };
+    };
+
+    const triggerPinnedBanner = (text: string) => {
+        setPinnedBanner({ text, expiresAt: Date.now() + 15000 });
+    };
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (pinnedBanner) {
+            interval = setInterval(() => {
+                if (Date.now() >= pinnedBanner.expiresAt) {
+                    setPinnedBanner(null);
+                }
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [pinnedBanner]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const key = `pco_req_${todayStr}`;
+            setDailyRequestsUsed(parseInt(localStorage.getItem(key) || '0', 10));
+        }
+    }, []);
+
+    const incrementDailyRequests = () => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const key = `pco_req_${todayStr}`;
+        const newCount = dailyRequestsUsed + 1;
+        setDailyRequestsUsed(newCount);
+        localStorage.setItem(key, newCount.toString());
+    };
+    useEffect(() => {
+        if (!roomCode.includes('Campus_PCO') || !supabase) return;
+
+        setRoomName('Campus PCO (24/7 Radio)');
+        setShowChat(true);
+
+        // 1. Initial time-synced real vocal track fetch & load
+        fetchPcoRealSongs().then((realTracks) => {
+            setPcoPlaylist(realTracks);
+            const { track, offsetSec } = getPcoSyncedTrack(realTracks);
+            setCurrentTrack(track);
+            setIsPlaying(true);
+            setTimeout(() => {
+                if (audioRef.current) {
+                    audioRef.current.currentTime = offsetSec;
+                }
+            }, 800);
+        });
+
+        // 2. Realtime Channel with Presence & Audio Broadcasts
+        const pcoChannel = supabase.channel('campus_pco_live_chat', {
+            config: { presence: { key: currentUser?.id || Math.random().toString() } }
+        });
+
+        const updatePresenceState = () => {
+            const state = pcoChannel.presenceState();
+            const usersList: string[] = [];
+            Object.values(state).forEach((presences: any) => {
+                presences.forEach((p: any) => {
+                    if (p.user) usersList.push(p.user);
+                });
+            });
+            setListenerCount(usersList.length || 1);
+            setPresenceUsers(usersList);
+        };
+
+        pcoChannel
+            .on('presence', { event: 'sync' }, updatePresenceState)
+            .on('presence', { event: 'join' }, updatePresenceState)
+            .on('presence', { event: 'leave' }, updatePresenceState)
+            .on('broadcast', { event: 'LIVE_CHAT_MSG' }, ({ payload }) => {
+                if (payload && payload.text) {
+                    setMessages(prev => [...prev, { user: payload.user, text: payload.text }]);
+                    addFloatingNotification(payload.user, payload.text);
+                }
+            })
+            .on('broadcast', { event: 'PCO_SONG_REQUEST' }, ({ payload }) => {
+                if (payload && payload.track) {
+                    triggerPinnedBanner(`📢 ${payload.requester} requested: "${payload.track.song}"`);
+                    addFloatingNotification('System', `${payload.requester} requested: "${payload.track.song}"`);
+                    if (isAdminUser) {
+                        setAdminRequestModal({ requester: payload.requester, track: payload.track });
+                    } else {
+                        setQueue(prev => [...prev, payload.track]);
+                        setMessages(prev => [...prev, { user: 'System', text: `${payload.requester} requested: "${payload.track.song}"` }]);
+                    }
+                }
+            })
+            .on('broadcast', { event: 'PCO_PLAY_IMMEDIATELY' }, ({ payload }) => {
+                if (payload && payload.track) {
+                    setCurrentTrack(payload.track);
+                    setIsPlaying(true);
+                    triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
+                    addFloatingNotification('System', `Now Playing: "${payload.track.song}"`);
+                    setMessages(prev => [...prev, { user: 'System', text: `Now Playing: "${payload.track.song}"` }]);
+                }
+            })
+            .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
+                if (payload && payload.track) {
+                    setQueue(prev => [payload.track, ...prev]);
+                    triggerPinnedBanner(`⏭️ Playing Next: "${payload.track.song}"`);
+                    addFloatingNotification('System', `Admin Queued Next: "${payload.track.song}"`);
+                    setMessages(prev => [...prev, { user: 'System', text: `Admin Queued Next: "${payload.track.song}"` }]);
+                }
+            })
+            .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
+                if (payload && payload.track) {
+                    setQueue(prev => [...prev, payload.track]);
+                    triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
+                    addFloatingNotification('System', `Added to Queue: "${payload.track.song}"`);
+                    setMessages(prev => [...prev, { user: 'System', text: `Added to Queue: "${payload.track.song}"` }]);
+                }
+            })
+            .on('broadcast', { event: 'PCO_ADMIN_HEARTBEAT' }, ({ payload }) => {
+                if (payload && payload.track && !isAdminUser) {
+                    setCurrentTrack(payload.track);
+                    setIsPlaying(payload.isPlaying);
+                    if (audioRef.current && Math.abs(audioRef.current.currentTime - payload.currentTime) > 2.5) {
+                        audioRef.current.currentTime = payload.currentTime;
+                    }
+                }
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await pcoChannel.track({
+                        user: displayName,
+                        online_at: new Date().toISOString()
+                    });
+                }
+            });
+
+        return () => {
+            supabase.removeChannel(pcoChannel);
+        };
+    }, [roomCode, isAdminUser]);
+
+    // Unblock browser autoplay on first user click or touch
+    useEffect(() => {
+        const handleFirstInteraction = () => {
+            if (audioRef.current && audioRef.current.paused) {
+                audioRef.current.play().catch(err => console.warn("Autoplay unblocked on interaction:", err));
+            }
+            window.removeEventListener('click', handleFirstInteraction);
+            window.removeEventListener('keydown', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+        };
+
+        window.addEventListener('click', handleFirstInteraction);
+        window.addEventListener('keydown', handleFirstInteraction);
+        window.addEventListener('touchstart', handleFirstInteraction);
+
+        return () => {
+            window.removeEventListener('click', handleFirstInteraction);
+            window.removeEventListener('keydown', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+        };
+    }, []);
+
+    // Admin Heartbeat Sync Broadcast
+    useEffect(() => {
+        if (!isAdminUser || !roomCode.includes('Campus_PCO') || !supabase || !currentTrack) return;
+
+        const interval = setInterval(() => {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_ADMIN_HEARTBEAT',
+                payload: {
+                    track: currentTrack,
+                    isPlaying,
+                    currentTime: audioRef.current?.currentTime || 0
+                }
+            });
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, [isAdminUser, roomCode, currentTrack, isPlaying]);
+
     // Warn on tab close / refresh while in a room
     useEffect(() => {
         if (mode !== 'room') return;
@@ -478,7 +763,7 @@ export const MusicDate = () => {
                                 .select('host_peer_id, is_private, passcode')
                                 .eq('room_id', roomCode)
                                 .maybeSingle();
-
+                            
                             if (!queryError && data) {
                                 activeHostId = data.host_peer_id;
                                 dbIsPrivate = data.is_private;
@@ -530,7 +815,11 @@ export const MusicDate = () => {
                     let currentIsHost = false;
                     const expectedHostId = 'host-' + roomCode;
 
-                    if (activeHostId || !isHost) {
+                    if (roomCode.includes('Campus_PCO')) {
+                        currentIsHost = true;
+                        setIsHost(true);
+                        setMode('room');
+                    } else if (activeHostId || !isHost) {
                         currentIsHost = false;
                         setIsHost(false);
                         const targetHost = activeHostId || expectedHostId;
@@ -591,6 +880,10 @@ export const MusicDate = () => {
                         let msg = `Connection Error: ${err.type || 'Unknown'}`;
 
                         if (err.type === 'peer-unavailable') {
+                            if (roomCode.includes('Campus_PCO')) {
+                                // Campus PCO radio mode — ignore peer unavailable warning
+                                return;
+                            }
                             if (!activeHostId) {
                                 msg = "Waiting for host to start the room...";
                                 setError(msg);
@@ -625,16 +918,14 @@ export const MusicDate = () => {
                         call.on('stream', (remoteStream) => {
                             setPeers(prev => {
                                 if (prev.find(p => p.peerId === call.peer)) return prev;
-
+                                
                                 setCamPositions(prevPos => {
                                     if (!prevPos[call.peer]) {
                                         const peerCount = prev.length;
-                                        return {
-                                            ...prevPos, [call.peer]: {
-                                                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400,
-                                                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300
-                                            }
-                                        };
+                                        return { ...prevPos, [call.peer]: { 
+                                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
+                                        }};
                                     }
                                     return prevPos;
                                 });
@@ -721,16 +1012,14 @@ export const MusicDate = () => {
         call.on('stream', (remoteStream) => {
             setPeers(prev => {
                 if (prev.find(p => p.peerId === targetId)) return prev;
-
+                
                 setCamPositions(prevPos => {
                     if (!prevPos[targetId]) {
                         const peerCount = prev.length;
-                        return {
-                            ...prevPos, [targetId]: {
-                                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400,
-                                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300
-                            }
-                        };
+                        return { ...prevPos, [targetId]: { 
+                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
+                        }};
                     }
                     return prevPos;
                 });
@@ -799,6 +1088,8 @@ export const MusicDate = () => {
                 if (diff > 1.5) audioRef.current.currentTime = data.time;
             } else if (data.action === 'queue_add') {
                 setQueue(prev => [...prev, data.payload]);
+            } else if (data.action === 'queue_add_multiple') {
+                setQueue(prev => [...prev, ...data.payload]);
             } else if (data.action === 'queue_sync') {
                 setQueue(data.payload);
             }
@@ -837,9 +1128,9 @@ export const MusicDate = () => {
     useEffect(() => {
         setCamPositions(prev => ({
             ...prev,
-            'me': {
-                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400,
-                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 : 300
+            'me': { 
+                x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
+                y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 : 300 
             }
         }));
     }, []);
@@ -885,10 +1176,10 @@ export const MusicDate = () => {
     // Load audio as Blob to prevent 429 Too Many Requests from excessive browser range requests
     useEffect(() => {
         if (!currentTrack || !audioRef.current) return;
-
+        
         setAudioReady(false);
         const controller = new AbortController();
-
+        
         const loadAudioAsBlob = async () => {
             try {
                 // Fetch the full audio file once instead of letting the browser make multiple range requests
@@ -898,7 +1189,7 @@ export const MusicDate = () => {
                 }
                 const blob = await response.blob();
                 const objectUrl = URL.createObjectURL(blob);
-
+                
                 if (audioRef.current) {
                     audioRef.current.src = objectUrl;
                     audioRef.current.volume = musicVolume;
@@ -917,7 +1208,7 @@ export const MusicDate = () => {
                 }
             }
         };
-
+        
         loadAudioAsBlob();
 
         return () => {
@@ -1094,6 +1385,100 @@ export const MusicDate = () => {
         broadcastSync('play');
     };
 
+    const handleImportPlaylistLink = async (url: string) => {
+        if (!url.trim()) return;
+        setIsImportingPlaylist(true);
+        setImportStatus('Connecting to playlist...');
+        setError(null);
+
+        try {
+            const res = await fetch('/api/playlist-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url.trim() })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.tracks || data.tracks.length === 0) {
+                throw new Error(data.error || 'Failed to extract tracks from playlist link.');
+            }
+
+            setImportStatus(`Found ${data.tracks.length} songs! Resolving audio streams...`);
+
+            // Resolve each track via JioSaavn search in parallel batches of 4
+            const resolvedTracks: Track[] = [];
+            const batchSize = 4;
+
+            for (let i = 0; i < data.tracks.length; i += batchSize) {
+                const batch = data.tracks.slice(i, i + batchSize);
+                setImportStatus(`Resolving songs ${i + 1}-${Math.min(i + batchSize, data.tracks.length)} of ${data.tracks.length}...`);
+
+                const batchPromises = batch.map(async (t: any) => {
+                    try {
+                        const searchRes = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(t.query)}`);
+                        if (!searchRes.ok) return null;
+                        const searchData = await searchRes.json();
+                        if (Array.isArray(searchData) && searchData.length > 0) {
+                            const top = searchData[0];
+                            return {
+                                id: top.id,
+                                song: top.song || t.title,
+                                singers: top.singers || top.primary_artists || t.artist || '',
+                                image: top.image,
+                                media_url: top.media_url,
+                                media_preview_url: top.media_preview_url,
+                                duration: top.duration,
+                                is_drm: top.is_drm === 1 || top.is_drm === true
+                            } as Track;
+                        }
+                    } catch (e) {
+                        return null;
+                    }
+                    return null;
+                });
+
+                const batchResults = await Promise.all(batchPromises);
+                batchResults.forEach(track => {
+                    if (track && track.media_url) {
+                        resolvedTracks.push(track);
+                    }
+                });
+            }
+
+            if (resolvedTracks.length === 0) {
+                throw new Error('Could not find streamable tracks for the songs in this playlist.');
+            }
+
+            // Append to queue
+            setQueue(prev => [...prev, ...resolvedTracks]);
+            broadcastSync('queue_add_multiple', { payload: resolvedTracks });
+
+            // If no track is playing and isHost, start playing first song immediately
+            if (!currentTrack && isHost) {
+                playSelectedTrack(resolvedTracks[0]);
+                const remaining = resolvedTracks.slice(1);
+                setQueue(remaining);
+                broadcastSync('queue_sync', { payload: remaining });
+            }
+
+            setMessages(prev => [...prev, { 
+                user: 'System', 
+                text: `🎵 Imported ${resolvedTracks.length} songs from playlist into queue!` 
+            }]);
+            setSearchQuery('');
+            setPlaylistUrlInput('');
+            setIsImportModalOpen(false);
+            setImportStatus(null);
+        } catch (err: any) {
+            console.error('Playlist import failed:', err);
+            setError(err.message || 'Failed to import playlist.');
+            setTimeout(() => setError(null), 5000);
+        } finally {
+            setIsImportingPlaylist(false);
+            setImportStatus(null);
+        }
+    };
+
     const handleTrackSelect = (track: Track, forcePlay: boolean = false) => {
         if (isHost && (forcePlay || !currentTrack)) {
             playSelectedTrack(track);
@@ -1104,23 +1489,140 @@ export const MusicDate = () => {
         }
     };
 
+    const handlePcoAdminDirectPlay = (track: Track) => {
+        setCurrentTrack(track);
+        setIsPlaying(true);
+        triggerPinnedBanner(`🔥 Admin Played: "${track.song}"`);
+        addFloatingNotification('System', `Admin Played: "${track.song}"`);
+        if (supabase && roomCode.includes('Campus_PCO')) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_PLAY_IMMEDIATELY',
+                payload: { track }
+            });
+        }
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const handlePcoAdminPlayNext = (track: Track) => {
+        setQueue(prev => [track, ...prev]);
+        triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}"`);
+        addFloatingNotification('System', `Admin Queued Next: "${track.song}"`);
+        if (supabase && roomCode.includes('Campus_PCO')) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_PLAY_NEXT',
+                payload: { track, requester: displayName }
+            });
+        }
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const handlePcoAdminAddToQueue = (track: Track) => {
+        setQueue(prev => [...prev, track]);
+        triggerPinnedBanner(`➕ Admin Added to Queue: "${track.song}"`);
+        addFloatingNotification('System', `Admin Added to Queue: "${track.song}"`);
+        if (supabase && roomCode.includes('Campus_PCO')) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_ADD_QUEUE',
+                payload: { track, requester: displayName }
+            });
+        }
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const handlePcoSongRequest = (track: Track) => {
+        if (!isAdminUser && dailyRequestsUsed >= 3) {
+            setError("You have reached your limit of 3 song requests per day!");
+            setTimeout(() => setError(null), 4000);
+            return;
+        }
+
+        if (!isAdminUser) {
+            incrementDailyRequests();
+        }
+
+        if (supabase && roomCode.includes('Campus_PCO')) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_SONG_REQUEST',
+                payload: { track, requester: displayName }
+            });
+        }
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const handleAdminAcceptRequest = () => {
+        if (!adminRequestModal) return;
+        const track = adminRequestModal.track;
+        const requester = adminRequestModal.requester;
+        setCurrentTrack(track);
+        setIsPlaying(true);
+        triggerPinnedBanner(`🔥 Admin Approved: "${track.song}" (by ${requester})`);
+        addFloatingNotification('System', `Now Playing: "${track.song}"`);
+        if (supabase) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_PLAY_IMMEDIATELY',
+                payload: { track }
+            });
+        }
+        setAdminRequestModal(null);
+    };
+
+    const handleAdminPlayNextRequest = () => {
+        if (!adminRequestModal) return;
+        const track = adminRequestModal.track;
+        const requester = adminRequestModal.requester;
+        setQueue(prev => [track, ...prev]);
+        triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}" (by ${requester})`);
+        addFloatingNotification('System', `Admin Queued Next: "${track.song}"`);
+        if (supabase) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_PLAY_NEXT',
+                payload: { track, requester }
+            });
+        }
+        setAdminRequestModal(null);
+    };
+
     const handleSongEnded = () => {
-        if (isHost) {
-            if (queueRef.current.length > 0) {
-                const nextTrack = queueRef.current[0];
-                const newQueue = queueRef.current.slice(1);
-                setQueue(newQueue);
-                broadcastSync('queue_sync', { payload: newQueue });
-                playSelectedTrack(nextTrack);
-            } else {
-                setIsPlaying(false);
-                broadcastSync('pause');
+        if (queueRef.current.length > 0) {
+            const nextTrack = queueRef.current[0];
+            const newQueue = queueRef.current.slice(1);
+            setQueue(newQueue);
+            broadcastSync('queue_sync', { payload: newQueue });
+            playSelectedTrack(nextTrack);
+        } else if (roomCode.includes('Campus_PCO') && pcoPlaylist.length > 0) {
+            // Automatically play the exact NEXT real song in the Campus PCO playlist!
+            const currentIndex = pcoPlaylist.findIndex(t => t.id === currentTrackRef.current?.id);
+            const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % pcoPlaylist.length : 0;
+            const nextTrack = pcoPlaylist[nextIndex];
+            setCurrentTrack(nextTrack);
+            setIsPlaying(true);
+            triggerPinnedBanner(`🎵 Playing Next: "${nextTrack.song}"`);
+            // Broadcast to all listeners so everyone switches to the same track
+            if (supabase) {
+                supabase.channel('campus_pco_live_chat').send({
+                    type: 'broadcast',
+                    event: 'PCO_PLAY_IMMEDIATELY',
+                    payload: { track: nextTrack }
+                });
             }
+        } else if (isHost) {
+            setIsPlaying(false);
+            broadcastSync('pause');
         }
     };
 
     const handleSkip = () => {
-        if (isHost) handleSongEnded();
+        handleSongEnded();
     };
 
     const handlePlayPause = () => {
@@ -1204,9 +1706,9 @@ export const MusicDate = () => {
             setError('Please enter a valid 7-character room code (e.g., ABC-123)');
             return;
         }
-
+        
         setIsConnecting(true);
-
+        
         if (supabase) {
             try {
                 const { data, error } = await supabase
@@ -1214,9 +1716,9 @@ export const MusicDate = () => {
                     .select('room_id, is_private')
                     .like('room_id', `%_${entered}`)
                     .maybeSingle();
-
+                    
                 if (error) throw error;
-
+                
                 if (data) {
                     setRoomCode(data.room_id);
                     setRoomName('Joined Room');
@@ -1310,8 +1812,19 @@ export const MusicDate = () => {
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
-        setMessages([...messages, { user: displayName, text: newMessage }]);
-        broadcastData({ type: 'CHAT', text: newMessage });
+        const msg = { user: displayName, text: newMessage };
+        setMessages(prev => [...prev, msg]);
+        addFloatingNotification(displayName, newMessage);
+
+        if (roomCode.includes('Campus_PCO') && supabase) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'LIVE_CHAT_MSG',
+                payload: msg
+            });
+        } else {
+            broadcastData({ type: 'CHAT', text: newMessage });
+        }
         setNewMessage('');
     };
 
@@ -1375,7 +1888,7 @@ export const MusicDate = () => {
                             <Users className="w-5 h-5 text-violet-400" />
                             <span>Invite Active Match</span>
                         </button>
-
+                        
                         {showInviteMenu && (
                             <div className="absolute top-[110%] left-0 right-0 mt-2 bg-[#0d071a]/95 border border-white/10 rounded-2xl shadow-2xl p-2 z-50 max-h-60 overflow-y-auto custom-scrollbar backdrop-blur-xl animate-fade-in">
                                 {matches.length === 0 ? (
@@ -1419,13 +1932,13 @@ export const MusicDate = () => {
                         <p className="text-sm text-zinc-400 mb-6">
                             This room is locked. Please enter the passcode to join.
                         </p>
-
+                        
                         {passcodeError && (
                             <div className="mb-4 text-red-400 text-sm bg-red-500/10 border border-red-500/20 py-3 px-4 rounded-xl">
                                 {passcodeError}
                             </div>
                         )}
-
+                        
                         <input
                             type="text"
                             placeholder="0000"
@@ -1438,7 +1951,7 @@ export const MusicDate = () => {
                             className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-4 text-white text-center text-3xl tracking-widest font-mono placeholder-zinc-700 focus:border-violet-500 focus:outline-none transition-colors mb-6"
                             autoFocus
                         />
-
+                        
                         <div className="flex gap-3">
                             <button
                                 onClick={() => navigate.push('/sparx')}
@@ -1511,8 +2024,8 @@ export const MusicDate = () => {
                                         onChange={(e) => setIsPrivateRoom(e.target.checked)}
                                         className="w-4.5 h-4.5 rounded border-white/10 bg-[#0a001a]/50 text-violet-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-violet-500"
                                     />
-                                    <label
-                                        htmlFor="private-room-toggle"
+                                    <label 
+                                        htmlFor="private-room-toggle" 
                                         className="text-sm font-semibold text-white/70 hover:text-white cursor-pointer select-none flex items-center gap-1.5"
                                     >
                                         <Lock className="w-4 h-4 text-white/40" />
@@ -1550,9 +2063,126 @@ export const MusicDate = () => {
         );
     }
 
+    const renderPlayerTracerBar = () => {
+        if (!currentTrack) return null;
+        const totalDur = Number(currentTrack.duration) || 1;
+        const isHalfWay = (currentTime / totalDur) >= 0.5;
+        const nextTrack = pcoPlaylist.length > 0
+            ? pcoPlaylist[(pcoPlaylist.findIndex(t => t.id === currentTrack.id) + 1) % pcoPlaylist.length]
+            : null;
+        const canControl = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+
+        return (
+            <div className={`bg-[#0c0915]/95 backdrop-blur-2xl border border-white/15 rounded-2xl px-5 ${isHalfWay ? 'py-3.5' : 'py-3'} shadow-[0_10px_40px_rgba(0,0,0,0.8)] hidden md:flex flex-col gap-2 max-w-sm sm:max-w-md w-full transition-all duration-500 pointer-events-auto`}>
+                <div className="flex items-center gap-4">
+                    {/* Album Art */}
+                    <img src={currentTrack.image} alt={currentTrack.song} className="w-10 h-10 rounded-xl object-cover shadow-md shrink-0 border border-white/10" />
+
+                    {/* Song info & tracer bar */}
+                    <div className="flex-1 min-w-[160px] sm:min-w-[200px]">
+                        <div className="flex justify-between items-center gap-3">
+                            <h4 className="text-white text-xs font-black truncate max-w-[140px] sm:max-w-[180px]">{currentTrack.song}</h4>
+                            <span className="text-[10px] font-mono text-gray-400 shrink-0">{formatTime(currentTime)} / {formatTime(totalDur)}</span>
+                        </div>
+                        {/* Tracer line */}
+                        <div className="w-full bg-gray-800/80 h-1.5 rounded-full overflow-hidden mt-1.5 border border-white/5">
+                            <div 
+                                className="bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(236,72,153,0.8)]" 
+                                style={{ width: `${(currentTime / totalDur) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Play/Pause & Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={handlePlayPause}
+                            disabled={!canControl}
+                            className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all shadow-md"
+                            title={isPlaying ? 'Pause' : 'Play'}
+                        >
+                            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                        </button>
+                        <button
+                            onClick={toggleLyrics}
+                            className="px-3 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 transition-colors text-xs font-bold flex items-center gap-1.5 border border-pink-500/30"
+                            title="Close Lyrics View"
+                        >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Close</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Smooth Up Next Transition Badge (Revealed at 50% song completion) */}
+                {isHalfWay && nextTrack && (
+                    <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <span className="text-[10px] font-black text-pink-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                            <Music className="w-3 h-3 text-purple-400 animate-bounce" /> Up Next:
+                        </span>
+                        <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+                            <img src={nextTrack.image} alt={nextTrack.song} className="w-5 h-5 rounded-md object-cover border border-white/10 shrink-0" />
+                            <span className="text-[11px] font-bold text-gray-200 truncate max-w-[160px]">{nextTrack.song}</span>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div ref={containerRef} className="flex flex-col h-[100dvh] w-full bg-[#050510] text-white overflow-hidden font-sans relative">
+            {/* Admin Song Request Approval Popup Modal */}
+            {adminRequestModal && (
+                <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-gradient-to-b from-purple-900/90 to-zinc-950 border-2 border-purple-500/50 rounded-3xl p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(168,85,247,0.4)]">
+                        <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mx-auto mb-4 text-purple-300 animate-bounce">
+                            <Music className="w-7 h-7" />
+                        </div>
+                        <span className="text-[10px] font-black tracking-widest text-purple-400 uppercase bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+                            Admin Notification
+                        </span>
+                        <h3 className="text-xl font-extrabold text-white mt-3 mb-1">
+                            Song Request Received!
+                        </h3>
+                        <p className="text-xs text-purple-200 mb-4">
+                            <strong className="text-pink-400">{adminRequestModal.requester}</strong> wants to play:
+                        </p>
+                        
+                        <div className="flex items-center gap-3 bg-black/60 p-3 rounded-2xl border border-white/10 mb-6 text-left">
+                            <img src={adminRequestModal.track.image} alt={adminRequestModal.track.song} className="w-12 h-12 rounded-xl object-cover" />
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-bold text-white truncate">{adminRequestModal.track.song}</h4>
+                                <p className="text-xs text-gray-400 truncate">{adminRequestModal.track.singers}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setAdminRequestModal(null)}
+                                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-gray-300 font-bold rounded-xl text-xs transition-colors"
+                            >
+                                Decline
+                            </button>
+                            <button
+                                onClick={handleAdminPlayNextRequest}
+                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all flex items-center justify-center gap-1"
+                            >
+                                <SkipForward className="w-3.5 h-3.5 fill-current" />
+                                Play Next
+                            </button>
+                            <button
+                                onClick={handleAdminAcceptRequest}
+                                className="flex-1 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl text-xs shadow-lg transition-all flex items-center justify-center gap-1"
+                            >
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                Play Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <ShareRoomModal 
                 isOpen={isShareModalOpen} 
                 onClose={() => setIsShareModalOpen(false)} 
@@ -1573,13 +2203,17 @@ export const MusicDate = () => {
                             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                         <div className="flex items-center gap-2 md:gap-4 border border-violet-500/30 bg-violet-500/10 px-3 md:px-4 py-1.5 rounded-full overflow-hidden">
-                            <span className="font-bold text-gray-200 text-sm md:text-base truncate max-w-[80px] md:max-w-[200px]">{roomName}</span>
-                            <div className="w-px h-4 bg-white/20 shrink-0" />
-                            <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
-                                <Hash className="w-3 h-3" />
-                                {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
-                                <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
-                            </span>
+                            <span className="font-bold text-gray-200 text-sm md:text-base truncate max-w-[120px] md:max-w-[240px]">{roomName}</span>
+                            {!roomCode.includes('Campus_PCO') && (
+                                <>
+                                    <div className="w-px h-4 bg-white/20 shrink-0" />
+                                    <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
+                                        <Hash className="w-3 h-3" />
+                                        {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
+                                        <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
+                                    </span>
+                                </>
+                            )}
                             {isHost && (
                                 <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold">
                                     <Users className="w-3 h-3" />
@@ -1591,19 +2225,39 @@ export const MusicDate = () => {
                     <div className="flex items-center gap-1.5 md:gap-3">
                         <div className="relative">
                             <button onClick={() => setShowUsersList(!showUsersList)} className={`p-2 rounded-xl transition-colors flex items-center gap-2 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                <Users className="w-5 h-5" />
-                                <span className="text-xs font-bold bg-gray-800 px-1.5 rounded-full">{peers.length + 1}</span>
+                                <Users className="w-5 h-5 text-pink-400" />
+                                <span className="text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-2 py-0.5 rounded-full">
+                                    {roomCode.includes('Campus_PCO') ? `${listenerCount} Live` : peers.length + 1}
+                                </span>
                             </button>
                             {showUsersList && (
-                                <div className="absolute top-12 right-0 w-56 bg-gray-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
-                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Participants</div>
-                                    <div className="max-h-48 overflow-y-auto space-y-2">
-                                        <div className="text-sm text-gray-300 font-medium">You {isHost && '(Host)'}</div>
-                                        {peers.map(p => (
-                                            <div key={p.peerId} className="text-sm text-gray-400 truncate">
-                                                {peerNames[p.peerId] || p.peerId.substring(0, 5)} {p.peerId === roomHostId && '(Host)'}
-                                            </div>
-                                        ))}
+                                <div className="absolute top-12 right-0 w-60 bg-gray-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
+                                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                        <span>Active Listeners</span>
+                                        <span className="text-[10px] text-emerald-400 font-mono">● {roomCode.includes('Campus_PCO') ? listenerCount : peers.length + 1} Online</span>
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
+                                        {roomCode.includes('Campus_PCO') ? (
+                                            presenceUsers.length > 0 ? (
+                                                presenceUsers.map((name, i) => (
+                                                    <div key={i} className="text-xs text-gray-200 font-medium flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-pink-500 shrink-0" />
+                                                        <span className="truncate">{name} {['avneesh', 'othrhalff'].includes(name.toLowerCase()) && '👑 (Admin DJ)'}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-xs text-gray-300 font-medium">{displayName} (You)</div>
+                                            )
+                                        ) : (
+                                            <>
+                                                <div className="text-sm text-gray-300 font-medium">You {isHost && '(Host)'}</div>
+                                                {peers.map(p => (
+                                                    <div key={p.peerId} className="text-sm text-gray-400 truncate">
+                                                        {peerNames[p.peerId] || p.peerId.substring(0, 5)} {p.peerId === roomHostId && '(Host)'}
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -1694,37 +2348,63 @@ export const MusicDate = () => {
                 </div>
 
                 {/* Left Side: Now Playing */}
-                <div className="flex-1 overflow-y-auto p-3 md:p-8 z-10 flex flex-col items-center justify-center relative min-h-0">
+                <div className={`flex-1 overflow-y-auto p-3 md:p-8 z-10 flex flex-col items-center justify-center relative min-h-0 ${roomCode.includes('Campus_PCO') ? 'pb-16 md:pb-8' : ''}`}>
                     {showLyrics ? (
                         <>
-                            <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-8 md:p-16 overflow-y-auto custom-scrollbar flex flex-col items-center scroll-smooth z-40">
+                            <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-4 sm:p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-start justify-start scroll-smooth z-40 [perspective:1400px]">
                                 {isLoadingLyrics ? (
-                                    <div className="flex-1 flex items-center justify-center h-full">
-                                        <Loader className="w-10 h-10 text-violet-500 animate-spin" />
+                                    <div className="flex-1 flex items-center justify-center h-full w-full">
+                                        <Loader className="w-10 h-10 text-pink-500 animate-spin" />
                                     </div>
                                 ) : lyricsData ? (
-                                    <div className="w-full max-w-5xl mx-auto text-center py-32 space-y-12 transition-all">
-                                        {lyricsData.map((line, idx) => (
-                                            <p key={idx} id={`lyric-${idx}`} className={`transition-all duration-500 leading-tight ${idx === activeLyricIndex ? 'text-white text-4xl md:text-6xl lg:text-7xl font-black drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-gray-600 text-2xl md:text-4xl font-bold opacity-50 hover:opacity-100 hover:text-gray-300'}`}>
-                                                {line.text}
-                                            </p>
-                                        ))}
+                                    <div 
+                                        style={{ transform: 'rotateY(18deg) rotateX(4deg)', transformStyle: 'preserve-3d', transformOrigin: '0% center' }} 
+                                        className="w-full max-w-2xl lg:max-w-3xl mr-auto ml-0 text-left py-32 space-y-9 transition-all duration-700 select-none pl-4 sm:pl-8 md:pl-10 pr-4 overflow-visible"
+                                    >
+                                        {lyricsData.map((line, idx) => {
+                                            const distance = Math.abs(idx - activeLyricIndex);
+                                            const isActive = idx === activeLyricIndex;
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    id={`lyric-${idx}`}
+                                                    style={{
+                                                        transform: isActive 
+                                                            ? 'translateZ(45px) scale(1.04)' 
+                                                            : `translateZ(-${Math.min(distance * 10, 80)}px)`,
+                                                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
+                                                    }}
+                                                    className={`relative group ${isActive ? 'z-30' : 'z-10'} overflow-visible py-2 px-6`}
+                                                >
+                                                    {isActive && (
+                                                        <div className="absolute -inset-x-6 -inset-y-3 bg-gradient-to-r from-pink-500/20 via-purple-500/15 to-transparent rounded-2xl blur-xl animate-pulse pointer-events-none" />
+                                                    )}
+                                                    <p className={`relative transition-all duration-500 leading-relaxed tracking-normal px-2 overflow-visible whitespace-normal break-words ${
+                                                        isActive
+                                                            ? 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-200 bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(236,72,153,0.7)]'
+                                                            : 'text-gray-500 text-xl sm:text-2xl md:text-3xl font-bold opacity-35 blur-[0.4px] hover:opacity-90 hover:text-gray-200 hover:blur-0'
+                                                    }`}>
+                                                        {line.text}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div
-                                        className="text-lg md:text-2xl text-gray-300 text-center leading-loose pb-12 mt-4 font-mono w-full px-2 max-w-4xl mx-auto py-32"
+                                        style={{ transform: 'rotateY(20deg) rotateX(5deg)', transformStyle: 'preserve-3d', transformOrigin: 'center left' }}
+                                        className="text-lg md:text-2xl text-purple-200 text-left leading-relaxed pb-12 mt-4 font-sans w-full px-8 max-w-4xl mx-auto py-36 font-semibold overflow-visible"
                                         dangerouslySetInnerHTML={{ __html: plainLyrics || '' }}
                                     />
                                 )}
                             </div>
 
-                            <button
-                                onClick={toggleLyrics}
-                                className="absolute top-8 right-8 bg-violet-600 hover:bg-violet-500 p-4 rounded-full text-white shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300 hover:scale-110 active:scale-95 border border-violet-400 z-50 flex items-center justify-center group"
-                                title="Hide Lyrics"
-                            >
-                                <ImageIcon className="w-6 h-6 drop-shadow-md group-hover:scale-110 transition-transform" />
-                            </button>
+                            {/* Floating Player Tracer Bar (Right side when sidebar is open and not fullscreen) */}
+                            {currentTrack && !isSidebarHidden && !isFullscreen && (
+                                <div className="absolute bottom-6 right-6 z-40 hidden md:flex">
+                                    {renderPlayerTracerBar()}
+                                </div>
+                            )}
                         </>
                     ) : !currentTrack ? (
                         /* Fix 2: Prominent search prompt when no track is playing */
@@ -1771,8 +2451,9 @@ export const MusicDate = () => {
                             <p className="hidden md:block text-xs text-gray-600 mt-6">You can also use the sidebar search on the right →</p>
                         </div>
                     ) : (
-                        <div className="w-full max-w-2xl mx-auto flex flex-col items-center text-center transition-all my-auto z-10">
-                            <div className="relative w-48 h-48 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 shrink-0 shadow-[0_0_60px_rgba(139,92,246,0.15)] rounded-[2rem] md:rounded-[2.5rem] overflow-hidden mb-6 md:mb-10 border border-white/5 group">
+                                 <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-between h-full py-2 z-10 overflow-hidden">
+                            {/* Compact Responsive Album Art */}
+                            <div className="relative w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 max-h-[30vh] shrink-0 shadow-[0_0_40px_rgba(139,92,246,0.2)] rounded-2xl md:rounded-3xl overflow-hidden mb-3 border border-white/10 group">
                                 <img src={currentTrack.image.replace('150x150', '500x500')} alt={currentTrack.song} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105" />
 
                                 {isPlaying && (
@@ -1787,189 +2468,629 @@ export const MusicDate = () => {
 
                                 <button
                                     onClick={toggleLyrics}
-                                    className="absolute bottom-5 right-5 bg-black/60 hover:bg-black/80 backdrop-blur-md p-3.5 rounded-2xl text-white shadow-xl transition-all hover:scale-110 active:scale-95 border border-white/20 z-20 group/btn"
+                                    className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-md p-2.5 rounded-xl text-white shadow-xl transition-all hover:scale-110 active:scale-95 border border-white/20 z-20 group/btn"
                                     title="Show Lyrics"
                                 >
-                                    <FileText className="w-6 h-6 group-hover/btn:text-violet-400 transition-colors" />
+                                    <FileText className="w-5 h-5 group-hover/btn:text-violet-400 transition-colors" />
                                 </button>
                             </div>
 
-                            <div className="w-full flex flex-col items-center px-2 md:px-4">
-                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-2 md:mb-3 line-clamp-2 tracking-tight drop-shadow-xl">{currentTrack.song}</h1>
-                                <p className="text-base sm:text-lg md:text-xl text-violet-300 mb-6 md:mb-10 font-medium tracking-wide opacity-90">{currentTrack.singers}</p>
+                            {/* Track Titles */}
+                            <div className="w-full flex flex-col items-center px-2 shrink-0 mb-2">
+                                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white mb-1 line-clamp-1 tracking-tight drop-shadow-xl">{currentTrack.song}</h1>
+                                <p className="text-sm sm:text-base md:text-lg text-violet-300 font-medium tracking-wide opacity-90 line-clamp-1">{currentTrack.singers}</p>
+                            </div>
 
-                                {/* Playback Controls */}
-                                <div className="w-full max-w-lg mt-auto relative z-20">
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max={Number(currentTrack.duration) || 100}
-                                        value={currentTime}
-                                        onChange={handleProgressChange}
-                                        disabled={!isHost}
-                                        className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-violet-500 hover:accent-violet-400 transition-all mb-3"
-                                    />
-                                    <div className="flex justify-between text-sm text-gray-400 font-mono font-medium">
-                                        <span>{formatTime(currentTime)}</span>
-                                        <span>{formatTime(Number(currentTrack.duration))}</span>
-                                    </div>
+                            {/* Playback Controls & Progress */}
+                            <div className="w-full max-w-md shrink-0 relative z-20">
+                                {(() => {
+                                    const canControlPlayback = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+                                    return (
+                                        <>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max={Number(currentTrack.duration) || 100}
+                                                value={currentTime}
+                                                onChange={handleProgressChange}
+                                                disabled={!canControlPlayback}
+                                                className="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-violet-500 hover:accent-violet-400 transition-all mb-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            />
+                                            <div className="flex justify-between text-xs text-gray-400 font-mono font-medium">
+                                                <span>{formatTime(currentTime)}</span>
+                                                <span>{formatTime(Number(currentTrack.duration))}</span>
+                                            </div>
 
-                                    <div className="flex items-center justify-center gap-6 md:gap-8 mt-4 md:mt-6">
-                                        <button
-                                            onClick={handlePlayPause}
-                                            disabled={!isHost}
-                                            className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
-                                        >
-                                            {isPlaying ? <Pause className="w-8 h-8 md:w-10 md:h-10 fill-current" /> : <Play className="w-8 h-8 md:w-10 md:h-10 fill-current ml-1 md:ml-2" />}
-                                        </button>
-                                        <button
-                                            onClick={handleSkip}
-                                            disabled={!isHost}
-                                            className="w-14 h-14 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 backdrop-blur-sm"
-                                            title="Skip to next in queue"
-                                        >
-                                            <SkipForward className="w-6 h-6 fill-current" />
-                                        </button>
-                                    </div>
-                                    {!isHost && <p className="mt-4 text-xs text-gray-500">Only host can skip tracks or control playback progress.</p>}
-                                </div>
+                                            <div className="flex items-center justify-center gap-5 mt-3">
+                                                <button
+                                                    onClick={handlePlayPause}
+                                                    disabled={!canControlPlayback}
+                                                    className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_35px_rgba(255,255,255,0.4)]"
+                                                >
+                                                    {isPlaying ? <Pause className="w-7 h-7 md:w-8 md:h-8 fill-current" /> : <Play className="w-7 h-7 md:w-8 md:h-8 fill-current ml-1" />}
+                                                </button>
+                                                <button
+                                                    onClick={handleSkip}
+                                                    disabled={!canControlPlayback}
+                                                    className="w-11 h-11 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 backdrop-blur-sm"
+                                                    title="Skip to next in queue"
+                                                >
+                                                    <SkipForward className="w-5 h-5 fill-current" />
+                                                </button>
+                                            </div>
+                                            {roomCode.includes('Campus_PCO') ? (
+                                                !isAdminUser && <p className="mt-2 text-[10px] text-pink-400/90 font-medium text-center">📻 Live 24/7 Radio • Controls managed by Admin DJ</p>
+                                            ) : (
+                                                !isHost && <p className="mt-2 text-[10px] text-gray-500 text-center">Only host can skip tracks or control progress.</p>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Right Panel: Search & Queue — desktop sidebar, mobile bottom sheet */}
-                {!isFullscreen && (showMobileSearch || !isMobile) && (
-                    <div className={`${showMobileSearch ? 'fixed inset-x-0 bottom-20 top-auto h-[55vh] z-50 rounded-t-3xl border-t-2 border-violet-500/30' : 'hidden md:flex w-80 lg:w-96 border-l'} border-white/5 bg-black/95 md:bg-black/40 backdrop-blur-md md:backdrop-blur-md z-20 flex flex-col flex-shrink-0`}>
-                        <div className="p-3 md:p-4 border-b border-white/5 bg-gray-950/50 flex items-center gap-2">
-                            {showMobileSearch && (
-                                <button onClick={() => setShowMobileSearch(false)} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 shrink-0 md:hidden">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            )}
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Search for a song..."
-                                    className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
+                {/* Campus PCO Split Right Panel Layout (Top: Song Requests, Bottom: YouTube Live Chat) */}
+                {roomCode.includes('Campus_PCO') ? (
+                    <>
+                        {/* Right Sidebar (Hidden when isSidebarHidden is true) */}
+                        {!isSidebarHidden && (
+                            <div className="hidden md:flex w-80 lg:w-96 border-l border-white/10 bg-black/95 flex-col flex-shrink-0 h-full z-20 overflow-hidden transition-all duration-300 animate-fade-in">
+                                {/* TOP HALF: Song Requests & Queue */}
+                                <div className="h-1/2 flex flex-col border-b border-white/10 p-3 bg-[#07050d] overflow-hidden transition-all duration-300">
+                                    <div className="flex items-center justify-between shrink-0">
+                                        <span className="text-xs font-black text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Music className="w-3.5 h-3.5 text-pink-400" /> Song Requests
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                                                {isAdminUser ? 'Admin Unlimited' : `${3 - dailyRequestsUsed}/3 Requests Today`}
+                                            </span>
+                                            {/* Hide Entire Sidebar */}
+                                            <button
+                                                onClick={() => setIsSidebarHidden(true)}
+                                                className="p-1.5 px-2.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-white transition-all border border-purple-500/30 flex items-center gap-1.5 text-[10px] font-bold shadow-sm"
+                                                title="Hide Sidebar (Floating Chat Mode)"
+                                            >
+                                                <EyeOff className="w-3.5 h-3.5" />
+                                                <span>Hide</span>
+                                            </button>
+                                        </div>
+                                    </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
-                            {searchResults.length > 0 && (
-                                <div className="mb-6">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Search Results</h3>
-                                    <div className="space-y-1">
-                                        {searchResults.map((track) => (
-                                            <div key={track.id} onClick={() => handleTrackSelect(track, true)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl cursor-pointer transition-colors group">
-                                                <img src={track.image} alt={track.song} className="w-10 h-10 rounded-md object-cover" />
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-white text-sm font-bold truncate group-hover:text-violet-300">{track.song}</h4>
-                                                    <p className="text-gray-400 text-xs truncate">{track.singers}</p>
+                                    {/* Search Input */}
+                                    <div className="relative my-2 shrink-0">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                        {isSearching && <Loader className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-400 animate-spin" />}
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            placeholder="Search song to request..."
+                                            className="w-full bg-gray-900 border border-white/10 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+
+                                    {/* Search Results / Queue List */}
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                                        {searchResults.length > 0 ? (
+                                            searchResults.map(t => (
+                                                <div key={t.id} className="flex flex-col gap-1.5 bg-white/5 hover:bg-purple-600/20 p-2 rounded-xl transition-colors group border border-transparent hover:border-purple-500/30">
+                                                    <div className="flex items-center gap-2">
+                                                        <img src={t.image} alt={t.song} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h5 className="text-xs font-bold text-white truncate">{t.song}</h5>
+                                                            <p className="text-[10px] text-gray-400 truncate">{t.singers}</p>
+                                                        </div>
+                                                    </div>
+                                                    {isAdminUser ? (
+                                                        <div className="flex items-center gap-1 mt-0.5 justify-end">
+                                                            <button
+                                                                onClick={() => handlePcoAdminDirectPlay(t)}
+                                                                className="text-[9px] font-black bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-2 py-1 rounded-md shadow uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
+                                                                title="Play song right now"
+                                                            >
+                                                                <Play className="w-2.5 h-2.5 fill-current" /> Play Now
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handlePcoAdminPlayNext(t)}
+                                                                className="text-[9px] font-black bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded-md shadow uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
+                                                                title="Play immediately after current song"
+                                                            >
+                                                                <SkipForward className="w-2.5 h-2.5 fill-current" /> Play Next
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handlePcoAdminAddToQueue(t)}
+                                                                className="text-[9px] font-black bg-zinc-800 hover:bg-zinc-700 text-purple-300 hover:text-white border border-purple-500/30 px-2 py-1 rounded-md shadow uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
+                                                                title="Append to queue"
+                                                            >
+                                                                <PlusCircle className="w-2.5 h-2.5" /> Add to Queue
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handlePcoSongRequest(t)}
+                                                            className="text-[10px] font-bold bg-pink-500 text-white px-2.5 py-1 rounded-lg hover:bg-pink-600 self-end shadow-md"
+                                                        >
+                                                            Request ({3 - dailyRequestsUsed} left)
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <button onClick={(e) => { e.stopPropagation(); handleTrackSelect(track, false); }} className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                    <PlusCircle className="w-3 h-3" />
-                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-6 text-gray-500 text-xs">
+                                                <p className="font-semibold text-gray-400">Search above to request songs!</p>
+                                                <p className="text-[10px] mt-1 text-purple-400/80">Requests play automatically</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* BOTTOM HALF: YouTube-Style Live Chat */}
+                                <div className="h-1/2 flex flex-col p-3 bg-black overflow-hidden transition-all duration-300">
+                                    <div className="flex items-center justify-between mb-2 shrink-0">
+                                        <span className="text-xs font-black text-pink-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <MessageSquare className="w-3.5 h-3.5 text-purple-400" /> Live Chat
+                                        </span>
+                                        <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1 font-bold">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            YouTube Live
+                                        </span>
+                                    </div>
+
+                                    {/* 15-Second Sticky Pinned Announcement Banner */}
+                                    {pinnedBanner && (
+                                        <div className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white font-bold text-[11px] px-3 py-2 rounded-xl mb-2 flex items-center justify-between border border-pink-400/30 shadow-[0_0_20px_rgba(236,72,153,0.4)] animate-pulse shrink-0">
+                                            <span className="truncate mr-2 font-black">{pinnedBanner.text}</span>
+                                            <span className="text-[9px] font-mono opacity-80 shrink-0 bg-black/40 px-1.5 py-0.5 rounded">15s Sticky</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1 mb-2">
+                                        {messages.map((msg, i) => (
+                                            <div key={i} className="text-xs leading-relaxed break-words">
+                                                <span className={`font-black mr-1.5 ${msg.user === displayName ? 'text-pink-400' : 'text-purple-300'}`}>
+                                                    {msg.user}:
+                                                </span>
+                                                <span className="text-gray-200 font-medium">{msg.text}</span>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            )}
 
-                            <div>
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Up Next Queue ({queue.length})</h3>
-                                {queue.length === 0 ? (
-                                    <p className="text-sm text-gray-600 px-2 italic">Queue is empty</p>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {queue.map((track, idx) => (
-                                            <div key={`${track.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/5">
-                                                <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
-                                                <img src={track.image} alt={track.song} className="w-8 h-8 rounded-md object-cover" />
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-white text-sm font-medium truncate">{track.song}</h4>
-                                                    <p className="text-gray-400 text-[10px] truncate">{track.singers}</p>
+                                    <form onSubmit={handleSendMessage} className="relative shrink-0">
+                                        <input
+                                            type="text"
+                                            value={newMessage}
+                                            onChange={e => setNewMessage(e.target.value)}
+                                            placeholder="Chat live in Campus PCO..."
+                                            className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2 pl-3 pr-8 text-xs text-white focus:outline-none focus:border-pink-500"
+                                        />
+                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-pink-400 hover:text-pink-300 p-1">
+                                            <Send className="w-3.5 h-3.5" />
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Floating Notifications, Floating Text Bar, & Player Tracer Stack (When sidebar is hidden OR in Fullscreen) */}
+                        {(isSidebarHidden || isFullscreen) && (
+                            <div className="hidden md:flex fixed bottom-6 right-6 z-50 flex-col items-end gap-2.5 max-w-sm sm:max-w-md w-auto pointer-events-none">
+                                {/* Top: 2-Second Floating Notification Cards */}
+                                {floatingNotifications.length > 0 && (
+                                    <div className="flex flex-col items-end gap-2 w-full pointer-events-auto">
+                                        {floatingNotifications.map(notif => (
+                                            <div
+                                                key={notif.id}
+                                                className="animate-fade-in-down bg-black/90 backdrop-blur-2xl border border-pink-500/40 text-white text-xs px-4 py-2.5 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center gap-2.5 max-w-sm transition-all duration-300"
+                                            >
+                                                <div className="w-2 h-2 rounded-full bg-pink-500 animate-pulse shrink-0" />
+                                                <div className="truncate min-w-0">
+                                                    <span className="font-black text-pink-400 mr-1.5">{notif.user}:</span>
+                                                    <span className="text-gray-200 font-medium">{notif.text}</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* Chat Panel — desktop: positioned left of sidebar, mobile: bottom sheet */}
-                {showChat && (
-                    <div className="fixed inset-x-0 bottom-20 h-[60vh] md:absolute md:inset-x-auto md:right-96 md:top-0 md:bottom-0 md:h-auto md:w-80 border-t-2 border-violet-500/30 md:border-t-0 md:border-l border-white/5 bg-gray-950/95 backdrop-blur-2xl flex flex-col z-[100] shadow-2xl transition-all rounded-t-3xl md:rounded-none">
-                        <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
-                            <span className="font-bold text-gray-300 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-violet-400" /> Chat</span>
-                            <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            {messages.map((msg, i) => (
-                                <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                    <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
-                                        {msg.text}
+                                {/* Middle: Floating Text Input Bar (Just above the player) */}
+                                {isSidebarHidden && (
+                                    <div className="w-full bg-[#0c0915]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.9)] flex items-center gap-2 pointer-events-auto">
+                                        <button
+                                            onClick={() => setIsSidebarHidden(false)}
+                                            className="p-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-white transition-all border border-purple-500/30 shrink-0 flex items-center gap-1.5 text-xs font-bold"
+                                            title="Show Sidebar"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            <span>Show Panel</span>
+                                        </button>
+                                        <form onSubmit={handleSendMessage} className="flex-1 relative flex items-center">
+                                            <input
+                                                type="text"
+                                                value={newMessage}
+                                                onChange={e => setNewMessage(e.target.value)}
+                                                placeholder="Chat live in Campus PCO..."
+                                                className="w-full bg-gray-900/90 border border-gray-800 rounded-xl py-2 pl-3 pr-8 text-xs text-white focus:outline-none focus:border-pink-500 placeholder-gray-500"
+                                            />
+                                            <button type="submit" className="absolute right-2 text-pink-400 hover:text-pink-300 p-1">
+                                                <Send className="w-3.5 h-3.5" />
+                                            </button>
+                                        </form>
                                     </div>
-                                    <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
+                                )}
+
+                                {/* Bottom: Song Player Tracer Bar in Fullscreen / Hidden Sidebar mode */}
+                                {showLyrics && currentTrack && renderPlayerTracerBar()}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        {/* Standard Music Date Right Panel */}
+                        {!isFullscreen && (showMobileSearch || !isMobile) && (
+                            <div className={`${showMobileSearch ? 'fixed inset-x-0 bottom-20 top-auto h-[55vh] z-50 rounded-t-3xl border-t-2 border-violet-500/30' : 'hidden md:flex w-80 lg:w-96 border-l'} border-white/5 bg-black/95 md:bg-black/40 backdrop-blur-md md:backdrop-blur-md z-20 flex flex-col flex-shrink-0`}>
+                                <div className="p-3 md:p-4 border-b border-white/5 bg-gray-950/50 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        {showMobileSearch && (
+                                            <button onClick={() => setShowMobileSearch(false)} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 shrink-0 md:hidden">
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={e => setSearchQuery(e.target.value)}
+                                                placeholder="Search song or paste Spotify/YT link..."
+                                                className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Playlist URL Detection Banner */}
+                                    {(searchQuery.includes('spotify.com') || searchQuery.includes('youtube.com') || searchQuery.includes('youtu.be')) && (
+                                        <div className="p-2.5 bg-gradient-to-r from-violet-600/30 to-pink-600/30 border border-violet-500/40 rounded-xl flex items-center justify-between gap-2 shadow-lg animate-fade-in">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-bold text-white flex items-center gap-1">
+                                                    <Music className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                                                    <span>Playlist Link Detected</span>
+                                                </p>
+                                                <p className="text-[10px] text-gray-300 truncate">Import all songs into queue</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleImportPlaylistLink(searchQuery)}
+                                                disabled={isImportingPlaylist}
+                                                className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white rounded-lg text-xs font-black shrink-0 flex items-center gap-1 shadow-md disabled:opacity-50"
+                                            >
+                                                {isImportingPlaylist ? <Loader className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
+                                                <span>Import</span>
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Playlist Import Progress Banner */}
+                                    {isImportingPlaylist && (
+                                        <div className="p-2.5 bg-purple-950/80 border border-purple-500/50 rounded-xl flex items-center gap-2.5 animate-pulse">
+                                            <Loader className="w-4 h-4 text-pink-400 animate-spin shrink-0" />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-bold text-white truncate">{importStatus || 'Importing playlist...'}</p>
+                                                <p className="text-[10px] text-purple-300">Resolving synced audio streams</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                        <div className="p-4 border-t border-white/5 bg-black">
-                            <form onSubmit={handleSendMessage} className="relative">
-                                <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
-                                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
-                            </form>
-                        </div>
-                    </div>
+
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                                    {searchResults.length > 0 && (
+                                        <div className="mb-6">
+                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Search Results</h3>
+                                            <div className="space-y-1">
+                                                {searchResults.map((track) => (
+                                                    <div key={track.id} onClick={() => handleTrackSelect(track, true)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl cursor-pointer transition-colors group">
+                                                        <img src={track.image} alt={track.song} className="w-10 h-10 rounded-md object-cover" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-white text-sm font-bold truncate group-hover:text-violet-300">{track.song}</h4>
+                                                            <p className="text-gray-400 text-xs truncate">{track.singers}</p>
+                                                        </div>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleTrackSelect(track, false); }} className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                            <PlusCircle className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Up Next Queue ({queue.length})</h3>
+                                        {queue.length === 0 ? (
+                                            <p className="text-sm text-gray-600 px-2 italic">Queue is empty</p>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {queue.map((track, idx) => (
+                                                    <div key={`${track.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/5">
+                                                        <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
+                                                        <img src={track.image} alt={track.song} className="w-8 h-8 rounded-md object-cover" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-white text-sm font-medium truncate">{track.song}</h4>
+                                                            <p className="text-gray-400 text-[10px] truncate">{track.singers}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Standard Chat Panel */}
+                        {showChat && (
+                            <div className="fixed inset-x-0 bottom-20 h-[60vh] md:absolute md:inset-x-auto md:right-96 md:top-0 md:bottom-0 md:h-auto md:w-80 border-t-2 border-violet-500/30 md:border-t-0 md:border-l border-white/5 bg-gray-950/95 backdrop-blur-2xl flex flex-col z-[100] shadow-2xl transition-all rounded-t-3xl md:rounded-none">
+                                <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
+                                    <span className="font-bold text-gray-300 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-violet-400" /> Chat</span>
+                                    <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                    {messages.map((msg, i) => (
+                                        <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
+                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
+                                                {msg.text}
+                                            </div>
+                                            <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-4 border-t border-white/5 bg-black">
+                                    <form onSubmit={handleSendMessage} className="relative">
+                                        <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
+                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
-            {/* Fix 3: Video Grids Overlay - only covers top-left area to avoid blocking controls */}
-            <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
-                {myStream && (
-                    <div
-                        onMouseDown={(e) => handleCamMouseDown(e, 'me')}
-                        onTouchStart={(e) => handleCamTouchStart(e, 'me')}
-                        style={{
-                            transform: `translate(${camPositions['me']?.x || 0}px, ${camPositions['me']?.y || 0}px)`,
-                            position: 'absolute', top: 0, left: 0
-                        }}
-                        className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
-                    >
-                        <StreamVideo stream={myStream} muted={true} mirrored={true} />
-                        <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-between items-center bg-black/40 backdrop-blur-md rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[10px] font-bold text-white">You</span>
-                            <div className="flex gap-1">
-                                <button onMouseDown={e => e.stopPropagation()} onClick={toggleMute} className={`p-0.5 rounded-md ${isMuted ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}</button>
-                                <button onMouseDown={e => e.stopPropagation()} onClick={toggleVideo} className={`p-0.5 rounded-md ${isVideoOff ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isVideoOff ? <VideoOff className="w-3 h-3" /> : <Video className="w-3 h-3" />}</button>
+            {/* ===== MOBILE-ONLY: Campus PCO Bottom Bar & Slide-Up Panel ===== */}
+            {roomCode.includes('Campus_PCO') && (
+                <>
+                    {/* Mobile Slide-Up Panel (Chat + Song Request) */}
+                    {isMobilePcoPanel && (
+                        <div className="fixed inset-0 z-[200] md:hidden flex flex-col">
+                            {/* Backdrop */}
+                            <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobilePcoPanel(false)} />
+                            {/* Panel */}
+                            <div className="bg-[#07050d] border-t border-violet-500/30 rounded-t-3xl flex flex-col animate-slide-up" style={{ height: '75vh' }}>
+                                {/* Panel Header Tabs */}
+                                <div className="flex items-center border-b border-white/10 px-4 pt-3 pb-0 shrink-0">
+                                    <button
+                                        onClick={() => setShowChat(false)}
+                                        className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${!showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
+                                    >
+                                        <Music className="w-3.5 h-3.5 inline mr-1.5" />Song Requests
+                                    </button>
+                                    <button
+                                        onClick={() => setShowChat(true)}
+                                        className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
+                                    >
+                                        <MessageSquare className="w-3.5 h-3.5 inline mr-1.5" />Live Chat
+                                    </button>
+                                    <button onClick={() => setIsMobilePcoPanel(false)} className="p-2 text-gray-500 hover:text-white ml-2 shrink-0">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                {/* Tab Content */}
+                                {!showChat ? (
+                                    /* Song Request Tab */
+                                    <div className="flex-1 flex flex-col overflow-hidden">
+                                        {/* Search */}
+                                        <div className="p-3 border-b border-white/5 shrink-0">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
+                                                <input
+                                                    type="text"
+                                                    value={searchQuery}
+                                                    onChange={e => setSearchQuery(e.target.value)}
+                                                    placeholder="Search songs to request..."
+                                                    className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 mt-1.5 px-1">
+                                                {3 - dailyRequestsUsed > 0 ? `${3 - dailyRequestsUsed} requests left today` : 'Daily request limit reached'}
+                                            </p>
+                                        </div>
+
+                                        {/* Search Results / Queue */}
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                                            {searchResults.length > 0 && (
+                                                <div className="mb-4">
+                                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Results</h3>
+                                                    <div className="space-y-2">
+                                                        {searchResults.map((t) => (
+                                                            <div key={t.id} className="flex flex-col gap-1.5 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                                                <div className="flex items-center gap-3">
+                                                                    <img src={t.image} alt={t.song} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <h4 className="text-white text-sm font-bold truncate">{t.song}</h4>
+                                                                        <p className="text-gray-400 text-xs truncate">{t.singers}</p>
+                                                                    </div>
+                                                                </div>
+                                                                {isAdminUser ? (
+                                                                    <div className="flex items-center gap-1 justify-end pt-1 border-t border-white/5">
+                                                                        <button
+                                                                            onClick={() => { handlePcoAdminDirectPlay(t); setIsMobilePcoPanel(false); }}
+                                                                            className="text-[10px] font-black bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
+                                                                        >
+                                                                            <Play className="w-2.5 h-2.5 fill-current" /> Play Now
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handlePcoAdminPlayNext(t); setIsMobilePcoPanel(false); }}
+                                                                            className="text-[10px] font-black bg-indigo-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
+                                                                        >
+                                                                            <SkipForward className="w-2.5 h-2.5 fill-current" /> Play Next
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { handlePcoAdminAddToQueue(t); setIsMobilePcoPanel(false); }}
+                                                                            className="text-[10px] font-black bg-zinc-800 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
+                                                                        >
+                                                                            <PlusCircle className="w-2.5 h-2.5" /> Add Queue
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => { handlePcoSongRequest(t); setIsMobilePcoPanel(false); }}
+                                                                        className="w-full py-1.5 mt-1 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 shadow"
+                                                                    >
+                                                                        <PlusCircle className="w-3.5 h-3.5" /> Request Song
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Queue ({queue.length})</h3>
+                                                {queue.length === 0 ? (
+                                                    <p className="text-sm text-gray-600 px-1 italic">Queue is empty</p>
+                                                ) : (
+                                                    <div className="space-y-1">
+                                                        {queue.map((t, idx) => (
+                                                            <div key={`m-${t.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                                                <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
+                                                                <img src={t.image} alt={t.song} className="w-8 h-8 rounded-md object-cover" />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-white text-sm font-medium truncate">{t.song}</h4>
+                                                                    <p className="text-gray-400 text-[10px] truncate">{t.singers}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Live Chat Tab */
+                                    <div className="flex-1 flex flex-col overflow-hidden">
+                                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                            {messages.length === 0 && (
+                                                <p className="text-gray-600 text-sm text-center mt-8 italic">No messages yet. Say something!</p>
+                                            )}
+                                            {messages.map((msg, i) => (
+                                                <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
+                                                    <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
+                                                        {msg.text}
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="p-3 border-t border-white/5 bg-black/50 shrink-0">
+                                            <form onSubmit={handleSendMessage} className="relative">
+                                                <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
+                                                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    )}
+
+                    {/* Mobile Bottom Bar */}
+                    <div className="md:hidden fixed bottom-0 inset-x-0 z-[150] bg-[#07050d]/95 backdrop-blur-2xl border-t border-white/10 px-3 py-2 flex items-center gap-3 safe-area-bottom">
+                        {/* Current Track Info */}
+                        {currentTrack ? (
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <img src={currentTrack.image} alt={currentTrack.song} className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="text-white text-xs font-bold truncate">{currentTrack.song}</h4>
+                                    <p className="text-gray-400 text-[10px] truncate">{currentTrack.singers}</p>
+                                    {/* Mini progress bar */}
+                                    <div className="w-full h-0.5 bg-gray-800 rounded-full mt-1 overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-1000" style={{ width: `${(currentTime / (Number(currentTrack.duration) || 1)) * 100}%` }} />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex-1 text-gray-500 text-xs">No song playing</div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                                onClick={() => { setIsMobilePcoPanel(true); setShowChat(false); }}
+                                className="p-2.5 rounded-xl bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 active:scale-95 transition-all border border-violet-500/20"
+                                title="Song Requests"
+                            >
+                                <Music className="w-4.5 h-4.5" />
+                            </button>
+                            <button
+                                onClick={() => { setIsMobilePcoPanel(true); setShowChat(true); }}
+                                className="p-2.5 rounded-xl bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 active:scale-95 transition-all border border-violet-500/20 relative"
+                                title="Live Chat"
+                            >
+                                <MessageSquare className="w-4.5 h-4.5" />
+                                {messages.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full" />
+                                )}
+                            </button>
+                        </div>
                     </div>
-                )}
-                {peers.map((peer, i) => (
-                    <div
-                        key={peer.peerId}
-                        onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
-                        onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
-                        style={{
-                            transform: `translate(${camPositions[peer.peerId]?.x || 0}px, ${camPositions[peer.peerId]?.y || 0}px)`,
-                            position: 'absolute', top: 0, left: 0
-                        }}
-                        className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
-                    >
-                        <StreamVideo stream={peer.stream} mirrored={true} volume={partnerVolume} />
-                        <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">{peerNames[peer.peerId] || 'Peer'}</span>
-                    </div>
-                ))}
-            </div>
+                </>
+            )}
+
+            {/* Fix 3: Video Grids Overlay - disabled in Campus PCO mode for clean radio experience */}
+            {!roomCode.includes('Campus_PCO') && (
+                <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
+                    {myStream && (
+                        <div
+                            onMouseDown={(e) => handleCamMouseDown(e, 'me')}
+                            onTouchStart={(e) => handleCamTouchStart(e, 'me')}
+                            style={{
+                                transform: `translate(${camPositions['me']?.x || 0}px, ${camPositions['me']?.y || 0}px)`,
+                                position: 'absolute', top: 0, left: 0
+                            }}
+                            className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
+                        >
+                            <StreamVideo stream={myStream} muted={true} mirrored={true} />
+                            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-between items-center bg-black/40 backdrop-blur-md rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[10px] font-bold text-white">You</span>
+                                <div className="flex gap-1">
+                                    <button onMouseDown={e => e.stopPropagation()} onClick={toggleMute} className={`p-0.5 rounded-md ${isMuted ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}</button>
+                                    <button onMouseDown={e => e.stopPropagation()} onClick={toggleVideo} className={`p-0.5 rounded-md ${isVideoOff ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isVideoOff ? <VideoOff className="w-3 h-3" /> : <Video className="w-3 h-3" />}</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {peers.map((peer, i) => (
+                        <div
+                            key={peer.peerId}
+                            onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
+                            onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
+                            style={{
+                                transform: `translate(${camPositions[peer.peerId]?.x || 0}px, ${camPositions[peer.peerId]?.y || 0}px)`,
+                                position: 'absolute', top: 0, left: 0
+                            }}
+                            className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
+                        >
+                            <StreamVideo stream={peer.stream} mirrored={true} volume={partnerVolume} />
+                            <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">{peerNames[peer.peerId] || 'Peer'}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Navigation Blocker Modal */}
             {showLeaveModal && (

@@ -549,13 +549,34 @@ export const Sparx: React.FC = () => {
               </div>
             </button>
 
-            {/* Active Rooms */}
-            {activeRooms.length === 0 ? (
-              <div className="text-[11px] text-gray-600 font-medium italic py-2">
-                No active vibe rooms right now.
+            {/* Permanent Featured Campus PCO Room */}
+            <button
+              onClick={() => router.push('/sparx/music?room=Campus_PCO_247')}
+              className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-purple-900/40 border border-purple-500/50 hover:border-purple-400 hover:bg-purple-900/60 transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.25)] active:scale-95 text-left group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 group-hover:scale-105 transition-transform">
+                <Music className="w-4 h-4 animate-bounce" />
               </div>
-            ) : (
-              activeRooms.map((room) => {
+
+              <div className="flex flex-col min-w-0 max-w-[130px]">
+                <span className="text-xs font-black text-white truncate flex items-center gap-1">
+                  Campus PCO
+                  <span className="px-1.5 py-0.5 rounded-full bg-pink-500 text-[8px] font-black text-white uppercase tracking-wider animate-pulse">24/7</span>
+                </span>
+                <span className="text-[9px] text-purple-300 font-semibold flex items-center gap-1 mt-0.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  Radio & Live Chat
+                </span>
+              </div>
+            </button>
+
+            {/* Other Active User Rooms */}
+            {activeRooms
+              .filter(r => !r.room_id.includes('Campus_PCO'))
+              .map((room) => {
                 const details = parseRoomDetails(room.room_id);
                 const isCinema = details.type === 'cinema';
                 
@@ -601,8 +622,7 @@ export const Sparx: React.FC = () => {
                     </div>
                   </button>
                 );
-              })
-            )}
+              })}
           </div>
         </div>
       </div>

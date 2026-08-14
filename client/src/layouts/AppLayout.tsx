@@ -5,12 +5,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
+import { supabase } from '../lib/supabase';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
-
 
 const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mod.VideoCall), {
   ssr: false
@@ -124,7 +124,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
     { path: '/sparx', icon: Zap, label: 'Sparx' },
-    { path: '/profile', icon: User, label: 'My Profile' }
+    { path: '/profile', icon: User, label: 'My Profile' },
   ];
 
   const isHome = pathname === '/home';

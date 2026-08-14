@@ -23,6 +23,8 @@ export default {
         'slide-in-right': 'slideInRight 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
         'snap': 'snap 0.4s cubic-bezier(0.5, 1.5, 0.5, 1) forwards',
         'shockwave': 'shockwave 0.8s ease-out forwards',
+        'slide-up': 'slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards',
+        'fade-in-down': 'fadeInDown 0.3s ease-out forwards',
       },
       keyframes: {
         blob: {
@@ -47,6 +49,14 @@ export default {
         shockwave: {
           '0%': { transform: 'scale(1)', opacity: '0.8', borderWidth: '4px' },
           '100%': { transform: 'scale(4)', opacity: '0', borderWidth: '0px' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(100%)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        fadeInDown: {
+          '0%': { transform: 'translateY(-20px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
         }
       }
     },

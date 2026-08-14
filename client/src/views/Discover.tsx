@@ -210,7 +210,8 @@ export const Discover: React.FC = () => {
               const { data: { session } } = await supabase.auth.getSession();
               if (!session) throw new Error("No session");
 
-              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/agora-token`, {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+              const res = await fetch(`${apiUrl}/api/agora-token`, {
                 method: 'POST',
                 headers: { 
                   'Content-Type': 'application/json',
@@ -283,7 +284,8 @@ export const Discover: React.FC = () => {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) throw new Error("No session");
 
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/agora-token`, {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+          const res = await fetch(`${apiUrl}/api/agora-token`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',

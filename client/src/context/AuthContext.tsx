@@ -207,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+
   // Sync Supabase access token to the service worker's IndexedDB
   // so background push notification handlers can authenticate API calls
   const syncTokenToSW = useCallback(async () => {
