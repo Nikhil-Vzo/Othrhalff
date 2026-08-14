@@ -85,13 +85,12 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Set online immediately in DB and Realtime (forced)
         updatePresence(true, true);
 
-        // Start heartbeat - 30 seconds is industry standard (up from 10)
-        // Heartbeat is purely realtime memory updates, no DB writes!
+        // Standard 30-second heartbeat for general app views to preserve backend resources
         heartbeatIntervalRef.current = setInterval(() => {
             updatePresence(true);
         }, 30000);
 
-        // Activity detection - reset heartbeat on user activity with throttling
+        // Activity detection - reset heartbeat on user activity with 60s throttle
         const lastActivityBroadcastRef = { current: 0 };
         const resetActivity = () => {
             if (activityTimeoutRef.current) {
@@ -104,7 +103,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 lastActivityBroadcastRef.current = now;
             }
 
-            // Set idle/offline timeout (e.g., mark offline after 3 minutes of inactivity)
+            // Set idle/offline timeout (mark offline after 3 minutes of total inactivity)
             activityTimeoutRef.current = setTimeout(() => {
                 updatePresence(false, true); // Forced offline write to DB and Realtime
             }, 180000);

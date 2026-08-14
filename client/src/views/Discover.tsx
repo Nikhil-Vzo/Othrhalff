@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
   Heart, Search, SkipForward, MessageSquare, Video, Send, 
-  ArrowLeft, User
+  ArrowLeft, User, Globe, School, Sparkles, RefreshCw, Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -15,6 +15,7 @@ const VideoCall = dynamic<any>(
 
 type DiscoverState = 'IDLE' | 'SEARCHING' | 'CONNECTING' | 'CONNECTED' | 'MATCHED';
 type DiscoverMode = 'TEXT' | 'VIDEO';
+type DiscoverScope = 'CAMPUS' | 'GLOBAL';
 
 interface ChatMessage {
   id: string;
@@ -27,13 +28,19 @@ export const Discover: React.FC = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
 
-  // State
+  // Mode and Scope
   const [mode, setMode] = useState<DiscoverMode>('TEXT');
+  const [scope, setScope] = useState<DiscoverScope>(() => currentUser?.university ? 'CAMPUS' : 'GLOBAL');
   const [state, setState] = useState<DiscoverState>('IDLE');
+  
+  // Realtime channel and metrics
   const [channel, setChannel] = useState<any>(null);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
+  const [textSearchingCount, setTextSearchingCount] = useState(0);
+  const [videoSearchingCount, setVideoSearchingCount] = useState(0);
   const [searchTime, setSearchTime] = useState(0);
 
+  // Active call/session details
   const [callInfo, setCallInfo] = useState<{
     appId: string;
     channelName: string;
@@ -41,6 +48,7 @@ export const Discover: React.FC = () => {
     partnerId: string;
     partnerName: string;
     partnerAvatar: string;
+    partnerUniversity?: string;
   } | null>(null);
 
   // Text Chat State
@@ -55,13 +63,34 @@ export const Discover: React.FC = () => {
   const [hasLiked, setHasLiked] = useState(false);
   const [partnerLiked, setPartnerLiked] = useState(false);
 
-  // Refs to avoid stale closure
+  // Recent skipped partners to avoid immediate re-matching
+  const recentSkippedPartnersRef = useRef<Map<string, number>>(new Map());
+
+  // Refs for current values in callbacks/effects
   const stateRef = useRef(state);
   const modeRef = useRef(mode);
+  const scopeRef = useRef(scope);
   const callInfoRef = useRef(callInfo);
+  const channelRef = useRef<any>(null);
+  
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => { scopeRef.current = scope; }, [scope]);
   useEffect(() => { callInfoRef.current = callInfo; }, [callInfo]);
+  useEffect(() => { channelRef.current = channel; }, [channel]);
+
+  // Clean recent skipped cache periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      recentSkippedPartnersRef.current.forEach((expireTime, id) => {
+        if (now > expireTime) {
+          recentSkippedPartnersRef.current.delete(id);
+        }
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Search Timer
   useEffect(() => {
@@ -76,10 +105,12 @@ export const Discover: React.FC = () => {
     return () => clearInterval(timer);
   }, [state]);
 
+  // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPartnerTyping]);
 
+  // Cleanup helper
   const cleanupAndResetState = useCallback((nextState: DiscoverState = 'SEARCHING') => {
     setHasLiked(false);
     setPartnerLiked(false);
@@ -91,22 +122,31 @@ export const Discover: React.FC = () => {
     setState(nextState);
   }, []);
 
+  // Skip partner
   const handleSkip = useCallback(() => {
-    if (channel && callInfoRef.current) {
-      channel.send({
-        type: 'broadcast',
-        event: 'SKIP',
-        payload: { targetId: callInfoRef.current.partnerId }
-      });
+    if (channelRef.current && callInfoRef.current) {
+      const partnerId = callInfoRef.current.partnerId;
+      recentSkippedPartnersRef.current.set(partnerId, Date.now() + 30000); // Avoid for 30s
+      
+      try {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'SKIP',
+          payload: { targetId: partnerId }
+        });
+      } catch (err) {
+        console.warn('Failed to send skip event:', err);
+      }
     }
     cleanupAndResetState('SEARCHING');
-  }, [channel, cleanupAndResetState]);
+  }, [cleanupAndResetState]);
 
+  // Like partner
   const handleLike = useCallback(async () => {
-    if (hasLiked || !channel || !callInfoRef.current || !currentUser) return;
+    if (hasLiked || !channelRef.current || !callInfoRef.current || !currentUser) return;
     setHasLiked(true);
     
-    channel.send({
+    channelRef.current.send({
       type: 'broadcast',
       event: 'LIKE',
       payload: { targetId: callInfoRef.current.partnerId }
@@ -114,33 +154,46 @@ export const Discover: React.FC = () => {
 
     if (partnerLiked) {
       setState('MATCHED');
-      await supabase.from('swipes').upsert({
-        liker_id: currentUser.id,
-        target_id: callInfoRef.current.partnerId,
-        action: 'like',
-        created_at: new Date().toISOString()
-      }, { onConflict: 'liker_id, target_id' });
+      try {
+        await supabase.from('swipes').upsert({
+          liker_id: currentUser.id,
+          target_id: callInfoRef.current.partnerId,
+          action: 'like',
+          created_at: new Date().toISOString()
+        }, { onConflict: 'liker_id, target_id' });
+      } catch (err) {
+        console.warn('Error saving mutual match:', err);
+      }
     }
-  }, [hasLiked, partnerLiked, channel, currentUser]);
+  }, [hasLiked, partnerLiked, currentUser]);
 
+  // Mutual match reaction
   useEffect(() => {
     if (hasLiked && partnerLiked && state === 'CONNECTED' && currentUser && callInfoRef.current) {
       setState('MATCHED');
-      supabase.from('swipes').upsert({
-        liker_id: currentUser.id,
-        target_id: callInfoRef.current.partnerId,
-        action: 'like',
-        created_at: new Date().toISOString()
-      }, { onConflict: 'liker_id, target_id' });
+      const partnerId = callInfoRef.current.partnerId;
+      (async () => {
+        try {
+          await supabase.from('swipes').upsert({
+            liker_id: currentUser.id,
+            target_id: partnerId,
+            action: 'like',
+            created_at: new Date().toISOString()
+          }, { onConflict: 'liker_id, target_id' });
+        } catch (err) {
+          console.warn('Error saving mutual swipe:', err);
+        }
+      })();
     }
   }, [hasLiked, partnerLiked, state, currentUser]);
 
+  // Send text message
   const handleSendMessage = useCallback((textToSend?: string) => {
     const text = textToSend !== undefined ? textToSend : chatInput;
-    if (!text.trim() || !channel || !callInfoRef.current || !currentUser) return;
+    if (!text.trim() || !channelRef.current || !callInfoRef.current || !currentUser) return;
 
     const newMessage: ChatMessage = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       senderId: currentUser.id,
       text: text.trim(),
       timestamp: Date.now()
@@ -149,7 +202,7 @@ export const Discover: React.FC = () => {
     setMessages(prev => [...prev, newMessage]);
     if (textToSend === undefined) setChatInput('');
 
-    channel.send({
+    channelRef.current.send({
       type: 'broadcast',
       event: 'CHAT_MESSAGE',
       payload: {
@@ -158,24 +211,162 @@ export const Discover: React.FC = () => {
       }
     });
 
-    channel.send({
+    channelRef.current.send({
       type: 'broadcast',
       event: 'TYPING_STOP',
       payload: { targetId: callInfoRef.current.partnerId }
     });
-  }, [chatInput, channel, currentUser]);
+  }, [chatInput, currentUser]);
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setChatInput(e.target.value);
-    if (!channel || !callInfoRef.current) return;
+    if (!channelRef.current || !callInfoRef.current) return;
 
-    channel.send({
+    channelRef.current.send({
       type: 'broadcast',
       event: 'TYPING_START',
       payload: { targetId: callInfoRef.current.partnerId }
     });
   };
 
+  // Keyboard shortcut listener for Omegle-style navigation (ESC to skip)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (stateRef.current === 'CONNECTED') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          handleSkip();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSkip]);
+
+  // =========================================================================
+  // MATCHMAKING CORE ENGINE (Deterministic & High-Speed Random Pairing)
+  // =========================================================================
+  const evaluateMatchmaking = useCallback(async (activeChannel: any) => {
+    if (!activeChannel || !currentUser || stateRef.current !== 'SEARCHING') return;
+
+    const stateTree = activeChannel.presenceState();
+    const allUsers = Object.keys(stateTree).map(key => stateTree[key][0] as any).filter(Boolean);
+
+    // Update telemetry counts
+    setActiveUsersCount(allUsers.length);
+    setTextSearchingCount(allUsers.filter(u => u.status === 'SEARCHING' && u.mode === 'TEXT').length);
+    setVideoSearchingCount(allUsers.filter(u => u.status === 'SEARCHING' && u.mode === 'VIDEO').length);
+
+    // Filter available candidates searching in the same mode
+    const candidates = allUsers.filter(u => 
+      u.status === 'SEARCHING' && 
+      u.mode === modeRef.current && 
+      u.id !== currentUser.id
+    );
+
+    if (candidates.length === 0) return;
+
+    // Filter out recently skipped partners unless nobody else is searching
+    const now = Date.now();
+    const freshCandidates = candidates.filter(u => {
+      const avoidUntil = recentSkippedPartnersRef.current.get(u.id);
+      return !avoidUntil || now > avoidUntil;
+    });
+
+    const candidatePool = freshCandidates.length > 0 ? freshCandidates : candidates;
+
+    // If in Campus scope, prefer same university candidate
+    let partner = candidatePool[0];
+    if (scopeRef.current === 'CAMPUS' && currentUser.university) {
+      const campusMatch = candidatePool.find(u => u.university === currentUser.university);
+      if (campusMatch) partner = campusMatch;
+    }
+
+    if (!partner) return;
+
+    // Deterministic tie-breaker: User with lexicographically smaller ID acts as Initiator
+    const isInitiator = currentUser.id < partner.id;
+
+    if (isInitiator) {
+      setState('CONNECTING');
+
+      try {
+        if (modeRef.current === 'VIDEO') {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) throw new Error("No active session");
+
+          const channelName = `discover_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+          const res = await fetch(`${apiUrl}/api/agora-token`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ channelName })
+          });
+          
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Failed to fetch Agora token");
+
+          setCallInfo({
+            appId: data.appId,
+            channelName: data.channelName,
+            token: data.token,
+            partnerId: partner.id,
+            partnerName: partner.name || 'Anonymous Student',
+            partnerAvatar: partner.avatar || '',
+            partnerUniversity: partner.university
+          });
+
+          activeChannel.send({
+            type: 'broadcast',
+            event: 'PROPOSE_MATCH',
+            payload: {
+              mode: 'VIDEO',
+              targetId: partner.id,
+              channelName: data.channelName,
+              initiatorId: currentUser.id,
+              initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+              initiatorAvatar: currentUser.avatar || '',
+              initiatorUniversity: currentUser.university || ''
+            }
+          });
+        } else {
+          // Instant Text Mode Handshake
+          const textRoomId = `discover_txt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          setCallInfo({
+            appId: '',
+            channelName: textRoomId,
+            token: '',
+            partnerId: partner.id,
+            partnerName: partner.name || 'Anonymous Student',
+            partnerAvatar: partner.avatar || '',
+            partnerUniversity: partner.university
+          });
+
+          activeChannel.send({
+            type: 'broadcast',
+            event: 'PROPOSE_MATCH',
+            payload: {
+              mode: 'TEXT',
+              targetId: partner.id,
+              channelName: textRoomId,
+              initiatorId: currentUser.id,
+              initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+              initiatorAvatar: currentUser.avatar || '',
+              initiatorUniversity: currentUser.university || ''
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Match proposal error:", err);
+        setState('SEARCHING');
+      }
+    }
+  }, [currentUser]);
+
+  // Main Discover Realtime Channel Setup
   useEffect(() => {
     if (!currentUser) return;
 
@@ -188,94 +379,23 @@ export const Discover: React.FC = () => {
       config: { presence: { key: currentUser.id } }
     });
 
-    newChannel.on('presence', { event: 'sync' }, async () => {
-      const stateTree = newChannel.presenceState();
-      setActiveUsersCount(Object.keys(stateTree).length);
-
-      if (stateRef.current !== 'SEARCHING') return;
-
-      const availableUsers = Object.keys(stateTree)
-        .map(key => stateTree[key][0] as any)
-        .filter(u => u.status === 'SEARCHING' && u.mode === modeRef.current && u.id !== currentUser.id);
-
-      if (availableUsers.length > 0) {
-        const allSearching = [currentUser.id, ...availableUsers.map(u => u.id)].sort();
-        
-        if (allSearching[0] === currentUser.id) {
-          const partner = availableUsers[0];
-          setState('CONNECTING');
-
-          try {
-            if (modeRef.current === 'VIDEO') {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (!session) throw new Error("No session");
-
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-              const res = await fetch(`${apiUrl}/api/agora-token`, {
-                method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${session.access_token}`
-                }
-              });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || "Failed to fetch Agora token");
-
-              setCallInfo({
-                appId: data.appId,
-                channelName: data.channelName,
-                token: data.token,
-                partnerId: partner.id,
-                partnerName: partner.name || 'Anonymous Student',
-                partnerAvatar: partner.avatar || ''
-              });
-
-              newChannel.send({
-                type: 'broadcast',
-                event: 'PROPOSE_MATCH',
-                payload: {
-                  mode: 'VIDEO',
-                  targetId: partner.id,
-                  channelName: data.channelName,
-                  initiatorId: currentUser.id,
-                  initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-                  initiatorAvatar: currentUser.avatar
-                }
-              });
-            } else {
-              const textRoomId = `text_room_${Date.now()}_${currentUser.id.substring(0, 5)}`;
-              setCallInfo({
-                appId: '',
-                channelName: textRoomId,
-                token: '',
-                partnerId: partner.id,
-                partnerName: partner.name || 'Anonymous Student',
-                partnerAvatar: partner.avatar || ''
-              });
-
-              newChannel.send({
-                type: 'broadcast',
-                event: 'PROPOSE_MATCH',
-                payload: {
-                  mode: 'TEXT',
-                  targetId: partner.id,
-                  channelName: textRoomId,
-                  initiatorId: currentUser.id,
-                  initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-                  initiatorAvatar: currentUser.avatar
-                }
-              });
-            }
-          } catch (err) {
-            console.error("Matching error:", err);
-            setState('SEARCHING');
-          }
-        }
-      }
+    // 1. Presence Sync Handler
+    newChannel.on('presence', { event: 'sync' }, () => {
+      evaluateMatchmaking(newChannel);
     });
 
+    // 2. Incoming Match Proposal Handler (Receiver)
     newChannel.on('broadcast', { event: 'PROPOSE_MATCH' }, async ({ payload }) => {
-      if (payload.targetId !== currentUser.id || stateRef.current !== 'SEARCHING') return;
+      if (payload.targetId !== currentUser.id) return;
+      if (stateRef.current !== 'SEARCHING') {
+        // User already connected or not searching - send BUSY reject
+        newChannel.send({
+          type: 'broadcast',
+          event: 'BUSY_MATCH',
+          payload: { targetId: payload.initiatorId }
+        });
+        return;
+      }
       
       setState('CONNECTING');
 
@@ -293,6 +413,7 @@ export const Discover: React.FC = () => {
             },
             body: JSON.stringify({ channelName: payload.channelName })
           });
+          
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Failed to fetch Agora token");
 
@@ -302,7 +423,8 @@ export const Discover: React.FC = () => {
             token: data.token,
             partnerId: payload.initiatorId,
             partnerName: payload.initiatorName || 'Anonymous Student',
-            partnerAvatar: payload.initiatorAvatar || ''
+            partnerAvatar: payload.initiatorAvatar || '',
+            partnerUniversity: payload.initiatorUniversity
           });
         } else {
           setCallInfo({
@@ -311,14 +433,20 @@ export const Discover: React.FC = () => {
             token: '',
             partnerId: payload.initiatorId,
             partnerName: payload.initiatorName || 'Anonymous Student',
-            partnerAvatar: payload.initiatorAvatar || ''
+            partnerAvatar: payload.initiatorAvatar || '',
+            partnerUniversity: payload.initiatorUniversity
           });
         }
 
         newChannel.send({
           type: 'broadcast',
           event: 'ACCEPT_MATCH',
-          payload: { targetId: payload.initiatorId }
+          payload: { 
+            targetId: payload.initiatorId,
+            receiverName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+            receiverAvatar: currentUser.avatar || '',
+            receiverUniversity: currentUser.university || ''
+          }
         });
 
         setState('CONNECTED');
@@ -329,13 +457,22 @@ export const Discover: React.FC = () => {
       }
     });
 
+    // 3. Match Accepted Handler (Initiator)
     newChannel.on('broadcast', { event: 'ACCEPT_MATCH' }, ({ payload }) => {
-      if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTING') {
+      if (payload.targetId === currentUser.id && (stateRef.current === 'CONNECTING' || stateRef.current === 'SEARCHING')) {
         setState('CONNECTED');
         setIsPartnerDisconnected(false);
       }
     });
 
+    // 4. Partner Busy / Reject Handler
+    newChannel.on('broadcast', { event: 'BUSY_MATCH' }, ({ payload }) => {
+      if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTING') {
+        setState('SEARCHING');
+      }
+    });
+
+    // 5. Chat & Presence Broadcasts
     newChannel.on('broadcast', { event: 'CHAT_MESSAGE' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTED') {
         setMessages(prev => [...prev, payload.message]);
@@ -369,12 +506,14 @@ export const Discover: React.FC = () => {
       }
     });
 
+    // Subscribe and track presence
     newChannel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         await newChannel.track({
           id: currentUser.id,
           name: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
           avatar: currentUser.avatar,
+          university: currentUser.university,
           status: stateRef.current,
           mode: modeRef.current
         });
@@ -387,35 +526,53 @@ export const Discover: React.FC = () => {
       supabase.removeChannel(newChannel);
       setChannel(null);
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, evaluateMatchmaking]);
 
+  // Sync state & mode changes to the realtime pool presence
   useEffect(() => {
     if (channel && currentUser) {
       channel.track({
         id: currentUser.id,
         name: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
         avatar: currentUser.avatar,
+        university: currentUser.university,
         status: state,
         mode: mode
       });
     }
   }, [state, mode, channel, currentUser?.id]);
 
+  // Active Matchmaking Evaluation Loop (Ticks every 1.5s while SEARCHING)
+  useEffect(() => {
+    if (state !== 'SEARCHING' || !channel) return;
+
+    evaluateMatchmaking(channel);
+    const matchmakingInterval = setInterval(() => {
+      evaluateMatchmaking(channel);
+    }, 1500);
+
+    return () => clearInterval(matchmakingInterval);
+  }, [state, channel, evaluateMatchmaking]);
+
+  // Fail-Safe: Reset from CONNECTING to SEARCHING if handshake stalls past 5s
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     if (state === 'CONNECTING') {
       timeoutId = setTimeout(() => {
-        setState('SEARCHING');
-      }, 10000);
+        if (stateRef.current === 'CONNECTING') {
+          console.warn('[Discover] Connection handshake timed out after 5s, resuming search...');
+          setState('SEARCHING');
+        }
+      }, 5000);
     }
     return () => { if (timeoutId) clearTimeout(timeoutId); };
   }, [state]);
 
   if (!currentUser) return null;
 
-  // ==========================================
+  // =========================================================================
   // RENDER: IDLE STATE
-  // ==========================================
+  // =========================================================================
   if (state === 'IDLE') {
     return (
       <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
@@ -429,9 +586,9 @@ export const Discover: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-800 px-3 py-1.5 rounded-full">
+          <div className="flex items-center gap-2 bg-gray-900/90 border border-gray-800 px-3.5 py-1.5 rounded-full shadow-md">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-bold text-gray-300 font-mono">
+            <span className="text-xs font-bold text-gray-200 font-mono">
               {activeUsersCount} Online
             </span>
           </div>
@@ -439,73 +596,105 @@ export const Discover: React.FC = () => {
 
         {/* Hero Content */}
         <div className="w-full max-w-md flex flex-col items-center text-center my-auto py-6">
-          <div className="w-20 h-20 rounded-full bg-neon/20 border border-neon/30 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,0,127,0.3)]">
-            <Search className="w-9 h-9 text-neon" />
+          <div className="relative mb-6">
+            <div className="w-20 h-20 rounded-full bg-neon/20 border border-neon/40 flex items-center justify-center shadow-[0_0_40px_rgba(255,0,127,0.35)]">
+              <Zap className="w-9 h-9 text-neon animate-pulse" />
+            </div>
+            <div className="absolute -top-1 -right-1 px-2 py-0.5 bg-neon text-[10px] font-black uppercase tracking-wider text-white rounded-full">
+              Live
+            </div>
           </div>
 
           <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">
-            Discover
+            Discover Live
           </h1>
-          <p className="text-gray-400 text-xs text-center max-w-xs mb-4">
-            Match randomly with anyone in your campus right now.
+          <p className="text-gray-400 text-xs text-center max-w-xs mb-6">
+            Instant 1-on-1 random speed matching. Pair with anyone live right now.
           </p>
 
-          {/* Single User Online Banner */}
-          {activeUsersCount <= 1 && (
-            <div className="mb-6 px-3.5 py-1.5 rounded-full bg-gray-900 border border-gray-800 text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-neon" />
-              <span>You are currently the only person online right now.</span>
-            </div>
-          )}
+          {/* Scope Selector: Campus vs Global */}
+          <div className="flex bg-gray-900/90 p-1 rounded-full border border-gray-800 mb-4 w-full max-w-xs">
+            <button
+              onClick={() => setScope('CAMPUS')}
+              className={`flex-1 py-2 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                scope === 'CAMPUS'
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <School className="w-3.5 h-3.5" />
+              <span>Campus</span>
+            </button>
+            <button
+              onClick={() => setScope('GLOBAL')}
+              className={`flex-1 py-2 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                scope === 'GLOBAL'
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Global</span>
+            </button>
+          </div>
 
-          {/* Mode Switcher */}
+          {/* Mode Switcher: Text vs Video */}
           <div className="flex bg-gray-900 p-1 rounded-full border border-gray-800 mb-8 w-full max-w-xs">
             <button
               onClick={() => setMode('TEXT')}
               className={`flex-1 py-2.5 rounded-full text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
                 mode === 'TEXT'
-                  ? 'bg-neon text-white shadow-md shadow-neon/20'
+                  ? 'bg-neon text-white shadow-md shadow-neon/25'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Text</span>
+              <span>Text ({textSearchingCount || activeUsersCount})</span>
             </button>
             <button
               onClick={() => setMode('VIDEO')}
               className={`flex-1 py-2.5 rounded-full text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ${
                 mode === 'VIDEO'
-                  ? 'bg-neon text-white shadow-md shadow-neon/20'
+                  ? 'bg-neon text-white shadow-md shadow-neon/25'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <Video className="w-4 h-4" />
-              <span>Video</span>
+              <span>Video ({videoSearchingCount || activeUsersCount})</span>
             </button>
           </div>
+
+          {/* Single User Online Telemetry Banner */}
+          {activeUsersCount <= 1 && (
+            <div className="mb-6 px-3.5 py-1.5 rounded-full bg-gray-900 border border-gray-800 text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-neon" />
+              <span>You're the first in pool. Click start to wait for someone!</span>
+            </div>
+          )}
 
           {/* Start Button */}
           <button
             onClick={() => setState('SEARCHING')}
-            className="w-full max-w-xs py-4 bg-neon text-white font-bold rounded-full uppercase tracking-widest text-xs shadow-[0_4px_14px_rgba(255,0,127,0.4)] active:scale-95 transition-transform"
+            className="w-full max-w-xs py-4 bg-neon text-white font-black rounded-full uppercase tracking-widest text-xs shadow-[0_4px_20px_rgba(255,0,127,0.4)] active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2"
           >
-            Start Discovering
+            <Sparkles className="w-4 h-4 fill-white" />
+            <span>Start Discovering</span>
           </button>
         </div>
 
         {/* Footer info */}
         <div className="w-full max-w-md text-center py-2">
           <p className="text-[11px] text-gray-500">
-            Mutual likes during chat unlock a permanent match.
+            Independent random chat. Tap ❤️ anytime to unlock a permanent match.
           </p>
         </div>
       </div>
     );
   }
 
-  // ==========================================
+  // =========================================================================
   // RENDER: SEARCHING & CONNECTING STATE
-  // ==========================================
+  // =========================================================================
   if (state === 'SEARCHING' || state === 'CONNECTING') {
     return (
       <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
@@ -517,10 +706,10 @@ export const Discover: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-800 px-3 py-1.5 rounded-full">
+          <div className="flex items-center gap-2 bg-gray-900/90 border border-gray-800 px-3.5 py-1.5 rounded-full">
             <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
             <span className="text-xs font-bold text-gray-300 font-mono">
-              {state === 'SEARCHING' ? `Searching... ${searchTime}s` : 'Connecting...'}
+              {state === 'SEARCHING' ? `Searching (${searchTime}s)` : 'Handshaking...'}
             </span>
           </div>
         </div>
@@ -529,29 +718,30 @@ export const Discover: React.FC = () => {
           <div className="relative w-28 h-28 mb-6 flex items-center justify-center">
             <div className="absolute inset-0 border-2 border-neon rounded-full opacity-30 animate-ping" />
             <img 
-              src={currentUser.avatar || 'https://via.placeholder.com/150'} 
+              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
               alt="Me" 
               className="w-16 h-16 rounded-full border-2 border-neon object-cover" 
             />
           </div>
 
-          <h2 className="text-xl font-bold text-white mb-2 animate-pulse">
-            {state === 'SEARCHING' ? 'Looking for someone...' : 'Connecting...'}
+          <h2 className="text-xl font-bold text-white mb-1.5 animate-pulse">
+            {state === 'SEARCHING' ? 'Looking for someone online...' : 'Connecting with partner...'}
           </h2>
-          <p className="text-gray-500 text-xs mb-3">
-            {mode === 'TEXT' ? 'Random Text Mode' : 'Speed Video Mode'}
+          <p className="text-gray-400 text-xs mb-3 font-medium">
+            {mode === 'TEXT' ? 'Random Text Mode' : 'Speed Video Mode'} • {scope === 'CAMPUS' ? 'Campus Scope' : 'Global Scope'}
           </p>
 
-          {/* Timeout / Single User Telemetry Notification */}
+          {/* Quick Realtime Pool Feedback */}
           {state === 'SEARCHING' && activeUsersCount <= 1 && (
             <p className="text-xs font-mono text-neon/90 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800">
-              You are currently the only one online right now. Waiting for someone to join...
+              Waiting for someone to join the pool...
             </p>
           )}
 
-          {state === 'SEARCHING' && activeUsersCount > 1 && searchTime >= 15 && (
-            <p className="text-xs font-mono text-gray-400 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800">
-              Searching for available persons in {mode} mode...
+          {state === 'SEARCHING' && activeUsersCount > 1 && (
+            <p className="text-xs font-mono text-green-400 max-w-xs mt-2 px-4 py-1.5 rounded-full bg-gray-900 border border-gray-800 flex items-center gap-1.5 justify-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              <span>{activeUsersCount} online • pairing active candidates...</span>
             </p>
           )}
         </div>
@@ -561,27 +751,35 @@ export const Discover: React.FC = () => {
             onClick={() => setState('IDLE')}
             className="px-6 py-2.5 text-xs text-gray-400 font-bold uppercase border border-gray-800 rounded-full bg-gray-900 hover:text-white transition-colors active:scale-95"
           >
-            Cancel
+            Cancel Search
           </button>
         </div>
       </div>
     );
   }
 
-  // ==========================================
+  // =========================================================================
   // RENDER: MATCHED CELEBRATION STATE
-  // ==========================================
+  // =========================================================================
   if (state === 'MATCHED') {
     return (
       <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto z-50">
         <div className="flex items-center gap-4 mb-8">
-          <img src={currentUser.avatar || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-2 border-neon object-cover" />
+          <img 
+            src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
+            className="w-20 h-20 rounded-full border-2 border-neon object-cover shadow-[0_0_25px_rgba(255,0,127,0.5)]" 
+          />
           <Heart className="w-8 h-8 text-neon animate-bounce fill-current" />
-          <img src={callInfo?.partnerAvatar || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-2 border-neon object-cover" />
+          <img 
+            src={callInfo?.partnerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
+            className="w-20 h-20 rounded-full border-2 border-neon object-cover shadow-[0_0_25px_rgba(255,0,127,0.5)]" 
+          />
         </div>
 
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">It's a Match!</h1>
-        <p className="text-gray-400 text-xs mb-10 text-center max-w-xs">You and {callInfo?.partnerName} liked each other.</p>
+        <p className="text-gray-400 text-xs mb-10 text-center max-w-xs">
+          You and {callInfo?.partnerName} liked each other. You can now message them permanently!
+        </p>
 
         <div className="w-full max-w-xs space-y-3">
           <button
@@ -601,14 +799,14 @@ export const Discover: React.FC = () => {
     );
   }
 
-  // ==========================================
+  // =========================================================================
   // RENDER: CONNECTED — TEXT MODE
-  // ==========================================
+  // =========================================================================
   if (state === 'CONNECTED' && mode === 'TEXT') {
     return (
       <div className="w-full h-[100dvh] flex flex-col bg-black text-white relative overflow-hidden">
-        {/* Header */}
-        <div className="w-full bg-gray-900/60 border-b border-gray-800 p-3 md:p-4 flex items-center justify-between z-10 backdrop-blur-md shrink-0">
+        {/* Top Header */}
+        <div className="w-full bg-gray-900/70 border-b border-gray-800 p-3 md:p-4 flex items-center justify-between z-10 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
             <button
               onClick={() => {
@@ -621,7 +819,7 @@ export const Discover: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <img 
-              src={callInfo?.partnerAvatar || 'https://via.placeholder.com/150'} 
+              src={callInfo?.partnerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'} 
               className="w-9 h-9 rounded-full object-cover border border-gray-800 shrink-0" 
             />
             <div className="truncate">
@@ -629,7 +827,8 @@ export const Discover: React.FC = () => {
                 {callInfo?.partnerName || 'Student'}
               </h3>
               <p className="text-[10px] text-green-500 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Connected
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> 
+                Connected {callInfo?.partnerUniversity ? `• ${callInfo.partnerUniversity}` : ''}
               </p>
             </div>
           </div>
@@ -642,15 +841,15 @@ export const Discover: React.FC = () => {
                   ? 'bg-neon border-neon text-white shadow-lg shadow-neon/30'
                   : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
               }`}
-              title="Like"
+              title="Like Partner"
               aria-label="Like"
             >
               <Heart className={`w-4 h-4 md:w-5 md:h-5 ${hasLiked ? 'fill-current' : ''}`} />
             </button>
             <button
               onClick={handleSkip}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-              title="Next"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors active:scale-95"
+              title="Next Person (or press ESC)"
               aria-label="Next"
             >
               <SkipForward className="w-4 h-4 md:w-5 md:h-5" />
@@ -658,11 +857,19 @@ export const Discover: React.FC = () => {
           </div>
         </div>
 
+        {/* Mutual Like Floating Banner */}
+        {partnerLiked && !hasLiked && (
+          <div className="w-full bg-neon/15 border-b border-neon/30 py-1.5 px-4 text-center text-xs text-neon font-bold flex items-center justify-center gap-1.5 animate-pulse">
+            <Heart className="w-3.5 h-3.5 fill-current" /> Partner liked you! Tap ❤️ to match permanently.
+          </div>
+        )}
+
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {messages.length === 0 && !isPartnerDisconnected && (
             <div className="text-center py-12">
-              <p className="text-xs text-gray-500">You are connected. Say hi!</p>
+              <p className="text-xs text-gray-500">You are connected to a random student. Say hi!</p>
+              <p className="text-[10px] text-gray-600 mt-1">Press ESC anytime to skip to the next person.</p>
             </div>
           )}
 
@@ -692,15 +899,16 @@ export const Discover: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Chat Input */}
+        {/* Chat Input or Partner Disconnected Bar */}
         {isPartnerDisconnected ? (
           <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gray-900 border-t border-gray-800 text-center shrink-0">
-            <p className="text-xs text-gray-400 mb-3">Partner has left.</p>
+            <p className="text-xs text-gray-400 mb-3">Partner has disconnected.</p>
             <button
               onClick={() => cleanupAndResetState('SEARCHING')}
-              className="w-full py-3 bg-neon text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-lg shadow-neon/20"
+              className="w-full py-3.5 bg-neon text-white font-bold rounded-full uppercase tracking-wider text-xs shadow-lg shadow-neon/25 active:scale-95 transition-transform flex items-center justify-center gap-2"
             >
-              Find Next Person
+              <RefreshCw className="w-4 h-4" />
+              <span>Find Next Person</span>
             </button>
           </div>
         ) : (
@@ -710,7 +918,7 @@ export const Discover: React.FC = () => {
               value={chatInput}
               onChange={handleTyping}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Type a message..."
+              placeholder="Type a message... (ESC to skip)"
               className="flex-1 bg-gray-900 border border-gray-800 focus:border-gray-700 text-white placeholder-gray-500 rounded-full px-4 py-2.5 text-xs outline-none"
             />
             <button
@@ -727,9 +935,9 @@ export const Discover: React.FC = () => {
     );
   }
 
-  // ==========================================
+  // =========================================================================
   // RENDER: CONNECTED — VIDEO MODE
-  // ==========================================
+  // =========================================================================
   if (state === 'CONNECTED' && mode === 'VIDEO' && callInfo) {
     return (
       <div className="w-full h-[100dvh] relative bg-black overflow-hidden">
@@ -762,7 +970,7 @@ export const Discover: React.FC = () => {
               <button 
                 onClick={handleSkip}
                 className="w-12 h-12 md:w-14 md:h-14 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform shrink-0"
-                title="Next"
+                title="Next Person (or press ESC)"
                 aria-label="Next Person"
               >
                 <SkipForward className="w-5 h-5 md:w-6 md:h-6" />
@@ -774,7 +982,7 @@ export const Discover: React.FC = () => {
                     ? 'bg-neon shadow-[0_0_20px_rgba(255,0,127,0.8)] scale-105' 
                     : 'bg-gray-800 hover:bg-neon/30'
                 }`}
-                title="Like"
+                title="Like Person"
                 aria-label="Like Person"
               >
                 <Heart className={`w-5 h-5 md:w-6 md:h-6 ${hasLiked ? 'fill-current animate-pulse' : ''}`} />
