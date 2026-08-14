@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Confession } from '../types';
-import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost, School, Globe } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, Send, Crown, MessageCircle, X, Loader2, SlidersHorizontal, SmilePlus, BarChart2, Ghost, School, Globe, Heart, Flame, Laugh, Sparkles, Eye, Check } from 'lucide-react';
 import { EmojiClickData } from 'emoji-picker-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import { supabase } from '../lib/supabase';
@@ -14,7 +14,15 @@ import { CHHATTISGARH_COLLEGES, BRANCH_CATEGORIES } from '../constants';
 
 type SortOption = 'newest' | 'oldest' | 'popular' | 'discussed';
 
-const REACTIONS = ['❤️', '😂', '🔥', '😮', '😢', '👀'];
+const REACTIONS = ['❤️', '🔥', '😂', '✨', '👀'];
+
+export const VECTOR_REACTION_MAP: Record<string, { label: string; icon: React.FC<{ className?: string }>; color: string; badgeBg: string }> = {
+    '❤️': { label: 'Love', icon: Heart, color: 'text-pink-500', badgeBg: 'bg-pink-500/20 border-pink-500/40 text-pink-300' },
+    '🔥': { label: 'Fire', icon: Flame, color: 'text-orange-500', badgeBg: 'bg-orange-500/20 border-orange-500/40 text-orange-300' },
+    '😂': { label: 'Haha', icon: Laugh, color: 'text-amber-400', badgeBg: 'bg-amber-400/20 border-amber-400/40 text-amber-300' },
+    '✨': { label: 'Vibe', icon: Sparkles, color: 'text-cyan-400', badgeBg: 'bg-cyan-400/20 border-cyan-400/40 text-cyan-300' },
+    '👀': { label: 'Seen', icon: Eye, color: 'text-purple-400', badgeBg: 'bg-purple-400/20 border-purple-400/40 text-purple-300' },
+};
 const POSTS_PER_PAGE = 10;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -778,7 +786,7 @@ export const Confessions: React.FC = () => {
                                     {conf.imageUrl && <div className="mb-4 rounded-lg overflow-hidden border border-gray-900 bg-black aspect-video" onClick={() => setViewImage(conf.imageUrl || null)}><img src={conf.imageUrl} className="w-full h-full object-cover" alt="Confession image" /></div>}
 
                                     {conf.type === 'poll' && conf.pollOptions && (
-                                        <div className="mb-4 space-y-2 bg-gray-900/30 p-3 rounded-lg border border-gray-900">
+                                        <div className="mb-4 space-y-2.5 bg-black/40 p-3.5 rounded-2xl border border-white/10">
                                             {conf.pollOptions.map(option => {
                                                 const total = conf.pollOptions?.reduce((a, b) => a + b.votes, 0) || 0;
                                                 const pct = total > 0 ? Math.round((option.votes / total) * 100) : 0;
@@ -788,20 +796,29 @@ export const Confessions: React.FC = () => {
                                                         key={option.id} 
                                                         onClick={() => handlePollVote(conf.id, option.id)} 
                                                         disabled={!!conf.userVote} 
-                                                        className={`w-full relative h-9 rounded border overflow-hidden transition-all ${
+                                                        className={`w-full relative h-10 rounded-xl border overflow-hidden transition-all text-left active:scale-[0.99] ${
                                                             isVoted 
-                                                                ? 'border-neon/60 bg-neon/10 shadow-[0_0_12px_rgba(255,0,127,0.15)]' 
-                                                                : 'border-gray-800 bg-transparent'
+                                                                ? 'border-neon/60 bg-neon/10 shadow-[0_0_15px_rgba(255,0,127,0.2)]' 
+                                                                : 'border-white/10 bg-gray-900/50 hover:border-white/20'
                                                         }`}
                                                     >
-                                                        <div className={`absolute top-0 left-0 h-full ${isVoted ? 'bg-neon/20' : 'bg-gray-800'}`} style={{ width: `${pct}%` }} />
-                                                        <div className="absolute inset-0 flex items-center justify-between px-3 z-10">
-                                                            <span className={`text-xs font-medium ${isVoted ? 'text-neon font-bold' : 'text-gray-450'}`}>
-                                                                {option.text} {isVoted && ' ✓'}
+                                                        {/* Animated Gradient Fill Bar */}
+                                                        <div 
+                                                            className={`absolute top-0 left-0 h-full transition-all duration-700 ease-out ${
+                                                                isVoted 
+                                                                    ? 'bg-gradient-to-r from-neon/40 to-purple-600/40 border-r-2 border-neon' 
+                                                                    : 'bg-white/10'
+                                                            }`} 
+                                                            style={{ width: `${pct}%` }} 
+                                                        />
+                                                        <div className="absolute inset-0 flex items-center justify-between px-3.5 z-10">
+                                                            <span className={`text-xs font-semibold flex items-center gap-1.5 ${isVoted ? 'text-neon font-bold' : 'text-gray-200'}`}>
+                                                                {option.text}
+                                                                {isVoted && <Check className="w-3.5 h-3.5 text-neon stroke-[3]" />}
                                                             </span>
                                                             {conf.userVote && (
-                                                                <span className={`text-[10px] font-bold ${isVoted ? 'text-neon' : 'text-gray-500'}`}>
-                                                                    {pct}% ({option.votes} {option.votes === 1 ? 'vote' : 'votes'})
+                                                                <span className={`text-[11px] font-bold font-mono ${isVoted ? 'text-neon' : 'text-gray-400'}`}>
+                                                                    {pct}% <span className="text-[9px] font-normal text-gray-500">({option.votes})</span>
                                                                 </span>
                                                             )}
                                                         </div>
@@ -812,8 +829,29 @@ export const Confessions: React.FC = () => {
                                     )}
 
                                     <div className="flex flex-col gap-2 border-t border-gray-900 pt-3">
+                                        {/* Vector Reaction Badges */}
                                         {conf.reactions && Object.values(conf.reactions).some(v => v > 0) && (
-                                            <div className="flex flex-wrap gap-1.5 mb-2">{Object.entries(conf.reactions).map(([e, c]) => c > 0 && <span key={e} className="inline-flex items-center gap-1 bg-gray-900 text-[10px] px-2 py-0.5 rounded-full text-gray-400 border border-gray-800">{e} <b>{c}</b></span>)}</div>
+                                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                                {Object.entries(conf.reactions).map(([e, c]) => {
+                                                    if (c <= 0) return null;
+                                                    const meta = VECTOR_REACTION_MAP[e];
+                                                    const IconComponent = meta?.icon || Heart;
+                                                    return (
+                                                        <button
+                                                            key={e}
+                                                            onClick={() => handleReaction(conf.id, e)}
+                                                            className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all active:scale-95 ${
+                                                                conf.userReaction === e
+                                                                    ? `${meta?.badgeBg || 'bg-neon/20 border-neon'} shadow-[0_0_10px_rgba(255,0,127,0.3)]`
+                                                                    : 'bg-gray-900/80 text-gray-400 border-gray-800 hover:border-gray-700'
+                                                            }`}
+                                                        >
+                                                            <IconComponent className={`w-3.5 h-3.5 ${meta?.color || 'text-neon'}`} />
+                                                            <span className="font-mono">{c}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         )}
 
                                         {/* Comment Preview (Attraction Feature) */}
@@ -914,8 +952,34 @@ export const Confessions: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal */}
-            {activeReactionMenu && (<><div className="fixed inset-0 z-40 bg-transparent" onClick={() => { setActiveReactionMenu(null); setMenuPosition(null); }}></div><div className="fixed z-50 bg-black/80 backdrop-blur-md border border-gray-800 rounded-2xl p-2" style={menuPosition ? { top: menuPosition.top, left: menuPosition.left } : {}}><div className="flex gap-1">{REACTIONS.map(emoji => <button key={emoji} onClick={() => handleReaction(activeReactionMenu, emoji)} className="text-2xl hover:scale-125 transition-transform p-2">{emoji}</button>)}</div></div></>)}
+            {/* Vector Reaction Popup Menu */}
+            {activeReactionMenu && (
+                <>
+                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => { setActiveReactionMenu(null); setMenuPosition(null); }} />
+                    <div 
+                        className="fixed z-50 bg-[#0b0314]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.85)] animate-in fade-in zoom-in-90 duration-150" 
+                        style={menuPosition ? { top: menuPosition.top, left: menuPosition.left } : {}}
+                    >
+                        <div className="flex items-center gap-1">
+                            {REACTIONS.map(emoji => {
+                                const meta = VECTOR_REACTION_MAP[emoji];
+                                const IconComponent = meta?.icon || Heart;
+                                return (
+                                    <button 
+                                        key={emoji} 
+                                        onClick={() => handleReaction(activeReactionMenu, emoji)} 
+                                        aria-label={meta?.label || 'React'}
+                                        title={meta?.label}
+                                        className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/10 active:scale-90 transition-all group"
+                                    >
+                                        <IconComponent className={`w-5 h-5 ${meta?.color || 'text-neon'} group-hover:scale-125 transition-transform duration-200`} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </>
+            )}
             {viewImage && <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4" onClick={() => setViewImage(null)}><img src={viewImage} className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} /></div>}
             
             <AuthPromptModal

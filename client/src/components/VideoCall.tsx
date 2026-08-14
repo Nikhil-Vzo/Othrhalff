@@ -403,34 +403,42 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent backdrop-blur z-10 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-[#03000a] flex flex-col font-sans select-none">
+      {/* Sleek Floating Header HUD */}
+      <div className="absolute top-4 left-4 right-4 p-3.5 bg-[#0b0314]/80 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8)] z-20 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="w-5 h-5 text-neon" />
+          <div className="w-10 h-10 rounded-full bg-neon/10 border border-neon/30 flex items-center justify-center text-neon shadow-[0_0_15px_rgba(255,0,127,0.3)]">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
           <div>
-            <h3 className="text-white font-bold">{partnerName}</h3>
-            <p className="text-xs text-gray-400 flex items-center gap-2">
+            <h3 className="text-white font-bold text-sm tracking-wide">{partnerName}</h3>
+            <p className="text-[11px] text-gray-400 flex items-center gap-2 font-mono">
               {isJoined ? (
                 <>
-                  <span>{callType === 'audio' ? 'Audio' : 'Video'} • {formatDuration(callDuration)}</span>
-                  {networkQuality > 0 && <span className="flex items-center gap-1">{getNetworkIcon()} {getNetworkLabel()}</span>}
+                  <span className="text-gray-300 font-semibold">{callType === 'audio' ? 'Audio Date' : 'HD Video'} • {formatDuration(callDuration)}</span>
+                  {networkQuality > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px]">
+                      {getNetworkIcon()} {getNetworkLabel()}
+                    </span>
+                  )}
                 </>
-              ) : 'Connecting...'}
+              ) : (
+                <span className="text-neon animate-pulse font-sans">Connecting encrypted stream...</span>
+              )}
             </p>
           </div>
         </div>
         <button
           onClick={handleEndCall}
-          className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+          className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white rounded-full transition-colors active:scale-95"
+          aria-label="Close call"
         >
-          <X className="w-6 h-6 text-white" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Video Container */}
-      {/* Video Container */}
-      <div className="flex-1 relative bg-gray-900">
+      <div className="flex-1 relative bg-gradient-to-b from-[#08020f] to-black flex items-center justify-center overflow-hidden">
         {/* Render ALL remote users hidden or visible */}
         {remoteUsers.map((user) => (
           <div
@@ -448,46 +456,55 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
 
         {/* Reconnecting overlay */}
         {isReconnecting && (
-          <div className="absolute inset-0 flex items-center justify-center z-30 bg-black/70 backdrop-blur-sm">
-            <div className="text-center">
-              <WifiOff className="w-12 h-12 text-yellow-400 mx-auto mb-3 animate-pulse" />
-              <p className="text-yellow-400 font-bold text-lg">Reconnecting...</p>
-              <p className="text-gray-400 text-sm mt-1">Check your internet connection</p>
+          <div className="absolute inset-0 flex items-center justify-center z-30 bg-black/80 backdrop-blur-xl animate-in fade-in">
+            <div className="text-center p-6 bg-[#0b0314]/90 border border-yellow-500/30 rounded-3xl shadow-[0_0_40px_rgba(234,179,8,0.2)] max-w-xs mx-4">
+              <div className="w-14 h-14 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mx-auto mb-3 text-yellow-400">
+                <WifiOff className="w-7 h-7 animate-pulse" />
+              </div>
+              <p className="text-yellow-400 font-bold text-base">Reconnecting Stream...</p>
+              <p className="text-gray-400 text-xs mt-1">Stabilizing real-time audio and video packets</p>
             </div>
           </div>
         )}
 
-        {/* Waiting/Audio-only UI - Show if no remote video tracks are visible */}
+        {/* Waiting/Audio-only UI with Multi-Layer Voice Aura */}
         {(!remoteUsers.length || !remoteUsers.some(u => u.videoTrack)) && (
-          <div className="absolute inset-0 flex items-center justify-center z-0">
-            <div className="text-center">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-neon shadow-lg shadow-neon/50 mx-auto mb-6 animate-pulse">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-0 p-4">
+            <div className="relative flex items-center justify-center mb-8">
+              {/* Outer Pulsating Sonic Radar Wave */}
+              <div className="absolute w-52 h-52 rounded-full border border-neon/20 animate-ping opacity-30 pointer-events-none" />
+              <div className="absolute w-44 h-44 rounded-full border border-pink-500/30 animate-pulse pointer-events-none" />
+              <div className="absolute w-36 h-36 rounded-full bg-gradient-to-tr from-neon/30 to-purple-600/30 blur-2xl -z-10" />
+
+              {/* Main Avatar Bubble */}
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-neon shadow-[0_0_35px_rgba(255,0,127,0.6)] relative z-10">
                 <img
                   src={partnerAvatar || 'https://via.placeholder.com/150'}
                   alt={partnerName}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">{partnerName}</h2>
-              <p className="text-gray-400 animate-pulse">
-                {remoteUsers.length > 0 ? 'Connected • Audio Only' : 'Waiting for connection...'}
-              </p>
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-1.5 tracking-tight">{partnerName}</h2>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 backdrop-blur-md">
+              <span className="w-2 h-2 rounded-full bg-neon animate-pulse" />
+              <span>{remoteUsers.length > 0 ? 'Connected • Live Audio' : 'Establishing connection...'}</span>
             </div>
           </div>
         )}
 
         {/* Local Video (picture-in-picture) */}
-        {/* Only show if we have a video track */}
-        <div className={`absolute top-20 right-4 w-32 h-44 md:w-40 md:h-56 bg-gray-800 rounded-2xl overflow-hidden border-2 border-gray-700 shadow-2xl transition-all duration-300 z-50 ${(!localVideoTrack || isVideoOff) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`absolute top-24 right-4 w-32 h-44 md:w-40 md:h-56 bg-black/80 backdrop-blur-md rounded-2xl overflow-hidden border-2 border-white/20 shadow-[0_15px_35px_rgba(0,0,0,0.8)] transition-all duration-300 z-30 ${(!localVideoTrack || isVideoOff) ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 scale-100'}`}>
           <div
             id="local-video"
             className="w-full h-full"
             style={{ objectFit: 'cover', transform: 'scaleX(-1)' }}
           />
+          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm border border-white/10 text-[9px] font-bold uppercase tracking-wider text-white">
+            You
+          </div>
         </div>
-
-        {/* If video is valid but off, show icon? No, just hide self view for cleaner look or show icon? */}
-        {/* Existing code showed "VideoOff" icon overlay. */}
       </div>
 
       {/* Call Controls */}

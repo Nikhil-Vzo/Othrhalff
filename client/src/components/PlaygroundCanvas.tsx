@@ -92,9 +92,12 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   const dirRef = useRef<Direction>('down');
   const movingRef = useRef(false);
 
-  // Mobile Touch Refs
-  const touchActiveRef = useRef(false);
-  const touchPosRef = useRef({ x: 0, y: 0 });
+  // Virtual Floating Touch Joystick Refs & State
+  const [joystickVisible, setJoystickVisible] = useState(false);
+  const [joystickOrigin, setJoystickOrigin] = useState({ x: 0, y: 0 });
+  const touchOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
+  const joystickKnobRef = useRef<HTMLDivElement>(null);
 
   const activeBenchRef = useRef(activeBench);
   const lastActiveBenchRef = useRef<string | null>(null);
@@ -209,24 +212,49 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     };
     
 
-    // Mobile Touch Event Handlers
+    // Mobile Virtual Floating Touch Joystick Handlers
     const handleTouchStart = (e: TouchEvent) => {
-      touchActiveRef.current = true;
+      // Do not capture if tapping interactive buttons/modals
+      if ((e.target as HTMLElement)?.closest('button, a, input, textarea')) return;
       if (e.touches.length > 0) {
-        touchPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        const touch = e.touches[0];
+        touchOriginRef.current = { x: touch.clientX, y: touch.clientY };
+        touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+        setJoystickOrigin({ x: touch.clientX, y: touch.clientY });
+        setJoystickVisible(true);
+        if (joystickKnobRef.current) {
+          joystickKnobRef.current.style.transform = 'translate3d(0, 0, 0)';
+        }
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!touchActiveRef.current) return;
-      e.preventDefault(); // Stop mobile browser scrolling/pull-to-refresh
+      if (!touchOriginRef.current) return;
+      e.preventDefault(); // Prevent pull-to-refresh & screen dragging
       if (e.touches.length > 0) {
-        touchPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        const touch = e.touches[0];
+        touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+
+        // Position Knob element directly via DOM transform for 120Hz/60Hz latency-free tracking
+        const diffX = touch.clientX - touchOriginRef.current.x;
+        const diffY = touch.clientY - touchOriginRef.current.y;
+        const dist = Math.hypot(diffX, diffY);
+        const maxRadius = 38;
+        const angle = Math.atan2(diffY, diffX);
+        const clampedDist = Math.min(dist, maxRadius);
+        const knobX = Math.cos(angle) * clampedDist;
+        const knobY = Math.sin(angle) * clampedDist;
+
+        if (joystickKnobRef.current) {
+          joystickKnobRef.current.style.transform = `translate3d(${knobX}px, ${knobY}px, 0)`;
+        }
       }
     };
 
     const handleTouchEnd = () => {
-      touchActiveRef.current = false;
+      touchOriginRef.current = null;
+      touchCurrentRef.current = null;
+      setJoystickVisible(false);
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -237,6 +265,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       viewportNode.addEventListener('touchstart', handleTouchStart, { passive: false });
       viewportNode.addEventListener('touchmove', handleTouchMove, { passive: false });
       viewportNode.addEventListener('touchend', handleTouchEnd);
+      viewportNode.addEventListener('touchcancel', handleTouchEnd);
     }
 
     let lastBroadcastTime = 0;
@@ -299,16 +328,19 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (keys.current['a'] || keys.current['arrowleft']) { dx -= speed; }
       if (keys.current['d'] || keys.current['arrowright']) { dx += speed; }
 
-      // Mobile Touch input
-      if (touchActiveRef.current && viewportRef.current) {
-        const vw = viewportRef.current.clientWidth;
-        const vh = viewportRef.current.clientHeight;
-        const deltaX = touchPosRef.current.x - (vw / 2);
-        const deltaY = touchPosRef.current.y - (vh / 2);
+      // Analog Virtual Floating Joystick input
+      if (touchOriginRef.current && touchCurrentRef.current) {
+        const diffX = touchCurrentRef.current.x - touchOriginRef.current.x;
+        const diffY = touchCurrentRef.current.y - touchOriginRef.current.y;
+        const dist = Math.hypot(diffX, diffY);
+        const deadzone = 6;
 
-        // 30px deadzone so tapping the center doesn't cause jitters
-        if (Math.abs(deltaX) > 30) dx += deltaX > 0 ? speed : -speed;
-        if (Math.abs(deltaY) > 30) dy += deltaY > 0 ? speed : -speed;
+        if (dist > deadzone) {
+          const intensity = Math.min(1, (dist - deadzone) / 32);
+          const angle = Math.atan2(diffY, diffX);
+          dx += Math.cos(angle) * speed * intensity;
+          dy += Math.sin(angle) * speed * intensity;
+        }
       }
 
       // Determine direction (favor Y axis if angle is steep)
@@ -488,6 +520,34 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         />
 
       </div>
+
+      {/* Cyberpunk Neon Virtual Floating Touch Joystick */}
+      {joystickVisible && (
+        <div 
+          className="fixed z-40 pointer-events-none -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-[#08020f]/80 backdrop-blur-xl border border-white/20 shadow-[0_0_35px_rgba(255,0,127,0.35)] flex items-center justify-center animate-in fade-in zoom-in-75 duration-100"
+          style={{ left: `${joystickOrigin.x}px`, top: `${joystickOrigin.y}px` }}
+        >
+          {/* Laser Compass Crosshair Ticks */}
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
+          <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
+          
+          {/* Concentric Radar Ring */}
+          <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border border-neon/20 animate-ping opacity-25" />
+          </div>
+
+          {/* Floating Neon Thumbstick Knob */}
+          <div 
+            ref={joystickKnobRef}
+            className="absolute w-12 h-12 rounded-full bg-gradient-to-tr from-neon via-pink-500 to-purple-600 border-2 border-white/90 shadow-[0_0_20px_rgba(255,0,127,0.9)] flex items-center justify-center will-change-transform"
+            style={{ transform: 'translate3d(0, 0, 0)' }}
+          >
+            <div className="w-3 h-3 rounded-full bg-white shadow-sm opacity-90" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
