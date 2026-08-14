@@ -35,9 +35,9 @@ export const Discover: React.FC = () => {
   const [scope, setScope] = useState<DiscoverScope>(() => currentUser?.university ? 'CAMPUS' : 'GLOBAL');
   const [state, setState] = useState<DiscoverState>('IDLE');
   
-  // Realtime channel and metrics — initialize with totalOnlineCount or minimum 1
+  // Realtime channel and metrics — initialize with 1 minimum
   const [channel, setChannel] = useState<any>(null);
-  const [activeUsersCount, setActiveUsersCount] = useState<number>(() => Math.max(1, totalOnlineCount || 1));
+  const [activeUsersCount, setActiveUsersCount] = useState<number>(1);
   const [searchTime, setSearchTime] = useState(0);
 
   // Active call/session details
@@ -72,6 +72,7 @@ export const Discover: React.FC = () => {
   const scopeRef = useRef(scope);
   const callInfoRef = useRef(callInfo);
   const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
   
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
@@ -110,6 +111,22 @@ export const Discover: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPartnerTyping]);
 
+  // Safe Broadcast Helper
+  const safeBroadcast = useCallback((event: string, payload: any) => {
+    if (!channelRef.current || !isSubscribedRef.current) return;
+    try {
+      channelRef.current.send({
+        type: 'broadcast',
+        event,
+        payload
+      }).catch((err: any) => {
+        console.warn(`[Discover] broadcast warn for ${event}:`, err);
+      });
+    } catch (err) {
+      console.warn(`[Discover] broadcast err for ${event}:`, err);
+    }
+  }, []);
+
   // Cleanup helper
   const cleanupAndResetState = useCallback((nextState: DiscoverState = 'SEARCHING') => {
     setHasLiked(false);
@@ -124,33 +141,20 @@ export const Discover: React.FC = () => {
 
   // Skip partner
   const handleSkip = useCallback(() => {
-    if (channelRef.current && callInfoRef.current) {
+    if (callInfoRef.current) {
       const partnerId = callInfoRef.current.partnerId;
-      recentSkippedPartnersRef.current.set(partnerId, Date.now() + 30000); // Avoid for 30s
-      
-      try {
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'SKIP',
-          payload: { targetId: partnerId }
-        });
-      } catch (err) {
-        console.warn('Failed to send skip event:', err);
-      }
+      recentSkippedPartnersRef.current.set(partnerId, Date.now() + 25000); // Avoid for 25s
+      safeBroadcast('SKIP', { targetId: partnerId });
     }
     cleanupAndResetState('SEARCHING');
-  }, [cleanupAndResetState]);
+  }, [cleanupAndResetState, safeBroadcast]);
 
   // Like partner
   const handleLike = useCallback(async () => {
-    if (hasLiked || !channelRef.current || !callInfoRef.current || !currentUser) return;
+    if (hasLiked || !callInfoRef.current || !currentUser) return;
     setHasLiked(true);
     
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'LIKE',
-      payload: { targetId: callInfoRef.current.partnerId }
-    });
+    safeBroadcast('LIKE', { targetId: callInfoRef.current.partnerId });
 
     if (partnerLiked) {
       setState('MATCHED');
@@ -165,7 +169,7 @@ export const Discover: React.FC = () => {
         console.warn('Error saving mutual match:', err);
       }
     }
-  }, [hasLiked, partnerLiked, currentUser]);
+  }, [hasLiked, partnerLiked, currentUser, safeBroadcast]);
 
   // Mutual match reaction
   useEffect(() => {
@@ -190,7 +194,7 @@ export const Discover: React.FC = () => {
   // Send text message
   const handleSendMessage = useCallback((textToSend?: string) => {
     const text = textToSend !== undefined ? textToSend : chatInput;
-    if (!text.trim() || !channelRef.current || !callInfoRef.current || !currentUser) return;
+    if (!text.trim() || !callInfoRef.current || !currentUser) return;
 
     const newMessage: ChatMessage = {
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -202,31 +206,18 @@ export const Discover: React.FC = () => {
     setMessages(prev => [...prev, newMessage]);
     if (textToSend === undefined) setChatInput('');
 
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'CHAT_MESSAGE',
-      payload: {
-        targetId: callInfoRef.current.partnerId,
-        message: newMessage
-      }
+    safeBroadcast('CHAT_MESSAGE', {
+      targetId: callInfoRef.current.partnerId,
+      message: newMessage
     });
 
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'TYPING_STOP',
-      payload: { targetId: callInfoRef.current.partnerId }
-    });
-  }, [chatInput, currentUser]);
+    safeBroadcast('TYPING_STOP', { targetId: callInfoRef.current.partnerId });
+  }, [chatInput, currentUser, safeBroadcast]);
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setChatInput(e.target.value);
-    if (!channelRef.current || !callInfoRef.current) return;
-
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'TYPING_START',
-      payload: { targetId: callInfoRef.current.partnerId }
-    });
+    if (!callInfoRef.current) return;
+    safeBroadcast('TYPING_START', { targetId: callInfoRef.current.partnerId });
   };
 
   // Keyboard shortcut listener for Omegle-style navigation (ESC to skip)
@@ -262,10 +253,10 @@ export const Discover: React.FC = () => {
   }, []);
 
   // =========================================================================
-  // MATCHMAKING CORE ENGINE (Deterministic & High-Speed Random Pairing)
+  // INDUSTRY-GRADE DETERMINISTIC MULTI-USER MATCHMAKING CORE ENGINE
   // =========================================================================
   const evaluateMatchmaking = useCallback(async (activeChannel: any, presencesList?: any[]) => {
-    if (!activeChannel || !currentUser || stateRef.current !== 'SEARCHING') return;
+    if (!activeChannel || !currentUser || stateRef.current !== 'SEARCHING' || !isSubscribedRef.current) return;
 
     let allUsers = presencesList;
     if (!allUsers || allUsers.length === 0) {
@@ -273,44 +264,65 @@ export const Discover: React.FC = () => {
       allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
     }
 
-    // Filter available candidates searching in the same mode
-    const candidates = (allUsers || []).filter(u => 
-      u.status === 'SEARCHING' && 
-      u.mode === modeRef.current && 
-      u.id !== currentUser.id
-    );
-
-    if (candidates.length === 0) return;
-
-    // Filter out recently skipped partners unless nobody else is searching
+    const currentMode = modeRef.current;
+    const currentScope = scopeRef.current;
+    const myId = currentUser.id;
     const now = Date.now();
-    const freshCandidates = candidates.filter(u => {
-      const avoidUntil = recentSkippedPartnersRef.current.get(u.id);
-      return !avoidUntil || now > avoidUntil;
+
+    // 1. Gather all candidates in SEARCHING state with same mode and compatible scope
+    const searchers = (allUsers || []).filter(u => {
+      if (u.status !== 'SEARCHING' || u.mode !== currentMode) return false;
+      
+      // Check scope compatibility
+      if (currentScope === 'CAMPUS' && currentUser.university) {
+        if (u.university !== currentUser.university) return false;
+      }
+      if (u.scope === 'CAMPUS' && u.university) {
+        if (u.university !== currentUser.university) return false;
+      }
+
+      // Check skip list (only applies to partners)
+      if (u.id !== myId) {
+        const avoidUntil = recentSkippedPartnersRef.current.get(u.id);
+        if (avoidUntil && now < avoidUntil) return false;
+      }
+
+      return true;
     });
 
-    const candidatePool = freshCandidates.length > 0 ? freshCandidates : candidates;
-
-    // Accurate Scope Evaluation:
-    // CAMPUS scope: Pair only with users having the same university
-    // GLOBAL scope: Pair with anyone in candidate pool
-    let partner: any = null;
-    if (scopeRef.current === 'CAMPUS' && currentUser.university) {
-      partner = candidatePool.find(u => u.university === currentUser.university);
-    } else {
-      partner = candidatePool[0];
+    // Ensure current user is included in the list for deterministic indexing
+    if (!searchers.some(u => u.id === myId)) {
+      searchers.push({
+        id: myId,
+        name: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+        avatar: currentUser.avatar,
+        university: currentUser.university,
+        status: 'SEARCHING',
+        mode: currentMode,
+        scope: currentScope
+      });
     }
 
-    if (!partner) return;
+    if (searchers.length < 2) return;
 
-    // Deterministic tie-breaker: User with lexicographically smaller ID acts as Initiator
-    const isInitiator = currentUser.id < partner.id;
+    // 2. Deterministic Alphabetical Sorting
+    // All searching clients compute the EXACT SAME order!
+    const sorted = [...searchers].sort((a, b) => a.id.localeCompare(b.id));
 
-    if (isInitiator) {
+    // 3. Find current user's index in the sorted list
+    const myIndex = sorted.findIndex(u => u.id === myId);
+    if (myIndex === -1) return;
+
+    // 4. Pair adjacent users: (0, 1), (2, 3), (4, 5)...
+    // Even index = Initiator, Odd index = Receiver
+    if (myIndex % 2 === 0) {
+      const partner = sorted[myIndex + 1];
+      if (!partner) return; // Odd-numbered searcher at end waits for next arrival
+
       setState('CONNECTING');
 
       try {
-        if (modeRef.current === 'VIDEO') {
+        if (currentMode === 'VIDEO') {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) throw new Error("No active session");
 
@@ -338,18 +350,17 @@ export const Discover: React.FC = () => {
             partnerUniversity: partner.university
           });
 
-          activeChannel.send({
-            type: 'broadcast',
-            event: 'PROPOSE_MATCH',
-            payload: {
-              mode: 'VIDEO',
-              targetId: partner.id,
-              channelName: data.channelName,
-              initiatorId: currentUser.id,
-              initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-              initiatorAvatar: currentUser.avatar || '',
-              initiatorUniversity: currentUser.university || ''
-            }
+          // Propose match with full RTC credentials so receiver connects with zero latency
+          safeBroadcast('PROPOSE_MATCH', {
+            mode: 'VIDEO',
+            targetId: partner.id,
+            channelName: data.channelName,
+            appId: data.appId,
+            token: data.token,
+            initiatorId: myId,
+            initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+            initiatorAvatar: currentUser.avatar || '',
+            initiatorUniversity: currentUser.university || ''
           });
         } else {
           // Instant Text Mode Handshake
@@ -364,26 +375,25 @@ export const Discover: React.FC = () => {
             partnerUniversity: partner.university
           });
 
-          activeChannel.send({
-            type: 'broadcast',
-            event: 'PROPOSE_MATCH',
-            payload: {
-              mode: 'TEXT',
-              targetId: partner.id,
-              channelName: textRoomId,
-              initiatorId: currentUser.id,
-              initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-              initiatorAvatar: currentUser.avatar || '',
-              initiatorUniversity: currentUser.university || ''
-            }
+          safeBroadcast('PROPOSE_MATCH', {
+            mode: 'TEXT',
+            targetId: partner.id,
+            channelName: textRoomId,
+            initiatorId: myId,
+            initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+            initiatorAvatar: currentUser.avatar || '',
+            initiatorUniversity: currentUser.university || ''
           });
         }
       } catch (err) {
-        console.error("Match proposal error:", err);
+        console.error("[Discover] Match proposal error:", err);
         setState('SEARCHING');
       }
+    } else {
+      // Odd index (1, 3, 5): Receiver waits for PROPOSE_MATCH from partner (myIndex - 1)
+      // Remains in SEARCHING state with zero blocking
     }
-  }, [currentUser]);
+  }, [currentUser, safeBroadcast]);
 
   // Main Discover Realtime Channel Setup
   useEffect(() => {
@@ -395,7 +405,10 @@ export const Discover: React.FC = () => {
     }
 
     const newChannel = supabase.channel('discover-pool', {
-      config: { presence: { key: currentUser.id } }
+      config: { 
+        presence: { key: currentUser.id },
+        broadcast: { self: false, ack: false }
+      }
     });
 
     // 1. Presence Sync Handler
@@ -423,73 +436,36 @@ export const Discover: React.FC = () => {
     // 2. Incoming Match Proposal Handler (Receiver)
     newChannel.on('broadcast', { event: 'PROPOSE_MATCH' }, async ({ payload }) => {
       if (payload.targetId !== currentUser.id) return;
+      
+      // If receiver is not SEARCHING, notify initiator that receiver is busy
       if (stateRef.current !== 'SEARCHING') {
-        newChannel.send({
-          type: 'broadcast',
-          event: 'BUSY_MATCH',
-          payload: { targetId: payload.initiatorId }
+        safeBroadcast('BUSY_MATCH', { 
+          targetId: payload.initiatorId,
+          receiverId: currentUser.id 
         });
         return;
       }
       
-      setState('CONNECTING');
+      // Instant Handshake: Adopt credentials directly from payload without secondary server round-trip!
+      setCallInfo({
+        appId: payload.appId || '',
+        channelName: payload.channelName,
+        token: payload.token || '',
+        partnerId: payload.initiatorId,
+        partnerName: payload.initiatorName || 'Anonymous Student',
+        partnerAvatar: payload.initiatorAvatar || '',
+        partnerUniversity: payload.initiatorUniversity
+      });
 
-      try {
-        if (payload.mode === 'VIDEO') {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error("No session");
+      safeBroadcast('ACCEPT_MATCH', { 
+        targetId: payload.initiatorId,
+        receiverName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+        receiverAvatar: currentUser.avatar || '',
+        receiverUniversity: currentUser.university || ''
+      });
 
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-          const res = await fetch(`${apiUrl}/api/agora-token`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({ channelName: payload.channelName })
-          });
-          
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Failed to fetch Agora token");
-
-          setCallInfo({
-            appId: data.appId,
-            channelName: payload.channelName,
-            token: data.token,
-            partnerId: payload.initiatorId,
-            partnerName: payload.initiatorName || 'Anonymous Student',
-            partnerAvatar: payload.initiatorAvatar || '',
-            partnerUniversity: payload.initiatorUniversity
-          });
-        } else {
-          setCallInfo({
-            appId: '',
-            channelName: payload.channelName,
-            token: '',
-            partnerId: payload.initiatorId,
-            partnerName: payload.initiatorName || 'Anonymous Student',
-            partnerAvatar: payload.initiatorAvatar || '',
-            partnerUniversity: payload.initiatorUniversity
-          });
-        }
-
-        newChannel.send({
-          type: 'broadcast',
-          event: 'ACCEPT_MATCH',
-          payload: { 
-            targetId: payload.initiatorId,
-            receiverName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-            receiverAvatar: currentUser.avatar || '',
-            receiverUniversity: currentUser.university || ''
-          }
-        });
-
-        setState('CONNECTED');
-        setIsPartnerDisconnected(false);
-      } catch (err) {
-        console.error("Match accept error:", err);
-        setState('SEARCHING');
-      }
+      setState('CONNECTED');
+      setIsPartnerDisconnected(false);
     });
 
     // 3. Match Accepted Handler (Initiator)
@@ -503,6 +479,9 @@ export const Discover: React.FC = () => {
     // 4. Partner Busy / Reject Handler
     newChannel.on('broadcast', { event: 'BUSY_MATCH' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTING') {
+        if (payload.receiverId || callInfoRef.current?.partnerId) {
+          recentSkippedPartnersRef.current.set(payload.receiverId || callInfoRef.current?.partnerId, Date.now() + 10000);
+        }
         setState('SEARCHING');
       }
     });
@@ -544,6 +523,7 @@ export const Discover: React.FC = () => {
     // Subscribe and track presence
     newChannel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
+        isSubscribedRef.current = true;
         await newChannel.track({
           id: currentUser.id,
           name: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
@@ -554,20 +534,23 @@ export const Discover: React.FC = () => {
           scope: scopeRef.current
         });
         syncPoolPresence(newChannel);
+      } else {
+        isSubscribedRef.current = false;
       }
     });
 
     setChannel(newChannel);
 
     return () => {
+      isSubscribedRef.current = false;
       supabase.removeChannel(newChannel);
       setChannel(null);
     };
-  }, [currentUser?.id, evaluateMatchmaking, syncPoolPresence]);
+  }, [currentUser?.id, evaluateMatchmaking, syncPoolPresence, safeBroadcast]);
 
   // Sync state & mode changes to the realtime pool presence
   useEffect(() => {
-    if (channel && currentUser) {
+    if (channel && currentUser && isSubscribedRef.current) {
       channel.track({
         id: currentUser.id,
         name: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
@@ -580,7 +563,7 @@ export const Discover: React.FC = () => {
     }
   }, [state, mode, scope, channel, currentUser?.id]);
 
-  // Active Matchmaking & Presence Loop (Ticks every 1.5s)
+  // Active Matchmaking & Presence Loop (Ticks every 1.5s while searching)
   useEffect(() => {
     if (!channel) return;
 
@@ -595,16 +578,19 @@ export const Discover: React.FC = () => {
     return () => clearInterval(matchmakingInterval);
   }, [channel, syncPoolPresence, evaluateMatchmaking]);
 
-  // Fail-Safe: Reset from CONNECTING to SEARCHING if handshake stalls past 5s
+  // Fail-Safe: Reset from CONNECTING to SEARCHING if handshake stalls past 4.5s
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     if (state === 'CONNECTING') {
       timeoutId = setTimeout(() => {
         if (stateRef.current === 'CONNECTING') {
-          console.warn('[Discover] Connection handshake timed out after 5s, resuming search...');
+          console.warn('[Discover] Connection handshake timed out after 4.5s, resuming search...');
+          if (callInfoRef.current?.partnerId) {
+            recentSkippedPartnersRef.current.set(callInfoRef.current.partnerId, Date.now() + 15000);
+          }
           setState('SEARCHING');
         }
-      }, 5000);
+      }, 4500);
     }
     return () => { if (timeoutId) clearTimeout(timeoutId); };
   }, [state]);
