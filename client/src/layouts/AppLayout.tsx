@@ -315,7 +315,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </div>
 
         {/* Mobile Bottom Nav */}
-        {!pathname.includes('/chat/') && (
+        {!(pathname.startsWith('/chat') || pathname === '/discover' || pathname.startsWith('/sparx/cinema') || pathname.startsWith('/sparx/music')) && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe pointer-events-none">
             {/* The main bar background */}
             <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/95 backdrop-blur-md border-t-[1.5px] border-gray-800 pointer-events-auto" />

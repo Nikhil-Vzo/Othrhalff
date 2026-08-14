@@ -416,7 +416,7 @@ export const Discover: React.FC = () => {
   // ==========================================
   if (state === 'IDLE') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-between bg-black text-white p-6 relative">
+      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
         {/* Top Header */}
         <div className="w-full max-w-md flex items-center justify-between z-10">
           <button
@@ -436,7 +436,7 @@ export const Discover: React.FC = () => {
         </div>
 
         {/* Hero Content */}
-        <div className="w-full max-w-md flex flex-col items-center text-center my-auto">
+        <div className="w-full max-w-md flex flex-col items-center text-center my-auto py-6">
           <div className="w-20 h-20 rounded-full bg-neon/20 border border-neon/30 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,0,127,0.3)]">
             <Search className="w-9 h-9 text-neon" />
           </div>
@@ -506,7 +506,7 @@ export const Discover: React.FC = () => {
   // ==========================================
   if (state === 'SEARCHING' || state === 'CONNECTING') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-between bg-black text-white p-6 relative">
+      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
         <div className="w-full max-w-md flex items-center justify-between z-10">
           <button
             onClick={() => setState('IDLE')}
@@ -523,7 +523,7 @@ export const Discover: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center my-auto text-center">
+        <div className="flex flex-col items-center justify-center my-auto text-center py-6">
           <div className="relative w-28 h-28 mb-6 flex items-center justify-center">
             <div className="absolute inset-0 border-2 border-neon rounded-full opacity-30 animate-ping" />
             <img 
@@ -554,10 +554,10 @@ export const Discover: React.FC = () => {
           )}
         </div>
 
-        <div className="w-full max-w-md flex justify-center">
+        <div className="w-full max-w-md flex justify-center pb-2">
           <button
             onClick={() => setState('IDLE')}
-            className="px-6 py-2.5 text-xs text-gray-400 font-bold uppercase border border-gray-800 rounded-full bg-gray-900 hover:text-white transition-colors"
+            className="px-6 py-2.5 text-xs text-gray-400 font-bold uppercase border border-gray-800 rounded-full bg-gray-900 hover:text-white transition-colors active:scale-95"
           >
             Cancel
           </button>
@@ -571,7 +571,7 @@ export const Discover: React.FC = () => {
   // ==========================================
   if (state === 'MATCHED') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white p-6 z-50">
+      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto z-50">
         <div className="flex items-center gap-4 mb-8">
           <img src={currentUser.avatar || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-2 border-neon object-cover" />
           <Heart className="w-8 h-8 text-neon animate-bounce fill-current" />
@@ -604,25 +604,26 @@ export const Discover: React.FC = () => {
   // ==========================================
   if (state === 'CONNECTED' && mode === 'TEXT') {
     return (
-      <div className="w-full h-full flex flex-col bg-black text-white relative">
+      <div className="w-full h-[100dvh] flex flex-col bg-black text-white relative overflow-hidden">
         {/* Header */}
-        <div className="w-full bg-gray-900/60 border-b border-gray-800 p-4 flex items-center justify-between z-10 backdrop-blur-md">
-          <div className="flex items-center gap-3">
+        <div className="w-full bg-gray-900/60 border-b border-gray-800 p-3 md:p-4 flex items-center justify-between z-10 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
             <button
               onClick={() => {
                 handleSkip();
                 setState('IDLE');
               }}
-              className="w-9 h-9 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              className="w-9 h-9 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0"
+              aria-label="Back"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <img 
               src={callInfo?.partnerAvatar || 'https://via.placeholder.com/150'} 
-              className="w-9 h-9 rounded-full object-cover border border-gray-800" 
+              className="w-9 h-9 rounded-full object-cover border border-gray-800 shrink-0" 
             />
-            <div>
-              <h3 className="font-bold text-sm text-gray-100">
+            <div className="truncate">
+              <h3 className="font-bold text-sm text-gray-100 truncate">
                 {callInfo?.partnerName || 'Student'}
               </h3>
               <p className="text-[10px] text-green-500 font-mono flex items-center gap-1">
@@ -631,30 +632,32 @@ export const Discover: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleLike}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
+              className={`w-9 h-9 md:w-10 md:h-10 rounded-full border flex items-center justify-center transition-all ${
                 hasLiked
                   ? 'bg-neon border-neon text-white shadow-lg shadow-neon/30'
                   : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-white'
               }`}
               title="Like"
+              aria-label="Like"
             >
-              <Heart className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
+              <Heart className={`w-4 h-4 md:w-5 md:h-5 ${hasLiked ? 'fill-current' : ''}`} />
             </button>
             <button
               onClick={handleSkip}
-              className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
               title="Next"
+              aria-label="Next"
             >
-              <SkipForward className="w-5 h-5" />
+              <SkipForward className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {messages.length === 0 && !isPartnerDisconnected && (
             <div className="text-center py-12">
               <p className="text-xs text-gray-500">You are connected. Say hi!</p>
@@ -665,9 +668,9 @@ export const Discover: React.FC = () => {
             const isMe = msg.senderId === currentUser.id;
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs ${
+                <div className={`max-w-[80%] md:max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
                   isMe 
-                    ? 'bg-neon text-white rounded-br-none' 
+                    ? 'bg-neon text-white rounded-br-none shadow-sm' 
                     : 'bg-gray-900 text-gray-200 border border-gray-800 rounded-bl-none'
                 }`}>
                   {msg.text}
@@ -689,7 +692,7 @@ export const Discover: React.FC = () => {
 
         {/* Chat Input */}
         {isPartnerDisconnected ? (
-          <div className="p-4 bg-gray-900 border-t border-gray-800 text-center">
+          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gray-900 border-t border-gray-800 text-center shrink-0">
             <p className="text-xs text-gray-400 mb-3">Partner has left.</p>
             <button
               onClick={() => cleanupAndResetState('SEARCHING')}
@@ -699,7 +702,7 @@ export const Discover: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="p-3 bg-gray-900/60 border-t border-gray-800 backdrop-blur-md flex items-center gap-2">
+          <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gray-900/90 border-t border-gray-800 backdrop-blur-md flex items-center gap-2 shrink-0">
             <input
               type="text"
               value={chatInput}
@@ -711,7 +714,8 @@ export const Discover: React.FC = () => {
             <button
               onClick={() => handleSendMessage()}
               disabled={!chatInput.trim()}
-              className="w-9 h-9 bg-neon disabled:opacity-40 text-white rounded-full flex items-center justify-center transition-all shadow-md shadow-neon/20"
+              className="w-9 h-9 bg-neon disabled:opacity-40 text-white rounded-full flex items-center justify-center transition-all shadow-md shadow-neon/20 shrink-0"
+              aria-label="Send message"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -726,7 +730,7 @@ export const Discover: React.FC = () => {
   // ==========================================
   if (state === 'CONNECTED' && mode === 'VIDEO' && callInfo) {
     return (
-      <div className="w-full h-full relative bg-black">
+      <div className="w-full h-[100dvh] relative bg-black overflow-hidden">
         {/* Back Button Overlay */}
         <div className="absolute top-4 left-4 z-[140]">
           <button
@@ -735,6 +739,7 @@ export const Discover: React.FC = () => {
               setState('IDLE');
             }}
             className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 border border-gray-800 flex items-center justify-center text-white transition-colors"
+            aria-label="Exit video chat"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -751,24 +756,26 @@ export const Discover: React.FC = () => {
           callType="video"
           callSessionId="discover_session"
           customControls={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button 
                 onClick={handleSkip}
-                className="w-14 h-14 bg-gray-800 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform"
+                className="w-12 h-12 md:w-14 md:h-14 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform shrink-0"
                 title="Next"
+                aria-label="Next Person"
               >
-                <SkipForward className="w-6 h-6" />
+                <SkipForward className="w-5 h-5 md:w-6 md:h-6" />
               </button>
               <button 
                 onClick={handleLike}
-                className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all ${
+                className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-all shrink-0 ${
                   hasLiked 
-                    ? 'bg-neon shadow-[0_0_20px_rgba(255,0,127,0.8)] scale-110' 
+                    ? 'bg-neon shadow-[0_0_20px_rgba(255,0,127,0.8)] scale-105' 
                     : 'bg-gray-800 hover:bg-neon/30'
                 }`}
                 title="Like"
+                aria-label="Like Person"
               >
-                <Heart className={`w-6 h-6 ${hasLiked ? 'fill-current animate-pulse' : ''}`} />
+                <Heart className={`w-5 h-5 md:w-6 md:h-6 ${hasLiked ? 'fill-current animate-pulse' : ''}`} />
               </button>
             </div>
           }

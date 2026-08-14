@@ -491,31 +491,32 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       </div>
 
       {/* Call Controls */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent backdrop-blur flex items-center justify-center gap-6 z-10">
+      <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/95 via-black/70 to-transparent backdrop-blur-sm flex flex-wrap items-center justify-center gap-2.5 md:gap-6 z-40">
         <button
           onClick={toggleMute}
-          className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+          className={`p-3 md:p-4 rounded-full transition-all shrink-0 ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
             }`}
+          aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
         >
-          {isMuted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+          {isMuted ? <MicOff className="w-5 h-5 md:w-6 md:h-6 text-white" /> : <Mic className="w-5 h-5 md:w-6 md:h-6 text-white" />}
         </button>
 
         <button
           onClick={handleEndCall}
-          className="p-5 rounded-full bg-red-600 hover:bg-red-700 transition-all shadow-lg hover:scale-110"
+          className="p-3.5 md:p-5 rounded-full bg-red-600 hover:bg-red-700 transition-all shadow-lg hover:scale-110 shrink-0"
+          aria-label="End call"
         >
-          <PhoneOff className="w-8 h-8 text-white" />
+          <PhoneOff className="w-6 h-6 md:w-8 md:h-8 text-white" />
         </button>
-
-
 
         {callType === 'video' && (
           <button
             onClick={toggleVideo}
-            className={`p-4 rounded-full transition-all ${isVideoOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+            className={`p-3 md:p-4 rounded-full transition-all shrink-0 ${isVideoOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
               }`}
+            aria-label={isVideoOff ? "Turn on camera" : "Turn off camera"}
           >
-            {isVideoOff ? <VideoOff className="w-6 h-6 text-white" /> : <VideoIcon className="w-6 h-6 text-white" />}
+            {isVideoOff ? <VideoOff className="w-5 h-5 md:w-6 md:h-6 text-white" /> : <VideoIcon className="w-5 h-5 md:w-6 md:h-6 text-white" />}
           </button>
         )}
         {customControls}
