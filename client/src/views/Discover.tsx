@@ -79,13 +79,6 @@ export const Discover: React.FC = () => {
   useEffect(() => { callInfoRef.current = callInfo; }, [callInfo]);
   useEffect(() => { channelRef.current = channel; }, [channel]);
 
-  // Sync with global totalOnlineCount if pool hasn't fully synced yet
-  useEffect(() => {
-    if (totalOnlineCount && totalOnlineCount > 0) {
-      setActiveUsersCount(prev => Math.max(prev, totalOnlineCount));
-    }
-  }, [totalOnlineCount]);
-
   // Clean recent skipped cache periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -251,7 +244,7 @@ export const Discover: React.FC = () => {
   }, [handleSkip]);
 
   // =========================================================================
-  // DEDICATED POOL PRESENCE SYNC (Always active regardless of state)
+  // DEDICATED POOL PRESENCE SYNC (Exact Real Pool Count)
   // =========================================================================
   const syncPoolPresence = useCallback((activeChannel: any) => {
     if (!activeChannel) return [];
@@ -259,14 +252,14 @@ export const Discover: React.FC = () => {
       const stateTree = activeChannel.presenceState();
       const allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
       
-      // Total count is always at least 1 (the current user) or total pool size
-      const count = Math.max(allUsers.length, totalOnlineCount || 1, 1);
-      setActiveUsersCount(count);
+      // Exact number of active students currently inside the Discover pool
+      const realPoolCount = Math.max(allUsers.length, 1);
+      setActiveUsersCount(realPoolCount);
       return allUsers;
     } catch (e) {
       return [];
     }
-  }, [totalOnlineCount]);
+  }, []);
 
   // =========================================================================
   // MATCHMAKING CORE ENGINE (Deterministic & High-Speed Random Pairing)
