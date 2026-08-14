@@ -991,84 +991,102 @@ export const Confessions: React.FC = () => {
             </div>
 
             {/* Input Area */}
-            <div className="fixed bottom-20 md:bottom-0 left-0 right-0 z-30 p-3 pointer-events-none flex justify-center w-full bg-gradient-to-t from-black via-black to-transparent pb-6 pt-10">
-                <div className="max-w-xl w-full pointer-events-auto">
-                    <div className="bg-black border border-gray-800 rounded-full p-2 shadow-2xl flex items-center gap-2">
+            <div className="fixed bottom-20 md:bottom-0 left-0 right-0 z-30 px-3 pb-6 pt-10 pointer-events-none flex justify-center w-full bg-gradient-to-t from-black via-black/80 to-transparent">
+                <div className="max-w-lg w-full pointer-events-auto">
+                    <div className="bg-[#0b0b10]/95 backdrop-blur-2xl border border-white/15 rounded-full p-1.5 pl-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] flex items-center gap-1 sm:gap-1.5">
+                        {/* Media previews */}
                         {newImage && !isPollMode && (
-                            <div className="relative w-10 h-10 ml-1 shrink-0">
+                            <div className="relative w-7 h-7 shrink-0">
                                 <img src={newImage} className="w-full h-full object-cover rounded-lg" alt="Preview" />
-                                <button onClick={() => setNewImage(null)} className="absolute -top-1 -right-1 bg-gray-800 rounded-full p-0.5"><X className="w-2.5 h-2.5" /></button>
+                                <button onClick={() => setNewImage(null)} className="absolute -top-1 -right-1 bg-black/80 border border-white/20 rounded-full p-0.5"><X className="w-2 h-2 text-white" /></button>
                             </div>
                         )}
                         {uploadedVideoUrl && !isPollMode && (
-                            <div className="relative flex items-center gap-1.5 bg-neon/15 border border-neon/30 rounded-xl px-2.5 py-1.5 ml-1 shrink-0">
-                                <VideoIcon className="w-4 h-4 text-neon" />
-                                <span className="text-[10px] font-bold text-neon uppercase tracking-wider">Video</span>
-                                <button onClick={() => setUploadedVideoUrl(null)} className="bg-black/60 hover:bg-black rounded-full p-0.5 text-gray-300 hover:text-white">
-                                    <X className="w-3 h-3" />
+                            <div className="relative flex items-center gap-1 bg-neon/15 border border-neon/30 rounded-lg px-2 py-0.5 shrink-0">
+                                <VideoIcon className="w-3.5 h-3.5 text-neon" />
+                                <span className="text-[9px] font-bold text-neon uppercase">Video</span>
+                                <button onClick={() => setUploadedVideoUrl(null)} className="bg-black/80 rounded-full p-0.5 ml-0.5 text-gray-300 hover:text-white">
+                                    <X className="w-2.5 h-2.5" />
                                 </button>
                             </div>
                         )}
-                        <button 
-                            onClick={() => { 
-                                setIsPollMode(!isPollMode); 
-                                setNewImage(null); 
-                                setUploadedVideoUrl(null);
-                            }} 
-                            aria-label={isPollMode ? 'Cancel poll mode' : 'Create a poll'}
-                            aria-pressed={isPollMode}
-                            className={`p-2 rounded-full ${isPollMode ? 'text-white bg-gray-900' : 'text-gray-500'}`}
-                        >
-                            <BarChart2 className="w-5 h-5" aria-hidden="true" />
-                        </button>
-                        <div className="h-4 w-px bg-gray-800"></div>
-                        
-                        {/* Image picker */}
-                        <input id="confession-image-input" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                        <button 
-                            onClick={() => {
-                                document.getElementById('confession-image-input')?.click();
-                            }} 
-                            disabled={isPollMode || !!uploadedVideoUrl} 
-                            aria-label="Upload image"
-                            className="p-2 text-gray-500 hover:text-gray-300 disabled:opacity-30"
-                        >
-                            <ImageIcon className="w-5 h-5" aria-hidden="true" />
-                        </button>
 
-                        {/* Video picker */}
-                        <input id="confession-video-input" type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleVideoUpload} />
-                        <button 
-                            onClick={() => {
-                                document.getElementById('confession-video-input')?.click();
-                            }} 
-                            disabled={isPollMode || !!newImage || videoUploading} 
-                            aria-label="Upload video"
-                            className={`p-2 transition-colors ${uploadedVideoUrl ? 'text-neon' : 'text-gray-500 hover:text-gray-300'} disabled:opacity-30`}
-                        >
-                            {videoUploading ? <Loader2 className="w-5 h-5 animate-spin text-neon" /> : <VideoIcon className="w-5 h-5" />}
-                        </button>
+                        {/* Action buttons tightly clustered */}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                            <button 
+                                onClick={() => { 
+                                    setIsPollMode(!isPollMode); 
+                                    setNewImage(null); 
+                                    setUploadedVideoUrl(null);
+                                }} 
+                                aria-label={isPollMode ? 'Cancel poll mode' : 'Create a poll'}
+                                aria-pressed={isPollMode}
+                                className={`p-1.5 rounded-full transition-colors ${isPollMode ? 'text-white bg-white/20' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <BarChart2 className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                            
+                            {/* Image picker */}
+                            <input id="confession-image-input" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                            <button 
+                                onClick={() => document.getElementById('confession-image-input')?.click()} 
+                                disabled={isPollMode || !!uploadedVideoUrl} 
+                                aria-label="Upload image"
+                                className="p-1.5 text-gray-400 hover:text-white disabled:opacity-20 transition-colors"
+                            >
+                                <ImageIcon className="w-4 h-4" aria-hidden="true" />
+                            </button>
 
+                            {/* Video picker */}
+                            <input id="confession-video-input" type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleVideoUpload} />
+                            <button 
+                                onClick={() => document.getElementById('confession-video-input')?.click()} 
+                                disabled={isPollMode || !!newImage || videoUploading} 
+                                aria-label="Upload video"
+                                className={`p-1.5 transition-colors ${uploadedVideoUrl ? 'text-neon' : 'text-gray-400 hover:text-white'} disabled:opacity-20`}
+                            >
+                                {videoUploading ? <Loader2 className="w-4 h-4 animate-spin text-neon" /> : <VideoIcon className="w-4 h-4" />}
+                            </button>
+                        </div>
+
+                        <div className="h-4 w-px bg-white/15 shrink-0"></div>
+
+                        {/* Text Input with min-w-0 for proper flexbox shrinking */}
                         <input 
                             value={newText} 
                             onChange={e => setNewText(e.target.value)} 
-                            placeholder={isPollMode ? "Poll question..." : (uploadedVideoUrl ? "Add video caption..." : "Confess anonymously...")} 
+                            placeholder={isPollMode ? "Poll question..." : (uploadedVideoUrl ? "Add caption..." : "Confess anonymously...")} 
                             aria-label={isPollMode ? 'Poll question' : 'Anonymous confession text'}
-                            className="flex-1 bg-transparent text-white px-2 outline-none text-xs font-medium" 
+                            className="flex-1 min-w-0 bg-transparent text-white px-2 outline-none text-xs font-medium placeholder-gray-500" 
                         />
+
+                        {/* Send Button */}
                         <button 
                             onClick={handlePost} 
                             aria-label="Post confession" 
                             disabled={isPosting || videoUploading || (!newText.trim() && !newImage && !uploadedVideoUrl)} 
-                            className="p-2.5 bg-white rounded-full text-black hover:bg-gray-200 disabled:opacity-40"
+                            className="p-2 bg-white rounded-full text-black hover:bg-gray-200 disabled:opacity-30 shrink-0 transition-transform active:scale-95 shadow-md"
                         >
-                            {isPosting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Send className="w-4 h-4" aria-hidden="true" />}
+                            {isPosting ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Send className="w-3.5 h-3.5 ml-0.5" aria-hidden="true" />}
                         </button>
                     </div>
+
                     {isPollMode && (
-                        <div className="mt-2 bg-black border border-gray-800 rounded-xl p-3 mx-2">
-                            {pollOptions.map((opt, i) => <input key={i} className="w-full bg-gray-900 border border-gray-800 text-white text-xs px-3 py-2 rounded-lg mb-2" placeholder={`Option ${i + 1}`} value={opt} onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} />)}
-                            {pollOptions.length < 4 && <button onClick={() => setPollOptions([...pollOptions, ''])} className="text-[10px] text-gray-500 font-bold w-full text-center">+ Add Option</button>}
+                        <div className="mt-2 bg-[#0b0b10]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl">
+                            {pollOptions.map((opt, i) => (
+                                <input 
+                                    key={i} 
+                                    className="w-full bg-white/5 border border-white/10 text-white text-xs px-3 py-2 rounded-xl mb-2 placeholder-gray-500 outline-none focus:border-neon/50" 
+                                    placeholder={`Option ${i + 1}`} 
+                                    value={opt} 
+                                    onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} 
+                                />
+                            ))}
+                            {pollOptions.length < 4 && (
+                                <button onClick={() => setPollOptions([...pollOptions, ''])} className="text-[10px] text-neon hover:underline font-bold w-full text-center py-1">
+                                    + Add Option
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
