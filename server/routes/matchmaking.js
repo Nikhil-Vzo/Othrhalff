@@ -30,22 +30,10 @@ function buildAgoraToken(channelName) {
   return { appId, token };
 }
 
-interface QueuedUser {
-  userId: string;
-  name: string;
-  avatar: string;
-  university?: string;
-  mode: 'TEXT' | 'VIDEO';
-  scope: 'CAMPUS' | 'GLOBAL';
-  recentPartners: string[];
-  joinedAt: number;
-  matchedWith?: any;
-}
-
 // In-memory atomic matchmaking queue
-const queue: Map<string, any> = new Map();
+const queue = new Map();
 // Matched pairings ready for pickup
-const matches: Map<string, any> = new Map();
+const matches = new Map();
 
 // Periodic cleanup of stale waiting users (>45s)
 setInterval(() => {

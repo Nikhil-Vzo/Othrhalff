@@ -136,7 +136,7 @@ export const Discover: React.FC = () => {
     }
   }, []);
 
-  // Cleanup helper
+  // Cleanup helper (Idempotent)
   const cleanupAndResetState = useCallback((nextState: DiscoverState = 'SEARCHING') => {
     setHasLiked(false);
     setPartnerLiked(false);
@@ -264,7 +264,6 @@ export const Discover: React.FC = () => {
       const stateTree = activeChannel.presenceState();
       const allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
       
-      // Exact number of active students currently inside the Discover pool
       const realPoolCount = Math.max(allUsers.length, 1);
       setActiveUsersCount(realPoolCount);
       return allUsers;
@@ -274,12 +273,14 @@ export const Discover: React.FC = () => {
   }, []);
 
   // =========================================================================
-  // SERVER-AUTHORITATIVE ATOMIC MATCHMAKING QUEUE (Instant <100ms Pairing)
+  // SERVER-AUTHORITATIVE ATOMIC MATCHMAKING QUEUE (Instant <100ms Pairing with Exponential Backoff)
   // =========================================================================
   useEffect(() => {
     if (state !== 'SEARCHING' || !currentUser) return;
 
     let isPolling = true;
+    let pollTimeout: NodeJS.Timeout;
+    let delay = 400; // Start fast at 400ms
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
     const pollQueue = async () => {
@@ -325,16 +326,20 @@ export const Discover: React.FC = () => {
           }
         }
       } catch (err) {
-        // Fallback gracefully to presence matching
+        console.warn('[Matchmaking] Queue poll warn:', err);
+      }
+
+      if (isPolling && stateRef.current === 'SEARCHING') {
+        delay = Math.min(delay * 1.3, 2000); // Exponential backoff up to 2s
+        pollTimeout = setTimeout(pollQueue, delay);
       }
     };
 
     pollQueue();
-    const interval = setInterval(pollQueue, 1000);
 
     return () => {
       isPolling = false;
-      clearInterval(interval);
+      clearTimeout(pollTimeout);
       supabase.auth.getSession().then(({ data }) => {
         if (data?.session?.access_token) {
           fetch(`${apiUrl}/api/matchmaking/leave`, {
@@ -349,147 +354,8 @@ export const Discover: React.FC = () => {
       });
     };
   }, [state, currentUser, mode, scope]);
-  const evaluateMatchmaking = useCallback(async (activeChannel: any, presencesList?: any[]) => {
-    if (!activeChannel || !currentUser || stateRef.current !== 'SEARCHING' || !isSubscribedRef.current) return;
 
-    let allUsers = presencesList;
-    if (!allUsers || allUsers.length === 0) {
-      const stateTree = activeChannel.presenceState();
-      allUsers = Object.keys(stateTree).map(key => stateTree[key]?.[0] as any).filter(Boolean);
-    }
-
-    const currentMode = modeRef.current;
-    const currentScope = scopeRef.current;
-    const myId = currentUser.id;
-    const now = Date.now();
-
-    // 1. Gather all candidates in SEARCHING state with same mode and compatible scope
-    const searchers = (allUsers || []).filter(u => {
-      if (u.status !== 'SEARCHING' || u.mode !== currentMode) return false;
-      
-      // Check scope compatibility
-      if (currentScope === 'CAMPUS' && currentUser.university) {
-        if (u.university !== currentUser.university) return false;
-      }
-      if (u.scope === 'CAMPUS' && u.university) {
-        if (u.university !== currentUser.university) return false;
-      }
-
-      // Check skip list (only applies to partners)
-      if (u.id !== myId) {
-        const avoidUntil = recentSkippedPartnersRef.current.get(u.id);
-        if (avoidUntil && now < avoidUntil) return false;
-      }
-
-      return true;
-    });
-
-    // Ensure current user is included in the list for deterministic indexing
-    if (!searchers.some(u => u.id === myId)) {
-      searchers.push({
-        id: myId,
-        name: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-        avatar: currentUser.avatar,
-        university: currentUser.university,
-        status: 'SEARCHING',
-        mode: currentMode,
-        scope: currentScope
-      });
-    }
-
-    if (searchers.length < 2) return;
-
-    // 2. Deterministic Alphabetical Sorting
-    // All searching clients compute the EXACT SAME order!
-    const sorted = [...searchers].sort((a, b) => a.id.localeCompare(b.id));
-
-    // 3. Find current user's index in the sorted list
-    const myIndex = sorted.findIndex(u => u.id === myId);
-    if (myIndex === -1) return;
-
-    // 4. Pair adjacent users: (0, 1), (2, 3), (4, 5)...
-    // Even index = Initiator, Odd index = Receiver
-    if (myIndex % 2 === 0) {
-      const partner = sorted[myIndex + 1];
-      if (!partner) return; // Odd-numbered searcher at end waits for next arrival
-
-      setState('CONNECTING');
-
-      try {
-        if (currentMode === 'VIDEO') {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error("No active session");
-
-          const channelName = `discover_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-          const res = await fetch(`${apiUrl}/api/agora-token`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({ channelName })
-          });
-          
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Failed to fetch Agora token");
-
-          setCallInfo({
-            appId: data.appId,
-            channelName: data.channelName,
-            token: data.token,
-            partnerId: partner.id,
-            partnerName: partner.name || 'Anonymous Student',
-            partnerAvatar: partner.avatar || '',
-            partnerUniversity: partner.university
-          });
-
-          // Propose match with full RTC credentials so receiver connects with zero latency
-          safeBroadcast('PROPOSE_MATCH', {
-            mode: 'VIDEO',
-            targetId: partner.id,
-            channelName: data.channelName,
-            appId: data.appId,
-            token: data.token,
-            initiatorId: myId,
-            initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-            initiatorAvatar: currentUser.avatar || '',
-            initiatorUniversity: currentUser.university || ''
-          });
-        } else {
-          // Instant Text Mode Handshake
-          const textRoomId = `discover_txt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-          setCallInfo({
-            appId: '',
-            channelName: textRoomId,
-            token: '',
-            partnerId: partner.id,
-            partnerName: partner.name || 'Anonymous Student',
-            partnerAvatar: partner.avatar || '',
-            partnerUniversity: partner.university
-          });
-
-          safeBroadcast('PROPOSE_MATCH', {
-            mode: 'TEXT',
-            targetId: partner.id,
-            channelName: textRoomId,
-            initiatorId: myId,
-            initiatorName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-            initiatorAvatar: currentUser.avatar || '',
-            initiatorUniversity: currentUser.university || ''
-          });
-        }
-      } catch (err) {
-        console.error("[Discover] Match proposal error:", err);
-        setState('SEARCHING');
-      }
-    } else {
-      // Odd index (1, 3, 5): Receiver waits for PROPOSE_MATCH from partner (myIndex - 1)
-      // Remains in SEARCHING state with zero blocking
-    }
-  }, [currentUser, safeBroadcast]);
-
-  // Main Discover Realtime Channel Setup
+  // Main Discover Realtime Channel Setup (Used exclusively for Chat/Typing/Likes/Skips & Live Presence Count)
   useEffect(() => {
     if (!currentUser) return;
 
@@ -505,90 +371,20 @@ export const Discover: React.FC = () => {
       }
     });
 
-    // 1. Presence Sync Handler
+    // Presence Sync Handlers
     newChannel.on('presence', { event: 'sync' }, () => {
-      const allUsers = syncPoolPresence(newChannel);
-      if (stateRef.current === 'SEARCHING') {
-        evaluateMatchmaking(newChannel, allUsers);
-      }
+      syncPoolPresence(newChannel);
     });
 
     newChannel.on('presence', { event: 'join' }, () => {
-      const allUsers = syncPoolPresence(newChannel);
-      if (stateRef.current === 'SEARCHING') {
-        evaluateMatchmaking(newChannel, allUsers);
-      }
+      syncPoolPresence(newChannel);
     });
 
     newChannel.on('presence', { event: 'leave' }, () => {
-      const allUsers = syncPoolPresence(newChannel);
-      if (stateRef.current === 'SEARCHING') {
-        evaluateMatchmaking(newChannel, allUsers);
-      }
+      syncPoolPresence(newChannel);
     });
 
-    // 2. Incoming Match Proposal Handler (Receiver)
-    newChannel.on('broadcast', { event: 'PROPOSE_MATCH' }, async ({ payload }) => {
-      if (payload.targetId !== currentUser.id) return;
-      
-      // If receiver is not SEARCHING, notify initiator that receiver is busy
-      if (stateRef.current !== 'SEARCHING') {
-        safeBroadcast('BUSY_MATCH', { 
-          targetId: payload.initiatorId,
-          receiverId: currentUser.id 
-        });
-        return;
-      }
-      
-      // Instant Handshake: Adopt credentials directly from payload without secondary server round-trip!
-      setCallInfo({
-        appId: payload.appId || '',
-        channelName: payload.channelName,
-        token: payload.token || '',
-        partnerId: payload.initiatorId,
-        partnerName: payload.initiatorName || 'Anonymous Student',
-        partnerAvatar: payload.initiatorAvatar || '',
-        partnerUniversity: payload.initiatorUniversity
-      });
-
-      safeBroadcast('ACCEPT_MATCH', { 
-        targetId: payload.initiatorId,
-        receiverName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
-        receiverAvatar: currentUser.avatar || '',
-        receiverUniversity: currentUser.university || ''
-      });
-
-      setState('CONNECTED');
-      setIsPartnerDisconnected(false);
-    });
-
-    // 3. Match Accepted Handler (Initiator)
-    newChannel.on('broadcast', { event: 'ACCEPT_MATCH' }, ({ payload }) => {
-      if (payload.targetId === currentUser.id && (stateRef.current === 'CONNECTING' || stateRef.current === 'SEARCHING')) {
-        if (payload.receiverName) {
-          setCallInfo(prev => prev ? ({
-            ...prev,
-            partnerName: payload.receiverName || prev.partnerName,
-            partnerAvatar: payload.receiverAvatar || prev.partnerAvatar,
-            partnerUniversity: payload.receiverUniversity || prev.partnerUniversity
-          }) : prev);
-        }
-        setState('CONNECTED');
-        setIsPartnerDisconnected(false);
-      }
-    });
-
-    // 4. Partner Busy / Reject Handler
-    newChannel.on('broadcast', { event: 'BUSY_MATCH' }, ({ payload }) => {
-      if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTING') {
-        if (payload.receiverId || callInfoRef.current?.partnerId) {
-          recentSkippedPartnersRef.current.set(payload.receiverId || callInfoRef.current?.partnerId, Date.now() + 10000);
-        }
-        setState('SEARCHING');
-      }
-    });
-
-    // 5. Chat & Presence Broadcasts
+    // Chat & In-Call Interaction Broadcasts
     newChannel.on('broadcast', { event: 'CHAT_MESSAGE' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTED') {
         setMessages(prev => [...prev, payload.message]);
@@ -613,13 +409,15 @@ export const Discover: React.FC = () => {
     newChannel.on('broadcast', { event: 'SKIP' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && stateRef.current === 'CONNECTED') {
         setIsPartnerDisconnected(true);
+        if (callInfoRef.current?.partnerId) {
+          recentSkippedPartnersRef.current.set(callInfoRef.current.partnerId, Date.now() + 25000);
+        }
         if (modeRef.current === 'VIDEO') {
-          // Smoothly advance to searching for next partner after brief notice
           setTimeout(() => {
             if (stateRef.current === 'CONNECTED') {
               cleanupAndResetState('SEARCHING');
             }
-          }, 900);
+          }, 1000);
         }
       }
     });
@@ -644,11 +442,10 @@ export const Discover: React.FC = () => {
           scope: scopeRef.current
         });
         syncPoolPresence(newChannel);
-      } else {
-        isSubscribedRef.current = false;
       }
     });
 
+    channelRef.current = newChannel;
     setChannel(newChannel);
 
     return () => {
@@ -656,7 +453,7 @@ export const Discover: React.FC = () => {
       supabase.removeChannel(newChannel);
       setChannel(null);
     };
-  }, [currentUser?.id, evaluateMatchmaking, syncPoolPresence, safeBroadcast]);
+  }, [currentUser?.id, syncPoolPresence, safeBroadcast, cleanupAndResetState]);
 
   // Sync state & mode changes to the realtime pool presence
   useEffect(() => {
@@ -673,142 +470,99 @@ export const Discover: React.FC = () => {
     }
   }, [state, mode, scope, channel, currentUser?.id]);
 
-  // Active Matchmaking & Presence Loop (Ticks every 1.5s while searching)
+  // Periodic active presence count refresh
   useEffect(() => {
     if (!channel) return;
+    const interval = setInterval(() => {
+      syncPoolPresence(channel);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [channel, syncPoolPresence]);
 
-    syncPoolPresence(channel);
-    const matchmakingInterval = setInterval(() => {
-      const allUsers = syncPoolPresence(channel);
-      if (stateRef.current === 'SEARCHING') {
-        evaluateMatchmaking(channel, allUsers);
-      }
-    }, 1500);
-
-    return () => clearInterval(matchmakingInterval);
-  }, [channel, syncPoolPresence, evaluateMatchmaking]);
-
-  // Fail-Safe: Reset from CONNECTING to SEARCHING if handshake stalls past 4.5s
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    if (state === 'CONNECTING') {
-      timeoutId = setTimeout(() => {
-        if (stateRef.current === 'CONNECTING') {
-          console.warn('[Discover] Connection handshake timed out after 4.5s, resuming search...');
-          if (callInfoRef.current?.partnerId) {
-            recentSkippedPartnersRef.current.set(callInfoRef.current.partnerId, Date.now() + 15000);
-          }
-          setState('SEARCHING');
-        }
-      }, 4500);
-    }
-    return () => { if (timeoutId) clearTimeout(timeoutId); };
-  }, [state]);
-
-  // Helper to render user avatar cleanly without raw box placeholders
-  const renderAvatar = (avatarUrl?: string, name?: string, sizeClass = "w-20 h-20", textClass = "text-2xl") => {
-    const displayName = name || 'Student';
-    const initial = displayName.charAt(0).toUpperCase();
-
-    if (avatarUrl && avatarUrl.startsWith('http')) {
-      return (
-        <img 
-          src={avatarUrl} 
-          alt={displayName} 
-          className={`${sizeClass} rounded-full object-cover border-2 border-neon shadow-[0_0_30px_rgba(255,0,127,0.4)]`} 
-        />
-      );
-    }
-
-    return (
-      <div className={`${sizeClass} rounded-full bg-gradient-to-br from-neon via-pink-600 to-purple-600 border-2 border-white/20 flex items-center justify-center text-white font-black ${textClass} shadow-[0_0_30px_rgba(255,0,127,0.4)] select-none`}>
-        {initial}
-      </div>
-    );
+  // Handlers for Matchmaking Controls
+  const handleStartSearching = () => {
+    cleanupAndResetState('SEARCHING');
   };
 
-  if (!currentUser) return null;
+  const handleCancelSearching = () => {
+    cleanupAndResetState('IDLE');
+  };
 
   // =========================================================================
   // RENDER: IDLE STATE
   // =========================================================================
   if (state === 'IDLE') {
     return (
-      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
-        {/* Top Header — Matching App Standards (Back button + Campus/Global Toggle + Online Count) */}
-        <div className="w-full max-w-lg flex items-center justify-between z-30 pt-1">
-          {/* Back Button */}
-          <button
-            onClick={() => router.push('/home')}
-            className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0 shadow-lg"
-            aria-label="Back to Home"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-
-          {/* Campus / Global Toggle at Header */}
-          <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl">
-            <button
-              onClick={() => setScope('CAMPUS')}
-              title={`Campus Mode: Only pair with students from ${currentUser.university || 'your university'}`}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${
-                scope === 'CAMPUS'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <School className="w-3.5 h-3.5" />
-              <span>Campus</span>
-            </button>
+      <div className="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-between p-4 md:p-8 max-w-4xl mx-auto select-none">
+        {/* Top Floating Header with Scope Toggle & Active Count */}
+        <div className="w-full flex items-center justify-between gap-4 pt-2">
+          {/* Scope Toggle */}
+          <div className="flex bg-zinc-900/90 border border-white/10 p-1 rounded-full backdrop-blur-xl shadow-lg">
             <button
               onClick={() => setScope('GLOBAL')}
-              title="Global Mode: Pair with students from any university"
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 scope === 'GLOBAL'
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <Globe className="w-3.5 h-3.5" />
               <span>Global</span>
             </button>
+            <button
+              onClick={() => {
+                if (!currentUser?.university) {
+                  router.push('/profile');
+                  return;
+                }
+                setScope('CAMPUS');
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                scope === 'CAMPUS'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <School className="w-3.5 h-3.5" />
+              <span>Campus</span>
+            </button>
           </div>
 
-          {/* Live Online Badge */}
-          <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-lg shrink-0">
+          {/* Active Online Counter Pill */}
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-xl shadow-lg font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-bold text-gray-200 font-mono">
-              {activeUsersCount} Online
-            </span>
+            <span>{activeUsersCount} student{activeUsersCount !== 1 ? 's' : ''} online</span>
           </div>
         </div>
 
-        {/* Hero Content */}
-        <div className="w-full max-w-md flex flex-col items-center text-center my-auto py-8">
+        {/* Center Hero Section */}
+        <div className="w-full flex-1 flex flex-col items-center justify-center my-8 text-center max-w-lg">
           <div className="relative mb-6">
-            <div className="w-20 h-20 rounded-full bg-neon/15 border border-neon/30 flex items-center justify-center shadow-[0_0_40px_rgba(255,0,127,0.3)]">
-              <Zap className="w-9 h-9 text-neon animate-pulse" />
-            </div>
-            <div className="absolute -top-1 -right-1 px-2.5 py-0.5 bg-neon text-[10px] font-black uppercase tracking-wider text-white rounded-full shadow-md shadow-neon/40">
-              Live
+            <div className="absolute inset-0 bg-gradient-to-tr from-neon/30 to-purple-600/30 rounded-full blur-3xl -z-10 animate-pulse" />
+            <div className="w-24 h-24 rounded-3xl bg-zinc-900/80 border border-white/15 flex items-center justify-center text-white shadow-2xl backdrop-blur-2xl">
+              {mode === 'VIDEO' ? (
+                <Video className="w-12 h-12 text-neon" />
+              ) : (
+                <MessageSquare className="w-12 h-12 text-neon" />
+              )}
             </div>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight mb-2">
-            Discover Live
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
+            Speed <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon to-pink-500">Discover</span>
           </h1>
-          <p className="text-gray-400 text-xs md:text-sm text-center max-w-xs mb-8">
-            Instant 1-on-1 random chat & video. Pair with any active student live right now.
+          <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-8">
+            Connect instantly with verified college students. Match anonymously, chat or video call, and tap ❤️ if you vibe.
           </p>
 
-          {/* Mode Switcher: Text vs Video (Clean & Sleek) */}
-          <div className="flex bg-black/60 backdrop-blur-xl p-1 rounded-full border border-white/10 mb-8 w-full max-w-xs shadow-xl">
+          {/* Mode Selector Tabs (Text vs Video) */}
+          <div className="grid grid-cols-2 gap-3 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-2xl mb-8 backdrop-blur-xl">
             <button
               onClick={() => setMode('TEXT')}
-              className={`flex-1 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+              className={`flex items-center justify-center gap-2.5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
                 mode === 'TEXT'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25 scale-[1.02]'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               <MessageSquare className="w-4 h-4" />
@@ -816,10 +570,10 @@ export const Discover: React.FC = () => {
             </button>
             <button
               onClick={() => setMode('VIDEO')}
-              className={`flex-1 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+              className={`flex items-center justify-center gap-2.5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
                 mode === 'VIDEO'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25 scale-[1.02]'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               <Video className="w-4 h-4" />
@@ -827,96 +581,82 @@ export const Discover: React.FC = () => {
             </button>
           </div>
 
-          {/* Start Button */}
+          {/* Start Discovering CTA Button */}
           <button
-            onClick={() => setState('SEARCHING')}
-            className="w-full max-w-xs py-4 bg-gradient-to-r from-neon to-pink-600 text-white font-black rounded-full uppercase tracking-widest text-xs shadow-[0_4px_25px_rgba(255,0,127,0.45)] active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2"
+            onClick={handleStartSearching}
+            className="w-full py-4 bg-gradient-to-r from-neon via-pink-600 to-purple-600 hover:from-neon hover:to-pink-500 text-white font-extrabold rounded-full uppercase tracking-widest text-sm shadow-xl shadow-neon/30 hover:shadow-neon/50 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            <Sparkles className="w-4 h-4 fill-white" />
+            <Zap className="w-5 h-5 fill-current" />
             <span>Start Discovering</span>
           </button>
         </div>
 
-        {/* Footer info */}
-        <div className="w-full max-w-md text-center py-2">
-          <p className="text-[11px] text-gray-500 font-medium">
-            Independent random chat. Tap ❤️ anytime to unlock a permanent match.
-          </p>
+        {/* Bottom Safety & Privacy Note */}
+        <div className="text-center text-[11px] text-gray-500 pb-2 flex items-center justify-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-neon" />
+          <span>Encrypted 1-on-1 connections. Skip anytime by pressing ESC.</span>
         </div>
       </div>
     );
   }
 
   // =========================================================================
-  // RENDER: SEARCHING & CONNECTING STATE
+  // RENDER: SEARCHING STATE
   // =========================================================================
-  if (state === 'SEARCHING' || state === 'CONNECTING') {
+  if (state === 'SEARCHING') {
     return (
-      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto relative">
-        {/* Header */}
-        <div className="w-full max-w-lg flex items-center justify-between z-30 pt-1">
+      <div className="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-between p-4 md:p-8 max-w-lg mx-auto select-none">
+        {/* Top Status Pill */}
+        <div className="w-full flex items-center justify-between pt-2">
           <button
-            onClick={() => setState('IDLE')}
-            className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+            onClick={handleCancelSearching}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-gray-400 hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Cancel</span>
           </button>
-
-          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl border border-white/10 px-3.5 py-1.5 rounded-full shadow-lg">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-gray-300">
             <span className="w-2 h-2 rounded-full bg-neon animate-ping" />
-            <span className="text-[11px] font-bold text-gray-200 font-mono">
-              {state === 'SEARCHING' ? `Searching (${searchTime}s)` : 'Connecting...'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-lg">
-            {scope === 'CAMPUS' ? <School className="w-3.5 h-3.5 text-neon" /> : <Globe className="w-3.5 h-3.5 text-blue-400" />}
-            <span className="text-[11px] font-bold text-gray-300">
-              {scope === 'CAMPUS' ? 'Campus' : 'Global'}
-            </span>
+            <span>{activeUsersCount} online</span>
           </div>
         </div>
 
-        {/* Pulsing Radar Wave UI */}
-        <div className="flex flex-col items-center justify-center my-auto text-center py-6">
-          <div className="relative w-36 h-36 mb-8 flex items-center justify-center">
-            {/* Outer concentric pulsing rings */}
-            <div className="absolute inset-0 rounded-full border border-neon/20 animate-ping opacity-30" />
-            <div className="absolute -inset-4 rounded-full border border-neon/15 animate-pulse opacity-40" />
-            <div className="absolute -inset-8 rounded-full border border-neon/10 animate-pulse opacity-20" />
-            
-            {/* Center User Avatar */}
-            {renderAvatar(
-              currentUser.avatar, 
-              currentUser.realName || currentUser.anonymousId, 
-              "w-20 h-20", 
-              "text-2xl"
-            )}
+        {/* Center Pulsating Match Radar */}
+        <div className="flex-1 flex flex-col items-center justify-center text-center my-8">
+          <div className="relative flex items-center justify-center mb-8">
+            <div className="absolute w-64 h-64 rounded-full border border-neon/20 animate-ping opacity-30 pointer-events-none" />
+            <div className="absolute w-52 h-52 rounded-full border border-pink-500/30 animate-pulse pointer-events-none" />
+            <div className="absolute w-40 h-40 rounded-full bg-gradient-to-tr from-neon/30 to-purple-600/30 blur-2xl -z-10" />
+
+            <div className="w-28 h-28 rounded-full bg-zinc-900 border-2 border-neon shadow-[0_0_35px_rgba(255,0,127,0.5)] flex items-center justify-center text-white relative z-10">
+              {mode === 'VIDEO' ? (
+                <Video className="w-12 h-12 text-neon animate-pulse" />
+              ) : (
+                <MessageSquare className="w-12 h-12 text-neon animate-pulse" />
+              )}
+            </div>
           </div>
 
-          <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
-            {state === 'SEARCHING' ? 'Looking for someone online...' : 'Handshaking partner...'}
+          <h2 className="text-2xl font-extrabold text-white tracking-tight mb-2">
+            Searching for a Match...
           </h2>
-          <p className="text-gray-400 text-xs mb-4 font-medium">
-            {mode === 'TEXT' ? 'Random 1-on-1 Text Chat' : 'Speed Video Call'} • {scope === 'CAMPUS' ? `Campus Scope (${currentUser.university || 'My College'})` : 'Global Scope'}
+          <p className="text-gray-400 text-xs md:text-sm font-mono mb-4">
+            {scope === 'CAMPUS' && currentUser?.university 
+              ? `Looking within ${currentUser.university}...`
+              : 'Looking for verified students globally...'}
           </p>
 
-          {/* Quick status pill */}
-          <div className="px-4 py-2 rounded-full bg-black/60 border border-white/10 text-xs font-mono text-gray-300 flex items-center gap-2 shadow-lg">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900/80 border border-white/10 text-xs text-gray-300 font-mono shadow-inner">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>
-              {activeUsersCount > 1 
-                ? `${activeUsersCount} online • pairing live candidates...` 
-                : 'Waiting for someone to join the pool...'}
-            </span>
+            <span>Time searching: {searchTime}s</span>
           </div>
         </div>
 
-        {/* Bottom Cancel Button */}
-        <div className="w-full max-w-xs flex justify-center pb-2">
+        {/* Cancel Button */}
+        <div className="w-full pb-4">
           <button
-            onClick={() => setState('IDLE')}
-            className="w-full py-3.5 text-xs text-gray-300 hover:text-white font-bold uppercase tracking-wider border border-white/10 rounded-full bg-black/60 backdrop-blur-xl hover:bg-white/10 transition-colors active:scale-95"
+            onClick={handleCancelSearching}
+            className="w-full py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-gray-300 hover:text-white font-bold rounded-full uppercase tracking-wider text-xs transition-colors"
           >
             Cancel Search
           </button>
@@ -926,32 +666,35 @@ export const Discover: React.FC = () => {
   }
 
   // =========================================================================
-  // RENDER: MATCHED CELEBRATION STATE
+  // RENDER: MATCHED CELEBRATION MODAL
   // =========================================================================
-  if (state === 'MATCHED') {
+  if (state === 'MATCHED' && callInfo) {
     return (
-      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center bg-black text-white p-4 md:p-6 pb-12 md:pb-6 overflow-y-auto z-50">
-        <div className="flex items-center gap-4 mb-8">
-          {renderAvatar(currentUser.avatar, currentUser.realName || currentUser.anonymousId, "w-20 h-20", "text-2xl")}
-          <Heart className="w-8 h-8 text-neon animate-bounce fill-current" />
-          {renderAvatar(callInfo?.partnerAvatar, callInfo?.partnerName, "w-20 h-20", "text-2xl")}
+      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center select-none animate-in fade-in zoom-in-95 duration-300">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-gradient-to-tr from-neon to-pink-500 rounded-full blur-3xl opacity-50 animate-pulse" />
+          <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-neon to-pink-600 p-1 shadow-[0_0_50px_rgba(255,0,127,0.7)] relative z-10 flex items-center justify-center">
+            <Heart className="w-16 h-16 text-white fill-current animate-bounce" />
+          </div>
         </div>
 
-        <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">It's a Match!</h1>
-        <p className="text-gray-400 text-xs mb-10 text-center max-w-xs">
-          You and {callInfo?.partnerName} liked each other. You can now message them permanently!
+        <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">
+          It's a <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon to-pink-400">Match!</span>
+        </h1>
+        <p className="text-gray-300 text-sm max-w-sm mb-8">
+          You and <span className="text-white font-bold">{callInfo.partnerName}</span> liked each other! You can now chat permanently in your matches.
         </p>
 
-        <div className="w-full max-w-xs space-y-3">
+        <div className="flex flex-col gap-3 w-full max-w-xs">
           <button
             onClick={() => router.push('/matches')}
-            className="w-full py-4 bg-gradient-to-r from-neon to-pink-600 text-white font-bold rounded-full uppercase tracking-widest text-xs shadow-[0_4px_20px_rgba(255,0,127,0.4)] active:scale-95 transition-transform"
+            className="w-full py-4 bg-gradient-to-r from-neon to-pink-600 text-white font-extrabold rounded-full uppercase tracking-wider text-xs shadow-lg shadow-neon/30 hover:scale-105 active:scale-95 transition-all"
           >
             Go to Messages
           </button>
           <button
             onClick={() => cleanupAndResetState('SEARCHING')}
-            className="w-full py-4 bg-black/60 border border-white/10 text-gray-300 font-bold rounded-full uppercase tracking-widest text-xs active:scale-95 transition-transform hover:bg-white/10"
+            className="w-full py-3.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold rounded-full uppercase tracking-wider text-xs transition-colors"
           >
             Keep Discovering
           </button>
@@ -961,26 +704,32 @@ export const Discover: React.FC = () => {
   }
 
   // =========================================================================
-  // RENDER: CONNECTED — TEXT MODE
+  // RENDER: CONNECTED — TEXT CHAT MODE
   // =========================================================================
-  if (state === 'CONNECTED' && mode === 'TEXT') {
+  if (state === 'CONNECTED' && mode === 'TEXT' && callInfo) {
     return (
-      <div className="w-full h-[100dvh] flex flex-col bg-black text-white relative overflow-hidden">
-        {/* Top Header */}
-        <div className="w-full bg-black/70 border-b border-white/10 p-3 md:p-4 flex items-center justify-between z-10 backdrop-blur-xl shrink-0">
-          <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
+      <div className="w-full h-[100dvh] flex flex-col bg-black overflow-hidden font-sans select-none">
+        {/* Top Connected Header */}
+        <div className="p-3.5 bg-zinc-950/90 border-b border-white/10 backdrop-blur-xl flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => {
                 handleSkip();
                 setState('IDLE');
               }}
-              className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0"
-              aria-label="Back"
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0"
+              aria-label="Back to home"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            {renderAvatar(callInfo?.partnerAvatar, callInfo?.partnerName, "w-9 h-9", "text-sm")}
-            <div className="truncate">
+            <div className="w-9 h-9 rounded-full overflow-hidden border border-neon/50 shrink-0">
+              <img
+                src={callInfo?.partnerAvatar || 'https://via.placeholder.com/150'}
+                alt={callInfo?.partnerName || 'Partner'}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="min-w-0">
               <h3 className="font-bold text-sm text-gray-100 truncate">
                 {callInfo?.partnerName || 'Student'}
               </h3>
@@ -1032,7 +781,7 @@ export const Discover: React.FC = () => {
           )}
 
           {messages.map((msg) => {
-            const isMe = msg.senderId === currentUser.id;
+            const isMe = msg.senderId === currentUser?.id;
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[80%] md:max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
@@ -1125,6 +874,15 @@ export const Discover: React.FC = () => {
           channelName={callInfo.channelName}
           token={callInfo.token}
           onLeave={() => setState('IDLE')}
+          onPartnerDisconnect={() => {
+            setIsPartnerDisconnected(true);
+            if (callInfoRef.current?.partnerId) {
+              recentSkippedPartnersRef.current.set(callInfoRef.current.partnerId, Date.now() + 25000);
+            }
+            setTimeout(() => {
+              cleanupAndResetState('SEARCHING');
+            }, 1000);
+          }}
           partnerName={callInfo.partnerName}
           partnerAvatar={callInfo.partnerAvatar}
           callType="video"

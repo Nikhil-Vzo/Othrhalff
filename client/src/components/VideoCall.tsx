@@ -14,6 +14,7 @@ interface VideoCallProps {
   channelName: string;
   token: string;
   onLeave: () => void;
+  onPartnerDisconnect?: () => void;
   partnerName: string;
   partnerAvatar: string;
   callType: 'audio' | 'video';
@@ -81,7 +82,18 @@ const LocalVideoView: React.FC<{ track: ICameraVideoTrack | null; isVideoOff: bo
   );
 };
 
-export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token, onLeave, partnerName, partnerAvatar, callType, callSessionId, customControls }) => {
+export const VideoCall: React.FC<VideoCallProps> = ({ 
+  appId, 
+  channelName, 
+  token, 
+  onLeave, 
+  onPartnerDisconnect,
+  partnerName, 
+  partnerAvatar, 
+  callType, 
+  callSessionId, 
+  customControls 
+}) => {
   const [localVideoTrack, setLocalVideoTrack] = useState<ICameraVideoTrack | null>(null);
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null);
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
@@ -91,7 +103,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const { showToast } = useToast();
   
-  // Track client in a ref so we can use it in cleanup
+  // Track client in a ref to guard against StrictMode double-mounting
   const clientRef = useRef<any>(null);
 
   // Refs to avoid stale closures in cleanup
@@ -125,16 +137,36 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
   // Reconnection state
   const [isReconnecting, setIsReconnecting] = useState(false);
 
+  // Mobile Safari visibility listener
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && clientRef.current) {
+        const state = clientRef.current.connectionState;
+        console.log('[Agora] Tab became visible, connection state:', state);
+        if (state === 'DISCONNECTED') {
+          if (onPartnerDisconnect) onPartnerDisconnect();
+          else onLeave();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [onPartnerDisconnect, onLeave]);
+
   useEffect(() => {
     let isMounted = true;
-    // Create a fresh client for this mount
-    const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' });
-    clientRef.current = client;
+    
+    // Guard against StrictMode duplicate client instantiations
+    let client = clientRef.current;
+    if (!client) {
+      client = AgoraRTC.createClient({ mode: 'rtc', codec: 'h264' });
+      clientRef.current = client;
+    }
     
     const init = async () => {
       try {
         // Set up event listeners
-        client.on('user-published', async (user, mediaType) => {
+        client.on('user-published', async (user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video') => {
           if (!isMounted) return;
           await client.subscribe(user, mediaType);
           console.log('[Agora] Subscribed to remote user:', user.uid, mediaType);
@@ -157,7 +189,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           }
         });
 
-        client.on('user-unpublished', (user, mediaType) => {
+        client.on('user-unpublished', (user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video') => {
           console.log('[Agora] User unpublished:', user.uid, mediaType);
           setRemoteUsers((prev) => {
             const next = prev.filter(u => u.uid !== user.uid);
@@ -165,19 +197,23 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
           });
         });
 
-        client.on('user-left', (user) => {
+        client.on('user-left', (user: IAgoraRTCRemoteUser) => {
           console.log('[Agora] Remote user left channel:', user.uid);
           setRemoteUsers((prev) => prev.filter(u => u.uid !== user.uid));
-          onLeave();
+          if (onPartnerDisconnect) {
+            onPartnerDisconnect();
+          } else {
+            onLeave();
+          }
         });
 
         // Network quality monitoring
-        client.on('network-quality', (stats) => {
+        client.on('network-quality', (stats: any) => {
           setNetworkQuality(stats.downlinkNetworkQuality);
         });
 
         // Auto-reconnection handling
-        client.on('connection-state-change', (curState, prevState) => {
+        client.on('connection-state-change', (curState: string, prevState: string) => {
           console.log(`[Agora] Connection state: ${prevState} → ${curState}`);
           if (curState === 'RECONNECTING') {
             setIsReconnecting(true);
@@ -185,8 +221,11 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
             setIsReconnecting(false);
           } else if (curState === 'DISCONNECTED' && isMounted) {
             setIsReconnecting(false);
-            showToast('Call disconnected', 'error');
-            onLeave();
+            if (onPartnerDisconnect) {
+              onPartnerDisconnect();
+            } else {
+              onLeave();
+            }
           }
         });
 
@@ -267,10 +306,11 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       } catch (e) {}
       if (clientRef.current) {
          clientRef.current.leave().catch(() => {});
+         clientRef.current = null;
       }
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [appId, channelName, token, callType, onLeave, showToast]);
+  }, [appId, channelName, token, callType, onLeave, onPartnerDisconnect, showToast]);
 
   // Listen for call ended by partner in standard 1-on-1 calls
   useEffect(() => {
@@ -370,8 +410,6 @@ export const VideoCall: React.FC<VideoCallProps> = ({ appId, channelName, token,
       showToast('Failed to enable some audio tracks. Please try again.', 'error');
     }
   };
-
-  const activeRemoteUser = remoteUsers.find(u => u.videoTrack);
 
   return (
     <div className="fixed inset-0 z-50 bg-[#03000a] flex flex-col font-sans select-none">
