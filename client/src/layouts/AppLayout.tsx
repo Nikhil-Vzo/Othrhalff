@@ -56,10 +56,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const PUBLIC_ROUTES = ['/', '/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance', '/blog'];
+    const PUBLIC_ROUTES = ['/', '/login', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance', '/blog', '/vs-omegle', '/careers', '/reddit'];
+    const isPublicSEOPath = pathname.startsWith('/vs/') || pathname.startsWith('/campus/') || pathname.startsWith('/tea/');
 
     // If unauthenticated and accessing a protected view, send to login
-    if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
+    if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && !isPublicSEOPath && pathname !== '/onboarding') {
       router.push('/login');
       return;
     }
@@ -310,7 +311,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
         )}
 
-        <div className="flex-1 overflow-hidden relative w-full h-full z-10 bg-transparent layout-content-wrapper">
+        <div className={`flex-1 relative w-full h-full z-10 bg-transparent layout-content-wrapper ${isAuthenticatedPath ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           {children}
         </div>
 
