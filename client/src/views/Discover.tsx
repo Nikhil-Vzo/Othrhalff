@@ -471,6 +471,14 @@ export const Discover: React.FC = () => {
     // 3. Match Accepted Handler (Initiator)
     newChannel.on('broadcast', { event: 'ACCEPT_MATCH' }, ({ payload }) => {
       if (payload.targetId === currentUser.id && (stateRef.current === 'CONNECTING' || stateRef.current === 'SEARCHING')) {
+        if (payload.receiverName) {
+          setCallInfo(prev => prev ? ({
+            ...prev,
+            partnerName: payload.receiverName || prev.partnerName,
+            partnerAvatar: payload.receiverAvatar || prev.partnerAvatar,
+            partnerUniversity: payload.receiverUniversity || prev.partnerUniversity
+          }) : prev);
+        }
         setState('CONNECTED');
         setIsPartnerDisconnected(false);
       }
