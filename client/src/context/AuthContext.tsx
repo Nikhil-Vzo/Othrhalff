@@ -251,8 +251,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 3. Clear IndexedDB tables
       try {
-        db.messages.clear();
-        db.profiles.clear();
+        db.messages.clear().catch(() => {});
+        db.profiles.clear().catch(() => {});
+        db.matches.clear().catch(() => {});
+        db.outbox.clear().catch(() => {});
+        db.playground_settings.clear().catch(() => {});
       } catch (e) {
         console.error('Failed to clear IndexedDB:', e);
       }

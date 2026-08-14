@@ -46,14 +46,12 @@ async function clearAuthToken() {
     } catch { }
 }
 
-// Core files to cache on install (keep minimal for fast install)
 const CORE_CACHE = [
     '/',
-    '/index.html',
     '/favicon.png',
+    '/favicon.ico',
     '/manifest.json',
-    '/logo192.png',
-    '/logo512.png'
+    '/og-image.png'
 ];
 
 // Install event - cache core resources
