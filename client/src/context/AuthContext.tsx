@@ -19,13 +19,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PROFILE_SELECT_FIELDS = `
-  id, username, anonymous_id, real_name, gender,
-  university, university_email, branch, year, batch,
-  interests, looking_for, bio, dob, is_verified,
-  avatar, is_premium
-`;
-
 const mapProfileToAppUser = (profile: any, sessionUser?: any): UserProfile => ({
   id: profile?.id || sessionUser?.id || '',
   username: profile?.username || undefined,
@@ -145,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const { data: profile, error } = await supabase
             .from('profiles')
-            .select(PROFILE_SELECT_FIELDS)
+            .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
 
@@ -216,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (activeSession?.user) {
             const { data: profile, error } = await supabase
               .from('profiles')
-              .select(PROFILE_SELECT_FIELDS)
+              .select('*')
               .eq('id', activeSession.user.id)
               .maybeSingle();
 
