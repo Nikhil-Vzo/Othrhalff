@@ -106,10 +106,19 @@ export const Discover: React.FC = () => {
     return () => clearInterval(timer);
   }, [state]);
 
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPartnerTyping]);
+
+  // Auto focus input on text chat connection
+  useEffect(() => {
+    if (state === 'CONNECTED' && mode === 'TEXT' && !isPartnerDisconnected) {
+      chatInputRef.current?.focus();
+    }
+  }, [state, mode, isPartnerDisconnected]);
 
   // Safe Broadcast Helper
   const safeBroadcast = useCallback((event: string, payload: any) => {
@@ -990,6 +999,7 @@ export const Discover: React.FC = () => {
         ) : (
           <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-black/80 border-t border-white/10 backdrop-blur-xl flex items-center gap-2 shrink-0">
             <input
+              ref={chatInputRef}
               type="text"
               value={chatInput}
               onChange={handleTyping}
