@@ -132,10 +132,17 @@ export const Login: React.FC = () => {
 
         navigate.push(target);
       } else {
-        await authService.signUp(finalEmail, password, '');
+        const signUpData = await authService.signUp(finalEmail, password, '');
         analytics.login('Signup');
-        setSuccess('Account created! Redirecting to setup...');
-        navigate.push('/onboarding');
+
+        if (signUpData.session) {
+          setSuccess('Account created! Redirecting to setup...');
+          navigate.push('/onboarding');
+        } else {
+          setSuccess('Account created! Check your email to confirm your account, then log in.');
+          setPassword('');
+          setIsLogin(true);
+        }
       }
     } catch (error: any) {
       console.error('Login error:', error);
