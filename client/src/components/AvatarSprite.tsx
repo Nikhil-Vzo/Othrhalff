@@ -53,7 +53,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
   return (
     <div 
       ref={ref}
-      className={`absolute ${isLocal ? 'z-20' : 'z-10 transition-transform duration-[100ms] ease-linear'} flex flex-col items-center justify-center`}
+      className={`absolute ${isLocal ? 'z-20' : 'z-10 transition-transform duration-[60ms] ease-linear'} flex flex-col items-center justify-center`}
       style={{ 
         transform: `translate3d(${x}px, ${y + (isSitting ? 15 : 0)}px, 0) scale(0.6)`,
         width: `${spriteWidth}px`,

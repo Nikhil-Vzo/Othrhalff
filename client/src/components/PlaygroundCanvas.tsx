@@ -392,11 +392,9 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y + (sitState === 'SITTING' ? 15 : 0)}px, 0) scale(0.6)`;
       }
 
-      // Throttle network broadcast — 300ms on mobile phones to save bandwidth & latency, 100ms on desktop
-      const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
-      const broadcastThrottleMs = isMobileDevice ? 300 : 100;
+      // Network broadcast: Instant (0ms) on start/stop/turn, 50ms continuous for 60fps real-time sync
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
-      if ((isCurrentlyMoving || movementStateChanged) && (timestamp - lastBroadcastTime > broadcastThrottleMs)) {
+      if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 50))) {
         onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving, activeBenchRef.current);
         lastBroadcastTime = timestamp;
       }
