@@ -4,9 +4,9 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MapPin, MapPinOff, Users, Smile, Send } from 'lucide-react';
+import { MapPin, MapPinOff, Users, Smile, Send, Mic, MicOff } from 'lucide-react';
 import { db } from '../lib/db';
-import { useTracks } from '@livekit/components-react';
+import { useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useSpatialAudio } from '../hooks/useSpatialAudio';
 
@@ -46,14 +46,33 @@ export const Playground: React.FC = () => {
   const collisionCheckerRef = useRef<((x: number, y: number) => { x: number; y: number; isBlocked: boolean }) | null>(null);
   const dexieSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🎙️ LiveKit Spatial Proximity Audio
+  // 🎙️ LiveKit Spatial Proximity Audio & Local Mic
   let tracks: any[] = [];
+  let isMicrophoneEnabled = false;
+  let localParticipant: any = null;
+
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     tracks = useTracks([Track.Source.Microphone]);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const localPartHook = useLocalParticipant();
+    isMicrophoneEnabled = localPartHook.isMicrophoneEnabled;
+    localParticipant = localPartHook.localParticipant;
   } catch {
     // Graceful fallback if rendered standalone without LiveKitRoom
   }
+
+  const toggleMic = async () => {
+    if (localParticipant) {
+      try {
+        await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+      } catch (e: any) {
+        console.warn('Microphone toggle failed:', e);
+        setErrorMsg('Microphone access denied or not available');
+        setTimeout(() => setErrorMsg(null), 3000);
+      }
+    }
+  };
 
   // Ref map of remote player coordinates for spatial audio calculation
   const remotePosMap = useRef(new Map<string, { x: number; y: number }>());
@@ -466,6 +485,26 @@ export const Playground: React.FC = () => {
                 ? `GPS Sync (±${gpsAccuracy ?? '?'}m)`
                 : `GPS (${gpsStatus})`
               : 'GPS Off'}
+          </span>
+        </button>
+
+        {/* Proximity Spatial Voice Mic Toggle Button */}
+        <button
+          onClick={toggleMic}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border pointer-events-auto transition-all shadow-md cursor-pointer ${
+            isMicrophoneEnabled
+              ? 'bg-emerald-950/80 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.3)]'
+              : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+          }`}
+          title="Toggle Proximity Spatial Microphone"
+        >
+          {isMicrophoneEnabled ? (
+            <Mic size={16} className="text-emerald-400 animate-pulse" />
+          ) : (
+            <MicOff size={16} className="text-gray-400" />
+          )}
+          <span className="text-xs font-bold">
+            {isMicrophoneEnabled ? 'Mic ON' : 'Mic Muted'}
           </span>
         </button>
 
