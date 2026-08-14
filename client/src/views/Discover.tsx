@@ -553,40 +553,43 @@ export const Discover: React.FC = () => {
             Connect instantly with verified college students. Match anonymously, chat or video call, and tap ❤️ if you vibe.
           </p>
 
-          {/* Mode Selector Tabs (Text vs Video) */}
-          <div className="grid grid-cols-2 gap-2 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-full mb-8 backdrop-blur-xl">
+          {/* Controls Container (Matching Width) */}
+          <div className="w-full max-w-sm flex flex-col gap-4 mb-8">
+            {/* Mode Selector Tabs (Text vs Video) */}
+            <div className="grid grid-cols-2 gap-1.5 w-full p-1.5 bg-zinc-900/90 border border-white/10 rounded-full backdrop-blur-xl">
+              <button
+                onClick={() => setMode('TEXT')}
+                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
+                  mode === 'TEXT'
+                    ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span>Text Chat</span>
+              </button>
+              <button
+                onClick={() => setMode('VIDEO')}
+                className={`h-12 flex items-center justify-center gap-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
+                  mode === 'VIDEO'
+                    ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Video className="w-4 h-4 shrink-0" />
+                <span>Video Call</span>
+              </button>
+            </div>
+
+            {/* Start Discovering CTA Button */}
             <button
-              onClick={() => setMode('TEXT')}
-              className={`flex items-center justify-center gap-2 py-3.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
-                mode === 'TEXT'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25 scale-[1.02]'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
+              onClick={handleStartSearching}
+              className="w-full h-14 bg-gradient-to-r from-neon via-pink-600 to-purple-600 hover:from-neon hover:to-pink-500 text-white font-extrabold rounded-full uppercase tracking-widest text-sm shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:shadow-[0_0_45px_rgba(255,0,127,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>Text Chat</span>
-            </button>
-            <button
-              onClick={() => setMode('VIDEO')}
-              className={`flex items-center justify-center gap-2 py-3.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${
-                mode === 'VIDEO'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-lg shadow-neon/25 scale-[1.02]'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Video className="w-4 h-4" />
-              <span>Video Call</span>
+              <Zap className="w-5 h-5 fill-current" />
+              <span>Start Discovering</span>
             </button>
           </div>
-
-          {/* Start Discovering CTA Button */}
-          <button
-            onClick={handleStartSearching}
-            className="w-full py-4.5 bg-gradient-to-r from-neon via-pink-600 to-purple-600 hover:from-neon hover:to-pink-500 text-white font-extrabold rounded-full uppercase tracking-widest text-sm shadow-[0_0_35px_rgba(255,0,127,0.4)] hover:shadow-[0_0_50px_rgba(255,0,127,0.6)] active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <Zap className="w-5 h-5 fill-current" />
-            <span>Start Discovering</span>
-          </button>
         </div>
 
         {/* Bottom Safety & Privacy Note */}
