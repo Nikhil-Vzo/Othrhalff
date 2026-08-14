@@ -1,24 +1,24 @@
 export const loadingQuotes = [
-    "Patience is the key to the heart(Personal Experience).",
+    "Patience is the key to the heart (speaking from experience!).",
     "Good things come to those who wait.",
-    "Searching for your other half...",
-    "Love is worth waiting for.",
-    "The best things in life are worth the wait.",
-    "Connecting paths, one soul at a time.",
-    "Your story is being written...",
-    "Destiny is never late.",
-    "Trust the timing of your life.",
-    "Sometimes what you're looking for usually comes when you're not looking.",
-    "Two halves make a whole.",
+    "Searching for your other half across the crowd...",
+    "A real connection is always worth the wait.",
+    "Connecting paths, one conversation at a time.",
+    "Your story is just getting started.",
+    "Destiny is never late, just taking the scenic route.",
+    "Trust the timing, your person is out there.",
+    "Sometimes what you're looking for comes when you least expect it.",
+    "Two halves finding their perfect match.",
     "Magic happens when you least expect it.",
-    "Preparing your next chapter...",
-    "The universe is aligning for you.",
-    "Great love stories take time to write."
+    "Finding someone who matches your energy...",
+    "Finding someone who matches your chaos...",
+    "The best bonds start with a simple vibe check.",
+    "Every great connection starts with a simple hello."
 ];
 
 let lastIndex = -1;
 
-export const getRandomQuote = () => {
+export const getRandomQuote = (): string => {
     if (loadingQuotes.length <= 1) {
         return loadingQuotes[0] || "";
     }
@@ -29,3 +29,4 @@ export const getRandomQuote = () => {
     lastIndex = newIndex;
     return loadingQuotes[newIndex];
 };
+

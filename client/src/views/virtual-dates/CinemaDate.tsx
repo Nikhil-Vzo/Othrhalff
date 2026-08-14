@@ -2075,6 +2075,14 @@ export const CinemaDate: React.FC = () => {
                 {/* Top Bar (Room Info) */}
                 <div className={`h-14 md:h-16 border-b border-gray-900/50 flex items-center justify-between px-3 md:px-6 bg-gray-950/30 backdrop-blur-sm z-40 transition-all duration-500 absolute top-0 left-0 right-0 ${!isUiVisible ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
                     <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                        <button
+                            onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
+                            title="Leave Room & Back to Sparx"
+                            aria-label="Back to Sparx"
+                        >
+                            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+                        </button>
                         <span className="font-bold text-gray-200 truncate max-w-[80px] md:max-w-[200px] text-sm md:text-base">{roomName}</span>
                         {roomPasscode && (
                             <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border-2 border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomPasscode)}>
@@ -2257,8 +2265,18 @@ export const CinemaDate: React.FC = () => {
                         {mode === 'select' && renderSelectionScreen()}
 
                         {mode === 'youtube' && !url && (
-                            <div className="w-full max-w-lg z-10 p-6 animate-fade-in-up">
-                                <form onSubmit={handleUrlSubmit} className="flex items-center gap-2 bg-black/60 border border-gray-700 rounded-xl p-2 focus-within:border-neon/50 transition-colors shadow-xl">
+                            <div className="w-full max-w-lg z-10 p-6 animate-fade-in-up flex flex-col gap-3">
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMode('select')}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 text-xs font-semibold transition-colors"
+                                    >
+                                        <ArrowLeft className="w-3.5 h-3.5" />
+                                        <span>Back to Options</span>
+                                    </button>
+                                </div>
+                                <form onSubmit={handleUrlSubmit} className="flex items-center gap-2 bg-black/60 border border-gray-700 rounded-2xl p-2.5 focus-within:border-neon/50 transition-colors shadow-xl backdrop-blur-md">
                                     <div className="p-2"><LinkIcon className="w-5 h-5 text-gray-500" /></div>
                                     <input
                                         type="text"
@@ -2268,8 +2286,7 @@ export const CinemaDate: React.FC = () => {
                                         className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-600 text-sm"
                                         autoFocus
                                     />
-                                    <button type="button" onClick={() => setMode('select')} className="p-2 hover:bg-gray-800 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
-                                    <button type="submit" className="p-2 bg-neon/20 hover:bg-neon/40 text-neon rounded-lg font-bold text-xs px-4 transition-colors">
+                                    <button type="submit" className="p-2.5 bg-neon hover:bg-neon/90 text-white rounded-xl font-bold text-xs px-5 shadow-lg shadow-neon/20 transition-all hover:scale-105 active:scale-95">
                                         LOAD
                                     </button>
                                 </form>

@@ -1563,20 +1563,30 @@ export const MusicDate = () => {
             {/* Header / Nav Bar */}
             {!isFullscreen && (
                 <div className="h-14 md:h-16 border-b border-white/5 flex items-center justify-between px-3 md:px-6 bg-black/40 backdrop-blur-md relative z-30">
-                    <div className="flex items-center gap-2 md:gap-4 border border-violet-500/30 bg-violet-500/10 px-3 md:px-4 py-1.5 rounded-full overflow-hidden">
-                        <span className="font-bold text-gray-200 text-sm md:text-base truncate max-w-[80px] md:max-w-[200px]">{roomName}</span>
-                        <div className="w-px h-4 bg-white/20 shrink-0" />
-                        <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
-                            <Hash className="w-3 h-3" />
-                            {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
-                            <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
-                        </span>
-                        {isHost && (
-                            <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold">
-                                <Users className="w-3 h-3" />
-                                HOST
-                            </div>
-                        )}
+                    <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                        <button
+                            onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
+                            title="Leave Room & Back to Sparx"
+                            aria-label="Back to Sparx"
+                        >
+                            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+                        </button>
+                        <div className="flex items-center gap-2 md:gap-4 border border-violet-500/30 bg-violet-500/10 px-3 md:px-4 py-1.5 rounded-full overflow-hidden">
+                            <span className="font-bold text-gray-200 text-sm md:text-base truncate max-w-[80px] md:max-w-[200px]">{roomName}</span>
+                            <div className="w-px h-4 bg-white/20 shrink-0" />
+                            <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
+                                <Hash className="w-3 h-3" />
+                                {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
+                                <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
+                            </span>
+                            {isHost && (
+                                <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold">
+                                    <Users className="w-3 h-3" />
+                                    HOST
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-1.5 md:gap-3">
                         <div className="relative">

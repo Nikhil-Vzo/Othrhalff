@@ -161,16 +161,17 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
   if (!isOpen) return null;
 
   const content = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4" onClick={onClose}>
       <div 
-        className="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slide-up"
+        className="bg-[#0b0314]/95 border border-white/10 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slide-up backdrop-blur-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-gray-800">
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Share2 className="w-5 h-5 text-neon" /> Share Room
+            <Share2 className="w-5 h-5 text-neon" />
+            <span>Share Room</span>
           </h2>
-          <button onClick={onClose} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white/60 hover:text-white border border-white/5">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -178,19 +179,19 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
         <div className="p-5 overflow-y-auto custom-scrollbar flex-1">
           {/* External Share Section */}
           <div className="mb-6">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Share Externally</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Share Externally</p>
             
             {/* Share Link Input Box */}
-            <div className="mb-4 bg-gray-950/60 border border-gray-800 rounded-2xl p-3 flex items-center justify-between gap-3">
-              <span className="text-xs text-gray-400 font-mono truncate select-all flex-1">
+            <div className="mb-4 bg-black/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-inner">
+              <span className="text-xs text-white/60 font-mono truncate select-all flex-1">
                 {roomUrl}
               </span>
               <button 
                 onClick={handleCopy}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   copied 
                     ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                    : 'bg-neon text-white hover:scale-105 active:scale-95'
+                    : 'bg-neon text-white hover:scale-105 active:scale-95 shadow-md shadow-neon/20'
                 }`}
               >
                 {copied ? (
@@ -204,76 +205,76 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
             <div className="grid grid-cols-4 gap-3">
               <button 
                 onClick={handleCopy}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-800 hover:bg-gray-700 rounded-2xl transition-colors group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 hover:border-white/15 group"
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copied ? 'bg-green-500/20 text-green-400' : 'bg-gray-700 group-hover:bg-gray-600 text-white'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copied ? 'bg-green-500/20 text-green-400' : 'bg-white/10 group-hover:bg-white/15 text-white'}`}>
                   {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 </div>
-                <span className="text-xs text-gray-400 font-medium">{copied ? 'Copied' : 'Copy'}</span>
+                <span className="text-xs text-white/60 font-medium">{copied ? 'Copied' : 'Copy'}</span>
               </button>
 
               <button 
                 onClick={handleWhatsApp}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-800 hover:bg-gray-700 rounded-2xl transition-colors group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 hover:border-white/15 group"
               >
                 <div className="w-10 h-10 rounded-full bg-[#25D366]/20 text-[#25D366] group-hover:bg-[#25D366]/30 flex items-center justify-center transition-colors">
                   <WhatsappIcon />
                 </div>
-                <span className="text-xs text-gray-400 font-medium">WhatsApp</span>
+                <span className="text-xs text-white/60 font-medium">WhatsApp</span>
               </button>
 
               <button 
                 onClick={handleFacebook}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-800 hover:bg-gray-700 rounded-2xl transition-colors group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 hover:border-white/15 group"
               >
                 <div className="w-10 h-10 rounded-full bg-[#1877F2]/20 text-[#1877F2] group-hover:bg-[#1877F2]/30 flex items-center justify-center transition-colors">
                   <FacebookIcon />
                 </div>
-                <span className="text-xs text-gray-400 font-medium">Facebook</span>
+                <span className="text-xs text-white/60 font-medium">Facebook</span>
               </button>
 
               <button 
                 onClick={handleNativeShare}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-800 hover:bg-gray-700 rounded-2xl transition-colors group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 hover:border-white/15 group"
               >
                 <div className="w-10 h-10 rounded-full bg-neon/20 text-neon group-hover:bg-neon/30 flex items-center justify-center transition-colors">
                   <Smartphone className="w-5 h-5" />
                 </div>
-                <span className="text-xs text-gray-400 font-medium text-center leading-tight">More<br/>Options</span>
+                <span className="text-xs text-white/60 font-medium text-center leading-tight">More<br/>Options</span>
               </button>
             </div>
           </div>
 
-          <div className="w-full h-px bg-gray-800 my-4" />
+          <div className="w-full h-px bg-white/10 my-4" />
 
           {/* Internal Matches Section */}
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Send to Matches</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Send to Matches</p>
             
             {loadingMatches ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 text-neon animate-spin" />
               </div>
             ) : matches.length === 0 ? (
-              <div className="text-center py-8 bg-gray-800/50 rounded-2xl border border-gray-800 border-dashed">
-                <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No active matches found.</p>
+              <div className="text-center py-8 bg-white/5 rounded-2xl border border-white/10 border-dashed">
+                <MessageSquare className="w-8 h-8 text-white/30 mx-auto mb-2" />
+                <p className="text-sm text-white/50">No active matches found.</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {matches.map(match => (
-                  <div key={match.matchId} className="flex items-center justify-between p-3 bg-gray-800/50 hover:bg-gray-800 rounded-2xl transition-colors">
+                  <div key={match.matchId} className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden border border-gray-600">
+                      <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border border-white/15">
                         {match.avatar ? (
                           <img src={getOptimizedUrl(match.avatar, 64)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-lg font-bold text-gray-400">
+                          <div className="w-full h-full flex items-center justify-center text-lg font-bold text-white/60">
                             {(match.realName || match.anonymousId)[0].toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <span className="text-sm font-bold text-gray-200">
+                      <span className="text-sm font-bold text-white">
                         {match.realName || match.anonymousId}
                       </span>
                     </div>
@@ -283,8 +284,8 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
                       disabled={sentMessages[match.matchId]}
                       className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
                         sentMessages[match.matchId] 
-                          ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
-                          : 'bg-neon text-black hover:bg-pink-400 active:scale-95'
+                          ? 'bg-green-500/20 text-green-400 cursor-not-allowed border border-green-500/30'
+                          : 'bg-neon text-white hover:bg-pink-600 active:scale-95 shadow-md shadow-neon/20'
                       }`}
                     >
                       {sentMessages[match.matchId] ? (
