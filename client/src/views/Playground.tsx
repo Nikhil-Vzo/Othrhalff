@@ -441,10 +441,10 @@ export const Playground: React.FC = () => {
 
   return (
     <div className="relative w-full h-full flex flex-col bg-black overflow-hidden">
-      {/* Instructions Overlay */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
-        <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
-          {gpsEnabled ? 'GPS Tracking Active • Walk outside to move' : 'Use W A S D or Arrow Keys to Move'}
+      {/* Instructions Overlay — elevated safely above the chat bar and mobile nav */}
+      <div className="absolute bottom-[156px] md:bottom-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center px-4 w-full max-w-sm">
+        <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase bg-black/50 px-3.5 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg inline-block">
+          {gpsEnabled ? '📍 GPS Active • Walk outside to move' : 'Tap screen to walk • Or use WASD / Arrows'}
         </p>
       </div>
 
@@ -570,7 +570,7 @@ export const Playground: React.FC = () => {
       </div>
 
       {/* Floating Chat Input Bar — elevated above mobile navbar with safe-area spacing */}
-      <div className="absolute bottom-[72px] md:bottom-4 left-3 right-3 z-30 flex justify-center pointer-events-none">
+      <div className="absolute bottom-[98px] md:bottom-4 left-3 right-3 z-30 flex justify-center pointer-events-none">
         <form onSubmit={handleSendSpeechBubble} className="pointer-events-auto w-full max-w-xl bg-black/80 backdrop-blur-xl border border-white/15 p-1.5 rounded-full shadow-2xl flex items-center gap-1.5 relative">
           
           {/* Quick Reaction Tray */}
