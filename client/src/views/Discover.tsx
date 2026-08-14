@@ -492,21 +492,16 @@ export const Discover: React.FC = () => {
   if (state === 'IDLE') {
     return (
       <div className="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-between p-4 md:p-8 max-w-4xl mx-auto select-none">
-        {/* Top Floating Header with Scope Toggle & Active Count */}
+        {/* Top Floating Header with Active Count (Left) & Scope Toggle (Right) */}
         <div className="w-full flex items-center justify-between gap-3 pt-2">
-          {/* Scope Toggle */}
+          {/* Active Online Counter Pill (Left) */}
+          <div className="inline-flex items-center gap-2 px-3.5 h-10 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-xl shadow-lg font-mono whitespace-nowrap shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="leading-none">{activeUsersCount} student{activeUsersCount !== 1 ? 's' : ''} online</span>
+          </div>
+
+          {/* Scope Toggle (Top Right Corner) */}
           <div className="inline-flex items-center bg-zinc-900/90 border border-white/10 p-1 rounded-full backdrop-blur-xl shadow-lg h-10">
-            <button
-              onClick={() => setScope('GLOBAL')}
-              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                scope === 'GLOBAL'
-                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5 shrink-0" />
-              <span>Global</span>
-            </button>
             <button
               onClick={() => {
                 if (!currentUser?.university) {
@@ -524,12 +519,17 @@ export const Discover: React.FC = () => {
               <School className="w-3.5 h-3.5 shrink-0" />
               <span>Campus</span>
             </button>
-          </div>
-
-          {/* Active Online Counter Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 h-10 rounded-full bg-zinc-900/90 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-xl shadow-lg font-mono whitespace-nowrap shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="leading-none">{activeUsersCount} student{activeUsersCount !== 1 ? 's' : ''} online</span>
+            <button
+              onClick={() => setScope('GLOBAL')}
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                scope === 'GLOBAL'
+                  ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-md shadow-neon/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 shrink-0" />
+              <span>Global</span>
+            </button>
           </div>
         </div>
 
