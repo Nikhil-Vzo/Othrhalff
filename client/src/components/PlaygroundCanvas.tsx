@@ -167,7 +167,8 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   useEffect(() => {
 
     let animationFrameId: number;
-    const speed = 0.8;
+    const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
+    const speed = isMobile ? 1.6 : 1.0;
     const playerCollisionSize = 32;
 
 
@@ -362,18 +363,20 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       if (viewportRef.current && worldRef.current) {
         const vw = viewportRef.current.clientWidth;
         const vh = viewportRef.current.clientHeight;
+        const isMobileScreen = vw < 768;
         
         // Find interaction target if one exists
         const targetZone = activeBench ? BENCH_ZONES.find(z => z.id === activeBench) : null;
         
         let targetX = posRef.current.x;
         let targetY = posRef.current.y;
-        let zoom = 1.6;
+        // Zoom out map on phones for a wider, clearer view of the campus
+        let zoom = isMobileScreen ? 1.05 : 1.5;
         
         if (targetZone && sitState === 'SITTING') {
           targetX = targetZone.x;
           targetY = targetZone.y;
-          zoom = 2.5; // Zoom in during bench interaction
+          zoom = isMobileScreen ? 1.6 : 2.4; // Zoom in during bench interaction
         }
 
         const offsetX = (vw / 2) - (targetX * zoom);
@@ -389,9 +392,11 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y + (sitState === 'SITTING' ? 15 : 0)}px, 0) scale(0.6)`;
       }
 
-      // Throttle network broadcast — only broadcast while moving or when stopping
+      // Throttle network broadcast — 300ms on mobile phones to save bandwidth & latency, 100ms on desktop
+      const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
+      const broadcastThrottleMs = isMobileDevice ? 300 : 100;
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
-      if ((isCurrentlyMoving || movementStateChanged) && (timestamp - lastBroadcastTime > 100)) {
+      if ((isCurrentlyMoving || movementStateChanged) && (timestamp - lastBroadcastTime > broadcastThrottleMs)) {
         onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving, activeBenchRef.current);
         lastBroadcastTime = timestamp;
       }
