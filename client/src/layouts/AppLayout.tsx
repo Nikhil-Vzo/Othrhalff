@@ -5,8 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2 } from 'lucide-react';
-import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { AuthPromptModal } from '../components/AuthPromptModal';
@@ -26,8 +25,6 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { currentUser, needsOnboarding } = useAuth();
-  const { isCallActive, appId, channelName, token, partnerName, partnerAvatar, callType, callSessionId, endCall } = useCall();
   const { currentUser, needsOnboarding, isLoading } = useAuth();
   const { 
     isCallActive, 
@@ -45,7 +42,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     rejectCall,
     cancelOutgoingCall
   } = useCall();
-  const { unreadCount, unreadMessageCount, setUnreadMessageCount } = useNotifications();
+  const { unreadCount, unreadMessageCount } = useNotifications();
   const pathname = usePathname() || '';
   const router = useRouter();
 
@@ -80,57 +77,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   }, [mounted, isLoading, currentUser, needsOnboarding, pathname, router]);
 
-  // Fetch real-time unread messages count for the chat badge
-  useEffect(() => {
-    if (!currentUser || !supabase) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        // First get active matches for the user
-        const { data: matches } = await supabase
-          .from('matches')
-          .select('id')
-          .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`);
-
-        if (matches && matches.length > 0) {
-          const matchIds = matches.map(m => m.id);
-          const { count, error } = await supabase
-            .from('messages')
-            .select('id', { count: 'exact', head: true })
-            .in('match_id', matchIds)
-            .neq('sender_id', currentUser.id)
-            .eq('is_read', false);
-
-          if (!error && count !== null) {
-            setUnreadMessageCount(count);
-          }
-        } else {
-          setUnreadMessageCount(0);
-        }
-      } catch (err) {
-        console.error('Error fetching unread messages count:', err);
-      }
-    };
-
-    fetchUnreadCount();
-
-    // Listen for changes in messages to update badge live (filtered to receiver)
-    const channelName = `unread_count_${currentUser.id}`;
-    const channel = supabase.channel(channelName)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'messages',
-        filter: `receiver_id=eq.${currentUser.id}`
-      }, () => {
-        fetchUnreadCount();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUser]);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const isActive = (path: string) => {
@@ -172,9 +118,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { path: '/home', icon: Search, label: 'Discover' },
-    { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount ? unreadMessageCount : undefined },
-    { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: !!unreadCount },
     { path: '/home', icon: Home, label: 'Home' },
     { path: '/discover', icon: Search, label: 'Discover' },
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },

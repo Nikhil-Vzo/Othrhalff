@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     default: 'Othrhalff – Campus Connections, Dating & Beyond | Find Your Vibe',
     template: '%s | Othrhalff'
   },
-  description: "Go beyond dating. Connect with verified college students through random text & video chat, post awesome campus confessions & tea, and play interactive games on campus maps. Find your vibe or your other half.",
+  description: "Go beyond dating. Connect with verified college students through anonymous random text & video chat, post awesome campus confessions & tea, and play interactive games on campus maps. Find your vibe or your other half.",
   keywords: [
     'othrhalff',
     'othr halff',

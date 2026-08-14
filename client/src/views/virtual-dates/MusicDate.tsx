@@ -311,11 +311,6 @@ export const MusicDate = () => {
         setIsConnecting(true);
         setError(null);
         try {
-            const roomUuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                ? crypto.randomUUID()
-                : Math.random().toString(36).substring(2, 15) + '-' + Math.random().toString(36).substring(2, 15);
-
-            const inviteText = `[SYSTEM] [INVITE:v1] ${JSON.stringify({
             const unifiedCode = generateRoomCode();
             const roomUuid = `music_jam_${unifiedCode}`;
             
@@ -426,24 +421,6 @@ export const MusicDate = () => {
                 if (queryCreateName) {
                     setRoomName(queryCreateName);
                     setIsHost(true);
-                    setMode('room');
-                    if (queryPrivate === 'true') setIsPrivateRoom(true);
-                    if (queryPasscode) setRoomPasscode(queryPasscode);
-                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
-                    setError(null);
-                    return;
-                }
-                
-                setRoomCode(queryRoom);
-                setRoomName(parseRoomName(queryRoom));
-
-                if (queryPrivate === 'true') setIsPrivateRoom(true);
-                if (queryPasscode) setRoomPasscode(queryPasscode);
-
-                if (queryPrivate || queryPasscode) {
-                    window.history.replaceState(null, '', window.location.pathname + `?room=${queryRoom}`);
-                }
-
                     setMode('create_room');
                     sessionStorage.setItem('host_room_code', queryRoom);
                 } else {
@@ -1204,9 +1181,6 @@ export const MusicDate = () => {
         }
         setIsConnecting(true);
         const nameSlug = roomName.trim().substring(0, 30).replace(/[^a-zA-Z0-9]/g, '');
-        const uniqueId = Math.random().toString(36).substring(2, 7);
-        const code = `music_${nameSlug}_${uniqueId}`;
-
         const unifiedCode = generateRoomCode();
         const code = `music_${nameSlug}_${unifiedCode}`;
         
