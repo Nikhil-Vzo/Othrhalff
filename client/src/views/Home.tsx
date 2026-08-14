@@ -10,7 +10,7 @@ import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
 
 import { getRandomQuote } from '../data/loadingQuotes';
-import { safeSetItem } from '../utils/storage';
+import { deferSafeSetItem } from '../utils/storage';
 
 
 // Cache key for session storage — keyed by filter mode so campus/global don't bleed into each other
@@ -59,6 +59,7 @@ export const Home: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { unreadCount } = useNotifications();
     const preloadedImages = useRef<Set<string>>(new Set());
+    const swipedIdsRef = useRef<Set<string>>(new Set());
 
 
     const [showSuccessBurst, setShowSuccessBurst] = useState(false);
@@ -151,13 +152,17 @@ export const Home: React.FC = () => {
                     }),
                     distance: 'Recycled'
                 }));
-                setQueue(mappedProfiles);
+                
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredProfiles = mappedProfiles.filter(p => !activeSwipedIds.has(p.id));
+                
+                setQueue(filteredProfiles);
                 setIsRecycleMode(true);
-                preloadImages(mappedProfiles.slice(0, 5));
+                preloadImages(filteredProfiles.slice(0, 5));
 
                 // Cache the data safely
                 try {
-                    sessionStorage.setItem(getSkippedCacheKey(filterMode), JSON.stringify(mappedProfiles));
+                    sessionStorage.setItem(getSkippedCacheKey(filterMode), JSON.stringify(filteredProfiles));
                     sessionStorage.setItem(getSkippedCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache skipped profiles:', e);
@@ -191,11 +196,13 @@ export const Home: React.FC = () => {
 
             if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
                 const cached = JSON.parse(cachedData);
-                if (cached.length > 0) {
-                    setQueue(cached);
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredCached = cached.filter((p: MatchProfile) => !activeSwipedIds.has(p.id));
+                if (filteredCached.length > 0) {
+                    setQueue(filteredCached);
                     setIsRecycleMode(true);
                     if (showLoading) setIsLoading(false);
-                    preloadImages(cached.slice(0, 5));
+                    preloadImages(filteredCached.slice(0, 5));
                     // Background refresh
                     fetchFreshSkippedProfiles(false);
                     return;
@@ -263,14 +270,17 @@ export const Home: React.FC = () => {
                     distance: filterMode === 'campus' ? 'On Campus' : 'Global'
                 }));
 
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredProfiles = mappedProfiles.filter(p => !activeSwipedIds.has(p.id));
+
                 // Update state
-                setQueue(mappedProfiles);
+                setQueue(filteredProfiles);
                 setIsRecycleMode(false);
-                preloadImages(mappedProfiles.slice(0, 5));
+                preloadImages(filteredProfiles.slice(0, 5));
 
                 // Cache the data safely
                 try {
-                    sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(mappedProfiles));
+                    sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(filteredProfiles));
                     sessionStorage.setItem(getCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache profiles:', e);
@@ -298,10 +308,12 @@ export const Home: React.FC = () => {
 
             if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
                 const cached = JSON.parse(cachedData);
-                if (cached.length > 0) {
-                    setQueue(cached);
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredCached = cached.filter((p: MatchProfile) => !activeSwipedIds.has(p.id));
+                if (filteredCached.length > 0) {
+                    setQueue(filteredCached);
                     setIsLoading(false);
-                    preloadImages(cached.slice(0, 5));
+                    preloadImages(filteredCached.slice(0, 5));
                     // Background refresh — no loading spinner
                     fetchFreshData(false);
                     return;
@@ -530,6 +542,9 @@ export const Home: React.FC = () => {
             ? getSkippedCacheKey(filterMode)
             : getCacheKey(filterMode);
 
+        // Add to swiped set immediately to prevent background fetches from restoring this profile
+        swipedIdsRef.current.add(targetId);
+
         // Cinematic exit animation
         const offScreenX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
         const offScreenY = direction === 'right' ? -100 : 100;
@@ -575,7 +590,7 @@ export const Home: React.FC = () => {
 
             const optimisticQueue = queue.filter(p => p.id !== targetId);
             setQueue(optimisticQueue);
-            safeSetItem(cacheKeyToUpdate, JSON.stringify(optimisticQueue));
+            deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(optimisticQueue));
 
             try {
                 // Use UPSERT to keep duplicate swipe attempts idempotent for the same user/profile pair.
@@ -591,10 +606,12 @@ export const Home: React.FC = () => {
                 if (swipeError) throw swipeError;
             } catch (err) {
                 console.error('Swipe logic error:', err);
+                // Remove from swiped set on rollback
+                swipedIdsRef.current.delete(targetId);
                 setQueue(prevQueue => {
                     if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
                     const rolledBackQueue = [swipedProfile, ...prevQueue];
-                    safeSetItem(cacheKeyToUpdate, JSON.stringify(rolledBackQueue));
+                    deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(rolledBackQueue));
                     return rolledBackQueue;
                 });
             } finally {
@@ -669,13 +686,14 @@ export const Home: React.FC = () => {
             )}
 
             {/* === TOP HEADER === */}
-            <div className="w-full px-5 py-4 flex items-center justify-end gap-3 z-30 relative">
+            <div className="w-full px-5 py-4 flex flex-col items-end gap-1.5 z-30 relative">
 
                 <div className="flex items-center gap-3">
                     {/* Premium Filter Toggle */}
                     <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl">
                         <button
                             onClick={() => setFilterMode('campus')}
+                            title={`Campus Mode: Only show students from ${currentUser?.university || 'your university'}`}
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${filterMode === 'campus'
                                 ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -686,6 +704,7 @@ export const Home: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setFilterMode('global')}
+                            title="Global Mode: Show students from all universities"
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${filterMode === 'global'
                                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -710,6 +729,13 @@ export const Home: React.FC = () => {
                         )}
                     </button>
                 </div>
+
+                {/* Scope Explanation Label */}
+                <p className="text-[9px] text-gray-400 font-medium tracking-wide bg-zinc-950/80 border border-white/5 rounded-md px-2 py-0.5 pointer-events-none select-none max-w-xs text-right truncate">
+                    {filterMode === 'campus' 
+                        ? `Campus: Only showing students from ${currentUser?.university ? currentUser.university.split('|')[0] : 'your university'}` 
+                        : 'Global: Showing students from all universities'}
+                </p>
             </div>
 
             {/* === MAIN CONTENT === */}

@@ -236,6 +236,29 @@ export const Profile: React.FC = () => {
         }
     };
 
+    const isFormDirty = () => {
+        if (!currentUser) return false;
+        return (
+            (editForm.realName !== undefined && editForm.realName !== currentUser.realName) ||
+            (editForm.branch !== undefined && editForm.branch !== currentUser.branch) ||
+            (editForm.year !== undefined && editForm.year !== currentUser.year) ||
+            (editForm.bio !== undefined && editForm.bio !== currentUser.bio) ||
+            (editForm.avatar !== undefined && editForm.avatar !== currentUser.avatar) ||
+            (editForm.gender !== undefined && editForm.gender !== currentUser.gender) ||
+            (editForm.dob !== undefined && editForm.dob !== currentUser.dob) ||
+            (JSON.stringify(editForm.interests || []) !== JSON.stringify(currentUser.interests || [])) ||
+            (JSON.stringify(editForm.lookingFor || []) !== JSON.stringify(currentUser.lookingFor || []))
+        );
+    };
+
+    const handleCloseEdit = () => {
+        if (isFormDirty()) {
+            const confirmDiscard = window.confirm("You have unsaved changes. Are you sure you want to discard them?");
+            if (!confirmDiscard) return;
+        }
+        setIsEditing(false);
+    };
+
     const saveProfile = async () => {
         if (!editForm || !currentUser || !supabase) return;
         setSaving(true);
@@ -497,7 +520,7 @@ export const Profile: React.FC = () => {
                                     <h3 className="text-xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
                                         <Settings className="w-5 h-5 text-neon" /> Edit Profile Details
                                     </h3>
-                                    <button onClick={() => setIsEditing(false)} className="text-zinc-500 hover:text-white transition-colors">
+                                    <button onClick={handleCloseEdit} className="text-zinc-500 hover:text-white transition-colors">
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -640,7 +663,7 @@ export const Profile: React.FC = () => {
                                         </NeonButton>
                                         <button 
                                             type="button"
-                                            onClick={() => setIsEditing(false)} 
+                                            onClick={handleCloseEdit} 
                                             className="px-6 py-3 rounded-full border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all font-bold text-xs uppercase tracking-wider"
                                         >
                                             Cancel

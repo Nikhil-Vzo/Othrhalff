@@ -6,13 +6,15 @@ interface PermissionModalProps {
     onPermissionsGranted: () => void;
     onCancel: () => void;
     requiredPermissions: ('camera' | 'microphone')[];
+    onFallbackToAudio?: () => void;
 }
 
 export const PermissionModal: React.FC<PermissionModalProps> = ({
     isOpen,
     onPermissionsGranted,
     onCancel,
-    requiredPermissions
+    requiredPermissions,
+    onFallbackToAudio
 }) => {
     const [cameraStatus, setCameraStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
     const [micStatus, setMicStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
@@ -33,10 +35,10 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({
                 try {
                     if (requiredPermissions.includes('camera')) {
                         const cam = await navigator.permissions.query({ name: 'camera' as PermissionName });
-                        setCameraStatus(cam.state === 'granted' ? 'granted' : 'pending');
+                        setCameraStatus(cam.state === 'granted' ? 'granted' : cam.state === 'denied' ? 'denied' : 'pending');
                     }
                     const mic = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-                    setMicStatus(mic.state === 'granted' ? 'granted' : 'pending');
+                    setMicStatus(mic.state === 'granted' ? 'granted' : mic.state === 'denied' ? 'denied' : 'pending');
                 } catch (e) {
                     console.log('Permission API query failed');
                 }
@@ -203,38 +205,58 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({
                         )}
 
                         {/* Actions */}
-                        <div className="pt-2 flex gap-3">
-                            <button
-                                onClick={onCancel}
-                                className="flex-1 py-3.5 text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-wider"
-                            >
-                                Cancel
-                            </button>
-
-                            {!isAllGranted ? (
+                        <div className="pt-2 flex flex-col gap-3">
+                            {requiredPermissions.includes('camera') && cameraStatus === 'denied' && micStatus !== 'denied' && onFallbackToAudio && (
                                 <button
-                                    onClick={requestPermissions}
-                                    disabled={checking}
-                                    className="flex-[2] py-3.5 bg-white text-black text-sm font-bold rounded-xl hover:bg-gray-200 transition-all shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    onClick={onFallbackToAudio}
+                                    className="w-full py-3 bg-neon/20 hover:bg-neon/30 border border-neon/30 text-neon text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                                 >
-                                    {checking ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                                            Checking...
-                                        </>
-                                    ) : (
-                                        'Allow Access'
-                                    )}
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={onPermissionsGranted}
-                                    className="flex-[2] py-3.5 bg-green-500 text-black text-sm font-bold rounded-xl shadow-lg shadow-green-500/20 hover:bg-green-400 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    Start Call
+                                    Continue with Audio Only
                                 </button>
                             )}
+
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={onCancel}
+                                    className="flex-1 py-3.5 text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-wider"
+                                >
+                                    Cancel
+                                </button>
+
+                                {!(cameraStatus === 'denied' || micStatus === 'denied') ? (
+                                    !isAllGranted ? (
+                                        <button
+                                            onClick={requestPermissions}
+                                            disabled={checking}
+                                            className="flex-[2] py-3.5 bg-white text-black text-sm font-bold rounded-xl hover:bg-gray-200 transition-all shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {checking ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                    Checking...
+                                                </>
+                                            ) : (
+                                                'Allow Access'
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={onPermissionsGranted}
+                                            className="flex-[2] py-3.5 bg-green-500 text-black text-sm font-bold rounded-xl shadow-lg shadow-green-500/20 hover:bg-green-400 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                            Start Call
+                                        </button>
+                                    )
+                                ) : (
+                                    <button
+                                        disabled
+                                        className="flex-[2] py-3.5 bg-gray-800 text-gray-500 text-sm font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        Access Blocked
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Chrome Hint */}

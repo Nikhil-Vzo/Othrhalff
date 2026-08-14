@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
-import { subscribeToIncomingCalls, CallSession, answerCall as answerCallAPI, rejectCall as rejectCallAPI, endCall as endCallAPI } from '../services/callSignaling';
+import { subscribeToIncomingCalls, CallSession, answerCall as answerCallAPI, rejectCall as rejectCallAPI, endCall as endCallAPI, sendCallCancelSignal } from '../services/callSignaling';
 import { supabase } from '../lib/supabase';
 
 interface IncomingCall {
@@ -24,12 +24,12 @@ interface CallContextType {
   callType: 'audio' | 'video';
   callSessionId: string;
   incomingCall: IncomingCall | null;
-  outgoingCall: { receiverName: string; receiverAvatar: string; callType: 'audio' | 'video' } | null;
+  outgoingCall: { receiverId: string; receiverName: string; receiverAvatar: string; callType: 'audio' | 'video' } | null;
   startCall: (name: string, avatar: string, appId: string, channelName: string, token: string, type: 'audio' | 'video', sessionId: string) => void;
   endCall: () => void;
   acceptCall: () => void;
   rejectCall: () => void;
-  setOutgoingCall: (call: { receiverName: string; receiverAvatar: string; callType: 'audio' | 'video' } | null) => void;
+  setOutgoingCall: (call: { receiverId: string; receiverName: string; receiverAvatar: string; callType: 'audio' | 'video' } | null) => void;
   outgoingCallSessionId: string;
   setOutgoingCallSessionId: (id: string) => void;
   cancelOutgoingCall: () => Promise<void>;
@@ -47,7 +47,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [partnerAvatar, setPartnerAvatar] = useState('');
   const [callType, setCallType] = useState<'audio' | 'video'>('video');
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
-  const [outgoingCall, setOutgoingCall] = useState<{ receiverName: string; receiverAvatar: string; callType: 'audio' | 'video' } | null>(null);
+  const [outgoingCall, setOutgoingCall] = useState<{ receiverId: string; receiverName: string; receiverAvatar: string; callType: 'audio' | 'video' } | null>(null);
   const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [callSessionId, setCallSessionId] = useState('');
@@ -78,6 +78,19 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) return;
 
     const unsubscribe = subscribeToIncomingCalls(currentUser.id, async (payload: any) => {
+      // Handle cancellation/termination
+      if (payload.isCancelled) {
+        if (incomingCallRef.current && (incomingCallRef.current.callSessionId === payload.callSessionId || incomingCallRef.current.callerId === payload.callerId)) {
+          console.log('[CallContext] Incoming call was cancelled/terminated:', payload);
+          setIncomingCall(null);
+          if (callTimeoutRef.current) {
+            clearTimeout(callTimeoutRef.current);
+            callTimeoutRef.current = null;
+          }
+        }
+        return;
+      }
+
       // === BUSY STATE: Ignore new calls if user is already on a call or has an incoming call ===
       const isBusy = isCallActiveRef.current || incomingCallRef.current !== null || outgoingCallRef.current !== null;
 
@@ -209,12 +222,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Cancel outgoing call — clears UI AND updates DB
   const cancelOutgoingCall = useCallback(async () => {
+    if (outgoingCall) {
+      sendCallCancelSignal(outgoingCall.receiverId, { callerId: currentUser!.id });
+    }
     if (outgoingCallSessionId) {
       await endCallAPI(outgoingCallSessionId);
     }
     setOutgoingCall(null);
     setOutgoingCallSessionId('');
-  }, [outgoingCallSessionId]);
+  }, [outgoingCallSessionId, outgoingCall, currentUser]);
 
   const acceptCall = useCallback(async () => {
     if (!incomingCall) return;

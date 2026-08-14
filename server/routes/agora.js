@@ -50,7 +50,9 @@ router.post('/agora-token', verifySupabaseToken, async (req, res) => {
     const cacheKey = agoraTokenCacheKey({ channelName, uid, expiresInSeconds: GENERAL_TOKEN_TTL_SECONDS });
 
     const cachedToken = await cacheGet(cacheKey);
-    if (cachedToken?.token && cachedToken?.privilegeExpiredTs) {
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    // Do not return cached token if it has expired or expires within a 120-second safety window
+    if (cachedToken?.token && cachedToken?.privilegeExpiredTs && (cachedToken.privilegeExpiredTs - currentTimestamp > 120)) {
       return res.json({
         token: cachedToken.token,
         channelName,

@@ -117,10 +117,7 @@ export const MusicDate = () => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [audioReady, setAudioReady] = useState(false);
 
-    // Center panel search state (must be declared before any early returns)
-    const [centerSearchQuery, setCenterSearchQuery] = useState('');
-    const [centerSearchResults, setCenterSearchResults] = useState<Track[]>([]);
-    const [isCenterSearching, setIsCenterSearching] = useState(false);
+    // Center panel search state unified with sidebar search
 
     // Draggable Cams State
     const [camPositions, setCamPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
@@ -1320,32 +1317,7 @@ export const MusicDate = () => {
         return `${min}:${sec < 10 ? '0' : ''}${sec}`;
     };
 
-    // Center panel search (declared here so it's before any early returns)
-    const performCenterSearch = async (query: string) => {
-        if (!query.trim()) { setCenterSearchResults([]); setIsCenterSearching(false); return; }
-        setIsCenterSearching(true);
-        try {
-            const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(query)}`);
-            if (!res.ok) throw new Error('API error');
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-                setCenterSearchResults(data.map((t: any) => {
-                    const isDrm = t.is_drm === 1 || t.is_drm === true;
-                    return {
-                        id: t.id, song: t.song, singers: t.singers || t.primary_artists || '', image: t.image,
-                        media_url: t.media_url,
-                        media_preview_url: t.media_preview_url, duration: t.duration, is_drm: isDrm,
-                    };
-                }));
-            } else { setCenterSearchResults([]); }
-        } catch { setCenterSearchResults([]); } finally { setIsCenterSearching(false); }
-    };
 
-    useEffect(() => {
-        if (!centerSearchQuery.trim()) { setCenterSearchResults([]); return; }
-        const t = setTimeout(() => performCenterSearch(centerSearchQuery), 400);
-        return () => clearTimeout(t);
-    }, [centerSearchQuery]);
 
     if (mode === 'landing') {
         return (
@@ -1754,11 +1726,11 @@ export const MusicDate = () => {
                             {/* Center Search Bar */}
                             <div className="w-full max-w-md relative mb-6">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                {isCenterSearching && <Loader className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-violet-400 animate-spin" />}
+                                {isSearching && <Loader className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-violet-400 animate-spin" />}
                                 <input
                                     type="text"
-                                    value={centerSearchQuery}
-                                    onChange={e => setCenterSearchQuery(e.target.value)}
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Search songs, artists..."
                                     className="w-full bg-gray-900/60 border-2 border-white/10 focus:border-violet-500 rounded-2xl py-4 pl-12 pr-12 text-base text-white focus:outline-none transition-all placeholder-gray-500 shadow-lg"
                                     autoFocus
@@ -1766,10 +1738,10 @@ export const MusicDate = () => {
                             </div>
 
                             {/* Center Search Results */}
-                            {centerSearchResults.length > 0 && (
+                            {searchResults.length > 0 && (
                                 <div className="w-full max-w-md max-h-72 overflow-y-auto custom-scrollbar bg-gray-900/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
-                                    {centerSearchResults.map((track) => (
-                                        <div key={track.id} onClick={() => { handleTrackSelect(track, true); setCenterSearchQuery(''); setCenterSearchResults([]); }} className="flex items-center gap-3 hover:bg-white/5 p-3 cursor-pointer transition-colors group border-b border-white/5 last:border-b-0">
+                                    {searchResults.map((track) => (
+                                        <div key={track.id} onClick={() => { handleTrackSelect(track, true); setSearchQuery(''); setSearchResults([]); }} className="flex items-center gap-3 hover:bg-white/5 p-3 cursor-pointer transition-colors group border-b border-white/5 last:border-b-0">
                                             <img src={track.image} alt={track.song} className="w-12 h-12 rounded-lg object-cover shadow-md" />
                                             <div className="flex-1 min-w-0 text-left">
                                                 <h4 className="text-white text-sm font-bold truncate group-hover:text-violet-300 transition-colors">{track.song}</h4>

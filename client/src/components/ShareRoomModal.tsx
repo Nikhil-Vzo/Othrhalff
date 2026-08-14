@@ -179,6 +179,28 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
           {/* External Share Section */}
           <div className="mb-6">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Share Externally</p>
+            
+            {/* Share Link Input Box */}
+            <div className="mb-4 bg-gray-950/60 border border-gray-800 rounded-2xl p-3 flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-400 font-mono truncate select-all flex-1">
+                {roomUrl}
+              </span>
+              <button 
+                onClick={handleCopy}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  copied 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                    : 'bg-neon text-white hover:scale-105 active:scale-95'
+                }`}
+              >
+                {copied ? (
+                  <>Copied <Check className="w-3.5 h-3.5" /></>
+                ) : (
+                  <>Copy <Copy className="w-3.5 h-3.5" /></>
+                )}
+              </button>
+            </div>
+
             <div className="grid grid-cols-4 gap-3">
               <button 
                 onClick={handleCopy}

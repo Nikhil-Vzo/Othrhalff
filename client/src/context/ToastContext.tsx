@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import { X, CheckCircle, AlertOctagon, Info, AlertTriangle } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -27,23 +27,57 @@ export const useToast = () => {
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
+    const toastsRef = useRef<Toast[]>([]);
+    const queueRef = useRef<Toast[]>([]);
+
+    // Keep the active toasts ref in sync to avoid stale closures in callbacks
+    useEffect(() => {
+        toastsRef.current = toasts;
+    }, [toasts]);
+
+    const processQueue = useCallback(() => {
+        if (toastsRef.current.length >= 3 || queueRef.current.length === 0) {
+            return;
+        }
+
+        const nextBatch: Toast[] = [];
+        while (toastsRef.current.length + nextBatch.length < 3 && queueRef.current.length > 0) {
+            const nextToast = queueRef.current.shift();
+            if (nextToast) {
+                nextBatch.push(nextToast);
+                const toastId = nextToast.id;
+                const toastDuration = nextToast.duration;
+                if (toastDuration && toastDuration > 0) {
+                    setTimeout(() => {
+                        removeToast(toastId);
+                    }, toastDuration);
+                }
+            }
+        }
+
+        if (nextBatch.length > 0) {
+            setToasts(prev => [...prev, ...nextBatch]);
+        }
+    }, []);
 
     const removeToast = useCallback((id: string) => {
         setToasts(prev => prev.filter(toast => toast.id !== id));
-    }, []);
+        setTimeout(processQueue, 0);
+    }, [processQueue]);
 
     const showToast = useCallback((message: string, type: ToastType, duration = 3000) => {
+        // Deduplicate identical toast messages
+        const isDuplicate = 
+            toastsRef.current.some((t: Toast) => t.message === message) || 
+            queueRef.current.some((t: Toast) => t.message === message);
+        if (isDuplicate) return;
+
         const id = Math.random().toString(36).substr(2, 9);
         const newToast: Toast = { id, message, type, duration };
 
-        setToasts(prev => [...prev, newToast]);
-
-        if (duration > 0) {
-            setTimeout(() => {
-                removeToast(id);
-            }, duration);
-        }
-    }, [removeToast]);
+        queueRef.current.push(newToast);
+        processQueue();
+    }, [processQueue]);
 
     const toastContextValue = useMemo(() => ({ showToast, removeToast }), [showToast, removeToast]);
 

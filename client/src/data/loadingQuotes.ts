@@ -16,6 +16,16 @@ export const loadingQuotes = [
     "Great love stories take time to write."
 ];
 
+let lastIndex = -1;
+
 export const getRandomQuote = () => {
-    return loadingQuotes[Math.floor(Math.random() * loadingQuotes.length)];
+    if (loadingQuotes.length <= 1) {
+        return loadingQuotes[0] || "";
+    }
+    let newIndex = lastIndex;
+    while (newIndex === lastIndex) {
+        newIndex = Math.floor(Math.random() * loadingQuotes.length);
+    }
+    lastIndex = newIndex;
+    return loadingQuotes[newIndex];
 };

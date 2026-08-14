@@ -21,6 +21,59 @@ import { getCachedProfile } from '../services/profileCache';
 import { useNotifications } from '../context/NotificationContext';
 
 import { getRandomQuote } from '../data/loadingQuotes';
+
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+const gameParseCache = new Map<string, any>();
+
+const getParsedGame = (id: string, text: string) => {
+  const cacheKey = `${id}:${text}`;
+  if (gameParseCache.has(cacheKey)) {
+    return gameParseCache.get(cacheKey);
+  }
+
+  let parsedGame = undefined;
+  if (text.startsWith('[GAME:2TL:v1]')) {
+    try {
+      parsedGame = {
+        type: '2TL' as const,
+        state: JSON.parse(text.replace('[GAME:2TL:v1] ', ''))
+      };
+    } catch (e) {
+      console.error('Error parsing 2TL game state:', e);
+    }
+  } else if (text.startsWith('[GAME:WYR:v1]')) {
+    try {
+      parsedGame = {
+        type: 'WYR' as const,
+        state: JSON.parse(text.replace('[GAME:WYR:v1] ', ''))
+      };
+    } catch (e) {
+      console.error('Error parsing WYR game state:', e);
+    }
+  } else if (text.startsWith('[INVITE:v1]')) {
+    try {
+      parsedGame = {
+        type: 'INVITE' as const,
+        state: JSON.parse(text.replace('[INVITE:v1] ', ''))
+      };
+    } catch (e) {
+      console.error('Error parsing invite state:', e);
+    }
+  }
+
+  gameParseCache.set(cacheKey, parsedGame);
+  return parsedGame;
+};
 import { 
   WYR_TEMPLATES, 
   hashString, 
@@ -490,35 +543,7 @@ export const Chat: React.FC = () => {
         return msgTime > clearedAt && !deletedIds.has(m.id);
       })
       .map(m => {
-        let parsedGame = undefined;
-        if (m.text.startsWith('[GAME:2TL:v1]')) {
-          try {
-            parsedGame = {
-              type: '2TL' as const,
-              state: JSON.parse(m.text.replace('[GAME:2TL:v1] ', ''))
-            };
-          } catch (e) {
-            console.error('Error parsing 2TL game state:', e);
-          }
-        } else if (m.text.startsWith('[GAME:WYR:v1]')) {
-          try {
-            parsedGame = {
-              type: 'WYR' as const,
-              state: JSON.parse(m.text.replace('[GAME:WYR:v1] ', ''))
-            };
-          } catch (e) {
-            console.error('Error parsing WYR game state:', e);
-          }
-        } else if (m.text.startsWith('[INVITE:v1]')) {
-          try {
-            parsedGame = {
-              type: 'INVITE' as const,
-              state: JSON.parse(m.text.replace('[INVITE:v1] ', ''))
-            };
-          } catch (e) {
-            console.error('Error parsing invite state:', e);
-          }
-        }
+        const parsedGame = getParsedGame(m.id, m.text);
         
         return {
           id: m.id,
@@ -627,7 +652,18 @@ export const Chat: React.FC = () => {
   const [customWyrB, setCustomWyrB] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const partnerTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const partnerTypingExpiresAtRef = useRef<number>(0);
   const channelRef = useRef<any>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (partnerTypingExpiresAtRef.current && Date.now() > partnerTypingExpiresAtRef.current) {
+        setPartnerIsTyping(false);
+        partnerTypingExpiresAtRef.current = 0;
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   const typingSentRef = useRef(false);
   const lastTypingSentTimeRef = useRef(0);
 
@@ -870,14 +906,47 @@ export const Chat: React.FC = () => {
         const pending = await db.outbox.where('status').equals('pending').toArray();
         if (!pending || pending.length === 0) return;
         
+        // Sort pending messages chronologically to preserve original sequence
+        pending.sort((a, b) => a.created_at - b.created_at);
+        
         for (const item of pending) {
           const { data, error } = await supabase
             .from('messages')
-            .insert({ match_id: item.match_id, sender_id: item.sender_id, text: item.text })
+            .insert({ 
+              id: item.id,
+              match_id: item.match_id, 
+              sender_id: item.sender_id, 
+              text: item.text,
+              created_at: new Date(item.created_at).toISOString()
+            })
             .select()
             .single();
 
-          if (!error && data) {
+          if (error) {
+            // If already inserted (e.g. duplicate request retry), treat as success
+            if (error.code === '23505') {
+              await db.transaction('rw', [db.messages, db.outbox], async () => {
+                await db.messages.delete(item.id);
+                await db.messages.put({
+                  id: item.id,
+                  match_id: item.match_id,
+                  sender_id: item.sender_id,
+                  text: item.text,
+                  created_at: item.created_at,
+                  is_system: false,
+                  is_read: false,
+                  status: 'sent'
+                });
+                await db.outbox.delete(item.id);
+              });
+              continue;
+            }
+            console.error('[Dexie Outbox Sync] Error syncing outbox message:', error);
+            await db.outbox.update(item.id, { status: 'failed' });
+            continue;
+          }
+
+          if (data) {
             await db.transaction('rw', [db.messages, db.outbox], async () => {
               await db.messages.delete(item.id);
               await db.messages.put(mapSupabaseMessageToLocal(data, item.match_id));
@@ -1012,7 +1081,9 @@ export const Chat: React.FC = () => {
         const senderId = payload.payload?.userId;
         if (senderId && senderId !== currentUser?.id) {
           const isTyping = !!payload.payload?.isTyping;
+          const expiresAt = payload.payload?.expiresAt || 0;
           setPartnerIsTyping(isTyping);
+          partnerTypingExpiresAtRef.current = isTyping ? (expiresAt || (Date.now() + 3500)) : 0;
 
           if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
 
@@ -1020,7 +1091,8 @@ export const Chat: React.FC = () => {
           if (isTyping) {
             partnerTypingTimeoutRef.current = setTimeout(() => {
               setPartnerIsTyping(false);
-            }, 3500);
+              partnerTypingExpiresAtRef.current = 0;
+            }, expiresAt ? Math.max(100, expiresAt - Date.now()) : 3500);
           }
         }
       })
@@ -1070,7 +1142,7 @@ export const Chat: React.FC = () => {
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
-        payload: { userId: currentUser.id, isTyping: true }
+        payload: { userId: currentUser.id, isTyping: true, expiresAt: Date.now() + 3000 }
       }).catch?.(() => {});
       typingSentRef.current = true;
       lastTypingSentTimeRef.current = now;
@@ -1203,7 +1275,7 @@ export const Chat: React.FC = () => {
     const textToSend = newMessage.trim(); setNewMessage('');
     
     // 1. Instantly create a temporary message object & save to local Dexie
-    const optimisticId = `temp-${Date.now()}`;
+    const optimisticId = generateUUID();
     const optimisticLocal: LocalMessage = {
       id: optimisticId,
       match_id: matchId,
@@ -1228,7 +1300,7 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
+        .insert({ id: optimisticId, match_id: matchId, sender_id: currentUser.id, text: textToSend })
         .select()
         .single();
         
@@ -1283,7 +1355,7 @@ export const Chat: React.FC = () => {
   const sendGameMessage = async (textToSend: string) => {
     if (!currentUser || !matchId || isBlocked || isBlockedByThem) return;
     
-    const optimisticId = `temp-${Date.now()}`;
+    const optimisticId = generateUUID();
     const optimisticLocal: LocalMessage = {
       id: optimisticId,
       match_id: matchId,
@@ -1307,7 +1379,7 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert({ match_id: matchId, sender_id: currentUser.id, text: textToSend })
+        .insert({ id: optimisticId, match_id: matchId, sender_id: currentUser.id, text: textToSend })
         .select()
         .single();
         
@@ -1462,7 +1534,7 @@ export const Chat: React.FC = () => {
   const proceedWithCall = async (type: 'audio' | 'video') => {
     if (!partner || !matchId || !currentUser) return; setIsStartingCall(true);
     try { if (await checkUserBusy(partner.id, currentUser.id)) { showToast(`${partner.realName} busy`, 'info'); setIsStartingCall(false); return; } } catch { }
-    setOutgoingCall({ receiverName: partner.realName, receiverAvatar: partner.avatar || '', callType: type });
+    setOutgoingCall({ receiverId: partner.id, receiverName: partner.realName, receiverAvatar: partner.avatar || '', callType: type });
     try {
       const s = await initiateCall(partner.id, matchId, { id: currentUser.id, name: currentUser.realName, avatar: currentUser.avatar || '', callType: type });
       if (!s) throw new Error('Fail');
@@ -1516,7 +1588,16 @@ export const Chat: React.FC = () => {
       </div>
 
       <ConfirmationModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} isDestructive={confirmModal.isDestructive} onConfirm={confirmModal.onConfirm} onCancel={closeConfirmModal} />
-      <PermissionModal isOpen={permissionModal.isOpen} onPermissionsGranted={permissionModal.onGranted} onCancel={() => setPermissionModal(prev => ({ ...prev, isOpen: false }))} requiredPermissions={permissionModal.type === 'video' ? ['camera', 'microphone'] : ['microphone']} />
+      <PermissionModal 
+        isOpen={permissionModal.isOpen} 
+        onPermissionsGranted={permissionModal.onGranted} 
+        onCancel={() => setPermissionModal(prev => ({ ...prev, isOpen: false }))} 
+        requiredPermissions={permissionModal.type === 'video' ? ['camera', 'microphone'] : ['microphone']} 
+        onFallbackToAudio={() => {
+          setPermissionModal(prev => ({ ...prev, isOpen: false }));
+          proceedWithCall('audio');
+        }}
+      />
 
       {/* Main Split Layout Container */}
       <div className="flex-1 flex flex-row overflow-hidden w-full relative z-10">
@@ -1603,7 +1684,7 @@ export const Chat: React.FC = () => {
             />
           );
         })}
-        {partnerIsTyping && (
+        {partnerIsTyping && partnerTypingExpiresAtRef.current > Date.now() && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

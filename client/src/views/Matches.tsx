@@ -202,7 +202,11 @@ export const Matches: React.FC = () => {
 
   // 2. The Core Loading Function — server-side block filtering via RPC
   const loadMatches = useCallback(async (isBackground = false) => {
-    if (!currentUser || !supabase) return;
+    if (!supabase) return;
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
     const hasCache = readCache().length > 0;
     if (!isBackground && !hasCache) setLoading(true);
 
