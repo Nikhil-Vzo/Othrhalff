@@ -630,15 +630,29 @@ export const Confessions: React.FC = () => {
         setVideoUploading(true);
         try {
             const fileExt = file.name.split('.').pop() || 'mp4';
-            const fileName = `videos/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || '';
 
-            const { error: vErr } = await supabase.storage.from('confession-media').upload(fileName, file, {
-                cacheControl: '3600',
-                upsert: false
+            // Step 1: Request signed upload token from backend (bypasses RLS for all users)
+            const signRes = await fetch(`${apiUrl}/api/sign-media-upload`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileExt })
             });
+
+            if (!signRes.ok) {
+                const errData = await signRes.json().catch(() => ({ error: 'Upload preparation failed' }));
+                throw new Error(errData.error || 'Failed to prepare video upload');
+            }
+
+            const { path, token, publicUrl } = await signRes.json();
+
+            // Step 2: Upload using signed token directly to Supabase storage
+            const { error: vErr } = await supabase.storage.from('confession-media').uploadToSignedUrl(path, token, file, {
+                contentType: file.type || 'video/mp4'
+            });
+
             if (vErr) throw vErr;
 
-            const { data: { publicUrl } } = supabase.storage.from('confession-media').getPublicUrl(fileName);
             setUploadedVideoUrl(publicUrl);
             setNewImage(null);
             setIsPollMode(false);

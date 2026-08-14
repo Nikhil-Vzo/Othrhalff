@@ -137,4 +137,43 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
   }
 });
 
+// Sign Media Upload URL endpoint (allows guests and users to upload media directly to Supabase storage bypassing RLS)
+router.post('/sign-media-upload', async (req, res) => {
+  try {
+    const { fileExt } = req.body;
+    const ext = String(fileExt || 'mp4').toLowerCase().replace(/^\./, '');
+    const allowedExts = ['mp4', 'webm', 'mov', 'png', 'jpg', 'jpeg', 'webp'];
+    
+    if (!allowedExts.includes(ext)) {
+      return res.status(400).json({ error: `Unsupported file extension .${ext}` });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase admin credentials missing on server');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const folder = ['mp4', 'webm', 'mov'].includes(ext) ? 'videos' : 'images';
+    const filePath = `${folder}/${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
+
+    const { data, error } = await supabase.storage.from('confession-media').createSignedUploadUrl(filePath);
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage.from('confession-media').getPublicUrl(filePath);
+
+    return res.json({
+      signedUrl: data.signedUrl,
+      path: data.path,
+      token: data.token,
+      publicUrl
+    });
+  } catch (err) {
+    console.error('Error creating signed upload URL:', err);
+    return res.status(500).json({ error: err.message || 'Failed to generate signed upload URL' });
+  }
+});
+
 export default router;
