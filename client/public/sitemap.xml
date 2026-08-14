@@ -3,7 +3,7 @@
   <!-- Core Application Pages -->
   <url>
     <loc>https://www.othrhalff.in/</loc>
-    <lastmod>2026-08-13</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -27,9 +27,41 @@
   </url>
   <url>
     <loc>https://www.othrhalff.in/vs-omegle</loc>
-    <lastmod>2026-08-13</lastmod>
+    <lastmod>2026-08-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
+  </url>
+
+  <!-- Confession Farm Hub (Programmatic UGC) -->
+  <url>
+    <loc>https://www.othrhalff.in/confessions</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://www.othrhalff.in/tea/delhi-university</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.othrhalff.in/tea/iit-bombay</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.othrhalff.in/tea/vit-vellore</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.othrhalff.in/tea/manipal-university</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.85</priority>
   </url>
 
   <!-- Competitor Landing Pages -->

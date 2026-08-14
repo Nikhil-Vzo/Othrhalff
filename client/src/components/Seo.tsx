@@ -1,3 +1,14 @@
+/**
+ * @deprecated DO NOT USE — React Helmet is NOT compatible with Next.js 14 App Router.
+ * Meta tags set via this component will NOT be rendered server-side and will be
+ * invisible to Googlebot and other crawlers.
+ *
+ * ✅ USE INSTEAD:
+ *   - Static metadata: export const metadata: Metadata = { ... } in page.tsx
+ *   - Dynamic metadata: export async function generateMetadata({ params }) { ... }
+ *
+ * See: https://nextjs.org/docs/app/api-reference/functions/generate-metadata
+ */
 import { Helmet } from "react-helmet-async";
 
 interface SeoProps {

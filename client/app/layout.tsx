@@ -71,6 +71,9 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: 'https://www.othrhalff.in',
+    languages: {
+      'en-IN': 'https://www.othrhalff.in',
+    },
   },
 };
 
@@ -84,6 +87,74 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* JSON-LD: SoftwareApplication schema */}
+        <Script id="schema-app" type="application/ld+json" strategy="beforeInteractive">
+          {`{
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Othrhalff",
+            "url": "https://www.othrhalff.in",
+            "applicationCategory": "SocialNetworkingApplication",
+            "operatingSystem": "Web, Android, iOS",
+            "description": "Campus-verified speed dating and anonymous confession app for Indian university students. 1-on-1 text and video chat, campus confessions, and interactive campus maps.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "INR"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "Othrhalff",
+              "url": "https://www.othrhalff.in"
+            },
+            "inLanguage": "en-IN",
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "College Students",
+              "geographicArea": {
+                "@type": "Country",
+                "name": "India"
+              }
+            }
+          }`}
+        </Script>
+
+        {/* JSON-LD: Organization schema */}
+        <Script id="schema-org" type="application/ld+json" strategy="beforeInteractive">
+          {`{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Othrhalff",
+            "url": "https://www.othrhalff.in",
+            "logo": "https://www.othrhalff.in/favicon.png",
+            "description": "India's campus-verified speed dating and anonymous social platform for university students.",
+            "sameAs": [
+              "https://www.instagram.com/othrhalff",
+              "https://twitter.com/othrhalff"
+            ],
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "Customer Support",
+              "url": "https://www.othrhalff.in/contact"
+            }
+          }`}
+        </Script>
+
+        {/* JSON-LD: WebSite with SearchAction */}
+        <Script id="schema-website" type="application/ld+json" strategy="beforeInteractive">
+          {`{
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "url": "https://www.othrhalff.in",
+            "name": "Othrhalff",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://www.othrhalff.in/campus/{search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }`}
+        </Script>
+
         {/* Google Analytics (GA4) Tag */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
