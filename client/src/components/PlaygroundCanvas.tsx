@@ -521,30 +521,22 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
       </div>
 
-      {/* Cyberpunk Neon Virtual Floating Touch Joystick */}
+      {/* Sleek Minimalist Virtual Floating Touch Joystick */}
       {joystickVisible && (
         <div 
-          className="fixed z-40 pointer-events-none -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-[#08020f]/80 backdrop-blur-xl border border-white/20 shadow-[0_0_35px_rgba(255,0,127,0.35)] flex items-center justify-center animate-in fade-in zoom-in-75 duration-100"
+          className="fixed z-40 pointer-events-none -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/5 backdrop-blur-md border border-white/20 shadow-2xl flex items-center justify-center animate-in fade-in duration-100"
           style={{ left: `${joystickOrigin.x}px`, top: `${joystickOrigin.y}px` }}
         >
-          {/* Laser Compass Crosshair Ticks */}
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
-          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
-          <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-neon shadow-[0_0_8px_#ff007f]" />
-          
-          {/* Concentric Radar Ring */}
-          <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border border-neon/20 animate-ping opacity-25" />
-          </div>
+          {/* Subtle inner dial */}
+          <div className="w-14 h-14 rounded-full border border-white/10" />
 
-          {/* Floating Neon Thumbstick Knob */}
+          {/* Minimalist Thumbstick Knob */}
           <div 
             ref={joystickKnobRef}
-            className="absolute w-12 h-12 rounded-full bg-gradient-to-tr from-neon via-pink-500 to-purple-600 border-2 border-white/90 shadow-[0_0_20px_rgba(255,0,127,0.9)] flex items-center justify-center will-change-transform"
+            className="absolute w-12 h-12 rounded-full bg-white/20 backdrop-blur-lg border border-white/40 shadow-lg flex items-center justify-center will-change-transform"
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
-            <div className="w-3 h-3 rounded-full bg-white shadow-sm opacity-90" />
+            <div className="w-2.5 h-2.5 rounded-full bg-white shadow-sm opacity-90" />
           </div>
         </div>
       )}

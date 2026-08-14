@@ -14,15 +14,7 @@ import { CHHATTISGARH_COLLEGES, BRANCH_CATEGORIES } from '../constants';
 
 type SortOption = 'newest' | 'oldest' | 'popular' | 'discussed';
 
-const REACTIONS = ['❤️', '🔥', '😂', '✨', '👀'];
-
-export const VECTOR_REACTION_MAP: Record<string, { label: string; icon: React.FC<{ className?: string }>; color: string; badgeBg: string }> = {
-    '❤️': { label: 'Love', icon: Heart, color: 'text-pink-500', badgeBg: 'bg-pink-500/20 border-pink-500/40 text-pink-300' },
-    '🔥': { label: 'Fire', icon: Flame, color: 'text-orange-500', badgeBg: 'bg-orange-500/20 border-orange-500/40 text-orange-300' },
-    '😂': { label: 'Haha', icon: Laugh, color: 'text-amber-400', badgeBg: 'bg-amber-400/20 border-amber-400/40 text-amber-300' },
-    '✨': { label: 'Vibe', icon: Sparkles, color: 'text-cyan-400', badgeBg: 'bg-cyan-400/20 border-cyan-400/40 text-cyan-300' },
-    '👀': { label: 'Seen', icon: Eye, color: 'text-purple-400', badgeBg: 'bg-purple-400/20 border-purple-400/40 text-purple-300' },
-};
+const REACTIONS = ['❤️', '😂', '🔥', '😮', '😢', '👀'];
 const POSTS_PER_PAGE = 10;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -829,25 +821,23 @@ export const Confessions: React.FC = () => {
                                     )}
 
                                     <div className="flex flex-col gap-2 border-t border-gray-900 pt-3">
-                                        {/* Vector Reaction Badges */}
+                                        {/* Emoji Reaction Badges */}
                                         {conf.reactions && Object.values(conf.reactions).some(v => v > 0) && (
                                             <div className="flex flex-wrap gap-1.5 mb-2">
                                                 {Object.entries(conf.reactions).map(([e, c]) => {
                                                     if (c <= 0) return null;
-                                                    const meta = VECTOR_REACTION_MAP[e];
-                                                    const IconComponent = meta?.icon || Heart;
                                                     return (
                                                         <button
                                                             key={e}
                                                             onClick={() => handleReaction(conf.id, e)}
-                                                            className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all active:scale-95 ${
+                                                            className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all active:scale-95 ${
                                                                 conf.userReaction === e
-                                                                    ? `${meta?.badgeBg || 'bg-neon/20 border-neon'} shadow-[0_0_10px_rgba(255,0,127,0.3)]`
-                                                                    : 'bg-gray-900/80 text-gray-400 border-gray-800 hover:border-gray-700'
+                                                                    ? 'bg-neon/20 border-neon text-white shadow-[0_0_8px_rgba(255,0,127,0.3)]'
+                                                                    : 'bg-gray-900 text-gray-400 border-gray-800 hover:border-gray-700'
                                                             }`}
                                                         >
-                                                            <IconComponent className={`w-3.5 h-3.5 ${meta?.color || 'text-neon'}`} />
-                                                            <span className="font-mono">{c}</span>
+                                                            <span>{e}</span>
+                                                            <b className="font-mono">{c}</b>
                                                         </button>
                                                     );
                                                 })}
@@ -952,7 +942,7 @@ export const Confessions: React.FC = () => {
                 </div>
             </div>
 
-            {/* Vector Reaction Popup Menu */}
+            {/* Emoji Reaction Popup Menu */}
             {activeReactionMenu && (
                 <>
                     <div className="fixed inset-0 z-40 bg-transparent" onClick={() => { setActiveReactionMenu(null); setMenuPosition(null); }} />
@@ -961,21 +951,15 @@ export const Confessions: React.FC = () => {
                         style={menuPosition ? { top: menuPosition.top, left: menuPosition.left } : {}}
                     >
                         <div className="flex items-center gap-1">
-                            {REACTIONS.map(emoji => {
-                                const meta = VECTOR_REACTION_MAP[emoji];
-                                const IconComponent = meta?.icon || Heart;
-                                return (
-                                    <button 
-                                        key={emoji} 
-                                        onClick={() => handleReaction(activeReactionMenu, emoji)} 
-                                        aria-label={meta?.label || 'React'}
-                                        title={meta?.label}
-                                        className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/10 active:scale-90 transition-all group"
-                                    >
-                                        <IconComponent className={`w-5 h-5 ${meta?.color || 'text-neon'} group-hover:scale-125 transition-transform duration-200`} />
-                                    </button>
-                                );
-                            })}
+                            {REACTIONS.map(emoji => (
+                                <button 
+                                    key={emoji} 
+                                    onClick={() => handleReaction(activeReactionMenu, emoji)} 
+                                    className="text-2xl hover:scale-125 transition-transform p-1.5 active:scale-95"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </>
