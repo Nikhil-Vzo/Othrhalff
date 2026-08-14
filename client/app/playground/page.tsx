@@ -44,7 +44,7 @@ export default function Page() {
       serverUrl={livekitUrl}
       token={token}
       connect={true}
-      audio={true}
+      audio={false}
       video={false}
       className="w-full h-full"
     >

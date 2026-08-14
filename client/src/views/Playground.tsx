@@ -62,10 +62,19 @@ export const Playground: React.FC = () => {
     // Graceful fallback if rendered standalone without LiveKitRoom
   }
 
+  const [showVoicePrompt, setShowVoicePrompt] = useState(true);
+
+  // Auto-dismiss voice prompt after 6 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowVoicePrompt(false), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const toggleMic = async () => {
     if (localParticipant) {
       try {
         await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+        setShowVoicePrompt(false);
       } catch (e: any) {
         console.warn('Microphone toggle failed:', e);
         setErrorMsg('Microphone access denied or not available');
@@ -509,9 +518,36 @@ export const Playground: React.FC = () => {
         </div>
       </div>
 
+      {/* Minimalist Voice Onboarding Gesture Pill */}
+      {showVoicePrompt && !isMicrophoneEnabled && (
+        <div 
+          onClick={() => setShowVoicePrompt(false)} 
+          className="absolute top-16 left-0 right-0 z-30 flex justify-center px-4 pointer-events-auto cursor-pointer"
+        >
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleMic();
+              setShowVoicePrompt(false);
+            }}
+            className="flex items-center gap-2 px-3.5 py-1.5 bg-black/85 hover:bg-black/95 backdrop-blur-2xl border border-neon/50 hover:border-neon rounded-full shadow-[0_6px_25px_rgba(255,0,127,0.3)] text-white transition-all duration-200 active:scale-95 animate-in fade-in slide-in-from-top-2"
+          >
+            <div className="w-5 h-5 rounded-full bg-neon/20 flex items-center justify-center text-neon">
+              <Mic size={12} className="animate-pulse" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-200">
+              Tap to turn on Mic & talk with others
+            </span>
+            <span className="text-[9px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-full bg-neon text-white shadow-sm ml-0.5">
+              Turn On
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Floating Error Alert */}
       {errorMsg && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-red-950/90 border border-red-500/80 rounded-full backdrop-blur-md shadow-xl pointer-events-auto animate-in fade-in">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-red-950/90 border border-red-500/80 rounded-full backdrop-blur-md shadow-xl pointer-events-auto animate-in fade-in">
           <span className="text-red-200 text-xs font-bold">{errorMsg}</span>
         </div>
       )}
