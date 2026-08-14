@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../src/lib/supabase';
 import { useAuth } from '../../../../src/context/AuthContext';
 import { campusList } from '../../../../src/seo/data/campuses';
@@ -10,7 +9,7 @@ import { VideoPlayer } from '../../../../src/components/VideoPlayer';
 import { Confession } from '../../../../src/types';
 import { 
   Heart, MessageCircle, Share2, ArrowLeft, Send, 
-  Sparkles, Check, MoreVertical, Copy, Loader2, School, Ghost 
+  Sparkles, Check, MoreVertical, Copy, Loader2, School, Ghost, SmilePlus, Crown
 } from 'lucide-react';
 
 interface Props {
@@ -20,8 +19,16 @@ interface Props {
 
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '😢', '👀'];
 
+function parseUniversity(univString?: string) {
+  if (!univString) return { college: '', department: '' };
+  const parts = univString.split('|');
+  return {
+    college: parts[0] || '',
+    department: parts[1] || ''
+  };
+}
+
 export default function TeaPageClient({ campusSlug, confessionId }: Props) {
-  const router = useRouter();
   const { currentUser } = useAuth();
   const campus = campusList.find(c => c.slug === campusSlug) || {
     name: campusSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -36,16 +43,15 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
   const [error, setError] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [showReactionMenu, setShowReactionMenu] = useState(false);
+  const [activeReactionMenu, setActiveReactionMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
+    setTimeout(() => setToastMessage(null), 2200);
   };
 
-  // Fetch the specific confession by ID
   useEffect(() => {
     async function loadConfession() {
       if (!confessionId) {
@@ -133,7 +139,7 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
 
   const handleReaction = async (emoji: string) => {
     if (!confession) return;
-    setShowReactionMenu(false);
+    setActiveReactionMenu(false);
 
     const previousReaction = confession.userReaction;
     const newReactions = { ...confession.reactions };
@@ -224,7 +230,7 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
           text: commentText
         });
       }
-      showToast('Comment posted anonymously! 💬');
+      showToast('Comment posted! 💬');
     } catch (err) {
       console.error('Comment submit error:', err);
     } finally {
@@ -237,7 +243,7 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: `Confession from ${campus.name}`,
+          title: `Othrhalff Campus Tea`,
           text: confession?.text || 'Check out this campus confession on Othrhalff',
           url: shareUrl
         });
@@ -257,109 +263,116 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
     setShowMenu(false);
   };
 
-  const universityParts = confession?.university?.split('|') || [campus.name];
-  const collegeName = universityParts[0] || campus.name;
-  const branchName = universityParts[1] || 'General';
+  const { college, department } = parseUniversity(confession?.university);
 
   return (
-    <main className="min-h-screen bg-[#07030d] text-white selection:bg-neon selection:text-white">
-      {/* Toast Notification */}
+    <main className="min-h-screen bg-black text-white font-sans selection:bg-neon selection:text-white flex flex-col justify-between overflow-x-hidden relative">
+      {/* Background Ambience */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#1f0038,transparent_50%)] pointer-events-none" />
+
+      {/* Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#120722]/95 backdrop-blur-2xl border border-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-[0_10px_35px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-top-4 duration-200 flex items-center gap-2">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#0d0714]/95 backdrop-blur-2xl border border-white/20 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-[0_10px_35px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-top-3 duration-200 flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-neon" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Atmospheric Glow */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[30rem] w-[30rem] rounded-full bg-[#ff007f]/10 blur-[150px]" />
-      </div>
-
-      <div className="relative mx-auto max-w-2xl px-4 pt-16 pb-24 sm:px-6">
+      <div className="relative z-10 max-w-xl mx-auto w-full px-4 pt-12 pb-24">
         {/* Back Link */}
-        <Link
-          href="/confessions"
-          className="mb-6 inline-flex items-center gap-2 font-mono text-[11px] font-bold tracking-wider text-white/50 transition-colors hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4 text-neon" />
-          <span>ALL CONFESSIONS</span>
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link
+            href="/confessions"
+            className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-neon" />
+            <span>ALL CONFESSIONS</span>
+          </Link>
+          <span className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">
+            {campus.shortName} CAMPUS TEA
+          </span>
+        </div>
 
         {/* Loading State */}
         {loading && (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center my-8">
-            <Loader2 className="w-8 h-8 text-neon animate-spin mx-auto mb-4" />
-            <p className="text-sm font-medium text-gray-400">Loading confession from {campus.name}...</p>
+          <div className="bg-gray-900/30 backdrop-blur-md border border-gray-800/50 rounded-xl p-8 text-center my-6">
+            <Loader2 className="w-6 h-6 text-neon animate-spin mx-auto mb-3" />
+            <p className="text-xs text-gray-400">Loading confession from {campus.name}...</p>
           </div>
         )}
 
-        {/* Error / Not Found State */}
+        {/* Error / Not Found */}
         {error && !loading && (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center my-8">
-            <Ghost className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-            <h1 className="text-lg font-bold text-white mb-2">Confession Not Found</h1>
-            <p className="text-xs text-gray-400 max-w-md mx-auto mb-6">
-              This confession may have expired or was removed. Check out other real confessions from verified students!
+          <div className="bg-gray-900/30 backdrop-blur-md border border-gray-800/50 rounded-xl p-8 text-center my-6">
+            <Ghost className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+            <h1 className="text-sm font-bold text-white mb-1">Confession Not Found</h1>
+            <p className="text-xs text-gray-500 mb-5">
+              This confession might have been deleted or expired.
             </p>
             <Link
               href="/confessions"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-neon to-purple-600 text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black font-bold text-xs hover:bg-gray-200 transition-all"
             >
-              Explore Campus Tea →
+              Explore Campus Feed →
             </Link>
           </div>
         )}
 
-        {/* Real Live Confession Card */}
+        {/* Real Live Confession Card - Exact Match to Confessions.tsx */}
         {!loading && !error && confession && (
-          <article className="rounded-3xl border border-white/15 bg-[#0e071a]/85 backdrop-blur-2xl p-6 sm:p-7 shadow-2xl relative">
-            {/* Author Header */}
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600/30 to-pink-500/30 border border-white/20 flex items-center justify-center font-bold text-sm text-neon">
-                  🎭
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-white">Anonymous Peer</span>
-                    <span className="text-[10px] bg-white/10 text-gray-300 px-2 py-0.5 rounded-full font-mono">
-                      {branchName}
+          <div className="bg-gray-900/30 backdrop-blur-md border border-gray-800/50 rounded-xl p-4 sm:p-5 shadow-2xl">
+            {/* Header */}
+            <div className="flex gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gray-900 border border-gray-800">
+                <span className="text-sm font-bold text-gray-500">?</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold text-gray-300">
+                    {confession.userId}
+                  </span>
+                  {college && (
+                    <span className="bg-[#ff007f]/10 text-neon text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-[#ff007f]/20">
+                      {college.split(',')[0]}
                     </span>
-                  </div>
-                  <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                    <School className="w-3 h-3 text-neon" />
-                    <span>{collegeName}</span>
+                  )}
+                </div>
+                <div className="flex justify-between items-center mt-0.5">
+                  <p className="text-[10px] text-gray-600 uppercase font-bold">
+                    {department || 'General'}
                   </p>
+                  <span className="text-[10px] text-gray-600 font-mono">
+                    {new Date(confession.timestamp).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
 
               {/* 3-Dot Action Menu */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  aria-label="Options"
-                  className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  aria-label="Post actions"
+                  className="p-1.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
 
                 {showMenu && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
-                    <div className="absolute right-0 top-10 z-40 w-40 bg-[#120722]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-1.5 shadow-2xl">
+                    <div className="fixed inset-0 z-30 bg-transparent" onClick={() => setShowMenu(false)} />
+                    <div className="absolute right-0 top-8 w-40 bg-[#0d0714]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.85)] z-40 animate-in fade-in zoom-in-95 duration-100">
                       <button
                         onClick={handleShare}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl transition-all"
                       >
-                        <Share2 className="w-3.5 h-3.5 text-neon" />
+                        <Share2 className="w-4 h-4 text-neon shrink-0" />
                         <span>Share Link</span>
                       </button>
                       <button
                         onClick={handleCopyText}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all"
                       >
-                        <Copy className="w-3.5 h-3.5 text-gray-400" />
+                        <Copy className="w-4 h-4 text-gray-400 shrink-0" />
                         <span>Copy Text</span>
                       </button>
                     </div>
@@ -369,20 +382,20 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
             </div>
 
             {/* Confession Text */}
-            <p className="text-gray-100 text-sm sm:text-base leading-relaxed mb-5 whitespace-pre-wrap font-medium">
+            <p className="text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-wrap font-normal">
               {confession.text}
             </p>
 
             {/* Image Media */}
-            {confession.imageUrl && (
-              <div className="mb-5 rounded-2xl overflow-hidden border border-white/10 bg-black/50 aspect-video">
-                <img src={confession.imageUrl} alt="Confession media" className="w-full h-full object-cover" />
+            {confession.imageUrl && !confession.imageUrl.match(/\.(mp4|webm|mov)(\?.*)?$/i) && confession.type !== 'video' && (
+              <div className="mb-4 rounded-lg overflow-hidden border border-gray-900 bg-black aspect-video">
+                <img src={confession.imageUrl} alt="Confession image" className="w-full h-full object-cover" />
               </div>
             )}
 
             {/* Video Media */}
-            {(confession.type === 'video' || confession.videoUrl) && (
-              <div className="mb-5">
+            {(confession.type === 'video' || confession.videoUrl || confession.imageUrl?.match(/\.(mp4|webm|mov)(\?.*)?$/i)) && (
+              <div className="mb-4">
                 <VideoPlayer
                   src={confession.videoUrl || confession.imageUrl!}
                   onDoubleTap={() => handleReaction('❤️')}
@@ -392,10 +405,10 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
 
             {/* Poll Component */}
             {confession.type === 'poll' && confession.pollOptions && (
-              <div className="mb-5 space-y-2.5 bg-black/40 p-4 rounded-2xl border border-white/10">
+              <div className="mb-4 space-y-2.5 bg-black/40 p-3.5 rounded-2xl border border-white/10">
                 {confession.pollOptions.map(option => {
-                  const totalVotes = confession.pollOptions?.reduce((acc, opt) => acc + opt.votes, 0) || 0;
-                  const percentage = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
+                  const total = confession.pollOptions?.reduce((a, b) => a + b.votes, 0) || 0;
+                  const pct = total > 0 ? Math.round((option.votes / total) * 100) : 0;
                   const isVoted = confession.userVote === option.id;
 
                   return (
@@ -403,7 +416,7 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
                       key={option.id}
                       onClick={() => handlePollVote(option.id)}
                       disabled={!!confession.userVote}
-                      className={`w-full relative h-11 rounded-xl border overflow-hidden transition-all text-left active:scale-[0.99] ${
+                      className={`w-full relative h-10 rounded-xl border overflow-hidden transition-all text-left active:scale-[0.99] ${
                         isVoted
                           ? 'border-neon/60 bg-neon/10 shadow-[0_0_15px_rgba(255,0,127,0.2)]'
                           : 'border-white/10 bg-gray-900/50 hover:border-white/20'
@@ -415,14 +428,14 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
                             ? 'bg-gradient-to-r from-neon/40 to-purple-600/40 border-r-2 border-neon'
                             : 'bg-white/10'
                         }`}
-                        style={{ width: `${percentage}%` }}
+                        style={{ width: `${pct}%` }}
                       />
-                      <div className="absolute inset-0 flex items-center justify-between px-4 z-10">
+                      <div className="absolute inset-0 flex items-center justify-between px-3.5 z-10">
                         <span className={`text-xs font-semibold flex items-center gap-1.5 ${isVoted ? 'text-neon font-bold' : 'text-gray-200'}`}>
                           {option.text}
                           {isVoted && <Check className="w-3.5 h-3.5 text-neon stroke-[3]" />}
                         </span>
-                        <span className="text-[11px] font-mono text-gray-400 font-bold">{percentage}%</span>
+                        <span className="text-[11px] font-mono text-gray-400 font-bold">{pct}%</span>
                       </div>
                     </button>
                   );
@@ -430,124 +443,127 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
               </div>
             )}
 
-            {/* Actions & Engagement Bar */}
-            <div className="flex items-center gap-3 pt-3 border-t border-white/10 relative">
-              {/* Reaction Button */}
-              <div className="relative">
+            {/* Action Row & Reaction Badges */}
+            <div className="flex flex-col gap-2 border-t border-gray-900 pt-3 relative">
+              {/* Emoji Reaction Badges */}
+              {confession.reactions && Object.values(confession.reactions).some(v => v > 0) && (
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {Object.entries(confession.reactions).map(([e, c]) => {
+                    if (c <= 0) return null;
+                    return (
+                      <button
+                        key={e}
+                        onClick={() => handleReaction(e)}
+                        className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all active:scale-95 ${
+                          confession.userReaction === e
+                            ? 'bg-neon/20 border-neon text-white shadow-[0_0_8px_rgba(255,0,127,0.3)]'
+                            : 'bg-gray-900 text-gray-400 border-gray-800 hover:border-gray-700'
+                        }`}
+                      >
+                        <span>{e}</span>
+                        <b className="font-mono">{c}</b>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <button
+                    onClick={() => setActiveReactionMenu(!activeReactionMenu)}
+                    className="flex items-center gap-2 text-gray-500 hover:text-white text-xs px-2 py-1 rounded-md hover:bg-gray-900 transition-colors"
+                  >
+                    <SmilePlus className="w-4 h-4" />
+                    <span>{confession.userReaction || 'React'}</span>
+                  </button>
+
+                  {/* Reaction Picker */}
+                  {activeReactionMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setActiveReactionMenu(false)} />
+                      <div className="absolute bottom-9 left-0 z-50 bg-[#0b0314]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.85)] flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150">
+                        {REACTIONS.map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReaction(emoji)}
+                            className="text-2xl hover:scale-125 transition-transform p-1.5 active:scale-95"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 text-gray-500 text-xs px-2 py-1">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{confession.comments?.length || 0}</span>
+                </div>
+
                 <button
-                  onClick={() => setShowReactionMenu(!showReactionMenu)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                    confession.userReaction
-                      ? 'bg-[#ff007f]/15 border-[#ff007f]/40 text-neon shadow-[0_0_15px_rgba(255,0,127,0.2)]'
-                      : 'border-white/10 bg-white/5 hover:border-white/20 text-gray-300'
-                  }`}
+                  onClick={handleShare}
+                  className="ml-auto flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors"
                 >
-                  <span className="text-sm">{confession.userReaction || '❤️'}</span>
-                  <span className="font-bold">{confession.likes > 0 ? confession.likes : 'Vibe'}</span>
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Share</span>
                 </button>
-
-                {/* Reaction Picker Popup */}
-                {showReactionMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowReactionMenu(false)} />
-                    <div className="absolute bottom-11 left-0 z-50 bg-[#120722]/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.85)] flex items-center gap-1">
-                      {REACTIONS.map(emoji => (
-                        <button
-                          key={emoji}
-                          onClick={() => handleReaction(emoji)}
-                          className="text-2xl hover:scale-125 transition-transform p-1.5 active:scale-95"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
               </div>
-
-              {/* Comments Count */}
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 px-2">
-                <MessageCircle className="w-4 h-4" />
-                <span>{confession.comments?.length || 0} Comments</span>
-              </div>
-
-              {/* Share */}
-              <button
-                onClick={handleShare}
-                className="ml-auto flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Share</span>
-              </button>
             </div>
 
-            {/* Live Comments Thread */}
-            <div className="mt-6 pt-5 border-t border-white/10 space-y-3">
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Anonymous Comments ({confession.comments?.length || 0})
-              </h2>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+            {/* Comments Thread */}
+            <div className="mt-3 pt-3 border-t border-gray-900 space-y-2">
+              <div className="space-y-2 mb-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                 {confession.comments && confession.comments.length > 0 ? (
-                  confession.comments.map(com => (
-                    <div key={com.id} className="text-xs bg-black/40 border border-white/5 rounded-xl p-2.5 flex justify-between gap-3">
-                      <div>
-                        <span className="font-bold text-gray-400 block text-[10px]">{com.userId}</span>
-                        <p className="text-gray-200 mt-0.5 leading-relaxed">{com.text}</p>
+                  confession.comments.map(c => (
+                    <div key={c.id} className="bg-gray-900/40 p-2.5 rounded-lg border border-gray-800/40">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[10px] font-bold text-gray-500">{c.userId}</span>
+                        <span className="text-[9px] text-gray-600 font-mono">
+                          {c.timestamp ? new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
                       </div>
-                      <span className="text-[9px] text-gray-600 font-mono shrink-0">
-                        {com.timestamp ? new Date(com.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
+                      <p className="text-xs text-gray-300 leading-relaxed">{c.text}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 italic py-2">No comments yet. Be the first to drop tea!</p>
+                  <p className="text-xs text-gray-600 italic py-2 text-center">No comments yet. Drop the tea!</p>
                 )}
               </div>
 
-              {/* Comment Input Form */}
-              <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2">
+              {/* Comment Input */}
+              <form onSubmit={handleCommentSubmit} className="flex gap-2">
                 <input
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
-                  placeholder="Drop an anonymous comment..."
-                  className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 outline-none focus:border-neon/60"
+                  placeholder="Comment anonymously..."
+                  className="flex-1 bg-black border border-gray-800 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-gray-700"
                 />
                 <button
                   type="submit"
                   disabled={!newComment.trim() || submittingComment}
-                  className="p-2.5 bg-neon rounded-xl text-white hover:bg-neon/80 disabled:opacity-40 transition-opacity"
+                  className="p-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white rounded-lg transition-colors"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </form>
             </div>
-          </article>
+          </div>
         )}
 
-        {/* CTA Card to Discover & Post More */}
-        <div className="mt-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 text-center shadow-xl">
-          <Sparkles className="w-6 h-6 text-neon mx-auto mb-2" />
-          <h2 className="font-geist text-base font-bold text-white">
-            Discover more anonymous tea from {campus.name}
-          </h2>
-          <p className="mt-1.5 text-xs text-gray-400 max-w-sm mx-auto">
-            Read real stories, share your secrets anonymously, or find a date from your campus.
+        {/* Explore More Card */}
+        <div className="mt-6 bg-gray-900/20 border border-gray-800/40 rounded-xl p-5 text-center">
+          <p className="text-xs text-gray-400 mb-3">
+            Want to see more confessions or post anonymously?
           </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/confessions"
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-neon to-purple-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg hover:scale-105 transition-transform"
-            >
-              Open Confessions Feed →
-            </Link>
-            <Link
-              href={`/campus/${campusSlug}`}
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-            >
-              About {campus.shortName}
-            </Link>
-          </div>
+          <Link
+            href="/confessions"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white text-black font-bold text-xs hover:bg-gray-200 transition-all shadow-md"
+          >
+            <span>Go to Confessions</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
     </main>
