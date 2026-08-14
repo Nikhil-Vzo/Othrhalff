@@ -88,17 +88,9 @@ export const Confessions: React.FC = () => {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [feedMode, setFeedMode] = useState<'campus' | 'global'>(currentUser ? 'campus' : 'global');
+    const [feedMode, setFeedMode] = useState<'campus' | 'global'>(() => currentUser?.university ? 'campus' : 'global');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [customAuthMessage, setCustomAuthMessage] = useState<string | undefined>(undefined);
-
-    useEffect(() => {
-        if (currentUser) {
-            setFeedMode('campus');
-        } else {
-            setFeedMode('global');
-        }
-    }, [currentUser]);
 
     // 1. ZERO-FLICKER INIT: Read cache synchronously
     const [confessions, setConfessions] = useState<Confession[]>([]);
@@ -246,7 +238,7 @@ export const Confessions: React.FC = () => {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [currentUser, sortType, feedMode]);
+    }, [currentUser?.id, currentUser?.university, sortType, feedMode]);
 
 
     // 3. Fetch Logic
@@ -346,7 +338,7 @@ export const Confessions: React.FC = () => {
             });
         }
         setIsLoadingMore(false);
-    }, [currentUser, sortType, feedMode]);
+    }, [currentUser?.id, currentUser?.university, sortType, feedMode]);
 
     // 4. Infinite Scroll
     useEffect(() => {

@@ -194,7 +194,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearTimeout(callTimeoutRef.current);
       }
     };
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const startCall = useCallback((name: string, avatar: string, appIdParam: string, channelNameParam: string, tokenParam: string, type: 'audio' | 'video' = 'video', sessionId: string) => {
     setPartnerName(name);

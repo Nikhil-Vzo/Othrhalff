@@ -117,11 +117,11 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Page Visibility API - detect tab changes (minimize/maximize)
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                // User switched tab/minimized - mark offline immediately (forced DB write)
-                updatePresence(false, true);
+                // User switched tab/minimized - update realtime presence without spamming DB
+                updatePresence(false, false);
             } else {
-                // User returned - mark online immediately (forced DB write)
-                updatePresence(true, true);
+                // User returned - mark online
+                updatePresence(true, false);
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -190,11 +190,11 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Set offline when component unmounts (forced DB write)
             updatePresence(false, true);
         };
-    }, [currentUser, updatePresence]);
+    }, [currentUser?.id, updatePresence]);
 
     // Single global Realtime subscription for all presence updates
     useEffect(() => {
-        if (!currentUser || !supabase) return;
+        if (!currentUser?.id || !supabase) return;
 
         const channel = supabase.channel('global-presence-updates', {
             config: {

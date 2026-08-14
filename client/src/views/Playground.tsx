@@ -52,7 +52,7 @@ export const Playground: React.FC = () => {
 
   // Load saved position and GPS preferences from Dexie IndexedDB
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
     let isMounted = true;
     (async () => {
       try {
@@ -70,11 +70,11 @@ export const Playground: React.FC = () => {
       }
     })();
     return () => { isMounted = false; };
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   // 1. Supabase Broadcast Setup for Real-time Multiplayer
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
 
     let isSubscribed = true;
     setConnectionStatus('CONNECTING');
@@ -117,9 +117,6 @@ export const Playground: React.FC = () => {
         setSpeechBubbles(prev => {
           const m = new Map(prev);
           const current = m.get(payload.id);
-          // Only delete if it's the exact same bubble (timestamp matches)
-          // to prevent deleting a newer bubble that was sent before the old one timed out
-          // but just a simple delete works fine for now if we don't care about overlap edge cases
           m.delete(payload.id);
           return m;
         });
@@ -160,7 +157,7 @@ export const Playground: React.FC = () => {
       setActiveChannel(null);
       supabase.removeChannel(channel);
     };
-  }, [currentUser, sessionId]);
+  }, [currentUser?.id, sessionId]);
 
   // Broadcast our position and animation state to the channel
   const broadcastPosition = useCallback(

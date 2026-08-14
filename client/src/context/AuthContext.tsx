@@ -46,6 +46,27 @@ const mapProfileToAppUser = (profile: any, sessionUser?: any): UserProfile => ({
   isPremium: !!profile?.is_premium
 });
 
+const isUserEqual = (a: UserProfile | null, b: UserProfile | null): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.id === b.id &&
+    a.username === b.username &&
+    a.realName === b.realName &&
+    a.gender === b.gender &&
+    a.university === b.university &&
+    a.universityEmail === b.universityEmail &&
+    a.branch === b.branch &&
+    a.year === b.year &&
+    a.batch === b.batch &&
+    a.bio === b.bio &&
+    a.dob === b.dob &&
+    a.isVerified === b.isVerified &&
+    a.avatar === b.avatar &&
+    a.isPremium === b.isPremium &&
+    JSON.stringify(a.interests) === JSON.stringify(b.interests) &&
+    JSON.stringify(a.lookingFor) === JSON.stringify(b.lookingFor);
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -70,6 +91,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const initRef = useRef(false);
 
+  // Sync Supabase access token to the service worker's IndexedDB
+  const syncTokenToSW = useCallback(async () => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token && reg.active) {
+        reg.active.postMessage({ type: 'SET_AUTH_TOKEN', token: session.access_token });
+      }
+    } catch (e) {
+      console.warn('[SW] Token sync failed:', e);
+    }
+  }, []);
+
   // Load from DB on mount (Optimized: Cache-First) & Listen for Auth State Changes
   useEffect(() => {
     if (!supabase) return;
@@ -78,11 +113,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[AuthContext] Auth event: ${event}`);
 
+      // If this is a background token refresh and we already have a user, DO NOT query DB or re-render!
+      if (event === 'TOKEN_REFRESHED' && authService.getCurrentUser()) {
+        if (session?.access_token) {
+          subscribeToPushNotifications(session.access_token).catch(() => {});
+          syncTokenToSW();
+        }
+        return;
+      }
+
       const isOAuthRedirect = typeof window !== 'undefined' && 
         (window.location.hash.includes('access_token=') || window.location.search.includes('code='));
 
       // Only show loading for first-time / blocking auth transitions (INITIAL_SESSION or SIGNED_IN without a cached user, or active OAuth redirect)
-      // NEVER set isLoading = true during background TOKEN_REFRESHED, USER_UPDATED, or if user is already loaded!
       const shouldShowLoading = (!authService.getCurrentUser() && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) || isOAuthRedirect;
 
       try {
@@ -93,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (session.access_token) {
             subscribeToPushNotifications(session.access_token).catch(() => {});
+            syncTokenToSW();
           }
 
           if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
@@ -107,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (profile && !error) {
             const appUser = mapProfileToAppUser(profile, session.user);
-            setCurrentUser(appUser);
+            setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
             localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
             
             const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
@@ -115,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
             const newAppUser = mapProfileToAppUser({}, session.user);
-            setCurrentUser(newAppUser);
+            setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
             localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
             setNeedsOnboarding(true);
           }
@@ -178,13 +222,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (profile && !error) {
               const appUser = mapProfileToAppUser(profile, activeSession.user);
-              setCurrentUser(appUser);
+              setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
               localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
               const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
               setNeedsOnboarding(needsOnboard);
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
-              setCurrentUser(newAppUser);
+              setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
               localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
             }
@@ -205,23 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-
-
-  // Sync Supabase access token to the service worker's IndexedDB
-  // so background push notification handlers can authenticate API calls
-  const syncTokenToSW = useCallback(async () => {
-    if (!('serviceWorker' in navigator)) return;
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token && reg.active) {
-        reg.active.postMessage({ type: 'SET_AUTH_TOKEN', token: session.access_token });
-      }
-    } catch (e) {
-      console.warn('[Auth] Failed to sync token to SW:', e);
-    }
-  }, []);
+  }, [syncTokenToSW]);
 
   const clearSWToken = useCallback(() => {
     if (!('serviceWorker' in navigator)) return;

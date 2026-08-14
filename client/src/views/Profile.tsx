@@ -64,7 +64,7 @@ export const Profile: React.FC = () => {
         if (!isLoading && !currentUser) {
             navigate.push('/');
         }
-    }, [currentUser, isLoading, navigate]);
+    }, [currentUser?.id, isLoading, navigate]);
 
     // Credentials Manager states
     const [showCredentialsModal, setShowCredentialsModal] = useState(false);

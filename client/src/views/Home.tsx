@@ -182,7 +182,7 @@ export const Home: React.FC = () => {
         } finally {
             if (showLoading) setIsLoading(false);
         }
-    }, [currentUser, filterMode, preloadImages]);
+    }, [currentUser?.id, currentUser?.university, filterMode, preloadImages]);
 
     const fetchSkippedProfiles = useCallback(async (showLoading = true) => {
         if (!currentUser || !supabase) return;
@@ -213,7 +213,7 @@ export const Home: React.FC = () => {
         }
 
         fetchFreshSkippedProfiles(showLoading);
-    }, [currentUser, filterMode, fetchFreshSkippedProfiles, preloadImages]);
+    }, [currentUser?.id, currentUser?.university, filterMode, fetchFreshSkippedProfiles, preloadImages]);
 
     // Load users from Supabase (with caching)
     const fetchFreshData = useCallback(async (showLoading: boolean) => {
@@ -291,7 +291,7 @@ export const Home: React.FC = () => {
         } finally {
             if (showLoading) setIsLoading(false);
         }
-    }, [currentUser, filterMode, preloadImages]);
+    }, [currentUser?.id, currentUser?.university, filterMode, preloadImages]);
 
     const loadDiscoverProfiles = useCallback(async (showLoading = true) => {
         if (!currentUser || !supabase) {
@@ -325,7 +325,7 @@ export const Home: React.FC = () => {
 
         // 2. No valid cache — fetch with loading spinner
         fetchFreshData(showLoading);
-    }, [currentUser, filterMode, fetchFreshData, preloadImages]);
+    }, [currentUser?.id, currentUser?.university, filterMode, fetchFreshData, preloadImages]);
 
     // Load users from Supabase (with caching)
     useEffect(() => {

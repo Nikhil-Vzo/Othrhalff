@@ -154,7 +154,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         } finally {
             if (!isBackground) setLoading(false);
         }
-    }, [currentUser]);
+    }, [currentUser?.id]);
 
     // Debounced Fetcher for Realtime
     const debouncedFetch = useCallback(() => {
@@ -167,7 +167,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     // Realtime Subscription
     useEffect(() => {
-        if (!currentUser) return;
+        if (!currentUser?.id) return;
 
         fetchNotifications();
 
@@ -185,7 +185,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             supabase.removeChannel(channel);
             if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
         };
-    }, [currentUser, debouncedFetch]);
+    }, [currentUser?.id, debouncedFetch]);
 
     // Fetch real-time unread messages count for the chat badge without subscribing to the global messages table.
     useEffect(() => {
@@ -300,7 +300,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             removeMessageChannels();
             matchChannels.forEach(channel => supabase.removeChannel(channel));
         };
-    }, [currentUser]);
+    }, [currentUser?.id]);
 
     const markAsRead = async (id: string) => {
         // 1. Optimistic Update

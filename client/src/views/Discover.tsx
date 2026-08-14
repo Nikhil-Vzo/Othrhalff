@@ -387,7 +387,7 @@ export const Discover: React.FC = () => {
       supabase.removeChannel(newChannel);
       setChannel(null);
     };
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (channel && currentUser) {
@@ -399,7 +399,7 @@ export const Discover: React.FC = () => {
         mode: mode
       });
     }
-  }, [state, mode, channel, currentUser]);
+  }, [state, mode, channel, currentUser?.id]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;

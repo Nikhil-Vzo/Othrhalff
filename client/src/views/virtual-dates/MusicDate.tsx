@@ -306,7 +306,7 @@ export const MusicDate = () => {
         };
 
         fetchMatches();
-    }, [currentUser]);
+    }, [currentUser?.id]);
 
     const handleInviteMatch = async (match: { id: string; partnerName: string }) => {
         setIsConnecting(true);

@@ -77,7 +77,7 @@ export const Sparx: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Feeds and states
-  const [feedMode, setFeedMode] = useState<'campus' | 'global' | 'leaderboard'>('campus');
+  const [feedMode, setFeedMode] = useState<'campus' | 'global' | 'leaderboard'>(() => currentUser?.university ? 'campus' : 'global');
   const [glimpses, setGlimpses] = useState<Glimpse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -270,18 +270,7 @@ export const Sparx: React.FC = () => {
     if (feedMode === 'leaderboard') {
       fetchLeaderboard();
     }
-  }, [feedMode, leaderboardScope, currentUser]);
-
-
-
-  // Sync feed mode default based on auth
-  useEffect(() => {
-    if (currentUser) {
-      setFeedMode('campus');
-    } else {
-      setFeedMode('global');
-    }
-  }, [currentUser]);
+  }, [feedMode, leaderboardScope, currentUser?.id]);
 
   // Check tutorial status on mount
   useEffect(() => {

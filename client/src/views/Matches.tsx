@@ -269,7 +269,7 @@ export const Matches: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   // 3. Debounced Refresh (Prevents flicker/spam)
   const refreshMatches = useCallback(() => {
@@ -391,7 +391,7 @@ export const Matches: React.FC = () => {
       supabase.removeChannel(channelA);
       supabase.removeChannel(channelB);
     };
-  }, [currentUser, refreshMatches]);
+  }, [currentUser?.id, refreshMatches]);
 
   const partnerIds = useMemo(() => {
     return Array.from(new Set(chats.map(chat => chat.partner.id))).sort();
