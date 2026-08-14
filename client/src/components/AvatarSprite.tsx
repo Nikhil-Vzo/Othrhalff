@@ -113,4 +113,6 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       </div>
     </div>
   );
-};
+});
+
+AvatarSprite.displayName = 'AvatarSprite';
