@@ -259,6 +259,19 @@ export const Profile: React.FC = () => {
         setIsEditing(false);
     };
 
+    // Browser navigation / refresh discard protection
+    useEffect(() => {
+        if (!isEditing) return;
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isFormDirty()) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isEditing, editForm, currentUser]);
+
     const saveProfile = async () => {
         if (!editForm || !currentUser || !supabase) return;
         setSaving(true);

@@ -186,7 +186,7 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({
                                 <ul className="space-y-2.5 text-xs text-gray-300">
                                     <li className="flex gap-2">
                                         <span className="w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold">1</span>
-                                        <span>Tap the <strong>Lock Icon</strong> 🔒 in your address bar (top left/bottom).</span>
+                                        <span>Tap the <strong>Lock / Settings icon</strong> in your browser address bar.</span>
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold">2</span>
