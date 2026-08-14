@@ -62,6 +62,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
+  const localAvatarRef = useRef<HTMLDivElement>(null);
 
   const keys = useRef<{ [key: string]: boolean }>({});
 
@@ -347,8 +348,13 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         const offsetY = (vh / 2) - (targetY * zoom);
         
         worldRef.current.style.transformOrigin = '0 0';
-        worldRef.current.style.transition = 'transform 0.5s ease-out'; // Smooth camera moves
-        worldRef.current.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+        worldRef.current.style.transition = sitState === 'SITTING' ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' : 'none';
+        worldRef.current.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${zoom})`;
+      }
+
+      // Keep local avatar sprite transform in sync in real-time
+      if (localAvatarRef.current) {
+        localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y + (sitState === 'SITTING' ? 15 : 0)}px, 0) scale(0.6)`;
       }
 
       // Throttle network broadcast — only broadcast while moving or when stopping
@@ -376,7 +382,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   }, [onPositionChange, onSitRequest, sitState]);
 
   return (
-    <div ref={viewportRef} className="relative w-full h-full bg-black overflow-hidden">
+    <div ref={viewportRef} className="relative w-full h-full bg-black overflow-hidden select-none">
 
       {/* THE WORLD - This pans around underneath the centered camera */}
       <div
@@ -402,11 +408,11 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
           const isNear = dist < zone.radius;
 
           return (
-            <div key={zone.id} className="absolute z-20 pointer-events-none" style={{ transform: `translate(${zone.x}px, ${zone.y}px)` }}>
+            <div key={zone.id} className="absolute z-20 pointer-events-none" style={{ transform: `translate3d(${zone.x}px, ${zone.y}px, 0)` }}>
               {/* Bench Graphic */}
               <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
                 <div className="relative pointer-events-none drop-shadow-2xl">
-                  <img src="/api/bench" alt="Bench" className="w-32 h-auto image-rendering-pixelated drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
+                  <img src="/assets/bench.svg" alt="Bench" className="w-32 h-auto image-rendering-pixelated drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
                   {/* Soft glow for interactivity */}
                   <div className="absolute inset-0 bg-white/5 rounded-sm animate-pulse blur-[5px] -z-10"></div>
                 </div>
@@ -451,6 +457,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         
         {/* Local Player */}
         <AvatarSprite 
+           ref={localAvatarRef}
            x={posRef.current.x}
            y={posRef.current.y}
            direction={localDir}

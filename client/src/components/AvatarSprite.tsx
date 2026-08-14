@@ -23,10 +23,10 @@ const directionToRow = {
   right: 11
 };
 
-export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
+export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(({
   x, y, direction, isMoving, color = '#3b82f6', username = 'Player', isLocal = false,
   speechBubble, isSitting = false, isGpsActive = false
-}) => {
+}, ref) => {
   const [frame, setFrame] = useState(0);
   
   useEffect(() => {
@@ -35,10 +35,10 @@ export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
       return;
     }
     
-    // Cycle through 9 frames of the walk animation at a very slow pace
+    // Cycle through 9 frames of the walk animation at a natural 100ms pace
     const interval = setInterval(() => {
       setFrame(prev => (prev + 1) % 9);
-    }, 300);
+    }, 100);
     
     return () => clearInterval(interval);
   }, [isMoving]);
@@ -52,15 +52,17 @@ export const AvatarSprite: React.FC<AvatarSpriteProps> = ({
 
   return (
     <div 
-      className={`absolute transition-transform duration-[50ms] ease-linear flex flex-col items-center justify-center ${isLocal ? 'z-20' : 'z-10'}`}
+      ref={ref}
+      className={`absolute ${isLocal ? 'z-20' : 'z-10 transition-transform duration-[100ms] ease-linear'} flex flex-col items-center justify-center`}
       style={{ 
-        transform: `translate(${x}px, ${y + (isSitting ? 15 : 0)}px) scale(0.6)`,
+        transform: `translate3d(${x}px, ${y + (isSitting ? 15 : 0)}px, 0) scale(0.6)`,
         width: `${spriteWidth}px`,
         height: `${spriteHeight}px`,
         // Center the sprite precisely on the X,Y coordinates
         marginTop: `-${spriteHeight / 2}px`, 
         marginLeft: `-${spriteWidth / 2}px`,
-        clipPath: isSitting ? 'inset(0 0 35% 0)' : 'none'
+        clipPath: isSitting ? 'inset(0 0 35% 0)' : 'none',
+        willChange: 'transform'
       }}
     >
       {/* The actual animated sprite */}

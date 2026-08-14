@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MapPin, MapPinOff, Users } from 'lucide-react';
+import { MapPin, MapPinOff, Users, Smile, Send } from 'lucide-react';
 import { db } from '../lib/db';
 
 export const Playground: React.FC = () => {
@@ -23,7 +23,7 @@ export const Playground: React.FC = () => {
   const [sitState, setSitState] = useState<'IDLE' | 'SITTING'>('IDLE');
   const [activeBench, setActiveBench] = useState<string | null>(null);
   
-  const EMOJI_LIST = ['😂', '❤️', '🔥', '👍', '😢', '🎉', '👋', '👀', '✨', '💀'];
+  const EMOJI_LIST = ['👍', '👋', '❤️', '🔥', '✨', '👀', '🎉', '😂', '💀'];
 
   // Store the active channel so broadcast Position uses the exact subscribed instance
   const [activeChannel, setActiveChannel] = useState<any>(null);
@@ -452,19 +452,19 @@ export const Playground: React.FC = () => {
         />
       </div>
 
-      {/* Global Chat Input Bar */}
-      <div className="absolute bottom-0 w-full bg-gray-900 border-t border-gray-800 p-3 z-30 flex justify-center">
-        <form onSubmit={handleSendSpeechBubble} className="w-full max-w-2xl flex gap-2 relative">
+      {/* Global Chat Input Bar — elevated above mobile navbar with safe-area spacing */}
+      <div className="absolute bottom-16 md:bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center">
+        <form onSubmit={handleSendSpeechBubble} className="w-full max-w-2xl flex items-center gap-2 relative">
           
-          {/* Quick Emoji Picker */}
+          {/* Quick Reaction Tray */}
           {showEmojiPicker && (
-            <div className="absolute bottom-full left-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg p-2 shadow-2xl flex flex-wrap gap-1 w-64 z-50">
+            <div className="absolute bottom-full left-0 mb-2 bg-[#0b0314]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex flex-wrap gap-1.5 w-64 z-50 animate-in fade-in slide-in-from-bottom-2">
               {EMOJI_LIST.map(emoji => (
                 <button
                   key={emoji}
                   type="button"
                   onClick={() => handleEmojiClick(emoji)}
-                  className="text-xl hover:bg-gray-700 p-2 rounded transition-colors"
+                  className="text-lg hover:bg-white/10 p-2 rounded-xl transition-all active:scale-95"
                 >
                   {emoji}
                 </button>
@@ -475,25 +475,27 @@ export const Playground: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="px-4 py-2 bg-gray-800 text-xl rounded-full border border-gray-700 hover:bg-gray-700 transition-colors"
+            aria-label="Reactions"
+            className="w-10 h-10 flex items-center justify-center bg-gray-900/80 hover:bg-gray-800 text-gray-300 rounded-full border border-white/10 transition-colors shrink-0 active:scale-95"
           >
-            😀
+            <Smile className="w-5 h-5 text-gray-300" />
           </button>
 
           <input
             type="text"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Say something to people nearby..."
-            className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-full border border-gray-700 focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition-colors"
+            placeholder="Say something nearby..."
+            className="flex-1 bg-gray-900/90 text-white placeholder-gray-500 px-4 py-2.5 rounded-full border border-white/10 focus:outline-none focus:border-neon text-xs md:text-sm transition-colors"
             maxLength={100}
           />
           <button 
             type="submit"
             disabled={!chatInput.trim()}
-            className="px-6 py-2 bg-neon text-white font-bold rounded-full hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2.5 bg-neon hover:bg-pink-600 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-wider rounded-full shadow-md shadow-neon/20 transition-all flex items-center gap-1.5 shrink-0 active:scale-95"
           >
-            Say
+            <span>Say</span>
+            <Send className="w-3.5 h-3.5" />
           </button>
         </form>
       </div>
