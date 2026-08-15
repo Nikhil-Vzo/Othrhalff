@@ -62,23 +62,11 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   const t = currentTrack;
   const art = t?.image || '/sparxfm-wall.jpg';
   const dur = Number(t?.duration) || 240;
-  const touchStartY = useRef<number | null>(null);
 
   return (
-    <div 
-      className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans"
-      onTouchStart={(e) => {
-        touchStartY.current = e.touches[0].clientY;
-      }}
-      onTouchEnd={(e) => {
-        if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 50) {
-          onToggleSidebar(); // Swipe up anywhere to open chat/requests panel
-        }
-        touchStartY.current = null;
-      }}
-    >
+    <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
       {/* 🌟 Background: FM.png Aesthetic Campus Wallpaper */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <img
           src={DEFAULT_BG}
           alt="Sparx FM Ambient"
@@ -98,7 +86,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         {/* Left: Back / Leave Button */}
         <button
           onClick={onBack}
-          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/50 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/70 flex items-center justify-center transition-all active:scale-90 shadow-lg"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/50 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/70 flex items-center justify-center transition-all active:scale-90 shadow-lg cursor-pointer"
           title="Back to Sparx Hub"
           aria-label="Back"
         >
@@ -112,12 +100,24 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right Corner: Desktop 3-Bars Toggle vs. Mobile Admin Badge (or Empty for regular user on mobile) */}
+        {/* Right Corner: Admin Badge (if admin) + 3-Bars Menu Toggle Button */}
         <div className="flex items-center gap-2">
-          {/* 💻 PC / Desktop: 3-Bars Menu Button that Toggles (Open & Close) */}
+          {/* Admin DJ Shield Badge (Only for Admins) */}
+          {isAdmin && onToggleAdminPanel && (
+            <button
+              onClick={onToggleAdminPanel}
+              className="relative p-2 sm:p-2.5 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] active:scale-90 transition-all text-white border border-white/20 flex items-center justify-center cursor-pointer"
+              title="Admin DJ Quick Panel"
+              aria-label="Admin DJ Quick Panel"
+            >
+              <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          )}
+
+          {/* 3-Bars Menu Button (Toggles Requests & Live Chat Panel Open/Close) */}
           <button
             onClick={onToggleSidebar}
-            className={`hidden md:flex relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg items-center justify-center group cursor-pointer ${
+            className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg flex items-center justify-center group cursor-pointer ${
               isSidebarOpen 
                 ? 'bg-pink-600/40 border-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.7)]' 
                 : 'bg-black/60 border-pink-500/50 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)] hover:shadow-[0_0_25px_rgba(236,72,153,0.7)]'
@@ -134,23 +134,6 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 ring-2 ring-black animate-pulse" />
             )}
           </button>
-
-          {/* 📱 Phone / Mobile: Admin Shield Badge in the top right (Only for Admins) */}
-          {isAdmin && onToggleAdminPanel && (
-            <button
-              onClick={onToggleAdminPanel}
-              className="flex md:hidden relative p-2.5 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] active:scale-90 transition-all text-white border border-white/20 items-center justify-center cursor-pointer"
-              title="Admin DJ Quick Panel"
-              aria-label="Admin DJ Quick Panel"
-            >
-              <Shield className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* 📱 Phone / Mobile: Empty placeholder for non-admin to keep center pill perfectly centered */}
-          {!isAdmin && (
-            <div className="flex md:hidden w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
-          )}
         </div>
       </header>
 
@@ -162,53 +145,23 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       )}
 
-      {/* 💬 Live Floating On-Screen Chat Stream */}
+      {/* 💬 Sleek Live Stream Comment Feed (Subtle Bottom-Left Overlay, Non-Intrusive) */}
       {floatingChatMessages && floatingChatMessages.length > 0 && (
-        <div className="relative z-20 px-4 max-w-md mx-auto w-full flex flex-col items-center gap-2 pointer-events-none my-auto">
+        <div className="absolute left-4 sm:left-6 bottom-24 sm:bottom-28 z-20 pointer-events-none flex flex-col items-start gap-1.5 max-w-[85%] sm:max-w-md">
           {floatingChatMessages.map((msg) => (
             <div
               key={msg.id}
-              className="pointer-events-auto bg-[#140c18]/85 hover:bg-[#140c18]/95 backdrop-blur-2xl border border-pink-500/30 px-4 py-2 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.8)] text-xs text-white flex items-center gap-2 max-w-full animate-bounce"
-              style={{ animationIterationCount: 1, animationDuration: '0.4s' }}
+              className="bg-black/50 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-full shadow-md text-xs text-white flex items-center gap-2 max-w-full animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-none"
             >
-              <span className="font-bold text-pink-400 shrink-0">{msg.user}:</span>
-              <span className="text-white/90 truncate">{msg.text}</span>
+              <span className="font-bold text-pink-300 shrink-0">{msg.user}:</span>
+              <span className="text-white/90 truncate font-normal">{msg.text}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* 🎨 Center Area: Clean Wallpaper + Mobile-Only Swipe/Tap Gesture Hint */}
-      <main className="relative z-10 flex-1 flex flex-col justify-end items-center pb-2.5 pointer-events-none">
-        {/* Only visible on mobile/phones, completely hidden on PC */}
-        <button
-          onClick={onToggleSidebar}
-          className="pointer-events-auto flex md:hidden items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-xl border border-white/10 hover:border-pink-500/40 text-white/70 hover:text-white transition-all active:scale-95 group shadow-lg cursor-pointer"
-          title="Swipe up or tap for Requests & Chat"
-          aria-label="Swipe up for requests and chat"
-        >
-          {/* Animated SVG Finger Pointing / Swiping Up Vector */}
-          <div className="w-5 h-5 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-300 group-hover:scale-110 transition-transform">
-            <svg 
-              className="w-3.5 h-3.5 text-pink-300 animate-bounce" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2.2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
-              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
-              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
-              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
-            </svg>
-          </div>
-          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-white/80 group-hover:text-pink-200 transition-colors">
-            Swipe up to chat & req
-          </span>
-        </button>
-      </main>
+      {/* 🎨 Center Area: Clean Wallpaper */}
+      <main className="relative z-10 flex-1 pointer-events-none" />
 
       {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule with Glowing Accents) */}
       <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">

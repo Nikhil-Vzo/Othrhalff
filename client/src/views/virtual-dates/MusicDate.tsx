@@ -468,11 +468,25 @@ export const MusicDate = () => {
         }
     };
 
+    // Chat Timestamp Formatter (< 1m: just now, < 60m: X min ago, > 60m: X hr(s) ago, > 24h: X day(s) ago)
+    const formatChatTimestamp = (timestamp?: number) => {
+        if (!timestamp) return 'just now';
+        const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+        if (diffSec < 60) return 'just now';
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `${diffMin} min ago`;
+        const diffHrs = Math.floor(diffMin / 60);
+        if (diffHrs === 1) return '1 hr ago';
+        if (diffHrs < 24) return `${diffHrs} hrs ago`;
+        const diffDays = Math.floor(diffHrs / 24);
+        return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+    };
+
     // Chat State
     const [showChat, setShowChat] = useState(false);
     const [showUsersList, setShowUsersList] = useState(false);
-    const [messages, setMessages] = useState<{ user: string, text: string }[]>([
-        { user: 'System', text: 'Welcome to the Music Jam!' }
+    const [messages, setMessages] = useState<{ user: string, text: string, createdAt?: number }[]>([
+        { user: 'System', text: 'Welcome to the Music Jam!', createdAt: Date.now() }
     ]);
     const [newMessage, setNewMessage] = useState('');
 
@@ -677,7 +691,7 @@ export const MusicDate = () => {
             .on('presence', { event: 'leave' }, updatePresenceState)
             .on('broadcast', { event: 'LIVE_CHAT_MSG' }, ({ payload }) => {
                 if (payload && payload.text) {
-                    setMessages(prev => [...prev.slice(-149), { user: payload.user, text: payload.text }]);
+                    setMessages(prev => [...prev.slice(-149), { user: payload.user, text: payload.text, createdAt: payload.createdAt || Date.now() }]);
                     addFloatingNotification(payload.user, payload.text);
                 }
             })
@@ -2322,7 +2336,7 @@ export const MusicDate = () => {
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
-        const msg = { user: displayName, text: newMessage };
+        const msg = { user: displayName, text: newMessage, createdAt: Date.now() };
         setMessages(prev => [...prev.slice(-149), msg]);
         addFloatingNotification(displayName, newMessage);
 
@@ -2333,7 +2347,7 @@ export const MusicDate = () => {
                 payload: msg
             });
         } else {
-            broadcastData({ type: 'CHAT', text: newMessage });
+            broadcastData({ type: 'CHAT', text: newMessage, createdAt: Date.now() });
         }
         setNewMessage('');
     };
@@ -3374,13 +3388,17 @@ export const MusicDate = () => {
                                     <span className="font-bold text-gray-300 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-violet-400" /> Chat</span>
                                     <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
                                     {messages.map((msg, i) => (
                                         <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
+                                            <div className="flex items-center gap-1.5 px-1 mb-0.5 text-[10px]">
+                                                <span className="font-semibold text-gray-300">{msg.user}</span>
+                                                <span className="text-gray-600">•</span>
+                                                <span className="text-gray-400 font-mono text-[9px]">{formatChatTimestamp(msg.createdAt)}</span>
+                                            </div>
+                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`}>
                                                 {msg.text}
                                             </div>
-                                            <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -3515,16 +3533,20 @@ export const MusicDate = () => {
                         ) : (
                             /* Live Chat Tab */
                             <div className="flex-1 flex flex-col overflow-hidden">
-                                <div data-sheet-scroll className="flex-1 overflow-y-auto p-4 space-y-3">
+                                <div data-sheet-scroll className="flex-1 overflow-y-auto p-4 space-y-3.5">
                                     {messages.length === 0 && (
                                         <p className="text-gray-600 text-sm text-center mt-8 italic">No messages yet. Say something!</p>
                                     )}
                                     {messages.map((msg, i) => (
                                         <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
+                                            <div className="flex items-center gap-1.5 px-1 mb-0.5 text-[10px]">
+                                                <span className="font-semibold text-gray-300">{msg.user}</span>
+                                                <span className="text-gray-600">•</span>
+                                                <span className="text-gray-400 font-mono text-[9px]">{formatChatTimestamp(msg.createdAt)}</span>
+                                            </div>
+                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`}>
                                                 {msg.text}
                                             </div>
-                                            <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
                                         </div>
                                     ))}
                                 </div>
