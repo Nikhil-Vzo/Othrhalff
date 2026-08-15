@@ -6,6 +6,8 @@ import { ShareRoomModal } from '../../components/ShareRoomModal';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
+import { getIceServers } from '../../utils/webrtc';
+import { hashPasscode } from '../../utils/security';
 import { curatedRomanticTracks, trendingRomanticQueries } from '../../data/pcoRomanticTracks';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'room';
@@ -919,7 +921,8 @@ export const MusicDate = () => {
                     // Check Passcode if joining existing private room
                     if (activeHostId && dbIsPrivate) {
                         const effectivePasscode = roomPasscodeRef.current || roomPasscode;
-                        if (effectivePasscode !== dbPasscode) {
+                        const effectiveHash = effectivePasscode ? await hashPasscode(effectivePasscode) : null;
+                        if (effectivePasscode !== dbPasscode && effectiveHash !== dbPasscode) {
                             setNeedsPasscode(true);
                             setIsConnecting(false);
                             return; // Halt initialization until passcode is provided
@@ -964,10 +967,7 @@ export const MusicDate = () => {
                     const peerConfig: any = {
                         debug: 2,
                         config: {
-                            iceServers: [
-                                { urls: 'stun:stun.l.google.com:19302' },
-                                { urls: 'stun:global.stun.twilio.com:3478' }
-                            ]
+                            iceServers: getIceServers()
                         }
                     };
 
@@ -980,6 +980,8 @@ export const MusicDate = () => {
                         if (currentIsHost) {
                             if (supabase) {
                                 try {
+                                    const rawPass = roomPasscodeRef.current || roomPasscode;
+                                    const storedPasscode = rawPass ? await hashPasscode(rawPass) : null;
                                     await supabase
                                         .from('active_rooms')
                                         .upsert({
@@ -987,7 +989,7 @@ export const MusicDate = () => {
                                             host_peer_id: id,
                                             updated_at: new Date().toISOString(),
                                             is_private: isPrivateRoomRef.current,
-                                            passcode: roomPasscodeRef.current,
+                                            passcode: storedPasscode,
                                             participant_count: 1,
                                             host_user_id: currentUser?.id
                                         });
@@ -2180,17 +2182,20 @@ export const MusicDate = () => {
                                 onClick={async () => {
                                     if (!supabase) return;
                                     try {
+                                        const enteredHash = await hashPasscode(enteredPasscode);
                                         const { data, error } = await supabase
                                             .from('active_rooms')
-                                            .select('room_id')
+                                            .select('room_id, passcode')
                                             .eq('room_id', roomCode)
-                                            .eq('passcode', enteredPasscode)
                                             .maybeSingle();
                                         if (error || !data) {
                                             setPasscodeError('Incorrect passcode');
-                                        } else {
-                                            setRoomPasscode(enteredPasscode);
+                                        } else if (data.passcode === enteredHash || data.passcode === enteredPasscode) {
+                                            setRoomPasscode(enteredHash);
+                                            roomPasscodeRef.current = enteredHash;
                                             setNeedsPasscode(false);
+                                        } else {
+                                            setPasscodeError('Incorrect passcode');
                                         }
                                     } catch (err) {
                                         setPasscodeError('Failed to verify passcode');

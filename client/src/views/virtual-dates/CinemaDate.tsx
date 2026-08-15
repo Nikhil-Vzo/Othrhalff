@@ -7,6 +7,8 @@ import Peer, { DataConnection } from 'peerjs';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
+import { getIceServers } from '../../utils/webrtc';
+import { hashPasscode } from '../../utils/security';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'select' | 'youtube' | 'file' | 'screen' | 'viewer';
 
@@ -556,7 +558,8 @@ export const CinemaDate: React.FC = () => {
                     // Check Passcode if joining existing private room
                     if (activeHostId && dbIsPrivate) {
                         const effectivePasscode = roomPasscodeRef.current || roomPasscode;
-                        if (effectivePasscode !== dbPasscode) {
+                        const effectiveHash = effectivePasscode ? await hashPasscode(effectivePasscode) : null;
+                        if (effectivePasscode !== dbPasscode && effectiveHash !== dbPasscode) {
                             setNeedsPasscode(true);
                             setIsConnecting(false);
                             return; // Halt initialization until passcode is provided
@@ -599,10 +602,7 @@ export const CinemaDate: React.FC = () => {
                     const peerConfig: any = {
                         debug: 2,
                         config: {
-                            iceServers: [
-                                { urls: 'stun:stun.l.google.com:19302' },
-                                { urls: 'stun:global.stun.twilio.com:3478' }
-                            ]
+                            iceServers: getIceServers()
                         }
                     };
 
@@ -615,13 +615,15 @@ export const CinemaDate: React.FC = () => {
                         if (currentIsHost) {
                             if (supabase) {
                                 try {
+                                    const rawPass = roomPasscodeRef.current || roomPasscode;
+                                    const storedPasscode = rawPass ? await hashPasscode(rawPass) : null;
                                     await supabase
                                         .from('active_rooms')
                                         .upsert({
                                             room_id: roomCode,
                                             host_peer_id: id,
                                             is_private: isPrivateRoom,
-                                            passcode: roomPasscodeRef.current || roomPasscode,
+                                            passcode: storedPasscode,
                                             updated_at: new Date().toISOString(),
                                             host_user_id: currentUser?.id
                                         });
@@ -2254,17 +2256,20 @@ export const CinemaDate: React.FC = () => {
                                 onClick={async () => {
                                     if (!supabase) return;
                                     try {
+                                        const enteredHash = await hashPasscode(enteredPasscode);
                                         const { data, error } = await supabase
                                             .from('active_rooms')
-                                            .select('room_id')
+                                            .select('room_id, passcode')
                                             .eq('room_id', roomCode)
-                                            .eq('passcode', enteredPasscode)
                                             .maybeSingle();
                                         if (error || !data) {
                                             setPasscodeError('Incorrect passcode');
-                                        } else {
-                                            setRoomPasscode(enteredPasscode);
+                                        } else if (data.passcode === enteredHash || data.passcode === enteredPasscode) {
+                                            setRoomPasscode(enteredHash);
+                                            roomPasscodeRef.current = enteredHash;
                                             setNeedsPasscode(false);
+                                        } else {
+                                            setPasscodeError('Incorrect passcode');
                                         }
                                     } catch (err) {
                                         setPasscodeError('Failed to verify passcode');
