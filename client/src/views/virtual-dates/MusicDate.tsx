@@ -2872,16 +2872,16 @@ export const MusicDate = () => {
                 }`}>
                     {showLyrics ? (
                         <>
-                            <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-4 sm:p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-start justify-start scroll-smooth z-40 [perspective:1400px]">
-                                {/* Close Lyrics Button */}
-                                <button
-                                    onClick={() => setShowLyrics(false)}
-                                    className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2.5 sm:p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-full text-white/90 z-50 backdrop-blur-md active:scale-95 transition-all shadow-lg"
-                                    title="Close Lyrics"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
+                            {/* Fixed Close Lyrics Button - Pinned outside the scrollable container so it never scrolls */}
+                            <button
+                                onClick={() => setShowLyrics(false)}
+                                className="fixed sm:absolute top-4 sm:top-6 right-4 sm:right-6 p-2.5 sm:p-3 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full text-white z-50 backdrop-blur-xl active:scale-95 transition-all shadow-2xl cursor-pointer"
+                                title="Close Lyrics"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
 
+                            <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-4 sm:p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-start justify-start scroll-smooth z-40 [perspective:1400px]">
                                 {isLoadingLyrics ? (
                                     <div className="flex-1 flex flex-col items-center justify-center h-full w-full gap-3">
                                         <Loader className="w-10 h-10 text-pink-500 animate-spin" />
