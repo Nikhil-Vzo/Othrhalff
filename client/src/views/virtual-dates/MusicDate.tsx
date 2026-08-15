@@ -160,7 +160,7 @@ export const MusicDate = () => {
         myStreamRef.current = myStream;
     }, [roomHostId, roomCode, myPeerId, peers, isHost, myStream]);
 
-    // Helper: Create Dummy Stream (Cached & AudioContext Safe) for Spectators/Errors
+    // Helper: Create Dummy Stream (Cached, AudioContext & iOS Safari Safe)
     const createDummyStream = () => {
         if (dummyStreamRef.current && dummyStreamRef.current.active) {
             return dummyStreamRef.current;
@@ -179,22 +179,38 @@ export const MusicDate = () => {
         }
         const videoTrack = canvas.captureStream(30).getVideoTracks()[0];
 
-        if (!dummyAudioCtxRef.current || dummyAudioCtxRef.current.state === 'closed') {
-            dummyAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        const dst = dummyAudioCtxRef.current.createMediaStreamDestination();
-        const audioTrack = dst.stream.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = false;
+        let audioTrack: MediaStreamTrack | null = null;
+        try {
+            if (!dummyAudioCtxRef.current || dummyAudioCtxRef.current.state === 'closed') {
+                dummyAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+            if (dummyAudioCtxRef.current) {
+                if (dummyAudioCtxRef.current.state === 'suspended') {
+                    const resumeCtx = () => {
+                        dummyAudioCtxRef.current?.resume().catch(() => {});
+                        window.removeEventListener('click', resumeCtx);
+                        window.removeEventListener('touchstart', resumeCtx);
+                    };
+                    window.addEventListener('click', resumeCtx, { once: true });
+                    window.addEventListener('touchstart', resumeCtx, { once: true });
+                }
+                const dst = dummyAudioCtxRef.current.createMediaStreamDestination();
+                audioTrack = dst.stream.getAudioTracks()[0] || null;
+                if (audioTrack) {
+                    audioTrack.enabled = false;
+                }
+            }
+        } catch (audioErr) {
+            console.warn("AudioContext setup deferred for user gesture:", audioErr);
         }
 
-        const stream = new MediaStream([videoTrack, audioTrack].filter(Boolean));
+        const stream = new MediaStream([videoTrack, audioTrack].filter(Boolean) as MediaStreamTrack[]);
         dummyStreamRef.current = stream;
         return stream;
     };
 
     const handleHostDisconnect = async () => {
-        setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
+        setMessages(prev => [...prev.slice(-149), { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
         
         // 1. Query active open connections as source of truth for peer election
         const connectedPeerIds = Object.keys(connections.current).filter(
@@ -225,7 +241,7 @@ export const MusicDate = () => {
                             participant_count: connectedPeerIds.length + 1,
                             host_user_id: currentUser?.id
                         });
-                    setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
                     console.error("Error registering elected host in Supabase:", err);
                 }
@@ -689,7 +705,7 @@ export const MusicDate = () => {
             .on('presence', { event: 'leave' }, updatePresenceState)
             .on('broadcast', { event: 'LIVE_CHAT_MSG' }, ({ payload }) => {
                 if (payload && payload.text) {
-                    setMessages(prev => [...prev, { user: payload.user, text: payload.text }]);
+                    setMessages(prev => [...prev.slice(-149), { user: payload.user, text: payload.text }]);
                     addFloatingNotification(payload.user, payload.text);
                 }
             })
@@ -699,7 +715,7 @@ export const MusicDate = () => {
                     setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
                     triggerPinnedBanner(`📢 Playing Next: "${payload.track.song}" (Requested by ${payload.requester})`);
                     addFloatingNotification('System', `Playing Next: "${payload.track.song}" (by ${payload.requester})`);
-                    setMessages(prev => [...prev, { user: 'System', text: `⏭️ Queued Next: "${payload.track.song}" (Requested by ${payload.requester})` }]);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `⏭️ Queued Next: "${payload.track.song}" (Requested by ${payload.requester})` }]);
                     
                     if (isAdminUser) {
                         setAdminRequestModal({ requester: payload.requester, track: payload.track });
@@ -712,7 +728,7 @@ export const MusicDate = () => {
                     setIsPlaying(true);
                     triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
                     addFloatingNotification('System', `Now Playing: "${payload.track.song}"`);
-                    setMessages(prev => [...prev, { user: 'System', text: `Now Playing: "${payload.track.song}"` }]);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Now Playing: "${payload.track.song}"` }]);
                 }
             })
             .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
@@ -720,7 +736,7 @@ export const MusicDate = () => {
                     setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
                     triggerPinnedBanner(`⏭️ Playing Next: "${payload.track.song}"`);
                     addFloatingNotification('System', `Admin Queued Next: "${payload.track.song}"`);
-                    setMessages(prev => [...prev, { user: 'System', text: `Admin Queued Next: "${payload.track.song}"` }]);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Admin Queued Next: "${payload.track.song}"` }]);
                 }
             })
             .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
@@ -728,7 +744,7 @@ export const MusicDate = () => {
                     setQueue(prev => [...prev, payload.track]);
                     triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
                     addFloatingNotification('System', `Added to Queue: "${payload.track.song}"`);
-                    setMessages(prev => [...prev, { user: 'System', text: `Added to Queue: "${payload.track.song}"` }]);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Added to Queue: "${payload.track.song}"` }]);
                 }
             })
             .subscribe(async (status) => {
@@ -1025,8 +1041,27 @@ export const MusicDate = () => {
                         }
                     });
 
+                    const attachIceMonitoring = (c: any) => {
+                        const pc = c?.peerConnection;
+                        if (pc) {
+                            pc.addEventListener('iceconnectionstatechange', () => {
+                                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${c.peer}. Attempting ICE restart...`);
+                                    try {
+                                        if (typeof pc.restartIce === 'function') {
+                                            pc.restartIce();
+                                        }
+                                    } catch (e) {
+                                        console.error("ICE restart error:", e);
+                                    }
+                                }
+                            });
+                        }
+                    };
+
                     peer.on('call', (call) => {
                         console.log('Receiving call from:', call.peer);
+                        attachIceMonitoring(call);
                         call.answer(stream);
                         call.on('stream', (remoteStream) => {
                             console.log('Received remote stream from host:', remoteStream.getTracks());
@@ -1131,6 +1166,22 @@ export const MusicDate = () => {
             }
         });
 
+        const pc = (call as any)?.peerConnection;
+        if (pc) {
+            pc.addEventListener('iceconnectionstatechange', () => {
+                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${targetId}. Attempting ICE restart...`);
+                    try {
+                        if (typeof pc.restartIce === 'function') {
+                            pc.restartIce();
+                        }
+                    } catch (e) {
+                        console.error("ICE restart error:", e);
+                    }
+                }
+            });
+        }
+
         call.on('stream', (remoteStream) => {
             setPeers(prev => {
                 if (prev.find(p => p.peerId === targetId)) return prev;
@@ -1183,7 +1234,7 @@ export const MusicDate = () => {
         conn.on('data', (data: any) => handleDataMessage(data, conn.peer));
         conn.on('close', () => {
             const leaveName = peerNamesRef.current[conn.peer] || conn.peer.substring(0, 5);
-            setMessages(prev => [...prev, { user: 'System', text: `${leaveName} left the jam` }]);
+            setMessages(prev => [...prev.slice(-149), { user: 'System', text: `${leaveName} left the jam` }]);
             setPeers(prev => prev.filter(p => p.peerId !== conn.peer));
             delete connections.current[conn.peer];
         });
@@ -1192,10 +1243,10 @@ export const MusicDate = () => {
     const handleDataMessage = (data: any, senderId: string) => {
         if (data.type === 'IDENTITY') {
             setPeerNames(prev => ({ ...prev, [senderId]: data.payload.name }));
-            setMessages(prev => [...prev, { user: 'System', text: `${data.payload.name} joined the jam` }]);
+            setMessages(prev => [...prev.slice(-149), { user: 'System', text: `${data.payload.name} joined the jam` }]);
         } else if (data.type === 'CHAT') {
             const senderName = peerNames[senderId] || senderId.substring(0, 5);
-            setMessages(prev => [...prev, { user: senderName, text: data.text }]);
+            setMessages(prev => [...prev.slice(-149), { user: senderName, text: data.text }]);
         } else if (data.type === 'SYNC_PLAYER') {
             if (data.action === 'track') {
                 setCurrentTrack(data.payload);
@@ -1441,6 +1492,9 @@ export const MusicDate = () => {
     }, [searchQuery]);
 
     const parseLyrics = (lrcString: string) => {
+        const offsetMatch = lrcString.match(/\[offset:([+-]?\d+)\]/i);
+        const globalOffset = offsetMatch ? parseInt(offsetMatch[1], 10) / 1000 : 0;
+
         const lines = lrcString.split('\n');
         const lyricsList: LyricLine[] = [];
         const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
@@ -1450,7 +1504,7 @@ export const MusicDate = () => {
                 const minutes = parseInt(match[1]);
                 const seconds = parseInt(match[2]);
                 const ms = parseInt(match[3].padEnd(3, '0'));
-                const time = minutes * 60 + seconds + ms / 1000;
+                const time = Math.max(0, minutes * 60 + seconds + ms / 1000 + globalOffset);
                 const text = line.replace(timeRegex, '').trim();
                 if (text) lyricsList.push({ time, text });
             }
@@ -1596,7 +1650,7 @@ export const MusicDate = () => {
                 broadcastSync('queue_sync', { payload: remaining });
             }
 
-            setMessages(prev => [...prev, { 
+            setMessages(prev => [...prev.slice(-149), { 
                 user: 'System', 
                 text: `🎵 Imported ${resolvedTracks.length} songs from playlist into queue!` 
             }]);
@@ -1952,11 +2006,31 @@ export const MusicDate = () => {
         };
     }, []);
 
+    // Host heartbeat to keep active_rooms fresh in Supabase (30s interval)
+    useEffect(() => {
+        if (!isHost || !roomCode || !supabase) return;
+        const heartbeat = setInterval(async () => {
+            try {
+                if (supabase && roomCodeRef.current && myPeerIdRef.current) {
+                    await supabase
+                        .from('active_rooms')
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('room_id', roomCodeRef.current)
+                        .eq('host_peer_id', myPeerIdRef.current);
+                }
+            } catch (err) {
+                console.warn("Heartbeat update error:", err);
+            }
+        }, 30000);
+
+        return () => clearInterval(heartbeat);
+    }, [isHost, roomCode]);
+
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
         const msg = { user: displayName, text: newMessage };
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => [...prev.slice(-149), msg]);
         addFloatingNotification(displayName, newMessage);
 
         if (roomCode.includes('Campus_PCO') && supabase) {

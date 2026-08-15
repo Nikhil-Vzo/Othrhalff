@@ -283,7 +283,7 @@ export const CinemaDate: React.FC = () => {
     };
 
     const handleHostDisconnect = async () => {
-        setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
+        setMessages(prev => [...prev.slice(-149), { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
         
         // 1. Query active open connections as source of truth for peer election
         const connectedPeerIds = Object.keys(connections.current).filter(
@@ -315,7 +315,7 @@ export const CinemaDate: React.FC = () => {
                             participant_count: connectedPeerIds.length + 1,
                             host_user_id: currentUser?.id
                         });
-                    setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
                     console.error("Error registering elected host in Supabase:", err);
                 }
@@ -461,7 +461,7 @@ export const CinemaDate: React.FC = () => {
         };
     }, [inRoom]);
 
-    // Helper: Create Dummy Stream (Cached & AudioContext Safe) for Spectators/Errors
+    // Helper: Create Dummy Stream (Cached, AudioContext & iOS Safari Safe)
     const createDummyStream = () => {
         if (dummyStreamRef.current && dummyStreamRef.current.active) {
             return dummyStreamRef.current;
@@ -480,16 +480,32 @@ export const CinemaDate: React.FC = () => {
         }
         const videoTrack = canvas.captureStream(30).getVideoTracks()[0];
 
-        if (!dummyAudioCtxRef.current || dummyAudioCtxRef.current.state === 'closed') {
-            dummyAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        const dst = dummyAudioCtxRef.current.createMediaStreamDestination();
-        const audioTrack = dst.stream.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = false;
+        let audioTrack: MediaStreamTrack | null = null;
+        try {
+            if (!dummyAudioCtxRef.current || dummyAudioCtxRef.current.state === 'closed') {
+                dummyAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+            if (dummyAudioCtxRef.current) {
+                if (dummyAudioCtxRef.current.state === 'suspended') {
+                    const resumeCtx = () => {
+                        dummyAudioCtxRef.current?.resume().catch(() => {});
+                        window.removeEventListener('click', resumeCtx);
+                        window.removeEventListener('touchstart', resumeCtx);
+                    };
+                    window.addEventListener('click', resumeCtx, { once: true });
+                    window.addEventListener('touchstart', resumeCtx, { once: true });
+                }
+                const dst = dummyAudioCtxRef.current.createMediaStreamDestination();
+                audioTrack = dst.stream.getAudioTracks()[0] || null;
+                if (audioTrack) {
+                    audioTrack.enabled = false;
+                }
+            }
+        } catch (audioErr) {
+            console.warn("AudioContext setup deferred for user gesture:", audioErr);
         }
 
-        const stream = new MediaStream([videoTrack, audioTrack].filter(Boolean));
+        const stream = new MediaStream([videoTrack, audioTrack].filter(Boolean) as MediaStreamTrack[]);
         dummyStreamRef.current = stream;
         return stream;
     };
@@ -659,8 +675,27 @@ export const CinemaDate: React.FC = () => {
                         }
                     });
 
+                    const attachIceMonitoring = (c: any) => {
+                        const pc = c?.peerConnection;
+                        if (pc) {
+                            pc.addEventListener('iceconnectionstatechange', () => {
+                                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${c.peer}. Attempting ICE restart...`);
+                                    try {
+                                        if (typeof pc.restartIce === 'function') {
+                                            pc.restartIce();
+                                        }
+                                    } catch (e) {
+                                        console.error("ICE restart error:", e);
+                                    }
+                                }
+                            });
+                        }
+                    };
+
                     peer.on('call', (call) => {
                         console.log('Receiving call from:', call.peer, 'Metadata:', call.metadata);
+                        attachIceMonitoring(call);
                         try {
                             if (call.metadata?.type === 'video') {
                                 console.log('Answering video stream call (no camera back)');
@@ -841,6 +876,22 @@ export const CinemaDate: React.FC = () => {
         });
 
         // Setup Call Events
+        const pc = (call as any)?.peerConnection;
+        if (pc) {
+            pc.addEventListener('iceconnectionstatechange', () => {
+                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${peerId}. Restarting ICE...`);
+                    try {
+                        if (typeof pc.restartIce === 'function') {
+                            pc.restartIce();
+                        }
+                    } catch (e) {
+                        console.error("ICE restart error:", e);
+                    }
+                }
+            });
+        }
+
         call.on('stream', (remoteStream) => {
             console.log('Received stream from', peerId, remoteStream.getTracks());
             addPeerStream(peerId, remoteStream);
@@ -1033,7 +1084,7 @@ export const CinemaDate: React.FC = () => {
 
         conn.on('close', () => {
             const leaveName = peerNamesRef.current[conn.peer] || conn.peer.substring(0, 5);
-            setMessages(prev => [...prev, { user: 'System', text: `${leaveName} left the room` }]);
+            setMessages(prev => [...prev.slice(-149), { user: 'System', text: `${leaveName} left the room` }]);
             removePeer(conn.peer);
             delete connections.current[conn.peer];
         });
@@ -1044,7 +1095,7 @@ export const CinemaDate: React.FC = () => {
             const { name } = data.payload;
             console.log(`Received identity from ${senderId}: ${name}`);
             setPeerNames(prev => ({ ...prev, [senderId]: name }));
-            setMessages(prev => [...prev, { user: 'System', text: `${name} joined the room` }]);
+            setMessages(prev => [...prev.slice(-149), { user: 'System', text: `${name} joined the room` }]);
             if (hostRef.current) {
                 setJoinNotification({ name, timestamp: Date.now() });
             }
@@ -1109,7 +1160,7 @@ export const CinemaDate: React.FC = () => {
             }
         } else if (data.type === 'CHAT') {
             const senderName = peerNamesRef.current[senderId] || senderId.substring(0, 5);
-            setMessages(prev => [...prev, { user: senderName, text: data.text }]);
+            setMessages(prev => [...prev.slice(-149), { user: senderName, text: data.text }]);
 
             // Notification Logic
             if (!showChatRef.current) {
@@ -1119,7 +1170,7 @@ export const CinemaDate: React.FC = () => {
             }
         } else if (data.type === 'LEAVE') {
             const senderName = peerNamesRef.current[senderId] || senderId.substring(0, 5);
-            setMessages(prev => [...prev, { user: 'System', text: `${senderName} has left the room` }]);
+            setMessages(prev => [...prev.slice(-149), { user: 'System', text: `${senderName} has left the room` }]);
             removePeer(senderId);
         }
     };
@@ -1425,6 +1476,20 @@ export const CinemaDate: React.FC = () => {
             const videoTrack = mediaStream.getVideoTracks()[0];
             if (videoTrack) {
                 videoTrack.addEventListener('ended', () => {
+                    // Restore camera track via replaceTrack if available
+                    if (myStreamRef.current && peerInstance.current) {
+                        const camTrack = myStreamRef.current.getVideoTracks()[0];
+                        if (camTrack) {
+                            Object.keys(connections.current).forEach(peerId => {
+                                const callObj = (peerInstance.current as any)?._calls?.[peerId]?.[0] || (peerInstance.current as any)?.connections?.[peerId]?.[0];
+                                const pc = callObj?.peerConnection;
+                                if (pc) {
+                                    const videoSender = pc.getSenders?.().find((s: any) => s.track?.kind === 'video');
+                                    if (videoSender) videoSender.replaceTrack(camTrack).catch(() => {});
+                                }
+                            });
+                        }
+                    }
                     setScreenStream(null);
                     setMode('select');
                     broadcastSync('url', { payload: '', mode: 'select' });
@@ -1438,12 +1503,24 @@ export const CinemaDate: React.FC = () => {
             // Broadcast mode to peers
             broadcastSync('url', { payload: 'SCREEN_SHARE', mode: 'screen' });
 
-            // Send screen stream to all connected peers
-            Object.values(connections.current).forEach(conn => {
-                if (conn.open && peerInstance.current) {
-                    peerInstance.current.call(conn.peer, mediaStream, { metadata: { type: 'video' } });
-                }
-            });
+            // Swap video track using replaceTrack on existing peer connections or fallback to call
+            if (videoTrack && peerInstance.current) {
+                Object.keys(connections.current).forEach(peerId => {
+                    const callObj = (peerInstance.current as any)?._calls?.[peerId]?.[0] || (peerInstance.current as any)?.connections?.[peerId]?.[0];
+                    const pc = callObj?.peerConnection;
+                    let replaced = false;
+                    if (pc) {
+                        const videoSender = pc.getSenders?.().find((s: any) => s.track?.kind === 'video');
+                        if (videoSender) {
+                            videoSender.replaceTrack(videoTrack).catch(() => {});
+                            replaced = true;
+                        }
+                    }
+                    if (!replaced && connections.current[peerId]?.open && peerInstance.current) {
+                        peerInstance.current.call(peerId, mediaStream, { metadata: { type: 'video' } });
+                    }
+                });
+            }
         } catch (err) {
             setError("Screen sharing cancelled or failed.");
             setTimeout(() => setError(null), 3000);
@@ -1534,12 +1611,32 @@ export const CinemaDate: React.FC = () => {
         });
     };
 
+    // Host heartbeat to keep active_rooms fresh in Supabase (30s interval)
+    useEffect(() => {
+        if (!isHost || !roomCode || !supabase) return;
+        const heartbeat = setInterval(async () => {
+            try {
+                if (supabase && roomCodeRef.current && myPeerIdRef.current) {
+                    await supabase
+                        .from('active_rooms')
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('room_id', roomCodeRef.current)
+                        .eq('host_peer_id', myPeerIdRef.current);
+                }
+            } catch (err) {
+                console.warn("Heartbeat update error:", err);
+            }
+        }, 30000);
+
+        return () => clearInterval(heartbeat);
+    }, [isHost, roomCode]);
+
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
         // Local Echo
-        setMessages([...messages, { user: displayName, text: newMessage }]);
+        setMessages(prev => [...prev.slice(-149), { user: displayName, text: newMessage }]);
         // Send
         broadcastData({ type: 'CHAT', text: newMessage });
 

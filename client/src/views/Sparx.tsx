@@ -106,9 +106,11 @@ export const Sparx: React.FC = () => {
   const fetchActiveRooms = async () => {
     if (supabase) {
       try {
+        const cutoffTime = new Date(Date.now() - 120000).toISOString();
         const { data, error } = await supabase
           .from('active_rooms')
-          .select('*');
+          .select('*')
+          .gte('updated_at', cutoffTime);
         if (!error && data) {
           setActiveRooms(data);
         }
