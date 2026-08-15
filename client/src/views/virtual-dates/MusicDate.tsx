@@ -774,6 +774,20 @@ export const MusicDate = () => {
                     setQueue(payload.queue);
                 }
             })
+            .on('broadcast', { event: 'PCO_PLAY_STATE' }, ({ payload }) => {
+                if (payload && typeof payload.playing === 'boolean') {
+                    setIsPlaying(payload.playing);
+                }
+            })
+            .on('broadcast', { event: 'PCO_SEEK' }, ({ payload }) => {
+                if (audioRef.current && payload && typeof payload.time === 'number') {
+                    audioRef.current.currentTime = payload.time;
+                    setCurrentTime(payload.time);
+                }
+            })
+            .on('broadcast', { event: 'PCO_QUEUE_QUERY' }, () => {
+                pcoChannel.send({ type: 'broadcast', event: 'PCO_QUEUE_SYNC', payload: { queue: queueRef.current } });
+            })
             .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
                 triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
                 addFloatingNotification('System', `Admin skipped the song`);

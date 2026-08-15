@@ -2,46 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Shield, 
-  Play, 
-  SkipForward, 
-  PlusCircle, 
-  X, 
-  Check, 
-  Clock, 
-  Music, 
-  Radio, 
-  Users, 
-  TrendingUp, 
-  RefreshCw, 
-  ArrowLeft, 
-  Search, 
-  Volume2, 
-  AlertCircle, 
-  Sparkles,
-  ExternalLink,
-  Trash2,
-  Calendar,
-  UserCheck,
-  ChevronUp,
-  ChevronDown,
-  Flame,
-  ListMusic,
-  Send,
-  Sliders,
-  Copy,
-  Info
-} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { 
-  PcoSongRequest, 
-  PcoTrack, 
-  PcoLiveSchedule,
-  checkIsPcoAdmin, 
-  fetchPcoRequests, 
-  updatePcoSongRequestStatus, 
+import {
+  PcoSongRequest,
+  PcoTrack,
+  checkIsPcoAdmin,
+  fetchPcoRequests,
+  updatePcoSongRequestStatus,
   getPcoAnalytics,
   fetchAdminUsers,
   addAdminUser,
@@ -51,900 +19,774 @@ import {
   broadcastPcoAction
 } from '../services/pcoAdmin';
 
+const FALLBACK_ART = 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg';
+const PRIMARY_OWNERS = [
+  'nikhilyadav200530@gmail.com',
+  'avneeshjha1506@gmail.com',
+  'dpursuit14@gmail.com',
+  'lachavzo11@gmail.com'
+];
+
+type Tab = 'dj' | 'requests' | 'queue' | 'history' | 'admins' | 'console';
+interface LogEntry { t: string; src: string; msg: string }
+
+const fmt = (s: number) => {
+  const m = Math.floor(Math.max(0, s) / 60);
+  const sec = String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0');
+  return `${m}:${sec}`;
+};
+
+const clockAt = (epochSec: number) =>
+  new Date(epochSec * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const ago = (iso?: string) => {
+  if (!iso) return 'now';
+  const m = Math.floor(Math.max(0, Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'now';
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
+};
+
+const artFix = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  if (e.currentTarget.src !== FALLBACK_ART) {
+    e.currentTarget.src = FALLBACK_ART;
+  }
+};
+
 export const PcoAdminDashboard: React.FC = () => {
   const router = useRouter();
   const { currentUser } = useAuth();
-  
+
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'live' | 'requests' | 'schedule' | 'history' | 'analytics' | 'admins'>('live');
-  
-  // Data state
+  const [tab, setTab] = useState<Tab>('dj');
+  const [now, setNow] = useState(Date.now());
+
+  const [channelStatus, setChannelStatus] = useState('CONNECTING');
+  const [listeners, setListeners] = useState(1);
+  const channelRef = useRef<any>(null);
+
+  const [liveTrack, setLiveTrack] = useState<PcoTrack | null>(null);
+  const [startedAt, setStartedAt] = useState(Date.now());
+  const [startOffset, setStartOffset] = useState(0);
+  const [radioPlaying, setRadioPlaying] = useState(true);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+
+  const [queue, setQueue] = useState<PcoTrack[]>([]);
   const [requests, setRequests] = useState<PcoSongRequest[]>([]);
-  const [adminUsersList, setAdminUsersList] = useState<AdminUserRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [listenerCount, setListenerCount] = useState<number>(1);
-  const [searchFilter, setSearchFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'declined' | 'played'>('all');
-  
-  // Live Schedule & Track State
-  const [scheduleState, setScheduleState] = useState<PcoLiveSchedule | null>(null);
-  const [customQueue, setCustomQueue] = useState<PcoTrack[]>([]);
-  const [overriddenCurrentTrack, setOverriddenCurrentTrack] = useState<PcoTrack | null>(null);
+  const [admins, setAdmins] = useState<AdminUserRecord[]>([]);
+  const [analytics, setAnalytics] = useState<{
+    totalRequests: number; pendingRequests: number; todayRequests: number;
+    topTracks: { name: string; artist: string; count: number; image?: string }[];
+  }>({ totalRequests: 0, pendingRequests: 0, todayRequests: 0, topTracks: [] });
 
-  // Global song search in admin
-  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-  const [globalSearchResults, setGlobalSearchResults] = useState<PcoTrack[]>([]);
-  const [isSearchingSongs, setIsSearchingSongs] = useState(false);
-
-  // Admin Team form
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [banner, setBanner] = useState('');
+  const [searchQ, setSearchQ] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<PcoTrack[]>([]);
+  const [histFilter, setHistFilter] = useState<'all' | 'pending' | 'approved' | 'declined' | 'played'>('all');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminRole, setNewAdminRole] = useState<'pco_admin' | 'super_admin'>('pco_admin');
-  const [adminActionMsg, setAdminActionMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const seekTimer = useRef<any>(null);
 
-  // DJ Broadcast
-  const [broadcastText, setBroadcastText] = useState('');
-  const [broadcastFeedback, setBroadcastFeedback] = useState<string | null>(null);
-  const [showSqlTip, setShowSqlTip] = useState(false);
-  const [sqlCopied, setSqlCopied] = useState(false);
+  const log = (src: string, msg: string) =>
+    setLogs(prev => [...prev.slice(-199), { t: new Date().toLocaleTimeString(), src, msg }]);
 
-  const [analyticsData, setAnalyticsData] = useState<{
-    totalRequests: number;
-    pendingRequests: number;
-    todayRequests: number;
-    topTracks: { name: string; artist: string; count: number; image?: string }[];
-  }>({
-    totalRequests: 0,
-    pendingRequests: 0,
-    todayRequests: 0,
-    topTracks: []
-  });
+  const flash = (m: string) => {
+    setNote(m);
+    setTimeout(() => setNote(null), 3000);
+  };
 
-  // 1. Verify Admin Status
+  /* 1. Auth Gate */
   useEffect(() => {
     let isMounted = true;
-    const verify = async () => {
-      let authEmail: string | null = null;
+    (async () => {
+      let email: string | null = null;
       if (supabase) {
         try {
           const { data } = await supabase.auth.getUser();
-          authEmail = data?.user?.email || null;
+          email = data?.user?.email || null;
         } catch (_) {}
       }
-
-      const hasAdmin = await checkIsPcoAdmin(currentUser, authEmail);
-      if (isMounted) {
-        setIsAdmin(hasAdmin);
-      }
-    };
-
-    verify();
+      const ok = await checkIsPcoAdmin(currentUser, email);
+      if (isMounted) setIsAdmin(ok);
+    })();
     return () => { isMounted = false; };
   }, [currentUser]);
 
-  // 2. Refresh live scheduled song timer
+  /* 2. Clock Tick */
   useEffect(() => {
-    const updateSchedule = () => {
-      const sched = getPcoLiveSchedule();
-      setScheduleState(sched);
-    };
-    updateSchedule();
-    const interval = setInterval(updateSchedule, 1000);
-    return () => clearInterval(interval);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  // 3. Fetch Requests, Analytics & Admin Team
-  const loadDashboardData = async () => {
-    setIsLoading(true);
+  const reload = async () => {
     try {
-      const [allReqs, analytics, admins] = await Promise.all([
-        fetchPcoRequests('all', 100),
+      const [r, a, ad] = await Promise.all([
+        fetchPcoRequests('all', 200),
         getPcoAnalytics(),
         fetchAdminUsers()
       ]);
-      setRequests(allReqs);
-      setAnalyticsData(analytics);
-      setAdminUsersList(admins);
+      setRequests(r);
+      setAnalytics(a);
+      setAdmins(ad);
     } catch (err) {
-      console.warn('[PCO Admin] Data loading notice:', err);
-    } finally {
-      setIsLoading(false);
+      console.warn('[PCO Console] Reload error:', err);
     }
   };
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadDashboardData();
-    }
-  }, [isAdmin]);
-
-  // 4. Supabase Realtime Subscriptions
+  /* 3. Realtime Channel & Broadcast Subscription */
   useEffect(() => {
     if (!isAdmin || !supabase) return;
 
-    const presenceChannel = supabase.channel('campus_pco_live_chat');
-    
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        let count = 0;
-        Object.values(state).forEach((p: any) => {
-          count += p.length;
-        });
-        setListenerCount(count || 1);
-      })
-      .on('broadcast', { event: 'PCO_SONG_REQUEST' }, () => {
-        loadDashboardData();
-      })
+    const sched = getPcoLiveSchedule();
+    setLiveTrack(sched.currentTrack);
+    setStartOffset(sched.offsetSec);
+    setStartedAt(Date.now());
+    reload();
+
+    const ch = supabase.channel('campus_pco_live_chat', {
+      config: { presence: { key: currentUser?.id || `console_${Math.random().toString(36).substring(2, 7)}` } }
+    });
+    channelRef.current = ch;
+
+    const countPresence = () => {
+      const st = ch.presenceState();
+      let n = 0;
+      Object.values(st).forEach((p: any) => { n += (p?.length || 0); });
+      setListeners(Math.max(1, n));
+    };
+
+    ch.on('presence', { event: 'sync' }, countPresence)
+      .on('presence', { event: 'join' }, countPresence)
+      .on('presence', { event: 'leave' }, countPresence)
       .on('broadcast', { event: 'PCO_PLAY_IMMEDIATELY' }, ({ payload }) => {
         if (payload?.track) {
-          setOverriddenCurrentTrack(payload.track);
+          setLiveTrack(payload.track);
+          setStartOffset(0);
+          setStartedAt(Date.now());
+          setRadioPlaying(true);
+          setLastAction('force');
+          log('RADIO', `Force Play → "${payload.track.song}"`);
         }
       })
+      .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
+        if (payload?.track) {
+          setQueue(q => [payload.track, ...q.filter(t => t.id !== payload.track.id)]);
+          log('QUEUE', `Queued Next → "${payload.track.song}"`);
+        }
+      })
+      .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
+        if (payload?.track) {
+          setQueue(q => [...q, payload.track]);
+          log('QUEUE', `Added to Queue → "${payload.track.song}"`);
+        }
+      })
+      .on('broadcast', { event: 'PCO_QUEUE_SYNC' }, ({ payload }) => {
+        if (Array.isArray(payload?.queue)) {
+          setQueue(payload.queue);
+          log('QUEUE', `Mirror Sync (${payload.queue.length} tracks)`);
+        }
+      })
+      .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
+        log('RADIO', 'Skip Broadcast Received');
+      })
+      .on('broadcast', { event: 'PCO_PLAY_STATE' }, ({ payload }) => {
+        if (typeof payload?.playing === 'boolean') {
+          setRadioPlaying(payload.playing);
+          log('RADIO', payload.playing ? 'Station Resumed' : 'Station Paused');
+        }
+      })
+      .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, ({ payload }) => {
+        log('REQUEST', `${payload?.requester || 'User'} requested "${payload?.track?.song || 'track'}"`);
+        reload();
+      })
+      .on('broadcast', { event: 'LIVE_CHAT_MSG' }, ({ payload }) => {
+        log('CHAT', `${payload?.user}: ${payload?.text}`);
+      })
+      .subscribe((status: string) => {
+        setChannelStatus(status);
+        if (status === 'SUBSCRIBED') {
+          ch.track({
+            user: `Admin DJ 🎧 (${currentUser?.realName || currentUser?.anonymousId || 'Console'})`,
+            online_at: new Date().toISOString()
+          });
+          ch.send({ type: 'broadcast', event: 'PCO_QUEUE_QUERY', payload: {} });
+          log('SYSTEM', 'Subscribed to campus_pco_live_chat');
+        }
+      });
+
+    const db = supabase.channel('pco_dash_db_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pco_song_requests' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_users' }, () => reload())
       .subscribe();
 
     return () => {
-      supabase.removeChannel(presenceChannel);
+      supabase.removeChannel(ch);
+      supabase.removeChannel(db);
+      channelRef.current = null;
     };
   }, [isAdmin]);
 
-  // 5. Search Songs Across Saavn
-  const handleSearchSongs = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!globalSearchQuery.trim()) return;
-
-    setIsSearchingSongs(true);
-    try {
-      const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(globalSearchQuery.trim())}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setGlobalSearchResults(data.map((t: any) => ({
-            id: t.id || `search_${Math.random()}`,
-            song: t.song || t.title || 'Untitled Track',
-            singers: t.singers || t.artist || 'Unknown Artist',
-            image: t.image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
-            media_url: t.media_url || '',
-            duration: t.duration || '240'
-          })));
-        }
-      }
-    } catch (err) {
-      console.warn('[PCO Admin] Search error:', err);
-    } finally {
-      setIsSearchingSongs(false);
+  /* 4. Transport Actions */
+  const send = (event: string, payload: any) => {
+    if (channelRef.current) {
+      channelRef.current.send({ type: 'broadcast', event, payload });
     }
   };
 
-  // Skip Track Action (Works in real time for all listeners)
-  const handleSkipLiveTrack = () => {
-    let nextTrack: PcoTrack | null = null;
-    if (customQueue.length > 0) {
-      nextTrack = customQueue[0];
-      setCustomQueue(prev => prev.slice(1));
-    } else if (scheduleState && scheduleState.upcomingTracks.length > 0) {
-      nextTrack = scheduleState.upcomingTracks[0];
-    }
+  const dur = parseInt(liveTrack?.duration || '240', 10) || 240;
+  const elapsed = liveTrack
+    ? Math.min(radioPlaying ? startOffset + (now - startedAt) / 1000 : startOffset, dur)
+    : 0;
 
-    if (nextTrack) {
-      setOverriddenCurrentTrack(nextTrack);
-      broadcastPcoAction('PCO_PLAY_IMMEDIATELY', { track: nextTrack });
-    } else {
-      broadcastPcoAction('PCO_ADMIN_SKIP', { user: currentUser?.realName || 'Admin DJ' });
-    }
-
-    setBroadcastFeedback('⏭️ Track skipped! Broadcasted to all active radio listeners.');
-    setTimeout(() => setBroadcastFeedback(null), 4000);
+  const actPlayNow = (track: PcoTrack, requestId?: string) => {
+    if (requestId) updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
+    send('PCO_PLAY_IMMEDIATELY', { track, requester: 'Admin DJ' });
+    setLiveTrack(track);
+    setStartOffset(0);
+    setStartedAt(Date.now());
+    setRadioPlaying(true);
+    setLastAction('force');
+    log('DJ', `Play Now → "${track.song}"`);
+    flash(`🔥 Playing "${track.song}"`);
   };
 
-  // Play Track Immediately (Force Play)
-  const handleForcePlayTrack = (track: PcoTrack) => {
-    setOverriddenCurrentTrack(track);
-    broadcastPcoAction('PCO_PLAY_IMMEDIATELY', { track, requester: 'Admin DJ' });
-    setBroadcastFeedback(`🔥 Now playing "${track.song}" live on Campus PCO Radio!`);
-    setTimeout(() => setBroadcastFeedback(null), 4000);
+  const actPlayNext = (track: PcoTrack, requestId?: string) => {
+    if (requestId) updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
+    send('PCO_PLAY_NEXT', { track, requester: 'Admin DJ' });
+    setQueue(q => [track, ...q.filter(t => t.id !== track.id)]);
+    log('DJ', `Queue Next → "${track.song}"`);
+    flash(`⏭️ Queued Next: "${track.song}"`);
   };
 
-  // Play Next (Add to Top of Queue)
-  const handlePlayNextTrack = (track: PcoTrack) => {
-    setCustomQueue(prev => [track, ...prev.filter(t => t.id !== track.id)]);
-    broadcastPcoAction('PCO_PLAY_NEXT', { track, requester: 'Admin DJ' });
-    setBroadcastFeedback(`⏭️ Queued "${track.song}" to play next.`);
-    setTimeout(() => setBroadcastFeedback(null), 4000);
+  const actQueueEnd = (track: PcoTrack, requestId?: string) => {
+    if (requestId) updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
+    send('PCO_ADD_QUEUE', { track, requester: 'Admin DJ' });
+    setQueue(q => [...q, track]);
+    log('DJ', `Added to Queue → "${track.song}"`);
+    flash(`➕ Queued: "${track.song}"`);
   };
 
-  // Add to Queue
-  const handleAddToQueue = (track: PcoTrack) => {
-    setCustomQueue(prev => [...prev, track]);
-    broadcastPcoAction('PCO_ADD_QUEUE', { track, requester: 'Admin DJ' });
-    setBroadcastFeedback(`➕ Added "${track.song}" to upcoming queue.`);
-    setTimeout(() => setBroadcastFeedback(null), 4000);
+  const actDecline = (id: string) => {
+    updatePcoSongRequestStatus(id, 'declined', currentUser?.id);
+    reload();
+    log('DJ', `Declined request ${id}`);
+    flash('✕ Request declined');
   };
 
-  // Move in Queue
-  const handleMoveQueueItem = (index: number, direction: 'up' | 'down') => {
-    setCustomQueue(prev => {
-      const copy = [...prev];
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= copy.length) return prev;
-      const temp = copy[index];
-      copy[index] = copy[targetIndex];
-      copy[targetIndex] = temp;
-      return copy;
-    });
+  const actSkip = () => {
+    broadcastPcoAction('PCO_ADMIN_SKIP', { user: 'Admin DJ' });
+    setLastAction('skip');
+    log('DJ', 'Skipped track broadcast');
+    flash('⏭️ Skipped current track');
   };
 
-  // Remove from Queue
-  const handleRemoveFromQueue = (index: number) => {
-    setCustomQueue(prev => prev.filter((_, i) => i !== index));
+  const actPauseToggle = () => {
+    const nextState = !radioPlaying;
+    send('PCO_PLAY_STATE', { playing: nextState });
+    setRadioPlaying(nextState);
+    log('DJ', nextState ? 'Station Resumed' : 'Station Paused');
+    flash(nextState ? '▶ Station Resumed' : '⏸ Station Paused');
   };
 
-  // Send Broadcast Banner
-  const handleSendBroadcast = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!broadcastText.trim()) return;
-
-    broadcastPcoAction('LIVE_CHAT_MSG', {
-      user: '👑 Admin DJ Announcement',
-      text: broadcastText.trim()
-    });
-
-    setBroadcastFeedback('📢 Announcement broadcasted to all listeners!');
-    setBroadcastText('');
-    setTimeout(() => setBroadcastFeedback(null), 4000);
+  const onSeekInput = (v: number) => {
+    setStartOffset(v);
+    setStartedAt(Date.now());
+    clearTimeout(seekTimer.current);
+    seekTimer.current = setTimeout(() => {
+      send('PCO_SEEK', { time: v });
+      log('DJ', `Seeked to ${fmt(v)}`);
+    }, 250);
   };
 
-  // Add Admin
-  const handleAddAdminSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAdminEmail.trim() || !newAdminEmail.includes('@')) {
-      setAdminActionMsg({ text: 'Please provide a valid email address.', type: 'error' });
+  /* 5. Authoritative Queue Operations */
+  const syncQueue = (next: PcoTrack[]) => {
+    setQueue(next);
+    send('PCO_QUEUE_SYNC', { queue: next });
+  };
+
+  const qMove = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= queue.length) return;
+    const next = [...queue];
+    [next[i], next[j]] = [next[j], next[i]];
+    syncQueue(next);
+  };
+
+  const qRemove = (i: number) => {
+    syncQueue(queue.filter((_, x) => x !== i));
+    flash('Track removed from queue');
+  };
+
+  const qPlay = (i: number) => {
+    const t = queue[i];
+    syncQueue(queue.filter((_, x) => x !== i));
+    actPlayNow(t);
+  };
+
+  /* 6. Real-time Search */
+  useEffect(() => {
+    if (!searchQ.trim()) {
+      setResults([]);
+      setIsSearching(false);
       return;
     }
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(searchQ)}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setResults(
+            data
+              .slice(0, 10)
+              .map((x: any) => ({
+                id: String(x.id || `search_${Math.random()}`),
+                song: x.song || x.title || 'Untitled',
+                singers: x.singers || x.primary_artists || x.artist || 'Unknown',
+                image: x.image || FALLBACK_ART,
+                media_url: x.media_url || '',
+                duration: x.duration || '240'
+              }))
+              .filter((x: PcoTrack) => x.media_url)
+          );
+        }
+      } catch (err) {
+        console.warn('[PCO Console] Search failed:', err);
+        setResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQ]);
 
-    setIsSubmittingAdmin(true);
-    setAdminActionMsg(null);
+  /* 7. Banner Broadcast & Admins */
+  const sendBanner = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!banner.trim()) return;
+    send('LIVE_CHAT_MSG', { user: 'Admin DJ 🎧', text: `📢 ${banner.trim()}` });
+    log('DJ', `Banner Broadcast → "${banner.trim()}"`);
+    setBanner('');
+    flash('📢 Banner broadcasted to all listeners');
+  };
 
-    const res = await addAdminUser(newAdminEmail.trim(), newAdminRole, currentUser?.id);
-    setIsSubmittingAdmin(false);
-
-    if (res.success) {
-      setAdminActionMsg({ text: `Granted ${newAdminRole} to ${newAdminEmail}!`, type: 'success' });
+  const submitAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = await addAdminUser(newAdminEmail, newAdminRole, currentUser?.id);
+    if (r.success) {
       setNewAdminEmail('');
-      const updatedAdmins = await fetchAdminUsers();
-      setAdminUsersList(updatedAdmins);
-      setTimeout(() => setAdminActionMsg(null), 5000);
+      reload();
+      flash('✅ Admin added successfully');
+      log('ADMIN', `Added admin ${newAdminEmail} (${newAdminRole})`);
     } else {
-      setAdminActionMsg({ text: res.error || 'Failed to add admin', type: 'error' });
+      flash(r.error || 'Failed to add admin');
     }
   };
 
-  // Remove Admin
-  const handleRemoveAdminClick = async (email: string) => {
-    if (!window.confirm(`Revoke admin privileges from ${email}?`)) return;
-
-    const res = await removeAdminUser(email);
-    if (res.success) {
-      setAdminActionMsg({ text: `Revoked admin permissions from ${email}.`, type: 'success' });
-      const updatedAdmins = await fetchAdminUsers();
-      setAdminUsersList(updatedAdmins);
-      setTimeout(() => setAdminActionMsg(null), 5000);
-    } else {
-      setAdminActionMsg({ text: res.error || 'Failed to remove admin', type: 'error' });
-    }
+  const delAdmin = async (email: string) => {
+    if (!window.confirm(`Revoke admin privileges for ${email}?`)) return;
+    const r = await removeAdminUser(email);
+    flash(r.success ? 'Revoked' : r.error || 'Failed');
+    if (r.success) log('ADMIN', `Revoked ${email}`);
+    reload();
   };
 
-  // Request Actions
-  const handleApprovePlayNow = async (req: PcoSongRequest) => {
-    await updatePcoSongRequestStatus(req.id, 'approved', currentUser?.id);
-    const track: PcoTrack = {
-      id: req.track_id,
-      song: req.track_name,
-      singers: req.track_artist || 'Campus Request',
-      image: req.track_image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
-      media_url: req.track_url || '',
-      duration: req.track_duration || '240'
+  const copyDiag = () => {
+    const diagData = {
+      timestamp: new Date().toISOString(),
+      channel: channelStatus,
+      listeners,
+      currentTrack: liveTrack?.song,
+      elapsed: Math.floor(elapsed),
+      duration: dur,
+      isPlaying: radioPlaying,
+      queueLength: queue.length,
+      pendingRequests: analytics.pendingRequests,
+      todayRequests: analytics.todayRequests,
+      totalAdmins: admins.length
     };
-    handleForcePlayTrack(track);
-    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'approved', played_at: new Date().toISOString() } : r));
+    navigator.clipboard.writeText(JSON.stringify(diagData, null, 2)).then(() => {
+      flash('📋 Diagnostics copied to clipboard');
+    });
   };
 
-  const handleApprovePlayNext = async (req: PcoSongRequest) => {
-    await updatePcoSongRequestStatus(req.id, 'approved', currentUser?.id);
-    const track: PcoTrack = {
-      id: req.track_id,
-      song: req.track_name,
-      singers: req.track_artist || 'Campus Request',
-      image: req.track_image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
-      media_url: req.track_url || '',
-      duration: req.track_duration || '240'
+  /* 8. Keyboard Shortcuts (1-6 for Tabs, S for Skip, P for Pause) */
+  useEffect(() => {
+    if (!isAdmin) return;
+    const handleKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const tabOrder: Tab[] = ['dj', 'requests', 'queue', 'history', 'admins', 'console'];
+      if (e.key >= '1' && e.key <= '6') {
+        setTab(tabOrder[Number(e.key) - 1]);
+      } else if (e.key.toLowerCase() === 's') {
+        actSkip();
+      } else if (e.key.toLowerCase() === 'p') {
+        actPauseToggle();
+      }
     };
-    handlePlayNextTrack(track);
-    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
-  };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isAdmin, radioPlaying]);
 
-  const handleDeclineRequest = async (req: PcoSongRequest) => {
-    await updatePcoSongRequestStatus(req.id, 'declined', currentUser?.id);
-    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'declined' } : r));
-  };
-
-  const activePlayingTrack = overriddenCurrentTrack || scheduleState?.currentTrack;
-  const pendingList = requests.filter(r => r.status === 'pending');
-  const filteredRequests = requests.filter(r => {
-    const matchesSearch = 
-      r.track_name.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      (r.track_artist && r.track_artist.toLowerCase().includes(searchFilter.toLowerCase())) ||
-      r.requester_name.toLowerCase().includes(searchFilter.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Access Denied Screen
-  if (isAdmin === false) {
+  /* 9. Render Auth Gates */
+  if (isAdmin === null) {
     return (
-      <div className="min-h-screen bg-[#07050d] text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-2xl shadow-2xl space-y-6">
-          <div className="w-16 h-16 bg-red-500/20 border border-red-500/40 rounded-3xl flex items-center justify-center mx-auto text-red-400">
-            <Shield className="w-8 h-8" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-white mb-2">Access Restricted</h2>
-            <p className="text-gray-400 text-xs leading-relaxed">
-              You are not registered as an authorized Campus PCO DJ Admin. Please contact an owner or super administrator to request DJ privileges.
-            </p>
-          </div>
-          <button
-            onClick={() => router.push('/sparx')}
-            className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-2xl text-xs transition-all shadow-lg"
-          >
-            Return to Sparx Hub
-          </button>
-        </div>
+      <div className="min-h-screen bg-black text-zinc-500 font-mono text-xs flex items-center justify-center">
+        AUTHENTICATING ADMIN PRIVILEGES…
       </div>
     );
   }
 
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-black text-zinc-300 font-mono text-xs flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="text-red-400 font-bold text-sm tracking-wider">403 — CAMPUS PCO ADMIN ACCESS REQUIRED</div>
+        <p className="text-zinc-500 max-w-sm">You are not authorized on the DJ admin whitelist. Please contact a platform owner.</p>
+        <button
+          onClick={() => router.push('/sparx')}
+          className="border border-zinc-700 bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 transition-all font-mono"
+        >
+          ← RETURN TO SPARX HUB
+        </button>
+      </div>
+    );
+  }
+
+  /* 10. Calculations & Tables */
+  const B = 'border border-zinc-700 bg-zinc-900/90 text-zinc-200 px-2.5 py-1 text-xs font-mono hover:bg-zinc-800 hover:text-white active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none';
+  const pending = requests.filter(r => r.status === 'pending');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const usage = (name: string) =>
+    requests.filter(r => r.requester_name === name && (r.requested_at || '').startsWith(todayStr)).length;
+  const history = requests.filter(r => histFilter === 'all' || r.status === histFilter);
+
+  const sched = getPcoLiveSchedule();
+  let schedT = Math.floor(now / 1000) + sched.remainingSec;
+  const scheduleRows = sched.upcomingTracks.slice(0, 20).map(tr => {
+    const start = schedT;
+    schedT += parseInt(tr.duration, 10) || 240;
+    return { tr, start };
+  });
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'dj', label: '1·DJ TOOLS' },
+    { id: 'requests', label: `2·REQUESTS${pending.length ? ` (${pending.length})` : ''}` },
+    { id: 'queue', label: `3·QUEUE (${queue.length})` },
+    { id: 'history', label: '4·HISTORY' },
+    { id: 'admins', label: `5·ADMINS (${admins.length})` },
+    { id: 'console', label: `6·CONSOLE (${logs.length})` }
+  ];
+
   return (
     <div 
-      className="w-full h-full min-h-screen bg-[#07050d] text-white flex flex-col overflow-y-auto custom-scrollbar selection:bg-pink-500 selection:text-white"
-      style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
+      className="w-full h-full min-h-screen bg-black text-gray-200 font-mono text-xs flex flex-col overflow-y-auto custom-scrollbar selection:bg-pink-500 selection:text-white pb-24"
+      style={{ WebkitOverflowScrolling: 'touch' }}
     >
-      
-      {/* Top Glassmorphic Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-[#07050d]/80 backdrop-blur-2xl border-b border-white/10 px-4 md:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xl">
-        <div className="flex items-center gap-3">
-          {/* Back button options */}
-          <button
-            onClick={() => router.push('/sparx/music?room=Campus_PCO_247')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-purple-900/60 to-pink-900/60 hover:from-purple-800 hover:to-pink-800 border border-pink-500/30 rounded-xl text-xs font-bold text-white transition-all shadow-sm active:scale-95"
-            title="Return to live radio stream"
-          >
-            <ArrowLeft className="w-4 h-4 text-pink-400" />
-            <span className="hidden sm:inline">Back to Radio Room</span>
-            <span className="sm:hidden">Radio</span>
-          </button>
-
-          <button
-            onClick={() => router.push('/sparx')}
-            className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all"
-            title="Go to Sparx Hub"
-          >
-            Sparx Hub
-          </button>
-
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-            <h1 className="text-base sm:text-lg font-black text-white flex items-center gap-1.5">
-              Campus PCO <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">DJ Center</span>
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          {/* Active Listeners Live Badge */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-black shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>{listenerCount} Listening</span>
-          </div>
-
-          <button
-            onClick={loadDashboardData}
-            className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-300 hover:text-white transition-colors border border-white/10"
-            title="Refresh Data"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-pink-400' : ''}`} />
-          </button>
-        </div>
+      {/* 1. STATUS BAR */}
+      <header className="flex items-center gap-2 px-4 h-10 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md sticky top-0 z-40 overflow-x-auto whitespace-nowrap">
+        <button onClick={() => router.push('/sparx/music?room=Campus_PCO_247')} className={B}>← RADIO</button>
+        <button onClick={() => router.push('/sparx')} className={B}>HUB</button>
+        <span className="font-bold text-white px-1 tracking-wider">PCO://DJ-CENTER</span>
+        <span className={channelStatus === 'SUBSCRIBED' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+          ● {channelStatus}
+        </span>
+        <span className="text-zinc-400">LISTENERS: <b className="text-white">{listeners}</b></span>
+        {note && <span className="text-yellow-300 font-bold animate-pulse px-2 bg-yellow-950/40 border border-yellow-800/60 rounded">{note}</span>}
+        <span className="ml-auto text-zinc-500">{new Date(now).toLocaleTimeString()}</span>
+        <button onClick={reload} className={B} title="Refresh All Data">↻ RELOAD</button>
       </header>
 
-      {/* Main Scrollable Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-6 pb-28">
-
-        {/* Live On-Air Player Deck Banner */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-950/70 via-black/80 to-pink-950/60 border border-pink-500/30 p-5 md:p-6 backdrop-blur-2xl shadow-[0_0_50px_rgba(236,72,153,0.15)]">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-pink-500/10 to-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-            {/* Track Info */}
-            <div className="flex items-center gap-4 sm:gap-5">
-              <div className="relative group shrink-0">
-                <img
-                  src={activePlayingTrack?.image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg'}
-                  alt={activePlayingTrack?.song || 'Live Song'}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-pink-500/40 shadow-xl"
-                />
-                <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Music className="w-6 h-6 text-pink-400 animate-bounce" />
-                </div>
-              </div>
-
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-pink-500 text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
-                    <Radio className="w-3 h-3 animate-pulse" /> Live On Air
-                  </span>
-                  {overriddenCurrentTrack && (
-                    <span className="px-2 py-0.5 rounded-full bg-purple-500/30 border border-purple-500/40 text-purple-300 text-[9px] font-bold">
-                      Admin Force Played
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-base sm:text-xl font-black text-white truncate max-w-xs sm:max-w-md md:max-w-lg">
-                  {activePlayingTrack?.song || 'Awaiting Playlist Sync...'}
-                </h2>
-                <p className="text-xs sm:text-sm text-gray-300 font-medium truncate max-w-xs sm:max-w-md">
-                  {activePlayingTrack?.singers || '24/7 Bollywood Romantic Hits'}
-                </p>
-
-                {/* Animated Equalizer Waveform */}
-                <div className="flex items-center gap-1 pt-1">
-                  <span className="w-1 h-3 bg-pink-400 rounded-full animate-pulse" />
-                  <span className="w-1 h-5 bg-purple-400 rounded-full animate-bounce" />
-                  <span className="w-1 h-2 bg-pink-400 rounded-full animate-pulse" />
-                  <span className="w-1 h-4 bg-purple-400 rounded-full animate-bounce" />
-                  <span className="text-[10px] font-mono text-pink-300 ml-2">
-                    {scheduleState ? `${Math.floor(scheduleState.offsetSec / 60)}:${(scheduleState.offsetSec % 60).toString().padStart(2, '0')} / ${Math.floor(scheduleState.durationSec / 60)}:${(scheduleState.durationSec % 60).toString().padStart(2, '0')}` : 'Broadcasting Live'}
-                  </span>
-                </div>
-              </div>
+      {/* 2. ON-AIR TRANSPORT DECK */}
+      <div className="border-b border-zinc-800 p-4 bg-zinc-950/60 space-y-3">
+        <div className="flex items-center gap-3">
+          <img
+            src={liveTrack?.image || FALLBACK_ART}
+            alt=""
+            onError={artFix}
+            className="w-12 h-12 border border-zinc-700 object-cover shrink-0 rounded"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-bold text-sm truncate flex items-center gap-2">
+              <span>{liveTrack?.song || 'Station Offline'}</span>
+              {lastAction === 'force' && (
+                <span className="text-[10px] bg-pink-950/80 border border-pink-500 text-pink-300 px-1.5 py-0.5 rounded font-normal">
+                  FORCED
+                </span>
+              )}
             </div>
-
-            {/* Quick DJ Live Actions */}
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              <button
-                onClick={handleSkipLiveTrack}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs transition-all shadow-lg active:scale-95"
-              >
-                <SkipForward className="w-4 h-4 fill-white" />
-                <span>Skip Track (All Listeners)</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('schedule')}
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition-all"
-              >
-                <ListMusic className="w-4 h-4 text-pink-400" />
-                <span>Manage Playlist Queue</span>
-              </button>
-            </div>
+            <div className="text-zinc-400 text-xs truncate">{liveTrack?.singers || '—'}</div>
           </div>
+          <span className="text-zinc-300 font-bold text-xs shrink-0 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">
+            {fmt(elapsed)} / {fmt(dur)}
+          </span>
+        </div>
 
-          {/* Sticky DJ Announcement Bar */}
-          <form onSubmit={handleSendBroadcast} className="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center gap-3">
-            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-              <Sparkles className="w-4 h-4 text-pink-400" />
-              <span className="text-xs font-black uppercase text-pink-300">Live DJ Sticky Banner:</span>
-            </div>
-            <input
-              type="text"
-              value={broadcastText}
-              onChange={e => setBroadcastText(e.target.value)}
-              placeholder="Send sticky text banner to all radio listeners (e.g. 'Dedicate next track to CSE Batch!')..."
-              className="flex-1 w-full bg-black/50 border border-white/15 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-pink-500"
-            />
-            <button
-              type="submit"
-              disabled={!broadcastText.trim()}
-              className="w-full sm:w-auto px-5 py-2.5 bg-pink-600 hover:bg-pink-500 disabled:opacity-40 text-white font-bold rounded-xl text-xs transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Broadcast</span>
-            </button>
-          </form>
+        {/* Seekable Range Slider */}
+        <input
+          type="range"
+          min={0}
+          max={dur}
+          value={Math.floor(elapsed)}
+          onChange={e => onSeekInput(Number(e.target.value))}
+          className="w-full h-1.5 bg-zinc-800 accent-pink-500 cursor-pointer rounded"
+        />
 
-          {broadcastFeedback && (
-            <p className="text-xs text-emerald-400 font-bold mt-2.5 flex items-center gap-1.5 animate-fade-in">
-              <Check className="w-3.5 h-3.5" /> {broadcastFeedback}
-            </p>
-          )}
-        </section>
-
-        {/* 4 Metric Stats Cards */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between text-gray-400 text-xs font-medium mb-1">
-              <span>Active Listeners</span>
-              <Users className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="text-2xl md:text-3xl font-black text-white flex items-center gap-2">
-              {listenerCount}
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            </div>
-            <p className="text-[10px] text-gray-500 mt-1">Real-time room presence</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between text-gray-400 text-xs font-medium mb-1">
-              <span>Pending Requests</span>
-              <Clock className="w-4 h-4 text-pink-400" />
-            </div>
-            <div className="text-2xl md:text-3xl font-black text-pink-400">
-              {pendingList.length}
-            </div>
-            <p className="text-[10px] text-gray-500 mt-1">Awaiting DJ approval</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between text-gray-400 text-xs font-medium mb-1">
-              <span>Today's Requests</span>
-              <Calendar className="w-4 h-4 text-purple-400" />
-            </div>
-            <div className="text-2xl md:text-3xl font-black text-purple-300">
-              {analyticsData.todayRequests || requests.length}
-            </div>
-            <p className="text-[10px] text-gray-500 mt-1">Submitted in last 24h</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between text-gray-400 text-xs font-medium mb-1">
-              <span>Admin Team</span>
-              <UserCheck className="w-4 h-4 text-blue-400" />
-            </div>
-            <div className="text-2xl md:text-3xl font-black text-blue-300">
-              {adminUsersList.length || 4}
-            </div>
-            <p className="text-[10px] text-gray-500 mt-1">Authorized moderators</p>
-          </div>
-        </section>
-
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2 border-b border-white/10">
-          <button
-            onClick={() => setActiveTab('live')}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'live'
-                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg'
-                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-pink-300" />
-            <span>Live DJ Tools & Search</span>
+        {/* Transport Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={actPauseToggle} className={B}>
+            {radioPlaying ? '⏸ PAUSE ALL [P]' : '▶ RESUME ALL [P]'}
           </button>
-
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'requests'
-                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg'
-                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Pending Requests</span>
-            {pendingList.length > 0 && (
-              <span className="px-1.5 py-0.2 bg-pink-500 text-white text-[10px] font-black rounded-full">
-                {pendingList.length}
-              </span>
-            )}
+          <button onClick={() => onSeekInput(0)} className={B}>
+            ⟲ RESTART
           </button>
-
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'schedule'
-                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg'
-                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
-            }`}
-          >
-            <ListMusic className="w-3.5 h-3.5" />
-            <span>Playlist Queue & Schedule ({scheduleState?.upcomingTracks.length || 20})</span>
+          <button onClick={actSkip} className={B}>
+            ⏭ SKIP ALL [S]
           </button>
-
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'history'
-                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg'
-                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>History & Analytics</span>
+          <button onClick={() => { send('PCO_QUEUE_QUERY', {}); flash('Queue mirror query dispatched'); }} className={B}>
+            ⇄ SYNC QUEUE
           </button>
-
-          <button
-            onClick={() => setActiveTab('admins')}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'admins'
-                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg'
-                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>Admin Team</span>
+          <button onClick={copyDiag} className={B}>
+            ⧉ DIAGNOSTICS
           </button>
         </div>
 
-        {/* TAB 1: Live DJ Search & Quick Force Play */}
-        {activeTab === 'live' && (
-          <div className="space-y-6">
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <Search className="w-5 h-5 text-pink-400" />
-                    Instant Song Search & Override
-                  </h3>
-                  <p className="text-xs text-gray-400">Search millions of Hindi/Bollywood songs and force-play or queue instantly</p>
-                </div>
+        {/* Sticky Broadcast Banner Form */}
+        <form onSubmit={sendBanner} className="flex gap-2 pt-1">
+          <input
+            value={banner}
+            onChange={e => setBanner(e.target.value)}
+            placeholder="Broadcast sticky banner to all radio listeners (e.g. 'Shoutout to CS batch! 🎉')"
+            className="flex-1 bg-black border border-zinc-700 px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none focus:border-pink-500 rounded"
+          />
+          <button className={B} disabled={!banner.trim()}>
+            BROADCAST
+          </button>
+        </form>
+      </div>
+
+      {/* 3. TABS NAVIGATION */}
+      <nav className="flex border-b border-zinc-800 bg-zinc-950 overflow-x-auto whitespace-nowrap">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 ${
+              tab === t.id
+                ? 'bg-zinc-900 text-pink-400 border-pink-500'
+                : 'text-zinc-400 border-transparent hover:bg-zinc-900/50 hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* 4. MAIN CONTENT TABS */}
+      <main className="flex-1 p-4 space-y-4">
+        {/* TAB 1: DJ TOOLS */}
+        {tab === 'dj' && (
+          <div className="space-y-4">
+            {/* Realtime Telemetry Strip */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+              <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded">
+                <span className="text-zinc-500 block text-[10px]">LISTENERS</span>
+                <span className="text-emerald-400 text-base font-bold">{listeners}</span>
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded">
+                <span className="text-zinc-500 block text-[10px]">PENDING</span>
+                <span className="text-pink-400 text-base font-bold">{analytics.pendingRequests}</span>
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded">
+                <span className="text-zinc-500 block text-[10px]">TODAY'S REQS</span>
+                <span className="text-purple-300 text-base font-bold">{analytics.todayRequests}</span>
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded">
+                <span className="text-zinc-500 block text-[10px]">TOTAL REQS</span>
+                <span className="text-white text-base font-bold">{analytics.totalRequests}</span>
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded col-span-2 md:col-span-1">
+                <span className="text-zinc-500 block text-[10px]">ACTIVE ADMINS</span>
+                <span className="text-blue-300 text-base font-bold">{admins.length}</span>
+              </div>
+            </div>
+
+            {/* Instant Force-Play Track Search */}
+            <div className="space-y-2">
+              <div className="text-zinc-400 font-bold text-xs uppercase tracking-wider">Instant Song Override & Force Play</div>
+              <div className="relative">
+                <input
+                  value={searchQ}
+                  onChange={e => setSearchQ(e.target.value)}
+                  placeholder="Search Bollywood/Hindi song to play now or queue..."
+                  className="w-full bg-black border border-zinc-700 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none focus:border-pink-500 rounded"
+                />
+                {isSearching && (
+                  <span className="absolute right-3 top-2.5 text-[10px] text-zinc-500 animate-pulse">SEARCHING…</span>
+                )}
               </div>
 
-              <form onSubmit={handleSearchSongs} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={globalSearchQuery}
-                    onChange={e => setGlobalSearchQuery(e.target.value)}
-                    placeholder="Search song title, movie, singer (e.g. 'Tum Mile', 'Arijit Singh')..."
-                    className="w-full bg-gray-900/90 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-pink-500"
-                  />
+              {results.map(t => (
+                <div key={t.id} className="flex items-center gap-3 border border-zinc-800 bg-zinc-950/80 p-2 rounded hover:border-zinc-700 transition-colors">
+                  <img src={t.image} alt="" onError={artFix} className="w-9 h-9 object-cover border border-zinc-800 rounded shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-bold text-xs truncate">{t.song}</div>
+                    <div className="text-zinc-500 text-[11px] truncate">{t.singers}</div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={() => actPlayNow(t)} className={B}>▶ PLAY NOW</button>
+                    <button onClick={() => actPlayNext(t)} className={B}>⏭ NEXT</button>
+                    <button onClick={() => actQueueEnd(t)} className={B}>+ END</button>
+                  </div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSearchingSongs || !globalSearchQuery.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-2xl text-xs transition-all shadow-md disabled:opacity-40 shrink-0"
-                >
-                  {isSearchingSongs ? 'Searching...' : 'Search'}
-                </button>
-              </form>
+              ))}
+            </div>
 
-              {/* Search Results */}
-              {globalSearchResults.length > 0 && (
-                <div className="pt-2 divide-y divide-white/5 max-h-96 overflow-y-auto custom-scrollbar">
-                  {globalSearchResults.map((track) => (
-                    <div key={track.id} className="py-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <img
-                          src={track.image}
-                          alt={track.song}
-                          className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10"
-                        />
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate">{track.song}</h4>
-                          <p className="text-[11px] text-gray-400 truncate">{track.singers}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleForcePlayTrack(track)}
-                          className="px-3 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl text-[11px] transition-all flex items-center gap-1 shadow-sm"
-                        >
-                          <Play className="w-3 h-3 fill-white" />
-                          <span>Play Now</span>
-                        </button>
-                        <button
-                          onClick={() => handlePlayNextTrack(track)}
-                          className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white font-semibold rounded-xl text-[11px] transition-all"
-                        >
-                          Play Next
-                        </button>
-                        <button
-                          onClick={() => handleAddToQueue(track)}
-                          className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-semibold rounded-xl text-[11px] transition-all"
-                        >
-                          Add Queue
-                        </button>
-                      </div>
+            {/* Top Requested Analytics */}
+            {analytics.topTracks.length > 0 && (
+              <div className="pt-4 border-t border-zinc-900 space-y-2">
+                <div className="text-zinc-400 font-bold text-xs uppercase tracking-wider">Top 5 Most Requested Tracks</div>
+                <div className="space-y-1.5">
+                  {analytics.topTracks.slice(0, 5).map((t, i) => (
+                    <div key={i} className="flex justify-between items-center gap-2 p-2 bg-zinc-950/50 border border-zinc-900 rounded">
+                      <span className="truncate text-zinc-300">
+                        <b className="text-pink-400 mr-2">#{i + 1}</b> {t.name} — <span className="text-zinc-500">{t.artist}</span>
+                      </span>
+                      <span className="text-pink-400 font-bold shrink-0">{t.count} requests</span>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: Pending Requests Queue */}
-        {activeTab === 'requests' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-black text-white">Pending Song Requests Queue</h3>
-                <p className="text-xs text-gray-400">Listener requests waiting for DJ action</p>
-              </div>
-              <div className="text-xs text-pink-300 font-bold bg-pink-500/10 border border-pink-500/20 px-3 py-1.5 rounded-full self-start">
-                {pendingList.length} Pending
-              </div>
-            </div>
-
-            {pendingList.length === 0 ? (
-              <div className="bg-white/5 border border-white/10 rounded-3xl p-12 text-center space-y-3">
-                <div className="w-14 h-14 bg-pink-500/10 border border-pink-500/20 rounded-2xl flex items-center justify-center mx-auto text-pink-400">
-                  <Music className="w-7 h-7" />
-                </div>
-                <h4 className="text-sm font-bold text-white">No Pending Song Requests</h4>
-                <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                  When listeners request songs in the Campus PCO room, they will appear here in real-time for one-click approval.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pendingList.map((req) => (
-                  <div
-                    key={req.id}
-                    className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-5 flex flex-col justify-between gap-4 backdrop-blur-xl hover:border-pink-500/40 transition-all shadow-lg"
-                  >
-                    <div className="flex items-start gap-3.5">
-                      <img
-                        src={req.track_image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg'}
-                        alt={req.track_name}
-                        className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0"
-                      />
-                      <div className="min-w-0 space-y-1">
-                        <span className="text-[10px] font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-2 py-0.5 rounded-full">
-                          Requested by {req.requester_name}
-                        </span>
-                        <h4 className="text-sm font-bold text-white truncate">{req.track_name}</h4>
-                        <p className="text-xs text-gray-400 truncate">{req.track_artist || 'Bollywood Hit'}</p>
-                        <p className="text-[10px] text-gray-500">
-                          {new Date(req.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5">
-                      <button
-                        onClick={() => handleApprovePlayNow(req)}
-                        className="py-2 px-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1"
-                      >
-                        <Play className="w-3 h-3 fill-white" />
-                        <span>Play Now</span>
-                      </button>
-                      <button
-                        onClick={() => handleApprovePlayNext(req)}
-                        className="py-2 px-3 bg-white/10 hover:bg-white/15 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1"
-                      >
-                        <SkipForward className="w-3 h-3" />
-                        <span>Play Next</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeclineRequest(req)}
-                        className="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-xl text-xs transition-all border border-red-500/20 flex items-center justify-center gap-1"
-                      >
-                        <X className="w-3 h-3" />
-                        <span>Decline</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </div>
         )}
 
-        {/* TAB 3: Upcoming 24/7 Schedule & Custom Queue */}
-        {activeTab === 'schedule' && (
-          <div className="space-y-6">
-            {/* Custom Admin In-Memory Queue */}
-            {customQueue.length > 0 && (
-              <div className="bg-purple-950/30 border border-purple-500/30 rounded-3xl p-5 backdrop-blur-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-purple-300 flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-purple-400" />
-                    Admin Priority Queue ({customQueue.length} Tracks)
-                  </h3>
+        {/* TAB 2: REQUESTS QUEUE */}
+        {tab === 'requests' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-400 font-bold uppercase tracking-wider">Pending Student Requests ({pending.length})</span>
+              <button onClick={reload} className={B}>↻ REFRESH</button>
+            </div>
+
+            {pending.length === 0 && (
+              <div className="text-zinc-600 p-8 border border-zinc-900 rounded text-center">
+                No pending song requests. All caught up!
+              </div>
+            )}
+
+            {pending.map(r => (
+              <div key={r.id} className="flex items-center gap-3 border border-zinc-800 bg-zinc-950/80 p-2.5 rounded hover:border-zinc-700 transition-colors">
+                <img src={r.track_image || FALLBACK_ART} alt="" onError={artFix} className="w-10 h-10 object-cover border border-zinc-800 rounded shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-bold text-xs truncate">{r.track_name}</div>
+                  <div className="text-zinc-400 text-[11px] truncate flex items-center gap-2 mt-0.5">
+                    <span>{r.requester_name}</span>
+                    <span className="text-zinc-600">·</span>
+                    <span className="text-zinc-500">{ago(r.requested_at)}</span>
+                    <span className="text-zinc-600">·</span>
+                    <span className="text-yellow-300 font-semibold">{usage(r.requester_name)}/3 today</span>
+                  </div>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
                   <button
-                    onClick={() => setCustomQueue([])}
-                    className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+                    onClick={() => actPlayNow({
+                      id: r.track_id,
+                      song: r.track_name,
+                      singers: r.track_artist || 'Campus Request',
+                      image: r.track_image || FALLBACK_ART,
+                      media_url: r.track_url || '',
+                      duration: r.track_duration || '240'
+                    }, r.id)}
+                    className={B}
+                    title="Play Immediately"
                   >
-                    Clear Custom Queue
+                    ▶ PLAY NOW
+                  </button>
+                  <button
+                    onClick={() => actPlayNext({
+                      id: r.track_id,
+                      song: r.track_name,
+                      singers: r.track_artist || 'Campus Request',
+                      image: r.track_image || FALLBACK_ART,
+                      media_url: r.track_url || '',
+                      duration: r.track_duration || '240'
+                    }, r.id)}
+                    className={B}
+                    title="Queue Next"
+                  >
+                    ⏭ NEXT
+                  </button>
+                  <button
+                    onClick={() => actDecline(r.id)}
+                    className="border border-red-500/60 bg-red-950/40 text-red-300 px-2.5 py-1 text-xs hover:bg-red-900/60 transition-colors rounded"
+                    title="Decline Request"
+                  >
+                    ✕
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-                <div className="divide-y divide-white/5">
-                  {customQueue.map((track, idx) => (
-                    <div key={`${track.id}_${idx}`} className="py-2.5 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="font-mono text-xs font-bold text-purple-400 w-4">{idx + 1}</span>
-                        <img src={track.image} alt={track.song} className="w-9 h-9 rounded-lg object-cover" />
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate">{track.song}</h4>
-                          <p className="text-[10px] text-gray-400 truncate">{track.singers}</p>
-                        </div>
-                      </div>
+        {/* TAB 3: QUEUE + SCHEDULE */}
+        {tab === 'queue' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-400 font-bold uppercase tracking-wider">
+                Live Custom Queue ({queue.length})
+              </span>
+              {queue.length > 0 && (
+                <button
+                  onClick={() => { if (confirm('Clear entire active queue?')) syncQueue([]); }}
+                  className="border border-red-500/60 bg-red-950/40 text-red-300 px-2.5 py-1 text-xs hover:bg-red-900/60 transition-colors rounded"
+                >
+                  CLEAR QUEUE
+                </button>
+              )}
+            </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleForcePlayTrack(track)}
-                          className="px-2.5 py-1 bg-pink-600 hover:bg-pink-500 text-white rounded-lg text-[10px] font-bold"
-                        >
-                          Play Now
-                        </button>
-                        <button
-                          onClick={() => handleMoveQueueItem(idx, 'up')}
-                          disabled={idx === 0}
-                          className="p-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-lg"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleMoveQueueItem(idx, 'down')}
-                          disabled={idx === customQueue.length - 1}
-                          className="p-1 bg-white/5 hover:bg-white/10 disabled:opacity-30 rounded-lg"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFromQueue(idx)}
-                          className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {queue.length === 0 && (
+              <div className="text-zinc-600 p-4 border border-zinc-900 rounded">
+                Custom queue is empty. Radio is streaming deterministically from the 24/7 romantic schedule.
               </div>
             )}
 
-            {/* Upcoming Deterministic 24/7 Schedule */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <ListMusic className="w-5 h-5 text-pink-400" />
-                    Upcoming 24/7 Radio Schedule
-                  </h3>
-                  <p className="text-xs text-gray-400">Next scheduled tracks calculated deterministically</p>
+            {queue.map((t, i) => (
+              <div key={`${t.id}-${i}`} className="flex items-center gap-3 border border-zinc-800 bg-zinc-950/80 p-2 rounded">
+                <span className="text-zinc-500 font-bold w-6 text-center text-xs">#{i + 1}</span>
+                <img src={t.image} alt="" onError={artFix} className="w-8 h-8 object-cover border border-zinc-800 rounded shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-xs font-bold truncate">{t.song}</div>
+                  <div className="text-zinc-500 text-[10px] truncate">{t.singers}</div>
                 </div>
-                <span className="text-xs font-bold text-gray-400">Next 20 Songs</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => qMove(i, -1)} className={B} disabled={i === 0} title="Move Up">↑</button>
+                  <button onClick={() => qMove(i, 1)} className={B} disabled={i === queue.length - 1} title="Move Down">↓</button>
+                  <button onClick={() => qPlay(i)} className={B} title="Play Now">▶</button>
+                  <button onClick={() => qRemove(i)} className="border border-red-500/60 bg-red-950/40 text-red-300 px-2 py-1 text-xs rounded hover:bg-red-900/60" title="Remove">✕</button>
+                </div>
               </div>
+            ))}
 
-              <div className="divide-y divide-white/5">
-                {scheduleState?.upcomingTracks.map((track, idx) => (
-                  <div key={`${track.id}_sched_${idx}`} className="py-3 flex items-center justify-between gap-3 group">
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <span className="font-mono text-xs font-bold text-pink-400/70 w-5 text-center">
-                        +{idx + 1}
-                      </span>
-                      <img
-                        src={track.image}
-                        alt={track.song}
-                        className="w-10 h-10 rounded-xl object-cover shrink-0 border border-white/10"
-                      />
-                      <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-white truncate group-hover:text-pink-300 transition-colors">
-                          {track.song}
-                        </h4>
-                        <p className="text-[11px] text-gray-400 truncate">{track.singers}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleForcePlayTrack(track)}
-                        className="px-3 py-1.5 bg-white/10 hover:bg-pink-600 text-white font-bold rounded-xl text-[11px] transition-all shadow-sm"
-                      >
-                        Play Now
-                      </button>
-                      <button
-                        onClick={() => handlePlayNextTrack(track)}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-semibold rounded-xl text-[11px] transition-all"
-                      >
-                        Queue Next
-                      </button>
-                    </div>
+            {/* Upcoming 24/7 Schedule */}
+            <div className="pt-4 border-t border-zinc-900 space-y-2">
+              <div className="text-zinc-400 font-bold text-xs uppercase tracking-wider">
+                Predicted 24/7 Schedule (Next 20 Tracks)
+              </div>
+              <div className="space-y-1">
+                {scheduleRows.map(({ tr, start }, i) => (
+                  <div key={`${tr.id}-${i}`} className="flex justify-between items-center gap-2 py-1.5 px-2 bg-zinc-950/40 border border-zinc-900/80 rounded text-zinc-400 text-xs">
+                    <span className="truncate">
+                      <b className="text-zinc-500 mr-2">{clockAt(start)}</b>
+                      <span className="text-white font-medium">{tr.song}</span> — <span className="text-zinc-500">{tr.singers}</span>
+                    </span>
+                    <span className="text-zinc-600 shrink-0">{fmt(parseInt(tr.duration, 10) || 240)}</span>
                   </div>
                 ))}
               </div>
@@ -952,208 +794,165 @@ export const PcoAdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 4: Request History & Top Tracks */}
-        {activeTab === 'history' && (
-          <div className="space-y-6">
-            {/* Top 10 Most Requested Tracks */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl space-y-4">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-pink-400" />
-                Top Most Requested Campus Tracks
-              </h3>
-
-              {analyticsData.topTracks.length === 0 ? (
-                <p className="text-xs text-gray-500 py-6 text-center">No track statistics accumulated yet.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {analyticsData.topTracks.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="font-mono text-xs font-bold text-pink-400 w-5">#{idx + 1}</span>
-                        {item.image && (
-                          <img src={item.image} alt={item.name} className="w-9 h-9 rounded-xl object-cover" />
-                        )}
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate">{item.name}</h4>
-                          <p className="text-[10px] text-gray-400 truncate">{item.artist}</p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full shrink-0">
-                        {item.count} reqs
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Filterable Request History Table */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <h3 className="text-base font-bold text-white">Full Request History</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={searchFilter}
-                    onChange={e => setSearchFilter(e.target.value)}
-                    placeholder="Filter history..."
-                    className="bg-gray-900/90 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500"
-                  />
-                  <select
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value as any)}
-                    className="bg-gray-900/90 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="declined">Declined</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="divide-y divide-white/5 max-h-96 overflow-y-auto custom-scrollbar">
-                {filteredRequests.map((req) => (
-                  <div key={req.id} className="py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={req.track_image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg'}
-                        alt={req.track_name}
-                        className="w-10 h-10 rounded-xl object-cover"
-                      />
-                      <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-white truncate">{req.track_name}</h4>
-                        <p className="text-[10px] text-gray-400 truncate">{req.track_artist} • By {req.requester_name}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                        req.status === 'approved'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                          : req.status === 'declined'
-                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                          : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                      }`}>
-                        {req.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: Admin Team Management */}
-        {activeTab === 'admins' && (
-          <div className="space-y-6">
-            {/* Add New Admin Form */}
-            <div className="bg-gradient-to-br from-purple-950/40 via-black/80 to-pink-950/40 border border-purple-500/30 rounded-3xl p-5 md:p-6 backdrop-blur-xl space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-purple-500/20 rounded-2xl border border-purple-500/30 text-purple-300">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white">Add New Campus PCO DJ Admin</h3>
-                  <p className="text-xs text-gray-400">Grant full radio moderation and DJ song override permissions</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleAddAdminSubmit} className="flex flex-col sm:flex-row items-center gap-3">
-                <input
-                  type="email"
-                  value={newAdminEmail}
-                  onChange={e => setNewAdminEmail(e.target.value)}
-                  placeholder="Enter email (e.g. dj_mod@university.edu)..."
-                  className="flex-1 w-full bg-gray-900/90 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                  required
-                />
-
-                <select
-                  value={newAdminRole}
-                  onChange={e => setNewAdminRole(e.target.value as any)}
-                  className="w-full sm:w-44 bg-gray-900/90 border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                >
-                  <option value="pco_admin">PCO DJ Admin</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
-
+        {/* TAB 4: HISTORY */}
+        {tab === 'history' && (
+          <div className="space-y-3">
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap gap-1.5">
+              {(['all', 'pending', 'approved', 'declined', 'played'] as const).map(s => (
                 <button
-                  type="submit"
-                  disabled={isSubmittingAdmin || !newAdminEmail.trim()}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-40 text-white font-bold rounded-2xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 shrink-0"
+                  key={s}
+                  onClick={() => setHistFilter(s)}
+                  className={`px-3 py-1 text-xs border rounded transition-all ${
+                    histFilter === s
+                      ? 'bg-zinc-200 text-black font-bold border-zinc-200'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                  }`}
                 >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>{isSubmittingAdmin ? 'Adding...' : 'Add Admin'}</span>
+                  {s.toUpperCase()}
                 </button>
-              </form>
-
-              {adminActionMsg && (
-                <div className={`text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-2 ${
-                  adminActionMsg.type === 'success'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                }`}>
-                  {adminActionMsg.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                  <span>{adminActionMsg.text}</span>
-                </div>
-              )}
+              ))}
             </div>
 
-            {/* List of Active Admins */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-purple-400" />
-                  Registered Admin Team Members
-                </h3>
-                <span className="text-xs text-gray-400">{adminUsersList.length} Admins</span>
+            {/* History Table */}
+            <div className="border border-zinc-800 rounded overflow-x-auto bg-zinc-950/60">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="text-zinc-500 border-b border-zinc-800 bg-zinc-950">
+                    <th className="p-2.5">TRACK</th>
+                    <th className="p-2.5">REQUESTER</th>
+                    <th className="p-2.5">STATUS</th>
+                    <th className="p-2.5">TIME</th>
+                    <th className="p-2.5 text-right">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.slice(0, 60).map(r => (
+                    <tr key={r.id} className="border-b border-zinc-900/80 hover:bg-zinc-900/40 transition-colors">
+                      <td className="p-2.5 text-white max-w-[200px] truncate font-medium">{r.track_name}</td>
+                      <td className="p-2.5 text-zinc-400 max-w-[120px] truncate">{r.requester_name}</td>
+                      <td className="p-2.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          r.status === 'pending'
+                            ? 'bg-pink-950 text-pink-400 border border-pink-800/60'
+                            : r.status === 'declined'
+                            ? 'bg-red-950 text-red-400 border border-red-800/60'
+                            : 'bg-emerald-950 text-emerald-400 border border-emerald-800/60'
+                        }`}>
+                          {r.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-zinc-500">
+                        {r.requested_at ? new Date(r.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="p-2.5 text-right">
+                        {r.status === 'pending' ? (
+                          <button onClick={() => actDecline(r.id)} className={B}>✕ DECLINE</button>
+                        ) : (
+                          <button
+                            onClick={() => actPlayNow({
+                              id: r.track_id,
+                              song: r.track_name,
+                              singers: r.track_artist || 'Campus Request',
+                              image: r.track_image || FALLBACK_ART,
+                              media_url: r.track_url || '',
+                              duration: r.track_duration || '240'
+                            })}
+                            className={B}
+                            title="Replay Track"
+                          >
+                            ⟲ REPLAY
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: ADMIN TEAM */}
+        {tab === 'admins' && (
+          <div className="space-y-4">
+            {/* Add New Admin Form */}
+            <form onSubmit={submitAdmin} className="flex flex-wrap gap-2 p-3 bg-zinc-950 border border-zinc-800 rounded">
+              <input
+                type="email"
+                required
+                value={newAdminEmail}
+                onChange={e => setNewAdminEmail(e.target.value)}
+                placeholder="teammate@university.edu"
+                className="flex-1 min-w-[200px] bg-black border border-zinc-700 px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none focus:border-pink-500 rounded"
+              />
+              <select
+                value={newAdminRole}
+                onChange={e => setNewAdminRole(e.target.value as any)}
+                className="bg-black border border-zinc-700 px-3 py-1.5 text-xs text-white outline-none rounded"
+              >
+                <option value="pco_admin">PCO DJ Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+              <button className={B}>+ ADD ADMIN</button>
+            </form>
+
+            {/* Active Admin List */}
+            <div className="space-y-2">
+              <div className="text-zinc-400 font-bold text-xs uppercase tracking-wider">
+                Active Campus PCO Admins ({admins.length})
               </div>
-
-              <div className="divide-y divide-white/5">
-                {adminUsersList.map((admin) => (
-                  <div key={admin.id} className="py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
-                        <Shield className="w-4 h-4 text-pink-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-white flex items-center gap-2 truncate">
-                          <span className="truncate">{admin.email}</span>
-                          {['nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(admin.email.toLowerCase()) && (
-                            <span className="text-[9px] bg-pink-500/20 text-pink-300 border border-pink-500/30 px-1.5 py-0.2 rounded font-bold shrink-0">
-                              Primary Owner
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-gray-500">
-                          Role: {admin.role.replace('_', ' ').toUpperCase()}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      {!['nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(admin.email.toLowerCase()) && (
-                        <button
-                          onClick={() => handleRemoveAdminClick(admin.email)}
-                          className="p-2 bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-xl text-xs transition-colors"
-                          title="Revoke Admin Access"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+              {admins.map(a => {
+                const isPrimary = PRIMARY_OWNERS.includes(a.email.toLowerCase());
+                return (
+                  <div key={a.id} className="flex items-center justify-between gap-3 border border-zinc-800 bg-zinc-950/80 p-2.5 rounded">
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <span className="text-white font-medium truncate">{a.email}</span>
+                      {isPrimary && (
+                        <span className="text-[10px] bg-pink-950 text-pink-300 border border-pink-800 px-1.5 py-0.5 rounded font-bold">
+                          OWNER
+                        </span>
                       )}
                     </div>
+                    <span className="text-zinc-500 text-xs shrink-0">{a.role}</span>
+                    <span className="text-zinc-600 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString()}</span>
+                    {!isPrimary && (
+                      <button
+                        onClick={() => delAdmin(a.email)}
+                        className="border border-red-500/60 bg-red-950/40 text-red-300 px-2 py-1 text-xs rounded hover:bg-red-900/60"
+                      >
+                        REVOKE
+                      </button>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         )}
 
+        {/* TAB 6: CONSOLE EVENT LOG */}
+        {tab === 'console' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-400 font-bold uppercase tracking-wider">
+                Live Broadcast Event Stream (Last {logs.length})
+              </span>
+              <button onClick={() => setLogs([])} className={B}>CLEAR LOG</button>
+            </div>
+
+            <div className="bg-black border border-zinc-800 rounded p-3 h-96 overflow-y-auto font-mono text-xs space-y-1.5 custom-scrollbar">
+              {logs.length === 0 && <div className="text-zinc-600">No events logged yet. Listening to live telemetry…</div>}
+              {[...logs].reverse().map((l, i) => (
+                <div key={i} className="flex items-start gap-2.5 py-0.5 border-b border-zinc-900/60">
+                  <span className="text-zinc-600 shrink-0 text-[10px]">{l.t}</span>
+                  <span className="text-pink-400 font-bold shrink-0 w-16 text-[10px]">[{l.src}]</span>
+                  <span className="text-zinc-300 flex-1 break-all">{l.msg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
