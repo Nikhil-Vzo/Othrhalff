@@ -980,15 +980,20 @@ export const MusicDate = () => {
                         }
                     }
 
-                    // 2. Request Media Permissions
+                    // 2. Request Media Permissions (Bypass in Campus PCO radio to keep full stereo loudspeaker audio output)
                     let stream: MediaStream;
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    } catch (err) {
-                        console.warn("Media Access Failed", err);
+                    if (roomCode.includes('Campus_PCO')) {
+                        // Radio station mode: NEVER capture microphone! Capturing mic forces phone OS into low-quality "Call Earpiece" mode.
                         stream = createDummyStream();
-                        setError("Camera unavailable. Joining as Spectator.");
-                        setTimeout(() => setError(null), 5000);
+                    } else {
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        } catch (err) {
+                            console.warn("Media Access Failed", err);
+                            stream = createDummyStream();
+                            setError("Camera unavailable. Joining as Spectator.");
+                            setTimeout(() => setError(null), 5000);
+                        }
                     }
                     setMyStream(stream);
 
@@ -1429,6 +1434,22 @@ export const MusicDate = () => {
             audio.volume = musicVolume;
             audio.load();
             setAudioReady(true);
+
+            // Register with device MediaSession for native phone loudspeaker routing & lockscreen display
+            if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+                try {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: currentTrack.song,
+                        artist: currentTrack.singers || 'Sparx FM Radio',
+                        album: 'Campus PCO Radio',
+                        artwork: [
+                            { src: currentTrack.image || '/fm.png', sizes: '512x512', type: 'image/png' }
+                        ]
+                    });
+                } catch (msErr) {
+                    console.debug('[MediaSession] Metadata error:', msErr);
+                }
+            }
 
             if (isPlaying) {
                 const playPromise = audio.play();
@@ -2712,7 +2733,16 @@ export const MusicDate = () => {
                 onClose={() => setIsShareModalOpen(false)} 
                 roomUrl={window.location.href} 
             />
-            <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnded} onError={handleAudioError} onLoadedData={handleAudioLoadedData} />
+            <audio 
+                ref={audioRef} 
+                playsInline
+                crossOrigin="anonymous" 
+                preload="auto"
+                onTimeUpdate={handleTimeUpdate} 
+                onEnded={handleSongEnded} 
+                onError={handleAudioError} 
+                onLoadedData={handleAudioLoadedData} 
+            />
 
             {/* Header / Nav Bar - Hidden in Campus PCO (Sparx FM) because PcoRadioPlayer has its own integrated header */}
             {!isFullscreen && !roomCode.includes('Campus_PCO') && (
