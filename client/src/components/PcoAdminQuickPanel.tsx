@@ -118,16 +118,16 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
   return (
     <>
-      {/* Floating Launcher Trigger */}
-      <div className="fixed bottom-6 right-4 z-50">
+      {/* Floating Launcher Trigger - Positioned directly below the top-right 3-bars menu button */}
+      <div className="fixed top-16 sm:top-20 right-4 sm:right-8 z-40">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative p-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_25px_rgba(217,70,239,0.5)] hover:shadow-[0_0_35px_rgba(217,70,239,0.8)] hover:scale-105 active:scale-95 transition-all text-white border border-white/20 flex items-center justify-center group"
+          className="relative p-2.5 sm:p-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] hover:scale-105 active:scale-95 transition-all text-white border border-white/20 flex items-center justify-center group cursor-pointer"
           title="Admin DJ Quick Panel"
         >
-          <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+          <Shield className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
           {pendingRequests.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 border-2 border-black text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
+            <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-pink-500 border-2 border-black text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
               {pendingRequests.length}
             </span>
           )}
@@ -136,7 +136,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
       {/* Floating Modal Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[80vh]">
+        <div className="fixed top-28 sm:top-32 right-4 sm:right-8 z-50 w-96 max-w-[calc(100vw-2rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[75vh]">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-purple-950/80 to-pink-950/80 border-b border-purple-500/20 flex items-center justify-between">
             <div className="flex items-center gap-2">
