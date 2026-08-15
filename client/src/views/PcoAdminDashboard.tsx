@@ -964,18 +964,61 @@ export const PcoAdminDashboard: React.FC = () => {
 
         {/* TAB 6: CONSOLE EVENT LOG */}
         {tab === 'console' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-400 font-bold uppercase tracking-wider">
-                Live Broadcast Event Stream (Last {logs.length})
-              </span>
-              <button onClick={() => setLogs([])} className={B}>CLEAR LOG</button>
+          <div className="space-y-4">
+            {/* Quick Diagnostic Actions Bar */}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-zinc-950 border border-zinc-800 rounded">
+              <span className="text-zinc-400 font-bold text-xs mr-2">DIAGNOSTIC CONTROLS:</span>
+              <button
+                onClick={() => {
+                  send('PCO_PING', { senderId: currentUser?.id, timestamp: Date.now() });
+                  flash('Broadcast ping dispatched to listeners');
+                }}
+                className={B}
+              >
+                📡 PING LISTENERS
+              </button>
+              <button
+                onClick={() => {
+                  send('PCO_QUEUE_QUERY', {});
+                  flash('Queue sync query broadcasted');
+                }}
+                className={B}
+              >
+                ⇄ SYNC QUEUE STATE
+              </button>
+              <button
+                onClick={copyDiag}
+                className={B}
+              >
+                ⧉ COPY DIAGNOSTIC REPORT
+              </button>
+              <button
+                onClick={() => setLogs([])}
+                className="border border-red-500/60 bg-red-950/40 text-red-300 px-2.5 py-1 text-xs hover:bg-red-900/60 transition-colors rounded ml-auto"
+              >
+                ✕ CLEAR LOGS
+              </button>
             </div>
 
-            <div className="bg-black border border-zinc-800 rounded p-3 h-96 overflow-y-auto font-mono text-xs space-y-1.5 custom-scrollbar">
-              {logs.length === 0 && <div className="text-zinc-600">No events logged yet. Listening to live telemetry…</div>}
+            {/* Event Stream Header */}
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-400 font-bold uppercase tracking-wider">
+                Live Broadcast Telemetry Stream ({logs.length} events)
+              </span>
+              <span className="text-[10px] text-emerald-400 font-bold">
+                ● STATUS: {channelStatus} | LISTENERS: {listeners}
+              </span>
+            </div>
+
+            {/* Terminal Window */}
+            <div className="bg-black border border-zinc-800 rounded p-3.5 h-[420px] overflow-y-auto font-mono text-xs space-y-1.5 custom-scrollbar shadow-inner">
+              {logs.length === 0 && (
+                <div className="text-zinc-600 py-10 text-center">
+                  No broadcast events logged yet. Listening to live Supabase channel telemetry…
+                </div>
+              )}
               {[...logs].reverse().map((l, i) => (
-                <div key={i} className="flex items-start gap-2.5 py-0.5 border-b border-zinc-900/60">
+                <div key={i} className="flex items-start gap-2.5 py-1 border-b border-zinc-900/80 hover:bg-zinc-950/80 transition-colors">
                   <span className="text-zinc-600 shrink-0 text-[10px]">{l.t}</span>
                   <span className="text-pink-400 font-bold shrink-0 w-16 text-[10px]">[{l.src}]</span>
                   <span className="text-zinc-300 flex-1 break-all">{l.msg}</span>
