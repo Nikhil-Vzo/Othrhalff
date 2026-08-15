@@ -1538,6 +1538,7 @@ export const MusicDate = () => {
                 .replace(/\[.*?\]/g, '')
                 .replace(/ - .*/g, '')
                 .replace(/\|.*/g, '')
+                .replace(/["']/g, '')
                 .trim();
             const cleanSingers = (track.singers || '')
                 .replace(/\(.*?\)/g, '')
@@ -1548,28 +1549,58 @@ export const MusicDate = () => {
 
             let data: any = null;
 
-            // 1. Exact match via lrclib /api/get
+            // Tier 1: Exact match with duration
             try {
-                let getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanSong)}&artist_name=${encodeURIComponent(cleanSingers)}`;
-                if (durationSec > 0) getUrl += `&duration=${durationSec}`;
-                const getRes = await fetch(getUrl, { signal: lyricsAbortControllerRef.current.signal });
-                if (getRes.ok) {
-                    data = await getRes.json();
+                let url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanSong)}&artist_name=${encodeURIComponent(cleanSingers)}`;
+                if (durationSec > 0) url += `&duration=${durationSec}`;
+                const res = await fetch(url, { signal: lyricsAbortControllerRef.current.signal });
+                if (res.ok) {
+                    const hit = await res.json();
+                    if (hit && hit.syncedLyrics) data = hit;
                 }
             } catch (_) {}
 
-            // 2. Search fallback via lrclib /api/search
-            if (!data || (!data.syncedLyrics && !data.plainLyrics)) {
-                const searchQ = `${cleanSong} ${cleanSingers}`.trim();
-                const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(searchQ)}`, {
-                    signal: lyricsAbortControllerRef.current.signal
-                });
-                if (searchRes.ok) {
-                    const list = await searchRes.json();
-                    if (Array.isArray(list) && list.length > 0) {
-                        data = list.find((item: any) => item.syncedLyrics) || list[0];
+            // Tier 2: Exact match without duration
+            if (!data || !data.syncedLyrics) {
+                try {
+                    const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanSong)}&artist_name=${encodeURIComponent(cleanSingers)}`;
+                    const res = await fetch(url, { signal: lyricsAbortControllerRef.current.signal });
+                    if (res.ok) {
+                        const hit = await res.json();
+                        if (hit && hit.syncedLyrics) data = hit;
                     }
-                }
+                } catch (_) {}
+            }
+
+            // Tier 3: Search with song + singer
+            if (!data || !data.syncedLyrics) {
+                try {
+                    const searchQ = `${cleanSong} ${cleanSingers}`.trim();
+                    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(searchQ)}`, {
+                        signal: lyricsAbortControllerRef.current.signal
+                    });
+                    if (res.ok) {
+                        const list = await res.json();
+                        if (Array.isArray(list) && list.length > 0) {
+                            data = list.find((item: any) => item.syncedLyrics) || list[0];
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // Tier 4: Search with song title only
+            if (!data || !data.syncedLyrics) {
+                try {
+                    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanSong)}`, {
+                        signal: lyricsAbortControllerRef.current.signal
+                    });
+                    if (res.ok) {
+                        const list = await res.json();
+                        if (Array.isArray(list) && list.length > 0) {
+                            data = list.find((item: any) => item.syncedLyrics) || list[0];
+                        }
+                    }
+                } catch (_) {}
             }
 
             if (data?.syncedLyrics) {
@@ -1964,7 +1995,55 @@ export const MusicDate = () => {
     };
 
     const currentTimeRef = useRef(0);
+    const showLyricsRef = useRef(showLyrics);
+    const lyricsDataRef = useRef<LyricLine[] | null>(lyricsData);
     const activeLyricIndexRef = useRef(-1);
+
+    useEffect(() => {
+        showLyricsRef.current = showLyrics;
+        if (showLyrics && lyricsDataRef.current && audioRef.current) {
+            const time = audioRef.current.currentTime;
+            let activeIdx = 0;
+            for (let i = 0; i < lyricsDataRef.current.length; i++) {
+                if (time >= lyricsDataRef.current[i].time) {
+                    activeIdx = i;
+                } else {
+                    break;
+                }
+            }
+            activeLyricIndexRef.current = activeIdx;
+            setActiveLyricIndex(activeIdx);
+            setTimeout(() => {
+                const activeEl = document.getElementById(`lyric-${activeIdx}`);
+                if (activeEl) {
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+    }, [showLyrics]);
+
+    useEffect(() => {
+        lyricsDataRef.current = lyricsData;
+        if (lyricsData && audioRef.current && showLyricsRef.current) {
+            const time = audioRef.current.currentTime;
+            let activeIdx = 0;
+            for (let i = 0; i < lyricsData.length; i++) {
+                if (time >= lyricsData[i].time) {
+                    activeIdx = i;
+                } else {
+                    break;
+                }
+            }
+            activeLyricIndexRef.current = activeIdx;
+            setActiveLyricIndex(activeIdx);
+            setTimeout(() => {
+                const activeEl = document.getElementById(`lyric-${activeIdx}`);
+                if (activeEl) {
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+    }, [lyricsData]);
 
     const handleTimeUpdate = () => {
         if (audioRef.current) {
@@ -1976,17 +2055,18 @@ export const MusicDate = () => {
                 setCurrentTime(time);
             }
 
-            if (showLyrics && lyricsData) {
+            const curLyrics = lyricsDataRef.current;
+            if (showLyricsRef.current && curLyrics && curLyrics.length > 0) {
                 let activeIdx = -1;
-                for (let i = 0; i < lyricsData.length; i++) {
-                    if (time >= lyricsData[i].time) {
+                for (let i = 0; i < curLyrics.length; i++) {
+                    if (time >= curLyrics[i].time) {
                         activeIdx = i;
                     } else {
                         break;
                     }
                 }
 
-                if (activeIdx !== activeLyricIndexRef.current && activeIdx !== -1) {
+                if (activeIdx !== activeLyricIndexRef.current && activeIdx >= 0) {
                     activeLyricIndexRef.current = activeIdx;
                     setActiveLyricIndex(activeIdx);
                     const activeEl = document.getElementById(`lyric-${activeIdx}`);
