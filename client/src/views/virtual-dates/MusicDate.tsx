@@ -509,6 +509,12 @@ export const MusicDate = () => {
         const email = (currentUser?.universityEmail || '').toLowerCase().trim();
         return ['nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(email);
     });
+    const isAdminUserRef = useRef(isAdminUser);
+    useEffect(() => {
+        isAdminUserRef.current = isAdminUser;
+    }, [isAdminUser]);
+
+    const pendingOffsetRef = useRef<number | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -629,6 +635,7 @@ export const MusicDate = () => {
         setDailyRequestsUsed(newCount);
         localStorage.setItem(key, newCount.toString());
     };
+
     useEffect(() => {
         if (!roomCode.includes('Campus_PCO') || !supabase) return;
 
@@ -641,11 +648,10 @@ export const MusicDate = () => {
         const { track, offsetSec } = getPcoSyncedTrack(baseList);
         setCurrentTrack(track);
         setIsPlaying(true);
-        setTimeout(() => {
-            if (audioRef.current) {
-                audioRef.current.currentTime = offsetSec;
-            }
-        }, 800);
+        pendingOffsetRef.current = offsetSec;
+        if (audioRef.current) {
+            audioRef.current.currentTime = offsetSec;
+        }
 
         // 2. Realtime Channel with Presence & Audio Broadcasts
         const pcoChannel = supabase.channel('campus_pco_live_chat', {
@@ -680,7 +686,7 @@ export const MusicDate = () => {
                     addFloatingNotification('System', `${payload.requester} requested: "${payload.track.song}"`);
                     setMessages(prev => [...prev.slice(-149), { user: 'System', text: `🎵 ${payload.requester} requested: "${payload.track.song}"` }]);
                     
-                    if (isAdminUser) {
+                    if (isAdminUserRef.current) {
                         setAdminRequestModal({ requester: payload.requester, track: payload.track, requestId: payload.requestId });
                     }
                 }
@@ -743,10 +749,36 @@ export const MusicDate = () => {
                 }
             });
 
+        // 3. Periodic 30-Second Drift Correction for PCO Radio
+        const driftInterval = setInterval(() => {
+            if (!audioRef.current || audioRef.current.paused || queueRef.current.length > 0) return;
+            const totalDuration = baseList.reduce((acc, t) => acc + (parseInt(t.duration, 10) || 240), 0);
+            if (totalDuration === 0) return;
+            const nowSec = Math.floor(Date.now() / 1000);
+            let cycleTime = nowSec % totalDuration;
+
+            for (const t of baseList) {
+                const dur = parseInt(t.duration, 10) || 240;
+                if (cycleTime < dur) {
+                    if (currentTrackRef.current?.id === t.id && audioRef.current) {
+                        const drift = Math.abs(audioRef.current.currentTime - cycleTime);
+                        if (drift > 1.5) {
+                            console.log(`[PCO Radio] Correcting clock drift: ${drift.toFixed(2)}s`);
+                            audioRef.current.currentTime = cycleTime;
+                            setCurrentTime(cycleTime);
+                        }
+                    }
+                    break;
+                }
+                cycleTime -= dur;
+            }
+        }, 30000);
+
         return () => {
+            clearInterval(driftInterval);
             supabase.removeChannel(pcoChannel);
         };
-    }, [roomCode, isAdminUser]);
+    }, [roomCode]);
 
     // Unblock browser autoplay on first user click or touch
     useEffect(() => {
@@ -1810,6 +1842,12 @@ export const MusicDate = () => {
     };
 
     const handlePcoSongRequest = async (track: Track) => {
+        if (!currentUser) {
+            setError("Please log in to submit a song request!");
+            setTimeout(() => setError(null), 4000);
+            return;
+        }
+
         if (!isAdminUser && dailyRequestsUsed >= 3) {
             setError("You have reached your limit of 3 song requests per day!");
             setTimeout(() => setError(null), 4000);
@@ -1906,8 +1944,8 @@ export const MusicDate = () => {
             setCurrentTrack(nextTrack);
             setIsPlaying(true);
             triggerPinnedBanner(`🎵 Playing Next: "${nextTrack.song}"`);
-            // Broadcast to all listeners so everyone switches to the same track
-            if (supabase) {
+            // Only admin broadcasts to prevent N duplicate broadcasts (Bug B16)
+            if (isAdminUserRef.current && supabase) {
                 supabase.channel('campus_pco_live_chat').send({
                     type: 'broadcast',
                     event: 'PCO_PLAY_IMMEDIATELY',
@@ -1917,6 +1955,15 @@ export const MusicDate = () => {
         } else if (isHost) {
             setIsPlaying(false);
             broadcastSync('pause');
+        }
+    };
+
+    const handleAudioLoadedData = () => {
+        setAudioReady(true);
+        if (pendingOffsetRef.current !== null && audioRef.current) {
+            audioRef.current.currentTime = pendingOffsetRef.current;
+            setCurrentTime(pendingOffsetRef.current);
+            pendingOffsetRef.current = null;
         }
     };
 
@@ -2599,7 +2646,7 @@ export const MusicDate = () => {
         <div ref={containerRef} className="flex flex-col h-[100dvh] w-full bg-[#050510] text-white overflow-hidden font-sans relative">
             {/* Admin Song Request Approval Popup Modal */}
             {adminRequestModal && (
-                <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
                     <div className="bg-gradient-to-b from-purple-900/90 to-zinc-950 border-2 border-purple-500/50 rounded-3xl p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(168,85,247,0.4)]">
                         <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mx-auto mb-4 text-purple-300 animate-bounce">
                             <Music className="w-7 h-7" />
@@ -2653,7 +2700,7 @@ export const MusicDate = () => {
                 onClose={() => setIsShareModalOpen(false)} 
                 roomUrl={window.location.href} 
             />
-            <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnded} onError={handleAudioError} />
+            <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnded} onError={handleAudioError} onLoadedData={handleAudioLoadedData} />
 
             {/* Header / Nav Bar - Hidden in Campus PCO (Sparx FM) because PcoRadioPlayer has its own integrated header */}
             {!isFullscreen && !roomCode.includes('Campus_PCO') && (

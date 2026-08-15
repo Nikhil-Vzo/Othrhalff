@@ -140,11 +140,11 @@ ON public.pco_song_requests FOR SELECT
 TO authenticated
 USING (true);
 
--- Any authenticated user can submit a request
+-- Any authenticated user can submit a request (must match own user id or admin)
 CREATE POLICY pco_requests_insert
 ON public.pco_song_requests FOR INSERT
 TO authenticated
-WITH CHECK (true);
+WITH CHECK (requester_id = auth.uid() OR public.is_pco_admin());
 
 -- ONLY admins can approve/decline/update request status
 CREATE POLICY pco_requests_update
