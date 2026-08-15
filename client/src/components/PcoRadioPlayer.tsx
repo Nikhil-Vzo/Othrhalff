@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Play, Pause, SkipForward, SkipBack, MessageSquare, 
-  FileText, ListMusic, PlusCircle, Volume2, Sparkles, Radio, Mic2
+  ArrowLeft, Play, Pause, SkipForward, MessageSquare, 
+  FileText, ListMusic, PlusCircle
 } from 'lucide-react';
 
 export interface PcoTrackLike {
@@ -72,61 +72,28 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Retro Indian Truck Horn SFX generator (Web Audio API)
-  const [honking, setHonking] = useState(false);
-  const playHornSound = () => {
-    setHonking(true);
-    setTimeout(() => setHonking(false), 900);
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc1.type = 'sawtooth';
-      osc2.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(340, ctx.currentTime);
-      osc2.frequency.setValueAtTime(425, ctx.currentTime);
-
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc1.start();
-      osc2.start();
-      osc1.stop(ctx.currentTime + 0.6);
-      osc2.stop(ctx.currentTime + 0.6);
-    } catch (_) {}
-  };
-
   return (
     <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
-      {/* 🌟 Background: FM.png Aesthetic Wallpaper with Cinematic Vignette */}
+      {/* 🌟 Background: FM.png Aesthetic Campus Wallpaper */}
       <div className="absolute inset-0 z-0">
         <img
           src={DEFAULT_BG}
           alt="Sparx FM Ambient"
-          className="w-full h-full object-cover object-center filter brightness-[0.92] contrast-[1.05]"
+          className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05]"
           onError={(e) => {
             // Graceful fallback to album art with heavy blur
             e.currentTarget.src = art;
             e.currentTarget.className = "w-full h-full object-cover filter blur-3xl opacity-50";
           }}
         />
-        {/* Soft film grain and atmospheric gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.6)_100%)] pointer-events-none" />
+        {/* Soft atmospheric gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
 
       {/* 👑 Top Bar: Time, Live Listener Pill, Back Button */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
         {/* Left: Clock */}
-        <div className="font-mono text-xs sm:text-sm font-semibold tracking-wider text-white/80 drop-shadow">
+        <div className="font-mono text-xs sm:text-sm font-semibold tracking-wider text-white/90 drop-shadow-md">
           {timeString || '9:00 pm'}
         </div>
 
@@ -156,41 +123,8 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       )}
 
-      {/* 🎨 Center Hero Stage: Aesthetic Indian Truck Typography & Horn Button */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-6 pointer-events-none">
-        {/* Left Interactive Easter Egg: "हॉर्न ओके प्लीज / Horn OK Please" */}
-        <div className="absolute left-4 sm:left-10 top-1/2 -translate-y-1/2 pointer-events-auto">
-          <button
-            onClick={playHornSound}
-            className={`group flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-black/40 hover:bg-black/70 backdrop-blur-xl border border-white/15 text-left transition-all active:scale-95 shadow-2xl ${
-              honking ? 'scale-110 border-pink-500 shadow-[0_0_25px_rgba(236,72,153,0.6)] bg-pink-950/60' : ''
-            }`}
-            title="Press for nostalgic truck horn sound!"
-          >
-            <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-pink-300 group-hover:scale-110 transition-transform">
-              <Volume2 className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-white leading-tight font-sans">
-                हॉर्न ओके प्लीज
-              </p>
-              <p className="text-[9px] text-white/50 font-mono leading-none">
-                Horn pleaseeee
-              </p>
-            </div>
-          </button>
-        </div>
-
-        {/* Center Aesthetic Hero Title */}
-        <div className="space-y-2 pointer-events-auto">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white tracking-normal drop-shadow-[0_12px_40px_rgba(0,0,0,0.85)] font-sans">
-            ट्रक वाला
-          </h1>
-          <p className="text-xs sm:text-sm md:text-base font-semibold text-white/80 tracking-widest drop-shadow italic">
-            दिल्ली अभी दूर है ☕
-          </p>
-        </div>
-      </main>
+      {/* 🎨 Clean Center Area to showcase the Campus Wallpaper */}
+      <main className="relative z-10 flex-1" />
 
       {/* 🎵 Bottom Floating Island Player (The exact aesthetic glass capsule) */}
       <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">
