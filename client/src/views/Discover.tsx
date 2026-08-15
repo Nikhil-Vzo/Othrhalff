@@ -322,6 +322,19 @@ export const Discover: React.FC = () => {
             setHasLiked(false);
             setPartnerLiked(false);
             setState('CONNECTED');
+
+            // Peer redundancy broadcast: instantly wake up matched partner if server push is delayed
+            safeBroadcast('MATCH_FOUND', {
+              targetId: data.partnerId,
+              partnerId: currentUser.id,
+              partnerName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
+              partnerAvatar: currentUser.avatar || '',
+              partnerUniversity: currentUser.university || '',
+              channelName: data.channelName,
+              appId: data.appId || '',
+              token: data.token || '',
+              mode: modeRef.current
+            });
             return;
           }
         }
@@ -353,7 +366,7 @@ export const Discover: React.FC = () => {
         }
       });
     };
-  }, [state, currentUser, mode, scope]);
+  }, [state, currentUser, mode, scope, safeBroadcast]);
 
   // Main Discover Realtime Channel Setup (Used exclusively for Chat/Typing/Likes/Skips & Live Presence Count)
   useEffect(() => {
@@ -368,6 +381,27 @@ export const Discover: React.FC = () => {
       config: {
         presence: { key: currentUser.id },
         broadcast: { self: false, ack: false }
+      }
+    });
+
+    // Instant Matchmaking Notification (eliminates exponential backoff polling delay)
+    newChannel.on('broadcast', { event: 'MATCH_FOUND' }, ({ payload }) => {
+      if (payload.targetId === currentUser.id && stateRef.current === 'SEARCHING') {
+        console.log('[Matchmaking] Instant Realtime Match received:', payload.partnerName);
+        setCallInfo({
+          appId: payload.appId || '',
+          channelName: payload.channelName,
+          token: payload.token || '',
+          partnerId: payload.partnerId,
+          partnerName: payload.partnerName,
+          partnerAvatar: payload.partnerAvatar || '',
+          partnerUniversity: payload.partnerUniversity || ''
+        });
+        setIsPartnerDisconnected(false);
+        setMessages([]);
+        setHasLiked(false);
+        setPartnerLiked(false);
+        setState('CONNECTED');
       }
     });
 

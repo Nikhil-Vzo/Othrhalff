@@ -1,5 +1,6 @@
 import express from 'express';
 import pkg from 'agora-access-token';
+import { createClient } from '@supabase/supabase-js';
 import { verifySupabaseToken } from '../middleware/auth.js';
 
 const { RtcTokenBuilder, RtcRole } = pkg;
@@ -34,6 +35,47 @@ function buildAgoraToken(channelName) {
 const queue = new Map();
 // Matched pairings ready for pickup
 const matches = new Map();
+
+// Lazy Supabase realtime broadcast client
+let supabaseClient = null;
+let realtimeChannel = null;
+
+function getRealtimeChannel() {
+  if (realtimeChannel) return realtimeChannel;
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('[Matchmaking] Supabase credentials not found; realtime broadcast unavailable, relying on polling fallback');
+    return null;
+  }
+
+  try {
+    if (!supabaseClient) {
+      supabaseClient = createClient(supabaseUrl, supabaseKey);
+    }
+    realtimeChannel = supabaseClient.channel('discover-pool', {
+      config: {
+        broadcast: { ack: false }
+      }
+    });
+    realtimeChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Matchmaking] Realtime discover-pool broadcast channel active on server');
+      }
+    });
+    return realtimeChannel;
+  } catch (err) {
+    console.warn('[Matchmaking] Failed to init realtime broadcast channel:', err);
+    return null;
+  }
+}
+
+// Warm up realtime connection
+setTimeout(() => {
+  getRealtimeChannel();
+}, 1000);
 
 // Periodic cleanup of stale waiting users (>45s)
 setInterval(() => {
@@ -128,8 +170,23 @@ router.post('/matchmaking/queue', verifySupabaseToken, async (req, res) => {
         createdAt: now
       };
 
-      // Save match for partner to pick up on their next poll
+      // 1. Save match for partner to pick up on their next poll (guaranteed fallback)
       matches.set(matchedPartner.userId, matchPayloadForPartner);
+
+      // 2. Instant Realtime Notification to partner via Supabase Realtime broadcast (<50ms latency)
+      const channel = getRealtimeChannel();
+      if (channel) {
+        channel.send({
+          type: 'broadcast',
+          event: 'MATCH_FOUND',
+          payload: {
+            targetId: matchedPartner.userId,
+            ...matchPayloadForPartner
+          }
+        }).catch(err => {
+          console.warn('[Matchmaking] Realtime broadcast error (falling back to poll):', err?.message || err);
+        });
+      }
 
       return res.json({
         status: 'MATCHED',
