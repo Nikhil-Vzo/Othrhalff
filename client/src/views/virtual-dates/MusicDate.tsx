@@ -3219,9 +3219,11 @@ export const MusicDate = () => {
 
                                     {/* 15-Second Sticky Pinned Announcement Banner */}
                                     {pinnedBanner && (
-                                        <div className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white font-bold text-[11px] px-3 py-2 rounded-xl mb-2 flex items-center justify-between border border-pink-400/30 shadow-[0_0_20px_rgba(236,72,153,0.4)] animate-pulse shrink-0">
-                                            <span className="truncate mr-2 font-black">{pinnedBanner.text}</span>
-                                            <span className="text-[9px] font-mono opacity-80 shrink-0 bg-black/40 px-1.5 py-0.5 rounded">15s Sticky</span>
+                                        <div className="bg-[#1c0f17]/90 backdrop-blur-2xl text-white text-xs px-3.5 py-2 rounded-2xl mb-2 flex items-center justify-between gap-2 border border-pink-500/30 shadow-[0_8px_30px_rgba(0,0,0,0.6)] animate-in fade-in duration-300 shrink-0">
+                                            <span className="truncate mr-2 font-semibold text-white/95 text-[11.5px]">{pinnedBanner.text}</span>
+                                            <span className="text-[9px] font-mono font-bold text-pink-300 uppercase tracking-wider bg-pink-500/15 border border-pink-500/30 px-2 py-0.5 rounded-full shrink-0">
+                                                ON AIR
+                                            </span>
                                         </div>
                                     )}
 
