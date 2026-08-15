@@ -710,25 +710,28 @@ export const MusicDate = () => {
                 if (payload && payload.track) {
                     setCurrentTrack(payload.track);
                     setIsPlaying(true);
-                    triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
-                    addFloatingNotification('System', `Now Playing: "${payload.track.song}"`);
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Now Playing: "${payload.track.song}"` }]);
+                    if (payload.senderId !== currentUser?.id) {
+                        triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
+                    }
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Now Playing: "${payload.track.song}"`, createdAt: Date.now() }]);
                 }
             })
             .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
                 if (payload && payload.track) {
                     setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
-                    triggerPinnedBanner(`⏭️ Playing Next: "${payload.track.song}"`);
-                    addFloatingNotification('System', `Admin Queued Next: "${payload.track.song}"`);
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Admin Queued Next: "${payload.track.song}"` }]);
+                    if (payload.senderId !== currentUser?.id) {
+                        triggerPinnedBanner(`⏭️ Playing Next: "${payload.track.song}"`);
+                    }
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Admin Queued Next: "${payload.track.song}"`, createdAt: Date.now() }]);
                 }
             })
             .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
                 if (payload && payload.track) {
                     setQueue(prev => [...prev, payload.track]);
-                    triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
-                    addFloatingNotification('System', `Added to Queue: "${payload.track.song}"`);
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Added to Queue: "${payload.track.song}"` }]);
+                    if (payload.senderId !== currentUser?.id) {
+                        triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
+                    }
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Added to Queue: "${payload.track.song}"`, createdAt: Date.now() }]);
                 }
             })
             .on('broadcast', { event: 'PCO_QUEUE_SYNC' }, ({ payload }) => {
@@ -1814,12 +1817,11 @@ export const MusicDate = () => {
         setCurrentTrack(track);
         setIsPlaying(true);
         triggerPinnedBanner(`🔥 Admin Played: "${track.song}"`);
-        addFloatingNotification('System', `Admin Played: "${track.song}"`);
         if (supabase && roomCode.includes('Campus_PCO')) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_PLAY_IMMEDIATELY',
-                payload: { track }
+                payload: { track, senderId: currentUser?.id }
             });
         }
         setSearchQuery('');
@@ -1829,12 +1831,11 @@ export const MusicDate = () => {
     const handlePcoAdminPlayNext = (track: Track) => {
         setQueue(prev => [track, ...prev]);
         triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}"`);
-        addFloatingNotification('System', `Admin Queued Next: "${track.song}"`);
         if (supabase && roomCode.includes('Campus_PCO')) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_PLAY_NEXT',
-                payload: { track, requester: displayName }
+                payload: { track, requester: displayName, senderId: currentUser?.id }
             });
         }
         setSearchQuery('');
@@ -1844,12 +1845,11 @@ export const MusicDate = () => {
     const handlePcoAdminAddToQueue = (track: Track) => {
         setQueue(prev => [...prev, track]);
         triggerPinnedBanner(`➕ Admin Added to Queue: "${track.song}"`);
-        addFloatingNotification('System', `Admin Added to Queue: "${track.song}"`);
         if (supabase && roomCode.includes('Campus_PCO')) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_ADD_QUEUE',
-                payload: { track, requester: displayName }
+                payload: { track, requester: displayName, senderId: currentUser?.id }
             });
         }
         setSearchQuery('');
@@ -1881,13 +1881,12 @@ export const MusicDate = () => {
         }
 
         triggerPinnedBanner(`📨 Request sent: "${track.song}" (by ${displayName})`);
-        addFloatingNotification('System', `Request sent to Admin DJ: "${track.song}"`);
 
         if (supabase && roomCode.includes('Campus_PCO')) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_REQUEST_NOTIFICATION',
-                payload: { track, requester: displayName, requestId: result.data?.id }
+                payload: { track, requester: displayName, requestId: result.data?.id, senderId: currentUser?.id }
             });
         }
         setSearchQuery('');
@@ -1905,12 +1904,11 @@ export const MusicDate = () => {
         setCurrentTrack(track);
         setIsPlaying(true);
         triggerPinnedBanner(`🔥 Admin Approved: "${track.song}" (by ${requester})`);
-        addFloatingNotification('System', `Now Playing: "${track.song}"`);
         if (supabase) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_PLAY_IMMEDIATELY',
-                payload: { track }
+                payload: { track, senderId: currentUser?.id }
             });
         }
         setAdminRequestModal(null);
@@ -1926,12 +1924,11 @@ export const MusicDate = () => {
         }
         setQueue(prev => [track, ...prev]);
         triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}" (by ${requester})`);
-        addFloatingNotification('System', `Admin Queued Next: "${track.song}"`);
         if (supabase) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_PLAY_NEXT',
-                payload: { track, requester }
+                payload: { track, requester, senderId: currentUser?.id }
             });
         }
         setAdminRequestModal(null);
