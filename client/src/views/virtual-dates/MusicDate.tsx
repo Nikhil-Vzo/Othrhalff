@@ -335,7 +335,8 @@ export const MusicDate = () => {
         }
         if (audioRef.current) {
             audioRef.current.pause();
-            audioRef.current.src = '';
+            audioRef.current.removeAttribute('src');
+            audioRef.current.load();
         }
 
         // Close all peer connections
@@ -1036,7 +1037,7 @@ export const MusicDate = () => {
                         }
 
                         setError(msg);
-                        if (['unavailable-id', 'invalid-id', 'invalid-key'].includes(err.type)) {
+                if (['unavailable-id', 'invalid-id', 'invalid-key'].includes(err.type)) {
                             setTimeout(() => setMode('landing'), 3000);
                         } else {
                             setTimeout(() => setError(null), 5000);
@@ -1046,15 +1047,21 @@ export const MusicDate = () => {
                     const attachIceMonitoring = (c: any) => {
                         const pc = c?.peerConnection;
                         if (pc) {
+                            let restartCount = 0;
                             pc.addEventListener('iceconnectionstatechange', () => {
                                 if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${c.peer}. Attempting ICE restart...`);
-                                    try {
-                                        if (typeof pc.restartIce === 'function') {
-                                            pc.restartIce();
+                                    if (restartCount < 2) {
+                                        restartCount++;
+                                        console.warn(`ICE state ${pc.iceConnectionState} with peer ${c.peer}. Attempting ICE restart (${restartCount}/2)...`);
+                                        try {
+                                            if (typeof pc.restartIce === 'function') {
+                                                pc.restartIce();
+                                            }
+                                        } catch (e) {
+                                            console.error("ICE restart error:", e);
                                         }
-                                    } catch (e) {
-                                        console.error("ICE restart error:", e);
+                                    } else {
+                                        console.warn(`ICE restart limit reached for peer ${c.peer}`);
                                     }
                                 }
                             });
@@ -1094,6 +1101,12 @@ export const MusicDate = () => {
 
                     peer.on('connection', (conn) => {
                         console.log('Data connection from:', conn.peer);
+                        const peerPasscode = conn.metadata?.passcode;
+                        if (isPrivateRoomRef.current && roomPasscodeRef.current && peerPasscode !== roomPasscodeRef.current) {
+                            console.warn("Rejected unauthorized peer connection:", conn.peer);
+                            conn.close();
+                            return;
+                        }
                         setupDataConnection(conn);
                     });
 
@@ -1110,8 +1123,8 @@ export const MusicDate = () => {
             return () => {
                 // CLEANUP: Destroy peer when component unmounts or room changes
                 if (peerInstance.current) {
-                    console.log("Cleaning up Peer instance...");
-                    if (hostRef.current && supabase) {
+                    console.log("Cleaning up Peer instance in MusicDate...");
+                    if (isHost && supabase) {
                         supabase
                             .from('active_rooms')
                             .delete()
@@ -1136,7 +1149,10 @@ export const MusicDate = () => {
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
         console.log(`Attempting to connect to Host: ${targetId}`);
         const call = peer.call(targetId, stream);
-        const conn = peer.connect(targetId, { reliable: true });
+        const conn = peer.connect(targetId, { 
+            reliable: true, 
+            metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
+        });
 
         const connectionTimeout = setTimeout(() => {
             if (!conn.open) {
@@ -1260,7 +1276,7 @@ export const MusicDate = () => {
                 audioRef.current.currentTime = data.time;
             } else if (data.action === 'time_update' && audioRef.current) {
                 const diff = Math.abs(audioRef.current.currentTime - data.time);
-                if (diff > 1.5) audioRef.current.currentTime = data.time;
+                if (diff > 0.6) audioRef.current.currentTime = data.time;
             } else if (data.action === 'queue_add') {
                 setQueue(prev => [...prev, data.payload]);
             } else if (data.action === 'queue_add_multiple') {
@@ -1828,10 +1844,18 @@ export const MusicDate = () => {
         broadcastSync(newPlayingState ? 'play' : 'pause');
     };
 
+    const currentTimeRef = useRef(0);
+    const activeLyricIndexRef = useRef(-1);
+
     const handleTimeUpdate = () => {
         if (audioRef.current) {
             const time = audioRef.current.currentTime;
-            setCurrentTime(time);
+            currentTimeRef.current = time;
+
+            // Throttle full-component React state re-renders to ~1x/sec
+            if (Math.floor(time) !== Math.floor(currentTime)) {
+                setCurrentTime(time);
+            }
 
             if (showLyrics && lyricsData) {
                 let activeIdx = -1;
@@ -1843,7 +1867,8 @@ export const MusicDate = () => {
                     }
                 }
 
-                if (activeIdx !== activeLyricIndex && activeIdx !== -1) {
+                if (activeIdx !== activeLyricIndexRef.current && activeIdx !== -1) {
+                    activeLyricIndexRef.current = activeIdx;
                     setActiveLyricIndex(activeIdx);
                     const activeEl = document.getElementById(`lyric-${activeIdx}`);
                     if (activeEl) {
@@ -2615,9 +2640,10 @@ export const MusicDate = () => {
                                 ) : (
                                     <div
                                         style={{ transform: 'rotateY(20deg) rotateX(5deg)', transformStyle: 'preserve-3d', transformOrigin: 'center left' }}
-                                        className="text-lg md:text-2xl text-purple-200 text-left leading-relaxed pb-12 mt-4 font-sans w-full px-8 max-w-4xl mx-auto py-36 font-semibold overflow-visible"
-                                        dangerouslySetInnerHTML={{ __html: plainLyrics || '' }}
-                                    />
+                                        className="text-lg md:text-2xl text-purple-200 text-left leading-relaxed pb-12 mt-4 font-sans w-full px-8 max-w-4xl mx-auto py-36 font-semibold overflow-visible whitespace-pre-wrap"
+                                    >
+                                        {plainLyrics || ''}
+                                    </div>
                                 )}
                             </div>
 

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ReactPlayer from 'react-player';
 import { ArrowLeft, Link as LinkIcon, AlertCircle, Monitor, FolderOpen, Youtube, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MonitorPlay, Home, Gamepad, Settings as SettingsIcon, Mic, MicOff, Video, VideoOff, MonitorUp, Send, MessageSquare, Maximize, Minimize, Sparkles, Tv, Film, Lock, MoreVertical, Share2 } from 'lucide-react';
 import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
@@ -680,15 +679,21 @@ export const CinemaDate: React.FC = () => {
                     const attachIceMonitoring = (c: any) => {
                         const pc = c?.peerConnection;
                         if (pc) {
+                            let restartCount = 0;
                             pc.addEventListener('iceconnectionstatechange', () => {
                                 if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${c.peer}. Attempting ICE restart...`);
-                                    try {
-                                        if (typeof pc.restartIce === 'function') {
-                                            pc.restartIce();
+                                    if (restartCount < 2) {
+                                        restartCount++;
+                                        console.warn(`ICE state ${pc.iceConnectionState} with peer ${c.peer}. Attempting ICE restart (${restartCount}/2)...`);
+                                        try {
+                                            if (typeof pc.restartIce === 'function') {
+                                                pc.restartIce();
+                                            }
+                                        } catch (e) {
+                                            console.error("ICE restart error:", e);
                                         }
-                                    } catch (e) {
-                                        console.error("ICE restart error:", e);
+                                    } else {
+                                        console.warn(`ICE restart limit reached for peer ${c.peer}`);
                                     }
                                 }
                             });
@@ -726,6 +731,12 @@ export const CinemaDate: React.FC = () => {
 
                     peer.on('connection', (conn) => {
                         console.log('Data connection from:', conn.peer);
+                        const peerPasscode = conn.metadata?.passcode;
+                        if (isPrivateRoomRef.current && roomPasscodeRef.current && peerPasscode !== roomPasscodeRef.current) {
+                            console.warn("Rejected unauthorized peer connection:", conn.peer);
+                            conn.close();
+                            return;
+                        }
                         setupDataConnection(conn);
                     });
 
@@ -846,7 +857,10 @@ export const CinemaDate: React.FC = () => {
         const call = peer.call(peerId, stream, { metadata: { type: 'camera' } });
 
         // 2. Data Connection for Sync
-        const conn = peer.connect(peerId, { reliable: true });
+        const conn = peer.connect(peerId, { 
+            reliable: true, 
+            metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
+        });
 
         const connectionTimeout = setTimeout(() => {
             if (!conn.open) {
@@ -1131,8 +1145,9 @@ export const CinemaDate: React.FC = () => {
                 if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
                     const currentTime = playerRef.current.getCurrentTime();
                     const diff = Math.abs(currentTime - data.time);
-                    // If drift is > 1.5 seconds, sync up
-                    if (diff > 1.5) {
+                    const playerState = typeof playerRef.current.getPlayerState === 'function' ? playerRef.current.getPlayerState() : -1;
+                    // If drift is > 0.6 seconds and not buffering (state 3), sync up
+                    if (diff > 0.6 && playerState !== 3) {
                         playerRef.current.seekTo(data.time, true);
                     }
                 }
@@ -2603,7 +2618,7 @@ export const CinemaDate: React.FC = () => {
                                             id="youtube-iframe-element"
                                             width="100%"
                                             height="100%"
-                                            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&mute=0&controls=${isHost ? 1 : 0}&disablekb=${isHost ? 0 : 1}&origin=${origin}`}
+                                            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&mute=1&controls=${isHost ? 1 : 0}&disablekb=${isHost ? 0 : 1}&origin=${origin}`}
                                             title="YouTube video player"
                                             frameBorder="0"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
