@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Play, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Loader2 } from 'lucide-react';
 
 interface VideoPlayerProps {
   src: string;
@@ -15,10 +15,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [showPlayIcon, setShowPlayIcon] = useState(false);
   const lastTap = useRef(0);
 
-  // 1. Observer only tracks visibility
+  // 1. Viewport observer for auto-play / auto-pause & DOM swapping
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -35,7 +34,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
     return () => observer.disconnect();
   }, []);
 
-  // 2. Autoplay/Pause when video element mounts/unmounts or visibility changes
+  // 2. Play/Pause trigger when mounting/unmounting or entering/leaving viewport
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -43,7 +42,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
     if (isInView) {
       video.play().then(() => {
         setIsPlaying(true);
-        setShowPlayIcon(false);
       }).catch(() => {
         setIsPlaying(false);
       });
@@ -53,7 +51,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
     }
   }, [isInView]);
 
-  // 3. Track playback progress and loading events (re-attached when node mounts)
+  // 3. Playback progress and loading state listeners
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isInView) return;
@@ -65,38 +63,41 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
     };
 
     const handleWaiting = () => setIsLoading(true);
-    const handlePlaying = () => setIsLoading(false);
+    const handlePlaying = () => {
+      setIsLoading(false);
+      setIsPlaying(true);
+    };
+    const handlePause = () => setIsPlaying(false);
     const handleLoadedData = () => setIsLoading(false);
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('playing', handlePlaying);
+    video.addEventListener('pause', handlePause);
     video.addEventListener('loadeddata', handleLoadedData);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('pause', handlePause);
       video.removeEventListener('loadeddata', handleLoadedData);
     };
   }, [isInView]);
 
-  const handleTap = (e: React.MouseEvent) => {
+  const togglePlayPause = (e: React.MouseEvent) => {
     e.stopPropagation();
     const now = Date.now();
     if (now - lastTap.current < 300) {
-      // Double-tap triggered (like)
+      // Double tap triggered
       onDoubleTap?.();
     } else {
-      // Single tap toggle play / pause
       if (videoRef.current) {
         if (videoRef.current.paused) {
           videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-          setShowPlayIcon(false);
         } else {
           videoRef.current.pause();
           setIsPlaying(false);
-          setShowPlayIcon(true);
         }
       }
     }
@@ -114,16 +115,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-[4/5] sm:aspect-video max-h-[460px] bg-black/90 rounded-2xl overflow-hidden cursor-pointer select-none border border-white/10 shadow-2xl group"
-      onClick={handleTap}
+      className="relative w-full max-h-[500px] min-h-[220px] bg-black rounded-2xl overflow-hidden cursor-pointer select-none border border-white/10 shadow-2xl flex items-center justify-center group"
+      onClick={togglePlayPause}
     >
-      {/* 🪄 DOM SWAPPING: Heavy <video> only exists in RAM when visible (Saves iOS Safari RAM) */}
+      {/* 🪄 DOM SWAPPING: Uses object-contain so video is NEVER cropped out */}
       {isInView ? (
         <video
           ref={videoRef}
           src={src}
           poster={poster}
-          className="w-full h-full object-cover"
+          className="w-full max-h-[500px] object-contain rounded-2xl"
           loop
           muted={isMuted}
           playsInline
@@ -133,9 +134,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
         />
       ) : (
         poster ? (
-          <img src={poster} alt="Video preview" className="w-full h-full object-cover" />
+          <img src={poster} alt="Video preview" className="w-full max-h-[500px] object-contain rounded-2xl" />
         ) : (
-          <div className="w-full h-full bg-black/80 flex items-center justify-center">
+          <div className="w-full h-64 bg-black flex items-center justify-center">
             <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center">
               <Play className="w-6 h-6 text-white/50 fill-white/40 ml-0.5" />
             </div>
@@ -145,34 +146,46 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, onDoubleT
 
       {/* Loading Spinner */}
       {isLoading && isInView && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none z-10">
           <Loader2 className="w-8 h-8 text-neon animate-spin" />
         </div>
       )}
 
-      {/* Paused Indicator Overlay */}
-      {(!isPlaying || showPlayIcon) && !isLoading && isInView && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/25 pointer-events-none transition-opacity">
-          <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
+      {/* Center Play Button Overlay when Paused */}
+      {!isPlaying && !isLoading && isInView && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none z-10">
+          <div className="w-14 h-14 rounded-full bg-black/70 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
             <Play className="w-7 h-7 text-white fill-white ml-0.5" />
           </div>
         </div>
       )}
 
-      {/* Sound Toggle Button */}
+      {/* Bottom Floating Control Pill (Play/Pause + Mute) */}
       {isInView && (
-        <button
-          onClick={toggleMute}
-          aria-label={isMuted ? "Unmute video" : "Mute video"}
-          className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/75 backdrop-blur-xl border border-white/15 text-white transition-all active:scale-90 z-20 shadow-lg"
-        >
-          {isMuted ? <VolumeX className="w-4 h-4 text-white/80" /> : <Volume2 className="w-4 h-4 text-neon" />}
-        </button>
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
+          {/* Play / Pause Toggle Button */}
+          <button
+            onClick={togglePlayPause}
+            aria-label={isPlaying ? "Pause video" : "Play video"}
+            className="p-2 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-xl border border-white/20 text-white transition-all active:scale-95 pointer-events-auto shadow-lg"
+          >
+            {isPlaying ? <Pause className="w-4 h-4 text-white fill-white" /> : <Play className="w-4 h-4 text-white fill-white ml-0.5" />}
+          </button>
+
+          {/* Sound Toggle Button */}
+          <button
+            onClick={toggleMute}
+            aria-label={isMuted ? "Unmute video" : "Mute video"}
+            className="p-2 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-xl border border-white/20 text-white transition-all active:scale-95 pointer-events-auto shadow-lg"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-white/80" /> : <Volume2 className="w-4 h-4 text-neon" />}
+          </button>
+        </div>
       )}
 
-      {/* Subtle Bottom Progress Bar */}
+      {/* Bottom Progress Bar */}
       {isInView && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/15 pointer-events-none z-10">
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 pointer-events-none z-30">
           <div
             className="h-full bg-gradient-to-r from-neon to-pink-500 transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}

@@ -982,31 +982,52 @@ export const Confessions: React.FC = () => {
                                         </div>
                                     )}
 
-                                    {/* Action Row */}
-                                    <div className="flex items-center gap-3 pt-1 text-gray-400 border-t border-gray-800/40">
-                                        <button 
-                                            onClick={(e) => handleReactionClick(e, conf.id)}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                                                conf.userReaction 
-                                                    ? 'bg-[#ff007f]/10 border-[#ff007f]/40 text-neon shadow-[0_0_15px_rgba(255,0,127,0.15)]' 
-                                                    : 'border-white/5 bg-white/5 hover:border-white/15 text-gray-300'
-                                            }`}
-                                        >
-                                            <span className="text-sm">{conf.userReaction || '❤️'}</span>
-                                            <span className="font-bold">{conf.likes > 0 ? conf.likes : 'Vibe'}</span>
-                                        </button>
+                                    {/* Action Row & Emoji Badges */}
+                                    <div className="flex flex-col gap-2 border-t border-gray-900 pt-3">
+                                        {/* Emoji Reaction Badges */}
+                                        {conf.reactions && Object.values(conf.reactions).some(v => v > 0) && (
+                                            <div className="flex flex-wrap gap-1.5 mb-1">
+                                                {Object.entries(conf.reactions).map(([e, c]) => {
+                                                    if (c <= 0) return null;
+                                                    return (
+                                                        <button
+                                                            key={e}
+                                                            onClick={() => handleReaction(conf.id, e)}
+                                                            className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all active:scale-95 ${
+                                                                conf.userReaction === e
+                                                                    ? 'bg-neon/20 border-neon text-white shadow-[0_0_8px_rgba(255,0,127,0.3)]'
+                                                                    : 'bg-gray-900 text-gray-400 border-gray-800 hover:border-gray-700'
+                                                            }`}
+                                                        >
+                                                            <span>{e}</span>
+                                                            <b className="font-mono">{c}</b>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
 
-                                        <button 
-                                            onClick={() => toggleComments(conf.id)} 
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                                                expandedComments[conf.id]
-                                                    ? 'bg-white/10 border-white/20 text-white'
-                                                    : 'border-white/5 bg-white/5 hover:border-white/15 text-gray-400 hover:text-gray-200'
-                                            }`}
-                                        >
-                                            <MessageCircle className="w-3.5 h-3.5" />
-                                            <span>{conf.comments?.length || conf.commentCount || 0}</span>
-                                        </button>
+                                        <div className="flex items-center gap-3">
+                                            <button 
+                                                onClick={(e) => handleReactionClick(e, conf.id)} 
+                                                className={`flex items-center gap-2 text-xs px-2.5 py-1 rounded-md transition-colors ${
+                                                    conf.userReaction 
+                                                        ? 'text-neon bg-neon/10 border border-neon/30' 
+                                                        : 'text-gray-500 hover:text-white hover:bg-gray-900'
+                                                }`}
+                                            >
+                                                {conf.userReaction ? <span className="text-sm">{conf.userReaction}</span> : <SmilePlus className="w-4 h-4" />}
+                                                <span>{conf.userReaction ? 'Reacted' : 'React'}</span>
+                                            </button>
+
+                                            <button 
+                                                onClick={() => toggleComments(conf.id)} 
+                                                className="flex items-center gap-2 text-gray-500 hover:text-blue-400 text-xs px-2 py-1 rounded-md hover:bg-gray-900"
+                                            >
+                                                <MessageCircle className="w-4 h-4" /> 
+                                                <span>{conf.commentCount ?? conf.comments?.length ?? 0}</span>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Expanded Comments */}
