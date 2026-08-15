@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabase';
 import { getIceServers } from '../../utils/webrtc';
 import { hashPasscode } from '../../utils/security';
 import { curatedRomanticTracks, trendingRomanticQueries } from '../../data/pcoRomanticTracks';
+import { PcoAdminQuickPanel } from '../../components/PcoAdminQuickPanel';
+import { checkIsPcoAdmin, submitPcoSongRequest } from '../../services/pcoAdmin';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'room';
 type LyricLine = { time: number; text: string };
@@ -500,10 +502,30 @@ export const MusicDate = () => {
         };
     }, [mode]);
 
-    // Admin & PCO State
-    const isAdminUser = ['avneesh', 'othrhalff'].includes(
-        (currentUser?.realName || currentUser?.anonymousId || '').toLowerCase()
-    );
+    // Admin & PCO State (Checks Supabase admin_users, profiles.is_admin, and fallback emails)
+    const [isAdminUser, setIsAdminUser] = useState<boolean>(() => {
+        const email = (currentUser?.universityEmail || '').toLowerCase().trim();
+        return ['nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(email);
+    });
+
+    useEffect(() => {
+        let isMounted = true;
+        const verifyAdmin = async () => {
+            let authEmail: string | null = null;
+            if (supabase) {
+                try {
+                    const { data } = await supabase.auth.getUser();
+                    authEmail = data?.user?.email || null;
+                } catch (_) {}
+            }
+            const hasAdmin = await checkIsPcoAdmin(currentUser, authEmail);
+            if (isMounted) {
+                setIsAdminUser(hasAdmin);
+            }
+        };
+        verifyAdmin();
+        return () => { isMounted = false; };
+    }, [currentUser]);
     const [dailyRequestsUsed, setDailyRequestsUsed] = useState(0);
     const [isSidebarHidden, setIsSidebarHidden] = useState(false);
     const [isMobilePcoPanel, setIsMobilePcoPanel] = useState(false);
@@ -711,13 +733,11 @@ export const MusicDate = () => {
                     addFloatingNotification(payload.user, payload.text);
                 }
             })
-            .on('broadcast', { event: 'PCO_SONG_REQUEST' }, ({ payload }) => {
+            .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, ({ payload }) => {
                 if (payload && payload.track) {
-                    // Queue song to play NEXT for all listeners
-                    setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
-                    triggerPinnedBanner(`📢 Playing Next: "${payload.track.song}" (Requested by ${payload.requester})`);
-                    addFloatingNotification('System', `Playing Next: "${payload.track.song}" (by ${payload.requester})`);
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `⏭️ Queued Next: "${payload.track.song}" (Requested by ${payload.requester})` }]);
+                    triggerPinnedBanner(`📨 Song Request: "${payload.track.song}" (by ${payload.requester})`);
+                    addFloatingNotification('System', `${payload.requester} requested: "${payload.track.song}"`);
+                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `🎵 ${payload.requester} requested: "${payload.track.song}"` }]);
                     
                     if (isAdminUser) {
                         setAdminRequestModal({ requester: payload.requester, track: payload.track });
@@ -748,6 +768,16 @@ export const MusicDate = () => {
                     addFloatingNotification('System', `Added to Queue: "${payload.track.song}"`);
                     setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Added to Queue: "${payload.track.song}"` }]);
                 }
+            })
+            .on('broadcast', { event: 'PCO_QUEUE_SYNC' }, ({ payload }) => {
+                if (payload && Array.isArray(payload.queue)) {
+                    setQueue(payload.queue);
+                }
+            })
+            .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
+                triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
+                addFloatingNotification('System', `Admin skipped the song`);
+                handleSongEnded();
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
@@ -901,6 +931,15 @@ export const MusicDate = () => {
             setPeers([]);
 
             const initPeer = async () => {
+                // Campus PCO is 24/7 radio mode: Pure Supabase presence & broadcast, NO WebRTC/PeerJS needed!
+                if (roomCode.includes('Campus_PCO')) {
+                    setIsHost(false);
+                    setMode('room');
+                    setIsConnecting(false);
+                    setMyStream(null);
+                    return;
+                }
+
                 setIsConnecting(true);
                 try {
                     // 1. Query Supabase to see if a host exists
@@ -1375,64 +1414,38 @@ export const MusicDate = () => {
         }
     };
 
-    // Load audio as Blob to prevent 429 Too Many Requests from excessive browser range requests
+    // Direct audio loading & instant play — native browser streaming with zero CORS restrictions
     useEffect(() => {
         if (!currentTrack || !audioRef.current) return;
         
-        setAudioReady(false);
-        const controller = new AbortController();
-        
-        const loadAudioAsBlob = async () => {
-            try {
-                const response = await fetch(currentTrack.media_url, { signal: controller.signal });
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch audio: ${response.status}`);
-                }
-                const blob = await response.blob();
-                const objectUrl = URL.createObjectURL(blob);
+        const audio = audioRef.current;
+        if (currentTrack.media_url) {
+            audio.src = currentTrack.media_url;
+            audio.volume = musicVolume;
+            audio.load();
+            setAudioReady(true);
 
-                // Revoke old object URL if any
-                if (currentObjectUrlRef.current) {
-                    const oldUrl = currentObjectUrlRef.current;
-                    setTimeout(() => {
-                        try { URL.revokeObjectURL(oldUrl); } catch (_) {}
-                    }, 2000);
-                }
-                currentObjectUrlRef.current = objectUrl;
-                
-                if (audioRef.current) {
-                    audioRef.current.src = objectUrl;
-                    audioRef.current.volume = musicVolume;
-                    audioRef.current.load();
-                    setAudioReady(true);
-                }
-            } catch (err: any) {
-                if (err.name === 'AbortError') return;
-                console.error("Blob fetch error:", err);
-                if (audioRef.current) {
-                    audioRef.current.src = currentTrack.media_url;
-                    audioRef.current.volume = musicVolume;
-                    audioRef.current.load();
-                    setAudioReady(true);
+            if (isPlaying) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        if (e.name !== 'AbortError') {
+                            console.warn("[PCO Audio] Play prevented:", e);
+                        }
+                    });
                 }
             }
-        };
-        
-        loadAudioAsBlob();
-
-        return () => {
-            controller.abort();
-        };
+        }
     }, [currentTrack]);
 
-    // Audio Sync Effects — only controls play/pause
+    // Audio Sync Effects — controls play/pause state
     useEffect(() => {
         if (!audioRef.current || !audioReady) return;
         if (isPlaying) {
             const playPromise = audioRef.current.play();
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
-                    if (e.name !== 'AbortError') console.error("Audio play error", e);
+                    if (e.name !== 'AbortError') console.warn("[PCO Audio] Play error:", e);
                 });
             }
         } else {
@@ -1753,9 +1766,16 @@ export const MusicDate = () => {
         setSearchResults([]);
     };
 
-    const handlePcoSongRequest = (track: Track) => {
+    const handlePcoSongRequest = async (track: Track) => {
         if (!isAdminUser && dailyRequestsUsed >= 3) {
             setError("You have reached your limit of 3 song requests per day!");
+            setTimeout(() => setError(null), 4000);
+            return;
+        }
+
+        const result = await submitPcoSongRequest(track, currentUser, displayName);
+        if (!result.success) {
+            setError(result.error || "Song request failed. Please try again.");
             setTimeout(() => setError(null), 4000);
             return;
         }
@@ -1764,15 +1784,13 @@ export const MusicDate = () => {
             incrementDailyRequests();
         }
 
-        // Queue locally to play NEXT for immediate feedback
-        setQueue(prev => [track, ...prev.filter(t => t.id !== track.id)]);
-        triggerPinnedBanner(`📢 Requested Next: "${track.song}" (by ${displayName})`);
-        addFloatingNotification('System', `Queued Next: "${track.song}"`);
+        triggerPinnedBanner(`📨 Request sent: "${track.song}" (by ${displayName})`);
+        addFloatingNotification('System', `Request sent to Admin DJ: "${track.song}"`);
 
         if (supabase && roomCode.includes('Campus_PCO')) {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
-                event: 'PCO_SONG_REQUEST',
+                event: 'PCO_REQUEST_NOTIFICATION',
                 payload: { track, requester: displayName }
             });
         }
@@ -1845,6 +1863,13 @@ export const MusicDate = () => {
     };
 
     const handleSkip = () => {
+        if (roomCode.includes('Campus_PCO') && supabase) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_ADMIN_SKIP',
+                payload: { user: displayName }
+            });
+        }
         handleSongEnded();
     };
 
@@ -2485,45 +2510,37 @@ export const MusicDate = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2.5 shrink-0">
-                        <div className="relative">
-                            <button onClick={() => setShowUsersList(!showUsersList)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors flex items-center gap-1 md:gap-1.5 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                <Users className="w-4 h-4 md:w-5 md:h-5 text-pink-400 shrink-0" />
-                                <span className="text-[10px] md:text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-1.5 py-0.5 rounded-full">
-                                    {roomCode.includes('Campus_PCO') ? `${listenerCount}` : peers.length + 1}
-                                </span>
-                            </button>
-                            {showUsersList && (
-                                <div className="absolute top-12 right-0 w-60 bg-gray-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
-                                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                                        <span>Active Listeners</span>
-                                        <span className="text-[10px] text-emerald-400 font-mono">● {roomCode.includes('Campus_PCO') ? listenerCount : peers.length + 1} Online</span>
+                        {roomCode.includes('Campus_PCO') ? (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/10 border border-pink-500/20 text-pink-300 text-xs font-bold rounded-full shrink-0 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                <span>{listenerCount} listening</span>
+                            </div>
+                        ) : (
+                            <div className="relative">
+                                <button onClick={() => setShowUsersList(!showUsersList)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors flex items-center gap-1 md:gap-1.5 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
+                                    <Users className="w-4 h-4 md:w-5 md:h-5 text-pink-400 shrink-0" />
+                                    <span className="text-[10px] md:text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-1.5 py-0.5 rounded-full">
+                                        {peers.length + 1}
+                                    </span>
+                                </button>
+                                {showUsersList && (
+                                    <div className="absolute top-12 right-0 w-60 bg-gray-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
+                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                            <span>Active Listeners</span>
+                                            <span className="text-[10px] text-emerald-400 font-mono">● {peers.length + 1} Online</span>
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
+                                            <div className="text-sm text-gray-300 font-medium">You {isHost && '(Host)'}</div>
+                                            {peers.map(p => (
+                                                <div key={p.peerId} className="text-sm text-gray-400 truncate">
+                                                    {peerNames[p.peerId] || p.peerId.substring(0, 5)} {p.peerId === roomHostId && '(Host)'}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
-                                        {roomCode.includes('Campus_PCO') ? (
-                                            presenceUsers.length > 0 ? (
-                                                presenceUsers.map((name, i) => (
-                                                    <div key={i} className="text-xs text-gray-200 font-medium flex items-center gap-2">
-                                                        <span className="w-2 h-2 rounded-full bg-pink-500 shrink-0" />
-                                                        <span className="truncate">{name} {['avneesh', 'othrhalff'].includes(name.toLowerCase()) && '👑 (Admin DJ)'}</span>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="text-xs text-gray-300 font-medium">{displayName} (You)</div>
-                                            )
-                                        ) : (
-                                            <>
-                                                <div className="text-sm text-gray-300 font-medium">You {isHost && '(Host)'}</div>
-                                                {peers.map(p => (
-                                                    <div key={p.peerId} className="text-sm text-gray-400 truncate">
-                                                        {peerNames[p.peerId] || p.peerId.substring(0, 5)} {p.peerId === roomHostId && '(Host)'}
-                                                    </div>
-                                                ))}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
                         <button onClick={() => setIsShareModalOpen(true)} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block" title="Share Room">
                             <Share2 className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
@@ -3401,6 +3418,30 @@ export const MusicDate = () => {
                     <AlertCircle className="w-5 h-5" /> {error}
                     <button onClick={() => setError(null)} className="ml-2 hover:bg-black/20 p-1 rounded-full"><X className="w-4 h-4" /></button>
                 </div>
+            )}
+
+            {/* In-Room Admin Quick Panel for Campus PCO Radio */}
+            {isAdminUser && roomCode.includes('Campus_PCO') && (
+                <PcoAdminQuickPanel
+                    queue={queue}
+                    onPlayNow={handlePcoAdminDirectPlay}
+                    onPlayNext={handlePcoAdminPlayNext}
+                    onAddToQueue={handlePcoAdminAddToQueue}
+                    onRemoveFromQueue={(trackId) => setQueue(prev => prev.filter(t => t.id !== trackId))}
+                    onSkipCurrent={handleSkip}
+                    onBroadcastBanner={(text) => {
+                        triggerPinnedBanner(text);
+                        if (supabase) {
+                            supabase.channel('campus_pco_live_chat').send({
+                                type: 'broadcast',
+                                event: 'LIVE_CHAT_MSG',
+                                payload: { user: 'Admin DJ 👑', text }
+                            });
+                        }
+                    }}
+                    currentTrack={currentTrack}
+                    adminUserId={currentUser?.id}
+                />
             )}
         </div>
     );

@@ -312,7 +312,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
         )}
 
-        <div className={`flex-1 relative w-full h-full z-10 bg-transparent layout-content-wrapper ${isAuthenticatedPath ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={`flex-1 relative w-full h-full z-10 bg-transparent layout-content-wrapper ${
+          (pathname.startsWith('/sparx/music/admin') || !isAuthenticatedPath) ? 'overflow-y-auto' : 'overflow-hidden'
+        }`}>
           {children}
         </div>
 

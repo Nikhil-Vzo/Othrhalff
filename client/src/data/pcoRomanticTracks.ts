@@ -135,7 +135,7 @@ export const curatedRomanticTracks: PcoTrack[] = [
         song: 'Hawayein',
         singers: 'Arijit Singh, Pritam, Irshad Kamil',
         image: 'https://c.saavncdn.com/712/Jab-Harry-Met-Sejal-Hindi-2017-20170803-500x500.jpg',
-        media_url: 'https://aac.saavncdn.com/712/359a68e8331d2ba510103767c29bf337_160.mp4',
+        media_url: 'https://aac.saavncdn.com/712/f2b050cfd17c5b6b1076b1f24d1a03e1_160.mp4',
         duration: '290'
     },
     {
