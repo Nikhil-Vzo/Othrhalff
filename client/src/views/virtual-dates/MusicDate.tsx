@@ -2847,7 +2847,6 @@ export const MusicDate = () => {
                                     setIsSidebarHidden(false);
                                 }
                             }}
-                            onOpenConsole={() => navigate.push('/sparx/music/admin')}
                             onBack={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
                         />
                     ) : !currentTrack ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from 'react';
-import { ArrowLeft, Play, Pause, SkipForward, MessageSquare, ChevronUp, FileText, Radio, Shield } from 'lucide-react';
+import { ArrowLeft, Play, Pause, SkipForward, MessageSquare, ChevronUp, FileText, Radio } from 'lucide-react';
 
 export interface PcoTrackLike {
   id: string;
@@ -26,9 +26,7 @@ interface PcoRadioPlayerProps {
   onSeek?: (t: number) => void;
   onOpenRequests: () => void;
   onOpenChat: () => void;
-  onOpenConsole?: () => void;
   onBack: () => void;
-  onLeave?: () => void;
 }
 
 const DEFAULT_WALL = '/sparxfm-wall.jpg';
@@ -68,7 +66,6 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   onSeek,
   onOpenRequests,
   onOpenChat,
-  onOpenConsole,
   onBack
 }) => {
   const t = currentTrack;
@@ -123,23 +120,11 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-bold text-white/90 backdrop-blur-md shrink-0">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-bold text-white/90 backdrop-blur-md shrink-0">
             <Radio className="w-3 h-3 text-pink-400" />
             <span>{listenerCount}</span>
             <span className="hidden sm:inline">listening</span>
           </span>
-
-          {isAdmin && onOpenConsole && (
-            <button
-              onClick={onOpenConsole}
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-black hover:opacity-90 active:scale-95 transition-all shadow-md shadow-pink-500/20 shrink-0"
-              title="Open DJ Mission Control Console"
-            >
-              <Shield className="w-3 h-3" />
-              <span>DJ</span>
-              <span className="hidden sm:inline">CONSOLE</span>
-            </button>
-          )}
         </div>
       </div>
 
