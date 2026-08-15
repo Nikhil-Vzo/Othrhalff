@@ -33,7 +33,7 @@ interface PcoRadioPlayerProps {
   onBack: () => void;
 }
 
-const DEFAULT_BG = '/fm.png';
+const DEFAULT_BG = '/fm_pc_2.png';
 
 const formatTime = (s: number) => {
   const m = Math.floor(Math.max(0, s) / 60);
