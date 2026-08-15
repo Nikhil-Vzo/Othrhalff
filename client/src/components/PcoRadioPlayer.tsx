@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
-  ArrowLeft, Play, Pause, SkipForward, MessageSquare, 
-  FileText, ListMusic, PlusCircle
+  ArrowLeft, Play, Pause, SkipForward, FileText, Menu
 } from 'lucide-react';
 
 export interface PcoTrackLike {
@@ -78,7 +77,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
 
-      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center) */}
+      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), 3-Bars Menu Button (Right) */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
         {/* Left: Back / Leave Button */}
         <button
@@ -97,8 +96,18 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right: Invisible Balancer to keep center pill perfectly centered */}
-        <div className="w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
+        {/* Right: 3-Bars Menu Button (Opens Song Requests & Live Chat Panel) */}
+        <button
+          onClick={onOpenRequests}
+          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/60 flex items-center justify-center transition-all active:scale-95 shadow-lg relative group"
+          title="Open Requests & Live Chat Panel"
+          aria-label="Open Panel"
+        >
+          <Menu className="w-4 h-4 text-white" />
+          {requestsLeft > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+          )}
+        </button>
       </header>
 
       {/* 📢 DJ Announcement Toast */}
@@ -112,7 +121,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
       {/* 🎨 Clean Center Area to showcase the Campus Wallpaper */}
       <main className="relative z-10 flex-1" />
 
-      {/* 🎵 Bottom Floating Island Player (The exact aesthetic glass capsule) */}
+      {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule) */}
       <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">
         <div className="max-w-xl w-full bg-[#180e14]/85 backdrop-blur-3xl border border-white/20 rounded-full px-3.5 sm:px-5 py-2.5 sm:py-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3 sm:gap-4 transition-all">
           
@@ -171,10 +180,10 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
             </div>
           </div>
 
-          {/* Right: Controls (Lyrics, Request/Queue, Play/Pause, Skip, Chat) */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Right: Clean Minimal Controls (Lyrics, Play/Pause, Skip) */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             
-            {/* 📝 Extra Lyric Button */}
+            {/* 📝 Lyrics Button */}
             <button
               onClick={onToggleLyrics}
               className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
@@ -182,29 +191,6 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
               aria-label="Lyrics"
             >
               <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-300" />
-            </button>
-
-            {/* 🎵 Song Request / Add Button */}
-            <button
-              onClick={onOpenRequests}
-              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all relative"
-              title={`Request Song (${requestsLeft} left today)`}
-              aria-label="Request Song"
-            >
-              <PlusCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-purple-300" />
-              {requestsLeft > 0 && (
-                <span className="absolute 0 top-1 right-1 w-2 h-2 rounded-full bg-pink-500 animate-ping" />
-              )}
-            </button>
-
-            {/* 💬 Live Chat Button */}
-            <button
-              onClick={onOpenChat}
-              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
-              title="Live Chat"
-              aria-label="Chat"
-            >
-              <MessageSquare className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-indigo-300" />
             </button>
 
             {/* ⏸️ / ▶️ Main White Circular Play / Pause Button */}
@@ -235,16 +221,6 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
                 <SkipForward className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </button>
             )}
-
-            {/* ☰ Queue / Playlist Panel Trigger */}
-            <button
-              onClick={onOpenRequests}
-              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
-              title="View Queue & Scheduled Songs"
-              aria-label="Queue"
-            >
-              <ListMusic className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-            </button>
           </div>
         </div>
       </footer>
