@@ -142,9 +142,6 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
             ) : (
               <Menu className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-200 group-hover:scale-110 transition-transform" />
             )}
-            {requestsLeft > 0 && !isSidebarOpen && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-400 ring-2 ring-black animate-ping" />
-            )}
           </button>
         </div>
       </header>
