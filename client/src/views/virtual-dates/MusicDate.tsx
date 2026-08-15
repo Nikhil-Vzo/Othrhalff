@@ -3358,56 +3358,6 @@ export const MusicDate = () => {
                             </div>
                         )}
                     </BottomSheet>
-
-                    {/* Mobile Bottom Bar */}
-                    <div className="md:hidden fixed bottom-0 inset-x-0 z-[150] bg-[#07050d]/95 backdrop-blur-2xl border-t border-white/10 px-3 py-2 flex items-center gap-3 safe-area-bottom">
-                        {/* Current Track Info */}
-                        {currentTrack ? (
-                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                                <img src={currentTrack.image} alt={currentTrack.song} className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                    <h4 className="text-white text-xs font-bold truncate">{currentTrack.song}</h4>
-                                    <p className="text-gray-400 text-[10px] truncate">{currentTrack.singers}</p>
-                                    {/* Mini progress bar */}
-                                    <div className="w-full h-0.5 bg-gray-800 rounded-full mt-1 overflow-hidden">
-                                        <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-1000" style={{ width: `${(currentTime / (Number(currentTrack.duration) || 1)) * 100}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex-1 text-gray-500 text-xs">No song playing</div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            {isAdminUser && (
-                                <button
-                                    onClick={() => navigate.push('/sparx/music/admin')}
-                                    className="p-2.5 rounded-xl bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 active:scale-95 transition-all border border-pink-500/20"
-                                    title="Open DJ Mission Control Console"
-                                >
-                                    <Shield className="w-4.5 h-4.5" />
-                                </button>
-                            )}
-                            <button
-                                onClick={() => { setIsMobilePcoPanel(true); setShowChat(false); }}
-                                className="p-2.5 rounded-xl bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 active:scale-95 transition-all border border-violet-500/20"
-                                title="Song Requests"
-                            >
-                                <Music className="w-4.5 h-4.5" />
-                            </button>
-                            <button
-                                onClick={() => { setIsMobilePcoPanel(true); setShowChat(true); }}
-                                className="p-2.5 rounded-xl bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 active:scale-95 transition-all border border-violet-500/20 relative"
-                                title="Live Chat"
-                            >
-                                <MessageSquare className="w-4.5 h-4.5" />
-                                {messages.length > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full" />
-                                )}
-                            </button>
-                        </div>
-                    </div>
                 </>
             )}
 

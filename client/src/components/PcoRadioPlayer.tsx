@@ -106,39 +106,43 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
       <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px] pointer-events-none" />
 
       {/* Slim Top Chrome Bar */}
-      <div className="relative z-20 flex items-center justify-between px-4 pt-4 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="relative z-20 flex items-center justify-between px-3 sm:px-4 pt-3 sm:pt-4 shrink-0 gap-1.5">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={onBack}
-            className="p-2 bg-white/10 border border-white/10 rounded-full backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all"
+            className="p-2 bg-white/10 border border-white/10 rounded-full backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all shrink-0"
             title="Back to Sparx Hub"
           >
             <ArrowLeft className="w-4 h-4 text-white/90" />
           </button>
-          <span className="font-mono text-[11px] font-black tracking-[0.3em] text-white/90 flex items-center gap-1.5 ml-1">
+          <span className="font-mono text-[10px] sm:text-[11px] font-black tracking-[0.2em] sm:tracking-[0.3em] text-white/90 flex items-center gap-1">
             SPARX<span className="text-pink-400">FM</span>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-bold text-white/90 backdrop-blur-md">
-            <Radio className="w-3 h-3 text-pink-400" /> {listenerCount} listening
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-bold text-white/90 backdrop-blur-md shrink-0">
+            <Radio className="w-3 h-3 text-pink-400" />
+            <span>{listenerCount}</span>
+            <span className="hidden sm:inline">listening</span>
           </span>
 
           {isAdmin && onOpenConsole && (
             <button
               onClick={onOpenConsole}
-              className="flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-black hover:opacity-90 active:scale-95 transition-all shadow-md shadow-pink-500/20"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-black hover:opacity-90 active:scale-95 transition-all shadow-md shadow-pink-500/20 shrink-0"
               title="Open DJ Mission Control Console"
             >
-              <Shield className="w-3 h-3" /> DJ CONSOLE
+              <Shield className="w-3 h-3" />
+              <span>DJ</span>
+              <span className="hidden sm:inline">CONSOLE</span>
             </button>
           )}
 
           <button
             onClick={onLeave}
-            className="p-2 rounded-full text-red-400 bg-white/5 border border-white/10 hover:bg-red-500/20 active:scale-95 transition-all"
+            className="p-2 rounded-full text-red-400 bg-white/5 border border-white/10 hover:bg-red-500/20 active:scale-95 transition-all shrink-0"
             title="Leave Radio"
           >
             <LogOut className="w-4 h-4" />
@@ -260,10 +264,12 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         {/* Swipe-up / Click hint to open Requests/Chat */}
         <button
           onClick={onOpenRequests}
-          className="flex flex-col items-center text-white/40 hover:text-white/80 transition-colors mt-1 pb-1"
+          className="flex flex-col items-center text-white/50 hover:text-white/90 transition-colors mt-2 pb-1 group"
         >
-          <span className="text-[9px] font-bold uppercase tracking-[0.25em]">Requests · Queue · Chat</span>
-          <ChevronUp className="w-4 h-4 animate-bounce mt-0.5" />
+          <ChevronUp className="w-4 h-4 animate-bounce text-pink-400 mb-0.5 group-hover:scale-110 transition-transform" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/70 group-hover:text-white">
+            Swipe up to req & chat
+          </span>
         </button>
       </div>
     </div>
