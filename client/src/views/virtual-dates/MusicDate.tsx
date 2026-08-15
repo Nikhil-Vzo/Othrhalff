@@ -1488,70 +1488,137 @@ export const MusicDate = () => {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    const parseLyrics = (lrcString: string) => {
+    const parseLyrics = (lrcString: string): LyricLine[] => {
         const offsetMatch = lrcString.match(/\[offset:([+-]?\d+)\]/i);
         const globalOffset = offsetMatch ? parseInt(offsetMatch[1], 10) / 1000 : 0;
 
         const lines = lrcString.split('\n');
         const lyricsList: LyricLine[] = [];
-        const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+        const timeRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{2,3}))?\]/g;
+
         for (const line of lines) {
-            const match = timeRegex.exec(line);
-            if (match) {
-                const minutes = parseInt(match[1]);
-                const seconds = parseInt(match[2]);
-                const ms = parseInt(match[3].padEnd(3, '0'));
-                const time = Math.max(0, minutes * 60 + seconds + ms / 1000 + globalOffset);
+            const matches: RegExpExecArray[] = [];
+            let match: RegExpExecArray | null;
+            timeRegex.lastIndex = 0;
+            while ((match = timeRegex.exec(line)) !== null) {
+                matches.push(match);
+            }
+
+            if (matches.length > 0) {
                 const text = line.replace(timeRegex, '').trim();
-                if (text) lyricsList.push({ time, text });
+                if (text) {
+                    for (const m of matches) {
+                        const minutes = parseInt(m[1], 10);
+                        const seconds = parseInt(m[2], 10);
+                        const ms = m[3] ? parseInt(m[3].padEnd(3, '0').slice(0, 3), 10) : 0;
+                        const time = Math.max(0, minutes * 60 + seconds + ms / 1000 + globalOffset);
+                        lyricsList.push({ time, text });
+                    }
+                }
             }
         }
-        return lyricsList;
+        return lyricsList.sort((a, b) => a.time - b.time);
     };
 
-    const toggleLyrics = async () => {
-        if (!currentTrack) return;
-        if (!showLyrics) {
-            if (!lyricsData && !plainLyrics) {
-                setIsLoadingLyrics(true);
+    const fetchLyricsForTrack = async (track: Track) => {
+        if (lyricsAbortControllerRef.current) {
+            lyricsAbortControllerRef.current.abort();
+        }
+        lyricsAbortControllerRef.current = new AbortController();
 
-                if (lyricsAbortControllerRef.current) {
-                    lyricsAbortControllerRef.current.abort();
+        setIsLoadingLyrics(true);
+        setLyricsData(null);
+        setPlainLyrics(null);
+        setActiveLyricIndex(-1);
+        activeLyricIndexRef.current = -1;
+
+        try {
+            const cleanSong = (track.song || '')
+                .replace(/\(.*?\)/g, '')
+                .replace(/\[.*?\]/g, '')
+                .replace(/ - .*/g, '')
+                .replace(/\|.*/g, '')
+                .trim();
+            const cleanSingers = (track.singers || '')
+                .replace(/\(.*?\)/g, '')
+                .split(',')[0]
+                .trim();
+
+            const durationSec = parseInt(track.duration, 10) || 0;
+
+            let data: any = null;
+
+            // 1. Exact match via lrclib /api/get
+            try {
+                let getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanSong)}&artist_name=${encodeURIComponent(cleanSingers)}`;
+                if (durationSec > 0) getUrl += `&duration=${durationSec}`;
+                const getRes = await fetch(getUrl, { signal: lyricsAbortControllerRef.current.signal });
+                if (getRes.ok) {
+                    data = await getRes.json();
                 }
-                lyricsAbortControllerRef.current = new AbortController();
+            } catch (_) {}
 
-                try {
-                    const q = encodeURIComponent(`${currentTrack.song} ${currentTrack.singers.split(',')[0]}`);
-                    const res = await fetch(`https://lrclib.net/api/search?q=${q}`, {
-                        signal: lyricsAbortControllerRef.current.signal
-                    });
-                    const data = await res.json();
-
-                    if (data && data.length > 0) {
-                        const topHit = data[0];
-                        if (topHit.syncedLyrics) {
-                            setLyricsData(parseLyrics(topHit.syncedLyrics));
-                        } else if (topHit.plainLyrics) {
-                            setPlainLyrics(topHit.plainLyrics);
-                        } else {
-                            setPlainLyrics("No lyrics available for this track.");
-                        }
-                    } else {
-                        setPlainLyrics("No lyrics available for this track.");
+            // 2. Search fallback via lrclib /api/search
+            if (!data || (!data.syncedLyrics && !data.plainLyrics)) {
+                const searchQ = `${cleanSong} ${cleanSingers}`.trim();
+                const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(searchQ)}`, {
+                    signal: lyricsAbortControllerRef.current.signal
+                });
+                if (searchRes.ok) {
+                    const list = await searchRes.json();
+                    if (Array.isArray(list) && list.length > 0) {
+                        data = list.find((item: any) => item.syncedLyrics) || list[0];
                     }
-                } catch (err: any) {
-                    if (err.name !== 'AbortError') {
-                        setPlainLyrics("Error loading lyrics.");
-                    }
-                } finally {
-                    setIsLoadingLyrics(false);
                 }
             }
+
+            if (data?.syncedLyrics) {
+                const parsed = parseLyrics(data.syncedLyrics);
+                if (parsed.length > 0) {
+                    setLyricsData(parsed);
+                } else if (data.plainLyrics) {
+                    setPlainLyrics(data.plainLyrics);
+                } else {
+                    setPlainLyrics("No synced lyrics found for this song.");
+                }
+            } else if (data?.plainLyrics) {
+                setPlainLyrics(data.plainLyrics);
+            } else {
+                setPlainLyrics("No lyrics available for this song.");
+            }
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                console.warn("[Lyrics] Failed to fetch lyrics:", err);
+                setPlainLyrics("Unable to load lyrics at this time.");
+            }
+        } finally {
+            setIsLoadingLyrics(false);
+        }
+    };
+
+    const toggleLyrics = () => {
+        if (!currentTrack) return;
+        if (!showLyrics) {
             setShowLyrics(true);
+            if (!lyricsData && !plainLyrics && !isLoadingLyrics) {
+                fetchLyricsForTrack(currentTrack);
+            }
         } else {
             setShowLyrics(false);
         }
     };
+
+    useEffect(() => {
+        if (currentTrack) {
+            setLyricsData(null);
+            setPlainLyrics(null);
+            setActiveLyricIndex(-1);
+            activeLyricIndexRef.current = -1;
+            if (showLyrics) {
+                fetchLyricsForTrack(currentTrack);
+            }
+        }
+    }, [currentTrack?.id, currentTrack?.song]);
 
     const playSelectedTrack = async (track: Track) => {
         setIsPlaying(false);
@@ -2659,14 +2726,24 @@ export const MusicDate = () => {
 
                 {/* Left Side: Now Playing / Radio Player */}
                 <div className={`flex-1 z-10 flex flex-col items-center justify-center relative min-h-0 ${
-                    roomCode.includes('Campus_PCO') ? 'overflow-hidden p-0 pb-16 md:pb-0' : 'overflow-y-auto p-3 md:p-8'
+                    roomCode.includes('Campus_PCO') ? 'overflow-hidden p-0 pb-2 md:pb-0' : 'overflow-y-auto p-3 md:p-8'
                 }`}>
                     {showLyrics ? (
                         <>
                             <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-4 sm:p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-start justify-start scroll-smooth z-40 [perspective:1400px]">
+                                {/* Close Lyrics Button */}
+                                <button
+                                    onClick={() => setShowLyrics(false)}
+                                    className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2.5 sm:p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-full text-white/90 z-50 backdrop-blur-md active:scale-95 transition-all shadow-lg"
+                                    title="Close Lyrics"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+
                                 {isLoadingLyrics ? (
-                                    <div className="flex-1 flex items-center justify-center h-full w-full">
+                                    <div className="flex-1 flex flex-col items-center justify-center h-full w-full gap-3">
                                         <Loader className="w-10 h-10 text-pink-500 animate-spin" />
+                                        <span className="text-xs text-white/50 font-medium">Syncing lyrics with singer...</span>
                                     </div>
                                 ) : lyricsData ? (
                                     <div 
@@ -2680,13 +2757,20 @@ export const MusicDate = () => {
                                                 <div
                                                     key={idx}
                                                     id={`lyric-${idx}`}
+                                                    onClick={() => {
+                                                        const canSeek = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+                                                        if (canSeek && audioRef.current) {
+                                                            audioRef.current.currentTime = line.time;
+                                                            setCurrentTime(line.time);
+                                                        }
+                                                    }}
                                                     style={{
                                                         transform: isActive 
                                                             ? 'translateZ(45px) scale(1.04)' 
                                                             : `translateZ(-${Math.min(distance * 10, 80)}px)`,
                                                         transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
                                                     }}
-                                                    className={`relative group ${isActive ? 'z-30' : 'z-10'} overflow-visible py-2 px-6`}
+                                                    className={`relative group ${isActive ? 'z-30' : 'z-10'} overflow-visible py-2 px-6 cursor-pointer`}
                                                 >
                                                     {isActive && (
                                                         <div className="absolute -inset-x-6 -inset-y-3 bg-gradient-to-r from-pink-500/20 via-purple-500/15 to-transparent rounded-2xl blur-xl animate-pulse pointer-events-none" />
@@ -2707,7 +2791,7 @@ export const MusicDate = () => {
                                         style={{ transform: 'rotateY(20deg) rotateX(5deg)', transformStyle: 'preserve-3d', transformOrigin: 'center left' }}
                                         className="text-lg md:text-2xl text-purple-200 text-left leading-relaxed pb-12 mt-4 font-sans w-full px-8 max-w-4xl mx-auto py-36 font-semibold overflow-visible whitespace-pre-wrap"
                                     >
-                                        {plainLyrics || ''}
+                                        {plainLyrics || 'No lyrics available for this song.'}
                                     </div>
                                 )}
                             </div>
@@ -2727,6 +2811,7 @@ export const MusicDate = () => {
                             listenerCount={listenerCount}
                             isAdmin={isAdminUser}
                             requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
+                            pinnedBanner={pinnedBanner}
                             onToggleLyrics={toggleLyrics}
                             onPlayPause={handlePlayPause}
                             onSkip={handleSkip}
@@ -2764,7 +2849,6 @@ export const MusicDate = () => {
                             }}
                             onOpenConsole={() => navigate.push('/sparx/music/admin')}
                             onBack={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
-                            onLeave={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
                         />
                     ) : !currentTrack ? (
                         /* Fix 2: Prominent search prompt when no track is playing */

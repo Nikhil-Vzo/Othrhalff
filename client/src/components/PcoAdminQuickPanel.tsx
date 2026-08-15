@@ -119,7 +119,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
   return (
     <>
       {/* Floating Launcher Trigger */}
-      <div className="fixed top-20 right-4 z-50">
+      <div className="fixed bottom-6 right-4 z-50">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="relative p-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_25px_rgba(217,70,239,0.5)] hover:shadow-[0_0_35px_rgba(217,70,239,0.8)] hover:scale-105 active:scale-95 transition-all text-white border border-white/20 flex items-center justify-center group"
@@ -136,7 +136,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
       {/* Floating Modal Panel */}
       {isOpen && (
-        <div className="fixed top-36 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[80vh]">
+        <div className="fixed bottom-20 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[80vh]">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-purple-950/80 to-pink-950/80 border-b border-purple-500/20 flex items-center justify-between">
             <div className="flex items-center gap-2">

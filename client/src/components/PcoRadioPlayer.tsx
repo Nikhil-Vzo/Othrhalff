@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from 'react';
-import { ArrowLeft, LogOut, Play, Pause, SkipForward, MessageSquare, ChevronUp, FileText, Radio, Shield } from 'lucide-react';
+import { ArrowLeft, Play, Pause, SkipForward, MessageSquare, ChevronUp, FileText, Radio, Shield } from 'lucide-react';
 
 export interface PcoTrackLike {
   id: string;
@@ -19,6 +19,7 @@ interface PcoRadioPlayerProps {
   listenerCount: number;
   isAdmin: boolean;
   requestsLeft: number;
+  pinnedBanner?: { text: string; expiresAt: number } | null;
   onToggleLyrics: () => void;
   onPlayPause: () => void;
   onSkip: () => void;
@@ -27,7 +28,7 @@ interface PcoRadioPlayerProps {
   onOpenChat: () => void;
   onOpenConsole?: () => void;
   onBack: () => void;
-  onLeave: () => void;
+  onLeave?: () => void;
 }
 
 const DEFAULT_WALL = '/sparxfm-wall.jpg';
@@ -60,6 +61,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   listenerCount,
   isAdmin,
   requestsLeft,
+  pinnedBanner,
   onToggleLyrics,
   onPlayPause,
   onSkip,
@@ -67,8 +69,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   onOpenRequests,
   onOpenChat,
   onOpenConsole,
-  onBack,
-  onLeave
+  onBack
 }) => {
   const t = currentTrack;
   const art = t?.image || DEFAULT_WALL;
@@ -111,7 +112,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <button
             onClick={onBack}
             className="p-2 bg-white/10 border border-white/10 rounded-full backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all shrink-0"
-            title="Back to Sparx Hub"
+            title="Leave Radio & Back to Sparx Hub"
           >
             <ArrowLeft className="w-4 h-4 text-white/90" />
           </button>
@@ -139,19 +140,19 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
               <span className="hidden sm:inline">CONSOLE</span>
             </button>
           )}
-
-          <button
-            onClick={onLeave}
-            className="p-2 rounded-full text-red-400 bg-white/5 border border-white/10 hover:bg-red-500/20 active:scale-95 transition-all shrink-0"
-            title="Leave Radio"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
       {/* Main Lock-Screen Style Stack */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-2 gap-3 md:gap-5 min-h-0 overflow-y-auto">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 gap-2.5 sm:gap-3 md:gap-5 min-h-0 overflow-y-auto">
+        {/* Realtime DJ Announcement Pinned Banner */}
+        {pinnedBanner && (
+          <div className="w-full max-w-md bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white font-bold text-xs px-3.5 py-2 rounded-2xl shadow-[0_0_25px_rgba(236,72,153,0.5)] border border-pink-400/40 flex items-center justify-between animate-pulse shrink-0">
+            <span className="truncate mr-2 font-black">{pinnedBanner.text}</span>
+            <span className="text-[9px] font-mono opacity-80 bg-black/40 px-2 py-0.5 rounded-full shrink-0">ANNOUNCEMENT</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/90 text-white text-[9px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(236,72,153,0.5)]">
             <Eq playing={isPlaying} /> Live on air
