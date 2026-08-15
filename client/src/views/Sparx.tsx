@@ -1112,10 +1112,10 @@ export const Sparx: React.FC = () => {
             setNewRoomName('');
             setLobbyError(null);
           }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 pb-24 sm:pb-4 bg-black/80 backdrop-blur-sm"
         >
           <div
-            className="relative w-full max-w-sm max-h-[85dvh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-sm max-h-[75dvh] sm:max-h-[85dvh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

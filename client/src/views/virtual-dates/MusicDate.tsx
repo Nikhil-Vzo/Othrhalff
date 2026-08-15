@@ -240,8 +240,7 @@ export const MusicDate = () => {
                             updated_at: new Date().toISOString(),
                             is_private: isPrivateRoomRef.current,
                             passcode: roomPasscodeRef.current,
-                            participant_count: connectedPeerIds.length + 1,
-                            host_user_id: currentUser?.id
+                            participant_count: connectedPeerIds.length + 1
                         });
                     setMessages(prev => [...prev.slice(-149), { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
@@ -991,8 +990,7 @@ export const MusicDate = () => {
                                             updated_at: new Date().toISOString(),
                                             is_private: isPrivateRoomRef.current,
                                             passcode: storedPasscode,
-                                            participant_count: 1,
-                                            host_user_id: currentUser?.id
+                                            participant_count: 1
                                         });
                                 } catch (err) {
                                     console.error("Error upserting active room:", err);
@@ -2439,42 +2437,42 @@ export const MusicDate = () => {
 
             {/* Header / Nav Bar */}
             {!isFullscreen && (
-                <div className="h-14 md:h-16 border-b border-white/5 flex items-center justify-between px-3 md:px-6 bg-black/40 backdrop-blur-md relative z-30">
-                    <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                <div className="h-14 md:h-16 border-b border-white/5 flex items-center justify-between px-2.5 sm:px-4 md:px-6 bg-black/40 backdrop-blur-md relative z-30 gap-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0">
                         <button
                             onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
+                            className="p-1.5 md:p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
                             title="Leave Room & Back to Sparx"
                             aria-label="Back to Sparx"
                         >
                             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
-                        <div className="flex items-center gap-2 md:gap-4 border border-violet-500/30 bg-violet-500/10 px-3 md:px-4 py-1.5 rounded-full overflow-hidden">
-                            <span className="font-bold text-gray-200 text-sm md:text-base truncate max-w-[120px] md:max-w-[240px]">{roomName}</span>
+                        <div className="flex items-center gap-1.5 md:gap-3 border border-violet-500/30 bg-violet-500/10 px-2.5 md:px-4 py-1 md:py-1.5 rounded-full min-w-0 shrink">
+                            <span className="font-bold text-gray-200 text-xs sm:text-sm md:text-base truncate max-w-[85px] sm:max-w-[140px] md:max-w-[240px]">{roomName}</span>
                             {!roomCode.includes('Campus_PCO') && (
                                 <>
-                                    <div className="w-px h-4 bg-white/20 shrink-0" />
-                                    <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="font-mono text-neon font-bold flex items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
+                                    <div className="hidden sm:block w-px h-3.5 bg-white/20 shrink-0" />
+                                    <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="hidden sm:flex font-mono text-neon font-bold items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
                                         <Hash className="w-3 h-3" />
                                         {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
-                                        <Copy className="w-3 h-3 text-neon/75 ml-1 shrink-0" />
+                                        <Copy className="w-3 h-3 text-neon/75 ml-0.5 shrink-0" />
                                     </span>
                                 </>
                             )}
                             {isHost && (
-                                <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold">
+                                <div className="hidden md:flex items-center gap-1 px-2 py-0.5 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold shrink-0">
                                     <Users className="w-3 h-3" />
                                     HOST
                                 </div>
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 md:gap-3">
+                    <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2.5 shrink-0">
                         <div className="relative">
-                            <button onClick={() => setShowUsersList(!showUsersList)} className={`p-2 rounded-xl transition-colors flex items-center gap-2 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                <Users className="w-5 h-5 text-pink-400" />
-                                <span className="text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-2 py-0.5 rounded-full">
-                                    {roomCode.includes('Campus_PCO') ? `${listenerCount} Live` : peers.length + 1}
+                            <button onClick={() => setShowUsersList(!showUsersList)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors flex items-center gap-1 md:gap-1.5 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
+                                <Users className="w-4 h-4 md:w-5 md:h-5 text-pink-400 shrink-0" />
+                                <span className="text-[10px] md:text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-1.5 py-0.5 rounded-full">
+                                    {roomCode.includes('Campus_PCO') ? `${listenerCount}` : peers.length + 1}
                                 </span>
                             </button>
                             {showUsersList && (
@@ -2509,16 +2507,16 @@ export const MusicDate = () => {
                                 </div>
                             )}
                         </div>
-                        <button onClick={() => setIsShareModalOpen(true)} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block" title="Share Room">
-                            <Share2 className="w-5 h-5" />
+                        <button onClick={() => setIsShareModalOpen(true)} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block" title="Share Room">
+                            <Share2 className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                         {/* Mobile search toggle */}
-                        <button onClick={() => setShowMobileSearch(!showMobileSearch)} className={`p-2 rounded-xl transition-colors md:hidden ${showMobileSearch ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                            <ListMusic className="w-5 h-5" />
+                        <button onClick={() => setShowMobileSearch(!showMobileSearch)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors md:hidden ${showMobileSearch ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
+                            <ListMusic className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                         <div className="relative">
-                            <button onClick={() => setShowVolumeControls(!showVolumeControls)} className={`p-2 rounded-xl transition-colors ${showVolumeControls ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                <Volume2 className="w-5 h-5" />
+                            <button onClick={() => setShowVolumeControls(!showVolumeControls)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors ${showVolumeControls ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
+                                <Volume2 className="w-4 h-4 md:w-5 md:h-5" />
                             </button>
                             {showVolumeControls && (
                                 <div className="absolute top-12 right-0 w-64 bg-gray-900 border border-white/10 rounded-2xl p-5 shadow-2xl z-50 flex flex-col gap-6">
@@ -2539,14 +2537,14 @@ export const MusicDate = () => {
                                 </div>
                             )}
                         </div>
-                        <button onClick={() => setShowChat(!showChat)} className={`p-2 rounded-xl transition-colors ${showChat ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                            <MessageSquare className="w-5 h-5" />
+                        <button onClick={() => setShowChat(!showChat)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors ${showChat ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
+                            <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
-                        <button onClick={toggleFullscreen} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block">
-                            <Maximize className="w-5 h-5" />
+                        <button onClick={toggleFullscreen} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block">
+                            <Maximize className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
-                        <button onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }} className="p-2 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors">
-                            <LogOut className="w-5 h-5" />
+                        <button onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-red-500/10 text-red-500 transition-colors">
+                            <LogOut className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                     </div>
                 </div>
@@ -2674,8 +2672,7 @@ export const MusicDate = () => {
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Search songs, artists..."
-                                    className="w-full bg-gray-900/60 border-2 border-white/10 focus:border-violet-500 rounded-2xl py-4 pl-12 pr-12 text-base text-white focus:outline-none transition-all placeholder-gray-500 shadow-lg"
-                                    autoFocus
+                                    className="w-full bg-gray-900/60 border-2 border-white/10 focus:border-violet-500 rounded-2xl py-3.5 md:py-4 pl-12 pr-12 text-sm md:text-base text-white focus:outline-none transition-all placeholder-gray-500 shadow-lg"
                                 />
                             </div>
 

@@ -313,8 +313,7 @@ export const CinemaDate: React.FC = () => {
                             updated_at: new Date().toISOString(),
                             is_private: isPrivateRoomRef.current,
                             passcode: roomPasscodeRef.current,
-                            participant_count: connectedPeerIds.length + 1,
-                            host_user_id: currentUser?.id
+                            participant_count: connectedPeerIds.length + 1
                         });
                     setMessages(prev => [...prev.slice(-149), { user: 'System', text: 'You are now the host of this room.' }]);
                 } catch (err) {
@@ -623,8 +622,7 @@ export const CinemaDate: React.FC = () => {
                                             host_peer_id: id,
                                             is_private: isPrivateRoom,
                                             passcode: storedPasscode,
-                                            updated_at: new Date().toISOString(),
-                                            host_user_id: currentUser?.id
+                                            updated_at: new Date().toISOString()
                                         });
                                 } catch (dbErr) {
                                     console.error("Failed to register room host in Supabase:", dbErr);
@@ -2319,33 +2317,33 @@ export const CinemaDate: React.FC = () => {
             <div className="flex-1 flex flex-col relative min-w-0 bg-[#0a0a0c] overflow-hidden">
                 {/* Top Bar (Room Info) */}
                 <div className={`h-14 md:h-16 border-b border-gray-900/50 flex items-center justify-between px-3 md:px-6 bg-gray-950/30 backdrop-blur-sm z-40 transition-all duration-500 absolute top-0 left-0 right-0 ${!isUiVisible ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
-                    <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                    <div className="flex items-center gap-1.5 md:gap-3 min-w-0">
                         <button
                             onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
+                            className="p-1.5 md:p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
                             title="Leave Room & Back to Sparx"
                             aria-label="Back to Sparx"
                         >
                             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
-                        <span className="font-bold text-gray-200 truncate max-w-[80px] md:max-w-[200px] text-sm md:text-base">{roomName}</span>
+                        <span className="font-bold text-gray-200 truncate max-w-[90px] sm:max-w-[150px] md:max-w-[220px] text-xs sm:text-sm md:text-base">{roomName}</span>
                         {roomPasscode && (
-                            <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border-2 border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomPasscode)}>
-                                <Hash className="w-3 h-3 md:w-4 md:h-4 text-neon" />
-                                <span className="font-mono text-xs md:text-sm font-bold text-neon tracking-wider">
+                            <div className="flex items-center gap-1 px-2 md:px-3 py-1 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomPasscode)}>
+                                <Hash className="w-3 h-3 text-neon" />
+                                <span className="font-mono text-xs font-bold text-neon tracking-wider">
                                     {roomPasscode}
                                 </span>
-                                <Copy className="w-3 h-3 md:w-4 md:h-4 text-neon/70 group-hover:text-neon transition-colors" />
+                                <Copy className="w-2.5 h-2.5 md:w-3 md:h-3 text-neon/70 group-hover:text-neon transition-colors" />
                             </div>
                         )}
                         {isHost && (
-                            <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 text-[10px] font-semibold">
+                            <div className="hidden md:flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 text-[10px] font-semibold shrink-0">
                                 <Users className="w-3 h-3" />
                                 HOST
                             </div>
                         )}
                         {isHost && isPrivateRoom && roomPasscode && (
-                            <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20 text-[10px] font-semibold">
+                            <div className="hidden md:flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20 text-[10px] font-semibold shrink-0">
                                 <Lock className="w-3 h-3" />
                                 PASSCODE: {roomPasscode}
                             </div>
