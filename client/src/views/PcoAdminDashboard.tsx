@@ -501,7 +501,24 @@ export const PcoAdminDashboard: React.FC = () => {
         <button onClick={reload} className={B} title="Refresh All Data">↻ RELOAD</button>
       </header>
 
-      {/* 2. ON-AIR TRANSPORT DECK */}
+      {/* 2. TABS NAVIGATION (Sticky & Always Visible at Top) */}
+      <nav className="sticky top-10 z-30 flex border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md overflow-x-auto whitespace-nowrap shadow-md px-2">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 ${
+              tab === t.id
+                ? 'bg-zinc-900/90 text-pink-400 border-pink-500 shadow-inner'
+                : 'text-zinc-400 border-transparent hover:bg-zinc-900/50 hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* 3. ON-AIR TRANSPORT DECK */}
       <div className="border-b border-zinc-800 p-4 bg-zinc-950/60 space-y-3">
         <div className="flex items-center gap-3">
           <img
@@ -568,23 +585,6 @@ export const PcoAdminDashboard: React.FC = () => {
           </button>
         </form>
       </div>
-
-      {/* 3. TABS NAVIGATION */}
-      <nav className="flex border-b border-zinc-800 bg-zinc-950 overflow-x-auto whitespace-nowrap">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 ${
-              tab === t.id
-                ? 'bg-zinc-900 text-pink-400 border-pink-500'
-                : 'text-zinc-400 border-transparent hover:bg-zinc-900/50 hover:text-white'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
 
       {/* 4. MAIN CONTENT TABS */}
       <main className="flex-1 p-4 space-y-4">
@@ -737,6 +737,37 @@ export const PcoAdminDashboard: React.FC = () => {
         {/* TAB 3: QUEUE + SCHEDULE */}
         {tab === 'queue' && (
           <div className="space-y-4">
+            {/* Search & Add Directly to Queue */}
+            <div className="space-y-2 pb-2 border-b border-zinc-900">
+              <div className="text-zinc-400 font-bold text-xs uppercase tracking-wider">Search & Add Songs to Queue</div>
+              <div className="relative">
+                <input
+                  value={searchQ}
+                  onChange={e => setSearchQ(e.target.value)}
+                  placeholder="Search track to add to queue or play next..."
+                  className="w-full bg-black border border-zinc-700 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none focus:border-pink-500 rounded"
+                />
+                {isSearching && (
+                  <span className="absolute right-3 top-2.5 text-[10px] text-zinc-500 animate-pulse">SEARCHING…</span>
+                )}
+              </div>
+
+              {results.map(t => (
+                <div key={t.id} className="flex items-center gap-3 border border-zinc-800 bg-zinc-950/80 p-2 rounded hover:border-zinc-700 transition-colors">
+                  <img src={t.image} alt="" onError={artFix} className="w-8 h-8 object-cover border border-zinc-800 rounded shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-bold text-xs truncate">{t.song}</div>
+                    <div className="text-zinc-500 text-[11px] truncate">{t.singers}</div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={() => actPlayNow(t)} className={B}>▶ PLAY NOW</button>
+                    <button onClick={() => actPlayNext(t)} className={B}>⏭ NEXT</button>
+                    <button onClick={() => actQueueEnd(t)} className={B}>+ QUEUE</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="flex items-center justify-between">
               <span className="text-zinc-400 font-bold uppercase tracking-wider">
                 Live Custom Queue ({queue.length})
