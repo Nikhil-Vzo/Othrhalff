@@ -1,11 +1,15 @@
 /**
  * Returns ICE servers for WebRTC peer connections.
- * Supports environment-configured STUN/TURN servers (e.g. Metered.ca, Twilio).
+ * Uses high-availability global STUN servers (Google, Twilio, Cloudflare)
+ * and automatically injects TURN relay servers if configured via env variables.
  */
 export function getIceServers(): RTCIceServer[] {
     const iceServers: RTCIceServer[] = [
         { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:global.stun.twilio.com:3478' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
     ];
 
     const turnUrl = process.env.NEXT_PUBLIC_TURN_URL;
