@@ -154,17 +154,13 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       </header>
 
-      {/* 📢 DJ Announcement Toast - Matching FM.png Sunset & Dark Glass Aesthetics */}
+      {/* 📢 DJ Announcement - Ultra Minimalist Pill */}
       {pinnedBanner && (
-        <div className="relative z-30 mx-auto mt-2 max-w-lg w-[92%] bg-[#1c0f17]/90 backdrop-blur-2xl text-white text-xs px-4 py-2.5 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.85)] border border-pink-500/30 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <span className="w-2 h-2 rounded-full bg-pink-500 animate-ping shrink-0" />
-            <span className="truncate font-semibold text-white/95 tracking-wide text-xs">{pinnedBanner.text}</span>
+        <div className="relative z-30 flex justify-center px-4 mt-2 pointer-events-none">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-2xl border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.5)] text-xs text-white/90 animate-in fade-in slide-in-from-top-2 duration-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
+            <span className="truncate max-w-[280px] sm:max-w-md font-medium text-white/90">{pinnedBanner.text}</span>
           </div>
-          <span className="text-[9px] font-mono font-bold text-pink-300 uppercase tracking-widest bg-pink-500/15 border border-pink-500/30 px-2.5 py-0.5 rounded-full shrink-0 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-            ON AIR
-          </span>
         </div>
       )}
 
