@@ -62,9 +62,21 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   const t = currentTrack;
   const art = t?.image || '/sparxfm-wall.jpg';
   const dur = Number(t?.duration) || 240;
+  const touchStartY = useRef<number | null>(null);
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
+    <div 
+      className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans"
+      onTouchStart={(e) => {
+        touchStartY.current = e.touches[0].clientY;
+      }}
+      onTouchEnd={(e) => {
+        if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 50) {
+          onToggleSidebar(); // Swipe up on phones opens the panel
+        }
+        touchStartY.current = null;
+      }}
+    >
       {/* 🌟 Background: FM.png Aesthetic Campus Wallpaper */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <img
@@ -100,7 +112,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right Corner: Admin Badge (if admin) + 3-Bars Menu Toggle Button */}
+        {/* Right Corner: Desktop 3-Bars Menu vs Phone Admin Badge */}
         <div className="flex items-center gap-2">
           {/* Admin DJ Shield Badge (Only for Admins) */}
           {isAdmin && onToggleAdminPanel && (
@@ -114,10 +126,10 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
             </button>
           )}
 
-          {/* 3-Bars Menu Button (Toggles Requests & Live Chat Panel Open/Close) */}
+          {/* 3-Bars Menu Button (PC / Desktop ONLY - on phone users swipe up) */}
           <button
             onClick={onToggleSidebar}
-            className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg flex items-center justify-center group cursor-pointer ${
+            className={`hidden md:flex relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg items-center justify-center group cursor-pointer ${
               isSidebarOpen 
                 ? 'bg-pink-600/40 border-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.7)]' 
                 : 'bg-black/60 border-pink-500/50 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)] hover:shadow-[0_0_25px_rgba(236,72,153,0.7)]'
@@ -134,6 +146,11 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 ring-2 ring-black animate-pulse" />
             )}
           </button>
+
+          {/* Spacer for non-admin on mobile to keep listener pill centered */}
+          {!isAdmin && (
+            <div className="flex md:hidden w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
+          )}
         </div>
       </header>
 
@@ -145,16 +162,16 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       )}
 
-      {/* 💬 Sleek Live Stream Comment Feed (Subtle Bottom-Left Overlay, Non-Intrusive) */}
+      {/* 💬 Live On-Screen Chat Stream (Centered, Clean & Aesthetic) */}
       {floatingChatMessages && floatingChatMessages.length > 0 && (
-        <div className="absolute left-4 sm:left-6 bottom-24 sm:bottom-28 z-20 pointer-events-none flex flex-col items-start gap-1.5 max-w-[85%] sm:max-w-md">
+        <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 z-20 pointer-events-none flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
           {floatingChatMessages.map((msg) => (
             <div
               key={msg.id}
-              className="bg-black/50 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-full shadow-md text-xs text-white flex items-center gap-2 max-w-full animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-none"
+              className="bg-black/60 backdrop-blur-xl border border-pink-500/30 px-4 py-2 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.8)] text-xs text-white flex items-center gap-2 max-w-full animate-in fade-in zoom-in-95 duration-300 pointer-events-none"
             >
-              <span className="font-bold text-pink-300 shrink-0">{msg.user}:</span>
-              <span className="text-white/90 truncate font-normal">{msg.text}</span>
+              <span className="font-bold text-pink-400 shrink-0">{msg.user}:</span>
+              <span className="text-white/95 truncate font-medium">{msg.text}</span>
             </div>
           ))}
         </div>

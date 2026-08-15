@@ -128,23 +128,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
   return (
     <>
-      {/* Floating Launcher Trigger (Desktop only - on mobile it's mounted in the header) */}
-      <div className="hidden md:block fixed top-20 right-8 z-40">
-        <button
-          onClick={toggleOpen}
-          className="relative p-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] hover:scale-105 active:scale-95 transition-all text-white border border-white/20 flex items-center justify-center group cursor-pointer"
-          title="Admin DJ Quick Panel"
-        >
-          <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-          {pendingRequests.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 border-2 border-black text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
-              {pendingRequests.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Floating Modal Panel */}
+      {/* Floating Modal Panel (Triggered exclusively by header Shield button) */}
       {isOpen && (
         <div className="fixed top-24 right-3 sm:right-8 z-50 w-96 max-w-[calc(100vw-1.5rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[75vh]">
           {/* Header */}

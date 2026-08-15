@@ -470,8 +470,8 @@ export const MusicDate = () => {
 
     // Chat Timestamp Formatter (< 1m: just now, < 60m: X min ago, > 60m: X hr(s) ago, > 24h: X day(s) ago)
     const formatChatTimestamp = (timestamp?: number) => {
-        if (!timestamp) return 'just now';
-        const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+        const time = Number(timestamp) || Date.now();
+        const diffSec = Math.max(0, Math.floor((Date.now() - time) / 1000));
         if (diffSec < 60) return 'just now';
         const diffMin = Math.floor(diffSec / 60);
         if (diffMin < 60) return `${diffMin} min ago`;
@@ -3391,10 +3391,10 @@ export const MusicDate = () => {
                                 <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
                                     {messages.map((msg, i) => (
                                         <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                            <div className="flex items-center gap-1.5 px-1 mb-0.5 text-[10px]">
-                                                <span className="font-semibold text-gray-300">{msg.user}</span>
-                                                <span className="text-gray-600">•</span>
-                                                <span className="text-gray-400 font-mono text-[9px]">{formatChatTimestamp(msg.createdAt)}</span>
+                                            <div className="flex items-center gap-1.5 px-1.5 mb-1 text-[11px]">
+                                                <span className="font-bold text-gray-200">{msg.user}</span>
+                                                <span className="text-pink-400 font-bold">•</span>
+                                                <span className="text-pink-300/90 font-mono text-[10px] font-semibold">{formatChatTimestamp(msg.createdAt)}</span>
                                             </div>
                                             <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`}>
                                                 {msg.text}
@@ -3539,10 +3539,10 @@ export const MusicDate = () => {
                                     )}
                                     {messages.map((msg, i) => (
                                         <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                            <div className="flex items-center gap-1.5 px-1 mb-0.5 text-[10px]">
-                                                <span className="font-semibold text-gray-300">{msg.user}</span>
-                                                <span className="text-gray-600">•</span>
-                                                <span className="text-gray-400 font-mono text-[9px]">{formatChatTimestamp(msg.createdAt)}</span>
+                                            <div className="flex items-center gap-1.5 px-1.5 mb-1 text-[11px]">
+                                                <span className="font-bold text-gray-200">{msg.user}</span>
+                                                <span className="text-pink-400 font-bold">•</span>
+                                                <span className="text-pink-300/90 font-mono text-[10px] font-semibold">{formatChatTimestamp(msg.createdAt)}</span>
                                             </div>
                                             <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`}>
                                                 {msg.text}
