@@ -1612,16 +1612,6 @@ export const MusicDate = () => {
         }
     };
 
-    const handleAudioError = (e: any) => {
-        if (!audioRef.current || !audioRef.current.src || audioRef.current.src === window.location.href) {
-            return; // Ignore empty src errors
-        }
-        // Blob fetch already handles fallback — this is only a last resort
-        setIsPlaying(false);
-        setError('Track failed to load. Try selecting the song again.');
-        setTimeout(() => setError(null), 4000);
-    };
-
     const playSelectedTrack = async (track: Track) => {
         setIsPlaying(false);
         setCurrentTrack(track);
@@ -1887,11 +1877,67 @@ export const MusicDate = () => {
         handleSongEnded();
     };
 
+    const isResolvingFallbackRef = useRef(false);
+
+    const handleAudioError = async () => {
+        if (!currentTrack || isResolvingFallbackRef.current) {
+            handleSongEnded();
+            return;
+        }
+
+        isResolvingFallbackRef.current = true;
+        console.warn(`[PCO Audio] Stream error for "${currentTrack.song}". Resolving live stream fallback...`);
+
+        try {
+            const query = `${currentTrack.song} ${currentTrack.singers || ''}`.trim();
+            const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(query)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0 && data[0].media_url && data[0].media_url !== currentTrack.media_url) {
+                    const fallbackTrack: Track = {
+                        ...currentTrack,
+                        media_url: data[0].media_url,
+                        image: data[0].image || currentTrack.image
+                    };
+                    console.log(`[PCO Audio] Recovered with live stream URL for "${currentTrack.song}"`);
+                    setCurrentTrack(fallbackTrack);
+                    if (audioRef.current) {
+                        audioRef.current.src = data[0].media_url;
+                        audioRef.current.load();
+                        audioRef.current.play().catch(() => {});
+                    }
+                    isResolvingFallbackRef.current = false;
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn("[PCO Audio] Fallback lookup failed:", err);
+        }
+
+        isResolvingFallbackRef.current = false;
+        // If recovery fails, smoothly advance to the next song in the playlist/queue
+        handleSongEnded();
+    };
+
+    const pcoSeekTimer = useRef<any>(null);
+
     const handlePlayPause = () => {
         if (!currentTrack) return;
-        const newPlayingState = !isPlaying;
-        setIsPlaying(newPlayingState);
-        broadcastSync(newPlayingState ? 'play' : 'pause');
+        const isPco = roomCode.includes('Campus_PCO');
+        if (isPco && !isAdminUser) return;
+        if (!isPco && !isHost) return;
+
+        const next = !isPlaying;
+        setIsPlaying(next);
+        if (isPco && supabase) {
+            supabase.channel('campus_pco_live_chat').send({
+                type: 'broadcast',
+                event: 'PCO_PLAY_STATE',
+                payload: { playing: next }
+            });
+        } else {
+            broadcastSync(next ? 'play' : 'pause');
+        }
     };
 
     const currentTimeRef = useRef(0);
@@ -1930,11 +1976,26 @@ export const MusicDate = () => {
     };
 
     const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isHost || !audioRef.current) return;
-        const newTime = Number(e.target.value);
-        audioRef.current.currentTime = newTime;
-        setCurrentTime(newTime);
-        broadcastSync('seek', { time: newTime });
+        if (!audioRef.current) return;
+        const isPco = roomCode.includes('Campus_PCO');
+        if (isPco ? !isAdminUser : !isHost) return;
+
+        const t = Number(e.target.value);
+        audioRef.current.currentTime = t;
+        setCurrentTime(t);
+
+        if (isPco && supabase) {
+            clearTimeout(pcoSeekTimer.current);
+            pcoSeekTimer.current = setTimeout(() => {
+                supabase.channel('campus_pco_live_chat').send({
+                    type: 'broadcast',
+                    event: 'PCO_SEEK',
+                    payload: { time: t }
+                });
+            }, 250);
+        } else {
+            broadcastSync('seek', { time: t });
+        }
     };
 
     const generateRoomCode = () => {
