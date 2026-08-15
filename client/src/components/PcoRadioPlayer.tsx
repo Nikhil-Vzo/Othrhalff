@@ -2,7 +2,7 @@
 
 import React, { useRef } from 'react';
 import { 
-  ArrowLeft, Play, Pause, SkipForward, FileText, Menu
+  ArrowLeft, Play, Pause, SkipForward, FileText, Menu, X, Shield
 } from 'lucide-react';
 
 export interface PcoTrackLike {
@@ -22,12 +22,13 @@ interface PcoRadioPlayerProps {
   isAdmin: boolean;
   requestsLeft: number;
   pinnedBanner?: { text: string; expiresAt: number } | null;
+  isSidebarOpen?: boolean;
   onToggleLyrics: () => void;
   onPlayPause: () => void;
   onSkip: () => void;
   onSeek?: (t: number) => void;
-  onOpenRequests: () => void;
-  onOpenChat: () => void;
+  onToggleSidebar: () => void;
+  onToggleAdminPanel?: () => void;
   onBack: () => void;
 }
 
@@ -47,12 +48,13 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   isAdmin,
   requestsLeft,
   pinnedBanner,
+  isSidebarOpen = false,
   onToggleLyrics,
   onPlayPause,
   onSkip,
   onSeek,
-  onOpenRequests,
-  onOpenChat,
+  onToggleSidebar,
+  onToggleAdminPanel,
   onBack
 }) => {
   const t = currentTrack;
@@ -68,7 +70,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
       }}
       onTouchEnd={(e) => {
         if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 50) {
-          onOpenRequests(); // Swipe up anywhere to open chat/requests panel
+          onToggleSidebar(); // Swipe up anywhere to open chat/requests panel
         }
         touchStartY.current = null;
       }}
@@ -89,7 +91,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
 
-      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), Glowing 3-Bars Menu Button (Right) */}
+      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), Menu/Admin (Right) */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
         {/* Left: Back / Leave Button */}
         <button
@@ -108,20 +110,46 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right: Constant Glowing 3-Bars Menu Button (Opens Song Requests & Live Chat Panel) */}
-        <button
-          onClick={onOpenRequests}
-          className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/60 backdrop-blur-xl border border-pink-500/50 text-white flex items-center justify-center transition-all active:scale-90 shadow-[0_0_20px_rgba(236,72,153,0.5)] hover:shadow-[0_0_30px_rgba(236,72,153,0.85)] group cursor-pointer"
-          title="Open Requests & Live Chat Panel (Swipe Up)"
-          aria-label="Open Panel"
-        >
-          {/* Constant ambient breathing glow aura */}
-          <span className="absolute inset-0 rounded-full bg-pink-500/20 animate-ping pointer-events-none" style={{ animationDuration: '3s' }} />
-          <Menu className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-200 group-hover:scale-110 transition-transform" />
-          {requestsLeft > 0 && (
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 ring-2 ring-black animate-pulse" />
+        {/* Right Corner: Desktop 3-Bars Toggle vs. Mobile Admin Badge (or Empty for regular user on mobile) */}
+        <div className="flex items-center gap-2">
+          {/* 💻 PC / Desktop: 3-Bars Menu Button that Toggles (Open & Close) */}
+          <button
+            onClick={onToggleSidebar}
+            className={`hidden md:flex relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg items-center justify-center group cursor-pointer ${
+              isSidebarOpen 
+                ? 'bg-pink-600/40 border-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.7)]' 
+                : 'bg-black/60 border-pink-500/50 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)] hover:shadow-[0_0_25px_rgba(236,72,153,0.7)]'
+            }`}
+            title={isSidebarOpen ? "Close Panel" : "Open Requests & Live Chat Panel"}
+            aria-label={isSidebarOpen ? "Close Panel" : "Open Panel"}
+          >
+            {isSidebarOpen ? (
+              <X className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-white" />
+            ) : (
+              <Menu className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-200 group-hover:scale-110 transition-transform" />
+            )}
+            {requestsLeft > 0 && !isSidebarOpen && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 ring-2 ring-black animate-pulse" />
+            )}
+          </button>
+
+          {/* 📱 Phone / Mobile: Admin Shield Badge in the top right (Only for Admins) */}
+          {isAdmin && onToggleAdminPanel && (
+            <button
+              onClick={onToggleAdminPanel}
+              className="flex md:hidden relative p-2.5 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] active:scale-90 transition-all text-white border border-white/20 items-center justify-center cursor-pointer"
+              title="Admin DJ Quick Panel"
+              aria-label="Admin DJ Quick Panel"
+            >
+              <Shield className="w-4 h-4" />
+            </button>
           )}
-        </button>
+
+          {/* 📱 Phone / Mobile: Empty placeholder for non-admin to keep center pill perfectly centered */}
+          {!isAdmin && (
+            <div className="flex md:hidden w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
+          )}
+        </div>
       </header>
 
       {/* 📢 DJ Announcement Toast */}
@@ -135,7 +163,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
       {/* 🎨 Center Area: Clean Wallpaper + Animated Vector Swipe/Tap Gesture Hint */}
       <main className="relative z-10 flex-1 flex flex-col justify-end items-center pb-2.5 pointer-events-none">
         <button
-          onClick={onOpenRequests}
+          onClick={onToggleSidebar}
           className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-xl border border-white/10 hover:border-pink-500/40 text-white/70 hover:text-white transition-all active:scale-95 group shadow-lg cursor-pointer"
           title="Swipe up or tap for Requests & Chat"
           aria-label="Swipe up for requests and chat"

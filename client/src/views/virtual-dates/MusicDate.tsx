@@ -537,6 +537,7 @@ export const MusicDate = () => {
     const [dailyRequestsUsed, setDailyRequestsUsed] = useState(0);
     const [isSidebarHidden, setIsSidebarHidden] = useState(false);
     const [isMobilePcoPanel, setIsMobilePcoPanel] = useState(false);
+    const [isAdminQuickPanelOpen, setIsAdminQuickPanelOpen] = useState(false);
     const [floatingNotifications, setFloatingNotifications] = useState<{ id: string; user: string; text: string }[]>([]);
 
     // Playlist Link Import State (For standard Soul Sync rooms)
@@ -2939,6 +2940,7 @@ export const MusicDate = () => {
                             isAdmin={isAdminUser}
                             requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
                             pinnedBanner={pinnedBanner}
+                            isSidebarOpen={!isSidebarHidden}
                             onToggleLyrics={toggleLyrics}
                             onPlayPause={handlePlayPause}
                             onSkip={handleSkip}
@@ -2958,22 +2960,14 @@ export const MusicDate = () => {
                                     }
                                 }
                             }}
-                            onOpenRequests={() => {
+                            onToggleSidebar={() => {
                                 if (isMobile) {
-                                    setIsMobilePcoPanel(true);
-                                    setShowChat(false);
+                                    setIsMobilePcoPanel(prev => !prev);
                                 } else {
-                                    setIsSidebarHidden(false);
+                                    setIsSidebarHidden(prev => !prev);
                                 }
                             }}
-                            onOpenChat={() => {
-                                if (isMobile) {
-                                    setIsMobilePcoPanel(true);
-                                    setShowChat(true);
-                                } else {
-                                    setIsSidebarHidden(false);
-                                }
-                            }}
+                            onToggleAdminPanel={() => setIsAdminQuickPanelOpen(prev => !prev)}
                             onBack={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
                         />
                     ) : !currentTrack ? (
@@ -3636,8 +3630,10 @@ export const MusicDate = () => {
             )}
 
             {/* In-Room Admin Quick Panel for Campus PCO Radio */}
-            {isAdminUser && roomCode.includes('Campus_PCO') && (
+            {roomCode.includes('Campus_PCO') && isAdminUser && (
                 <PcoAdminQuickPanel
+                    isOpen={isAdminQuickPanelOpen}
+                    onToggle={() => setIsAdminQuickPanelOpen(prev => !prev)}
                     queue={queue}
                     onPlayNow={handlePcoAdminDirectPlay}
                     onPlayNext={handlePcoAdminPlayNext}

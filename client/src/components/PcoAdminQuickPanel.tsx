@@ -14,6 +14,8 @@ interface PcoAdminQuickPanelProps {
   onBroadcastBanner: (text: string) => void;
   currentTrack: PcoTrack | null;
   adminUserId?: string;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
 export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
@@ -25,10 +27,22 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
   onSkipCurrent,
   onBroadcastBanner,
   currentTrack,
-  adminUserId
+  adminUserId,
+  isOpen: propsIsOpen,
+  onToggle
 }) => {
   const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = propsIsOpen !== undefined ? propsIsOpen : internalIsOpen;
+  const toggleOpen = onToggle || (() => setInternalIsOpen(prev => !prev));
+  const closePanel = () => {
+    if (onToggle && isOpen) {
+      onToggle();
+    } else {
+      setInternalIsOpen(false);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<'requests' | 'queue' | 'tools'>('requests');
   const [pendingRequests, setPendingRequests] = useState<PcoSongRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,38 +88,34 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
     };
   }, []);
 
-  const handleApprovePlayNow = async (req: PcoSongRequest) => {
-    const track: PcoTrack = {
+  const handleApprovePlayNow = (req: PcoSongRequest) => {
+    updatePcoSongRequestStatus(req.id, 'approved', adminUserId);
+    onPlayNow({
       id: req.track_id,
       song: req.track_name,
       singers: req.track_artist || 'Campus Request',
       image: req.track_image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
       media_url: req.track_url || '',
       duration: req.track_duration || '240'
-    };
-
-    await updatePcoSongRequestStatus(req.id, 'approved', adminUserId);
+    }, req.id);
     setPendingRequests(prev => prev.filter(r => r.id !== req.id));
-    onPlayNow(track, req.id);
   };
 
-  const handleApprovePlayNext = async (req: PcoSongRequest) => {
-    const track: PcoTrack = {
+  const handleApprovePlayNext = (req: PcoSongRequest) => {
+    updatePcoSongRequestStatus(req.id, 'approved', adminUserId);
+    onPlayNext({
       id: req.track_id,
       song: req.track_name,
       singers: req.track_artist || 'Campus Request',
       image: req.track_image || 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
       media_url: req.track_url || '',
       duration: req.track_duration || '240'
-    };
-
-    await updatePcoSongRequestStatus(req.id, 'approved', adminUserId);
+    }, req.id);
     setPendingRequests(prev => prev.filter(r => r.id !== req.id));
-    onPlayNext(track, req.id);
   };
 
-  const handleDecline = async (reqId: string) => {
-    await updatePcoSongRequestStatus(reqId, 'declined', adminUserId);
+  const handleDecline = (reqId: string) => {
+    updatePcoSongRequestStatus(reqId, 'declined', adminUserId);
     setPendingRequests(prev => prev.filter(r => r.id !== reqId));
   };
 
@@ -118,16 +128,16 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
   return (
     <>
-      {/* Floating Launcher Trigger - Positioned directly below the top-right 3-bars menu button */}
-      <div className="fixed top-16 sm:top-20 right-4 sm:right-8 z-40">
+      {/* Floating Launcher Trigger (Desktop only - on mobile it's mounted in the header) */}
+      <div className="hidden md:block fixed top-20 right-8 z-40">
         <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="relative p-2.5 sm:p-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] hover:scale-105 active:scale-95 transition-all text-white border border-white/20 flex items-center justify-center group cursor-pointer"
+          onClick={toggleOpen}
+          className="relative p-3 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-full shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:shadow-[0_0_30px_rgba(217,70,239,0.8)] hover:scale-105 active:scale-95 transition-all text-white border border-white/20 flex items-center justify-center group cursor-pointer"
           title="Admin DJ Quick Panel"
         >
-          <Shield className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
+          <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />
           {pendingRequests.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-pink-500 border-2 border-black text-[9px] sm:text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 border-2 border-black text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
               {pendingRequests.length}
             </span>
           )}
@@ -136,7 +146,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
       {/* Floating Modal Panel */}
       {isOpen && (
-        <div className="fixed top-28 sm:top-32 right-4 sm:right-8 z-50 w-96 max-w-[calc(100vw-2rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[75vh]">
+        <div className="fixed top-24 right-3 sm:right-8 z-50 w-96 max-w-[calc(100vw-1.5rem)] bg-[#0c0915]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-fade-in-down max-h-[75vh]">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-purple-950/80 to-pink-950/80 border-b border-purple-500/20 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -160,7 +170,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
                 <ExternalLink className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={closePanel}
                 className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />
