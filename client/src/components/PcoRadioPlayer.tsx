@@ -177,8 +177,36 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       )}
 
-      {/* 🎨 Center Area: Clean Wallpaper */}
-      <main className="relative z-10 flex-1 pointer-events-none" />
+      {/* 🎨 Center Area: Clean Wallpaper + Mobile-Only Swipe-Up Affordance Pill */}
+      <main className="relative z-10 flex-1 flex flex-col justify-end items-center pb-2.5 pointer-events-none">
+        {/* Strictly Mobile Only (Hidden on PC) with sleek aesthetic design */}
+        <button
+          onClick={onToggleSidebar}
+          className="pointer-events-auto flex md:hidden items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/45 hover:bg-black/70 backdrop-blur-xl border border-white/15 text-white/80 active:scale-95 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all cursor-pointer group"
+          title="Swipe up for Chat & Requests"
+          aria-label="Swipe up for Chat and Requests"
+        >
+          <div className="w-4 h-4 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-300 group-hover:scale-110 transition-transform">
+            <svg 
+              className="w-2.5 h-2.5 text-pink-300 animate-bounce" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
+              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+            </svg>
+          </div>
+          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-white/90 group-hover:text-pink-200 transition-colors">
+            Swipe up to chat & req
+          </span>
+        </button>
+      </main>
 
       {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule with Glowing Accents) */}
       <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">
