@@ -733,13 +733,19 @@ export const CinemaDate: React.FC = () => {
                         }
                     });
 
-                    peer.on('connection', (conn) => {
+                    peer.on('connection', async (conn) => {
                         console.log('Data connection from:', conn.peer);
                         const peerPasscode = conn.metadata?.passcode;
-                        if (isPrivateRoomRef.current && roomPasscodeRef.current && peerPasscode !== roomPasscodeRef.current) {
-                            console.warn("Rejected unauthorized peer connection:", conn.peer);
-                            conn.close();
-                            return;
+                        if (isPrivateRoomRef.current && roomPasscodeRef.current) {
+                            // P1: Compare both raw and hashed passcode to handle host (raw) vs guest (hash) scenarios
+                            const peerHash = peerPasscode ? await hashPasscode(peerPasscode) : null;
+                            const isValid = peerPasscode === roomPasscodeRef.current ||
+                                            peerHash === roomPasscodeRef.current;
+                            if (!isValid) {
+                                console.warn("Rejected unauthorized peer connection:", conn.peer);
+                                conn.close();
+                                return;
+                            }
                         }
                         setupDataConnection(conn);
                     });
@@ -805,6 +811,13 @@ export const CinemaDate: React.FC = () => {
                 if (queryPasscode) {
                     setRoomPasscode(queryPasscode);
                     roomPasscodeRef.current = queryPasscode;
+                } else if (queryPrivate === 'true') {
+                    // REG-01: Read passcode set by Sparx into sessionStorage
+                    const storedPass = sessionStorage.getItem(`room_passcode_${queryRoom}`);
+                    if (storedPass) {
+                        setRoomPasscode(storedPass);
+                        roomPasscodeRef.current = storedPass;
+                    }
                 }
 
                 if (queryCreateName) {
@@ -1281,10 +1294,13 @@ export const CinemaDate: React.FC = () => {
         const unifiedCode = generateRoomCode();
         const code = `cinema_${nameSlug}_${unifiedCode}`;
         
-        // No longer storing separate passcode. The unifiedCode IS the secure code.
+        // REG-02: Generate a 4-digit passcode for private rooms created directly (not via Sparx)
         if (isPrivateRoom) {
-            setRoomPasscode(null);
-            roomPasscodeRef.current = null;
+            const storedPass = sessionStorage.getItem(`room_passcode_${code}`);
+            const generatedPasscode = storedPass || Math.floor(1000 + Math.random() * 9000).toString();
+            if (!storedPass) sessionStorage.setItem(`room_passcode_${code}`, generatedPasscode);
+            setRoomPasscode(generatedPasscode);
+            roomPasscodeRef.current = generatedPasscode;
         } else {
             setRoomPasscode(null);
             roomPasscodeRef.current = null;
@@ -2335,7 +2351,7 @@ export const CinemaDate: React.FC = () => {
                         </button>
                         <span className="font-bold text-gray-200 truncate max-w-[90px] sm:max-w-[150px] md:max-w-[220px] text-xs sm:text-sm md:text-base">{roomName}</span>
                         {roomPasscode && (
-                            <div className="flex items-center gap-1 px-2 md:px-3 py-1 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomPasscode)}>
+                            <div className="hidden sm:flex items-center gap-1 px-2 md:px-3 py-1 bg-gradient-to-r from-neon/10 to-purple-500/10 rounded-full border border-neon/30 shrink-0 group hover:border-neon/50 transition-colors cursor-pointer" onClick={() => copyToClipboard(roomPasscode)}>
                                 <Hash className="w-3 h-3 text-neon" />
                                 <span className="font-mono text-xs font-bold text-neon tracking-wider">
                                     {roomPasscode}

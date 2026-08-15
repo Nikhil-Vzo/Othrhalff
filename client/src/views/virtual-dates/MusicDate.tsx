@@ -845,6 +845,13 @@ export const MusicDate = () => {
                 if (queryPasscode) {
                     setRoomPasscode(queryPasscode);
                     roomPasscodeRef.current = queryPasscode;
+                } else if (queryPrivate === 'true') {
+                    // REG-01: Read passcode set by Sparx into sessionStorage
+                    const storedPass = sessionStorage.getItem(`room_passcode_${queryRoom}`);
+                    if (storedPass) {
+                        setRoomPasscode(storedPass);
+                        roomPasscodeRef.current = storedPass;
+                    }
                 }
 
                 if (queryCreateName) {
@@ -1097,13 +1104,19 @@ export const MusicDate = () => {
                         });
                     });
 
-                    peer.on('connection', (conn) => {
+                    peer.on('connection', async (conn) => {
                         console.log('Data connection from:', conn.peer);
                         const peerPasscode = conn.metadata?.passcode;
-                        if (isPrivateRoomRef.current && roomPasscodeRef.current && peerPasscode !== roomPasscodeRef.current) {
-                            console.warn("Rejected unauthorized peer connection:", conn.peer);
-                            conn.close();
-                            return;
+                        if (isPrivateRoomRef.current && roomPasscodeRef.current) {
+                            // P1: Compare both raw and hashed passcode to handle host (raw) vs guest (hash) scenarios
+                            const peerHash = peerPasscode ? await hashPasscode(peerPasscode) : null;
+                            const isValid = peerPasscode === roomPasscodeRef.current ||
+                                            peerHash === roomPasscodeRef.current;
+                            if (!isValid) {
+                                console.warn("Rejected unauthorized peer connection:", conn.peer);
+                                conn.close();
+                                return;
+                            }
                         }
                         setupDataConnection(conn);
                     });
@@ -1905,9 +1918,13 @@ export const MusicDate = () => {
         const unifiedCode = generateRoomCode();
         const code = `music_${nameSlug}_${unifiedCode}`;
         
+        // REG-02: Generate a 4-digit passcode for private rooms created directly (not via Sparx)
         if (isPrivateRoom) {
-            setRoomPasscode(null);
-            roomPasscodeRef.current = null;
+            const storedPass = sessionStorage.getItem(`room_passcode_${code}`);
+            const generatedPasscode = storedPass || Math.floor(1000 + Math.random() * 9000).toString();
+            if (!storedPass) sessionStorage.setItem(`room_passcode_${code}`, generatedPasscode);
+            setRoomPasscode(generatedPasscode);
+            roomPasscodeRef.current = generatedPasscode;
         } else {
             setRoomPasscode(null);
             roomPasscodeRef.current = null;
