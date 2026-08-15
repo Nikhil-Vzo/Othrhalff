@@ -1551,16 +1551,16 @@ export const MusicDate = () => {
                         if (topHit.syncedLyrics) {
                             setLyricsData(parseLyrics(topHit.syncedLyrics));
                         } else if (topHit.plainLyrics) {
-                            setPlainLyrics(topHit.plainLyrics.replace(/\n/g, '<br>'));
+                            setPlainLyrics(topHit.plainLyrics);
                         } else {
-                            setPlainLyrics("<p class='text-gray-500 italic mt-8'>No lyrics available for this track.</p>");
+                            setPlainLyrics("No lyrics available for this track.");
                         }
                     } else {
-                        setPlainLyrics("<p class='text-gray-500 italic mt-8'>No lyrics available for this track.</p>");
+                        setPlainLyrics("No lyrics available for this track.");
                     }
                 } catch (err: any) {
                     if (err.name !== 'AbortError') {
-                        setPlainLyrics("<p class='text-red-400 mt-8'>Error loading lyrics.</p>");
+                        setPlainLyrics("Error loading lyrics.");
                     }
                 } finally {
                     setIsLoadingLyrics(false);

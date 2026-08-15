@@ -181,7 +181,7 @@ export const Sparx: React.FC = () => {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(`room_passcode_${roomId}`, generatedPasscode);
       }
-      redirectUrl += `&private=true&passcode=${generatedPasscode}`;
+      redirectUrl += `&private=true`;
     }
 
     setIsLobbyOpen(false);

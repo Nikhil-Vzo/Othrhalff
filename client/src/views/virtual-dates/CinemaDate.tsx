@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Link as LinkIcon, AlertCircle, Monitor, FolderOpen, Youtube, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MonitorPlay, Home, Gamepad, Settings as SettingsIcon, Mic, MicOff, Video, VideoOff, MonitorUp, Send, MessageSquare, Maximize, Minimize, Sparkles, Tv, Film, Lock, MoreVertical, Share2 } from 'lucide-react';
 import { useRouter as useNavigate, usePathname as useLocation } from 'next/navigation';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
-import Peer, { DataConnection } from 'peerjs';
+import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
@@ -381,6 +381,7 @@ export const CinemaDate: React.FC = () => {
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<any>(null);
     const connections = useRef<{ [key: string]: DataConnection }>({});
+    const activeCalls = useRef<Map<string, MediaConnection>>(new Map());
 
     // State Refs for Closures (Peer Callbacks)
     const urlRef = useRef(url);
@@ -701,6 +702,7 @@ export const CinemaDate: React.FC = () => {
                     peer.on('call', (call) => {
                         console.log('Receiving call from:', call.peer, 'Metadata:', call.metadata);
                         attachIceMonitoring(call);
+                        activeCalls.current.set(call.peer, call);
                         try {
                             if (call.metadata?.type === 'video') {
                                 console.log('Answering video stream call (no camera back)');
@@ -708,6 +710,9 @@ export const CinemaDate: React.FC = () => {
                                 call.on('stream', (stream) => {
                                     console.log("Received remote video stream from", call.peer, stream);
                                     setRemoteVideoStream(stream);
+                                });
+                                call.on('close', () => {
+                                    activeCalls.current.delete(call.peer);
                                 });
                             } else {
                                 console.log('Answering camera call with my stream');
@@ -718,6 +723,7 @@ export const CinemaDate: React.FC = () => {
                                 });
                                 call.on('close', () => {
                                     console.log("Call closed for peer:", call.peer);
+                                    activeCalls.current.delete(call.peer);
                                     removePeer(call.peer);
                                 });
                                 call.on('error', (e) => console.error("Call Error in handler:", e));
@@ -766,6 +772,7 @@ export const CinemaDate: React.FC = () => {
                     peerInstance.current.destroy();
                     peerInstance.current = null;
                 }
+                activeCalls.current.clear();
                 setPeers([]);
                 if (myStreamRef.current) {
                     myStreamRef.current.getTracks().forEach(track => track.stop());
@@ -853,6 +860,7 @@ export const CinemaDate: React.FC = () => {
         // 1. Call for Media
         console.log('Calling peer with my camera stream...');
         const call = peer.call(peerId, stream, { metadata: { type: 'camera' } });
+        activeCalls.current.set(peerId, call);
 
         // 2. Data Connection for Sync
         const conn = peer.connect(peerId, { 
@@ -1495,9 +1503,8 @@ export const CinemaDate: React.FC = () => {
                     if (myStreamRef.current && peerInstance.current) {
                         const camTrack = myStreamRef.current.getVideoTracks()[0];
                         if (camTrack) {
-                            Object.keys(connections.current).forEach(peerId => {
-                                const callObj = (peerInstance.current as any)?._calls?.[peerId]?.[0] || (peerInstance.current as any)?.connections?.[peerId]?.[0];
-                                const pc = callObj?.peerConnection;
+                            activeCalls.current.forEach((call) => {
+                                const pc = call?.peerConnection;
                                 if (pc) {
                                     const videoSender = pc.getSenders?.().find((s: any) => s.track?.kind === 'video');
                                     if (videoSender) videoSender.replaceTrack(camTrack).catch(() => {});
@@ -1520,9 +1527,8 @@ export const CinemaDate: React.FC = () => {
 
             // Swap video track using replaceTrack on existing peer connections or fallback to call
             if (videoTrack && peerInstance.current) {
-                Object.keys(connections.current).forEach(peerId => {
-                    const callObj = (peerInstance.current as any)?._calls?.[peerId]?.[0] || (peerInstance.current as any)?.connections?.[peerId]?.[0];
-                    const pc = callObj?.peerConnection;
+                activeCalls.current.forEach((call, peerId) => {
+                    const pc = call?.peerConnection;
                     let replaced = false;
                     if (pc) {
                         const videoSender = pc.getSenders?.().find((s: any) => s.track?.kind === 'video');
@@ -1532,7 +1538,8 @@ export const CinemaDate: React.FC = () => {
                         }
                     }
                     if (!replaced && connections.current[peerId]?.open && peerInstance.current) {
-                        peerInstance.current.call(peerId, mediaStream, { metadata: { type: 'video' } });
+                        const newCall = peerInstance.current.call(peerId, mediaStream, { metadata: { type: 'video' } });
+                        activeCalls.current.set(peerId, newCall);
                     }
                 });
             }
