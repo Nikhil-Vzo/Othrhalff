@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { 
   ArrowLeft, Play, Pause, SkipForward, FileText, Menu
 } from 'lucide-react';
@@ -58,9 +58,21 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   const t = currentTrack;
   const art = t?.image || '/sparxfm-wall.jpg';
   const dur = Number(t?.duration) || 240;
+  const touchStartY = useRef<number | null>(null);
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
+    <div 
+      className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans"
+      onTouchStart={(e) => {
+        touchStartY.current = e.touches[0].clientY;
+      }}
+      onTouchEnd={(e) => {
+        if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 50) {
+          onOpenRequests(); // Swipe up anywhere to open chat/requests panel
+        }
+        touchStartY.current = null;
+      }}
+    >
       {/* 🌟 Background: FM.png Aesthetic Campus Wallpaper */}
       <div className="absolute inset-0 z-0">
         <img
@@ -77,35 +89,37 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
 
-      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), 3-Bars Menu Button (Right) */}
+      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), Glowing 3-Bars Menu Button (Right) */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
         {/* Left: Back / Leave Button */}
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/60 flex items-center justify-center transition-all active:scale-95 shadow-lg"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/50 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/70 flex items-center justify-center transition-all active:scale-90 shadow-lg"
           title="Back to Sparx Hub"
           aria-label="Back"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
         </button>
 
         {/* Center: Live Listener Pill */}
-        <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-xs font-semibold text-white/90 shadow-lg">
+        <div className="flex items-center gap-2 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-black/50 backdrop-blur-xl border border-white/15 text-xs font-semibold text-white/90 shadow-lg">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="font-mono font-bold text-emerald-300">{listenerCount || 581}</span>
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right: 3-Bars Menu Button (Opens Song Requests & Live Chat Panel) */}
+        {/* Right: Constant Glowing 3-Bars Menu Button (Opens Song Requests & Live Chat Panel) */}
         <button
           onClick={onOpenRequests}
-          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/60 flex items-center justify-center transition-all active:scale-95 shadow-lg relative group"
-          title="Open Requests & Live Chat Panel"
+          className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/60 backdrop-blur-xl border border-pink-500/50 text-white flex items-center justify-center transition-all active:scale-90 shadow-[0_0_20px_rgba(236,72,153,0.5)] hover:shadow-[0_0_30px_rgba(236,72,153,0.85)] group cursor-pointer"
+          title="Open Requests & Live Chat Panel (Swipe Up)"
           aria-label="Open Panel"
         >
-          <Menu className="w-4 h-4 text-white" />
+          {/* Constant ambient breathing glow aura */}
+          <span className="absolute inset-0 rounded-full bg-pink-500/20 animate-ping pointer-events-none" style={{ animationDuration: '3s' }} />
+          <Menu className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-200 group-hover:scale-110 transition-transform" />
           {requestsLeft > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 ring-2 ring-black animate-pulse" />
           )}
         </button>
       </header>
@@ -118,19 +132,19 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       )}
 
-      {/* 🎨 Clean Center Area to showcase the Campus Wallpaper */}
-      <main className="relative z-10 flex-1" />
+      {/* 🎨 Clean Center Area with subtle swipe-up hint on mobile */}
+      <main className="relative z-10 flex-1 flex flex-col justify-end items-center pb-2 pointer-events-none" />
 
-      {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule) */}
+      {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule with Glowing Accents) */}
       <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">
-        <div className="max-w-xl w-full bg-[#180e14]/85 backdrop-blur-3xl border border-white/20 rounded-full px-3.5 sm:px-5 py-2.5 sm:py-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3 sm:gap-4 transition-all">
+        <div className="max-w-xl w-full bg-[#180e14]/85 backdrop-blur-3xl border border-white/20 hover:border-pink-500/30 rounded-full px-3.5 sm:px-5 py-2.5 sm:py-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3 sm:gap-4 transition-all">
           
           {/* Left: Spinning Album Thumbnail + Track Title & Scrub */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            {/* Spinning Vinyl Album Art */}
+            {/* Spinning Vinyl Album Art with Glow */}
             <div 
               onClick={onToggleLyrics}
-              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 border border-white/30 shadow-md cursor-pointer group"
+              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 border border-pink-400/40 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] cursor-pointer group transition-all active:scale-90"
               title="Tap for synced lyrics"
             >
               <img
@@ -183,21 +197,21 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           {/* Right: Clean Minimal Controls (Lyrics, Play/Pause, Skip) */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             
-            {/* 📝 Lyrics Button */}
+            {/* 📝 Lyrics Button with glowing touch state */}
             <button
               onClick={onToggleLyrics}
-              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+              className="p-2 sm:p-2.5 rounded-full text-pink-300 hover:text-pink-100 hover:bg-pink-500/20 active:scale-90 hover:shadow-[0_0_15px_rgba(236,72,153,0.4)] transition-all"
               title="Toggle Live Synced Lyrics"
               aria-label="Lyrics"
             >
-              <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-300" />
+              <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
 
-            {/* ⏸️ / ▶️ Main White Circular Play / Pause Button */}
+            {/* ⏸️ / ▶️ Main White Circular Play / Pause Button with Ambient Halo */}
             <button
               onClick={onPlayPause}
               disabled={!isAdmin}
-              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all ${
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.45)] hover:shadow-[0_0_35px_rgba(255,255,255,0.7)] transition-all ${
                 isAdmin ? 'hover:scale-105 active:scale-90 cursor-pointer' : 'cursor-default opacity-95'
               }`}
               title={isAdmin ? (isPlaying ? 'Pause Station' : 'Resume Station') : 'Campus Live Radio'}
