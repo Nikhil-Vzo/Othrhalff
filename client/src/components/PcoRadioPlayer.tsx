@@ -112,7 +112,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right Corner: Desktop 3-Bars Menu vs Phone Admin Badge */}
+        {/* Right Corner: Admin Badge (if admin) + Glowing 3-Bars Menu Toggle Button */}
         <div className="flex items-center gap-2">
           {/* Admin DJ Shield Badge (Only for Admins) */}
           {isAdmin && onToggleAdminPanel && (
@@ -126,13 +126,13 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
             </button>
           )}
 
-          {/* 3-Bars Menu Button (PC / Desktop ONLY - on phone users swipe up) */}
+          {/* 3-Bars Menu Button (Visible on Phones & PC with Constant Neon Glow) */}
           <button
             onClick={onToggleSidebar}
-            className={`hidden md:flex relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg items-center justify-center group cursor-pointer ${
+            className={`flex relative w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl border transition-all active:scale-90 shadow-lg items-center justify-center group cursor-pointer ${
               isSidebarOpen 
-                ? 'bg-pink-600/40 border-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.7)]' 
-                : 'bg-black/60 border-pink-500/50 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)] hover:shadow-[0_0_25px_rgba(236,72,153,0.7)]'
+                ? 'bg-pink-600/40 border-pink-500 text-white shadow-[0_0_25px_rgba(236,72,153,0.8)]' 
+                : 'bg-black/60 border-pink-500/70 text-white shadow-[0_0_18px_rgba(236,72,153,0.65)] ring-2 ring-pink-500/25 hover:shadow-[0_0_30px_rgba(236,72,153,0.9)] animate-pulse'
             }`}
             title={isSidebarOpen ? "Close Panel" : "Open Requests & Live Chat Panel"}
             aria-label={isSidebarOpen ? "Close Panel" : "Open Panel"}
@@ -143,14 +143,9 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
               <Menu className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-200 group-hover:scale-110 transition-transform" />
             )}
             {requestsLeft > 0 && !isSidebarOpen && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-500 ring-2 ring-black animate-pulse" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-pink-400 ring-2 ring-black animate-ping" />
             )}
           </button>
-
-          {/* Spacer for non-admin on mobile to keep listener pill centered */}
-          {!isAdmin && (
-            <div className="flex md:hidden w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
-          )}
         </div>
       </header>
 
