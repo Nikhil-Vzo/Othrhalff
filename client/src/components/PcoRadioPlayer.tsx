@@ -60,18 +60,6 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   const art = t?.image || '/sparxfm-wall.jpg';
   const dur = Number(t?.duration) || 240;
 
-  // Live Clock (e.g. "9:04 pm")
-  const [timeString, setTimeString] = useState('');
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeString(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase());
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 10000);
-    return () => clearInterval(timer);
-  }, []);
-
   return (
     <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
       {/* 🌟 Background: FM.png Aesthetic Campus Wallpaper */}
@@ -90,21 +78,9 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
 
-      {/* 👑 Top Bar: Time, Live Listener Pill, Back Button */}
+      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center) */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
-        {/* Left: Clock */}
-        <div className="font-mono text-xs sm:text-sm font-semibold tracking-wider text-white/90 drop-shadow-md">
-          {timeString || '9:00 pm'}
-        </div>
-
-        {/* Center: Live Listener Pill */}
-        <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-xs font-semibold text-white/90 shadow-lg">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-mono font-bold text-emerald-300">{listenerCount || 581}</span>
-          <span className="text-white/70">on the airwaves</span>
-        </div>
-
-        {/* Right: Leave / Back Button */}
+        {/* Left: Back / Leave Button */}
         <button
           onClick={onBack}
           className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/60 flex items-center justify-center transition-all active:scale-95 shadow-lg"
@@ -113,6 +89,16 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
+
+        {/* Center: Live Listener Pill */}
+        <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-xs font-semibold text-white/90 shadow-lg">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-mono font-bold text-emerald-300">{listenerCount || 581}</span>
+          <span className="text-white/70">on the airwaves</span>
+        </div>
+
+        {/* Right: Invisible Balancer to keep center pill perfectly centered */}
+        <div className="w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
       </header>
 
       {/* 📢 DJ Announcement Toast */}

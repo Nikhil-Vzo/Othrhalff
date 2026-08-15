@@ -3264,32 +3264,6 @@ export const MusicDate = () => {
                                     </div>
                                 )}
 
-                                {/* Middle: Floating Text Input Bar (Just above the player) */}
-                                {isSidebarHidden && (
-                                    <div className="w-full bg-[#0c0915]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.9)] flex items-center gap-2 pointer-events-auto">
-                                        <button
-                                            onClick={() => setIsSidebarHidden(false)}
-                                            className="p-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-white transition-all border border-purple-500/30 shrink-0 flex items-center gap-1.5 text-xs font-bold"
-                                            title="Show Sidebar"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            <span>Show Panel</span>
-                                        </button>
-                                        <form onSubmit={handleSendMessage} className="flex-1 relative flex items-center">
-                                            <input
-                                                type="text"
-                                                value={newMessage}
-                                                onChange={e => setNewMessage(e.target.value)}
-                                                placeholder="Chat live in Campus PCO..."
-                                                className="w-full bg-gray-900/90 border border-gray-800 rounded-xl py-2 pl-3 pr-8 text-xs text-white focus:outline-none focus:border-pink-500 placeholder-gray-500"
-                                            />
-                                            <button type="submit" className="absolute right-2 text-pink-400 hover:text-pink-300 p-1">
-                                                <Send className="w-3.5 h-3.5" />
-                                            </button>
-                                        </form>
-                                    </div>
-                                )}
-
                                 {/* Bottom: Song Player Tracer Bar in Fullscreen / Hidden Sidebar mode */}
                                 {showLyrics && currentTrack && renderPlayerTracerBar()}
                             </div>
