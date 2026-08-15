@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2, Eye, EyeOff, ChevronUp, ChevronDown, Shield } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
@@ -10,6 +10,8 @@ import { getIceServers } from '../../utils/webrtc';
 import { hashPasscode } from '../../utils/security';
 import { curatedRomanticTracks, trendingRomanticQueries } from '../../data/pcoRomanticTracks';
 import { PcoAdminQuickPanel } from '../../components/PcoAdminQuickPanel';
+import { PcoRadioPlayer } from '../../components/PcoRadioPlayer';
+import { BottomSheet } from '../../components/BottomSheet';
 import { checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus } from '../../services/pcoAdmin';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'room';
@@ -2506,8 +2508,8 @@ export const MusicDate = () => {
             />
             <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnded} onError={handleAudioError} />
 
-            {/* Header / Nav Bar */}
-            {!isFullscreen && (
+            {/* Header / Nav Bar - Hidden in Campus PCO (Sparx FM) because PcoRadioPlayer has its own integrated header */}
+            {!isFullscreen && !roomCode.includes('Campus_PCO') && (
                 <div className="h-14 md:h-16 border-b border-white/5 flex items-center justify-between px-2.5 sm:px-4 md:px-6 bg-black/40 backdrop-blur-md relative z-30 gap-1.5">
                     <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0">
                         <button
@@ -2655,8 +2657,10 @@ export const MusicDate = () => {
                     <div className={`w-[800px] h-[800px] rounded-full bg-gradient-to-tr from-violet-600 to-fuchsia-600 blur-[150px] transition-transform duration-[10s] ${isPlaying ? 'scale-110 animate-pulse' : 'scale-90 opacity-10'}`} />
                 </div>
 
-                {/* Left Side: Now Playing */}
-                <div className={`flex-1 overflow-y-auto p-3 md:p-8 z-10 flex flex-col items-center justify-center relative min-h-0 ${roomCode.includes('Campus_PCO') ? 'pb-16 md:pb-8' : ''}`}>
+                {/* Left Side: Now Playing / Radio Player */}
+                <div className={`flex-1 z-10 flex flex-col items-center justify-center relative min-h-0 ${
+                    roomCode.includes('Campus_PCO') ? 'overflow-hidden p-0 pb-16 md:pb-0' : 'overflow-y-auto p-3 md:p-8'
+                }`}>
                     {showLyrics ? (
                         <>
                             <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-4 sm:p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-start justify-start scroll-smooth z-40 [perspective:1400px]">
@@ -2715,6 +2719,53 @@ export const MusicDate = () => {
                                 </div>
                             )}
                         </>
+                    ) : roomCode.includes('Campus_PCO') ? (
+                        <PcoRadioPlayer
+                            currentTrack={currentTrack}
+                            currentTime={currentTime}
+                            isPlaying={isPlaying}
+                            listenerCount={listenerCount}
+                            isAdmin={isAdminUser}
+                            requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
+                            onToggleLyrics={toggleLyrics}
+                            onPlayPause={handlePlayPause}
+                            onSkip={handleSkip}
+                            onSeek={(t: number) => {
+                                if (audioRef.current) {
+                                    audioRef.current.currentTime = t;
+                                    setCurrentTime(t);
+                                    if (supabase) {
+                                        clearTimeout(pcoSeekTimer.current);
+                                        pcoSeekTimer.current = setTimeout(() => {
+                                            supabase.channel('campus_pco_live_chat').send({
+                                                type: 'broadcast',
+                                                event: 'PCO_SEEK',
+                                                payload: { time: t }
+                                            });
+                                        }, 250);
+                                    }
+                                }
+                            }}
+                            onOpenRequests={() => {
+                                if (isMobile) {
+                                    setIsMobilePcoPanel(true);
+                                    setShowChat(false);
+                                } else {
+                                    setIsSidebarHidden(false);
+                                }
+                            }}
+                            onOpenChat={() => {
+                                if (isMobile) {
+                                    setIsMobilePcoPanel(true);
+                                    setShowChat(true);
+                                } else {
+                                    setIsSidebarHidden(false);
+                                }
+                            }}
+                            onOpenConsole={() => navigate.push('/sparx/music/admin')}
+                            onBack={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
+                            onLeave={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
+                        />
                     ) : !currentTrack ? (
                         /* Fix 2: Prominent search prompt when no track is playing */
                         <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center transition-all my-auto z-10 px-4">
@@ -3169,152 +3220,144 @@ export const MusicDate = () => {
             {/* ===== MOBILE-ONLY: Campus PCO Bottom Bar & Slide-Up Panel ===== */}
             {roomCode.includes('Campus_PCO') && (
                 <>
-                    {/* Mobile Slide-Up Panel (Chat + Song Request) */}
-                    {isMobilePcoPanel && (
-                        <div className="fixed inset-0 z-[200] md:hidden flex flex-col">
-                            {/* Backdrop */}
-                            <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobilePcoPanel(false)} />
-                            {/* Panel */}
-                            <div className="bg-[#07050d] border-t border-violet-500/30 rounded-t-3xl flex flex-col animate-slide-up" style={{ height: '75vh' }}>
-                                {/* Panel Header Tabs */}
-                                <div className="flex items-center border-b border-white/10 px-4 pt-3 pb-0 shrink-0">
-                                    <button
-                                        onClick={() => setShowChat(false)}
-                                        className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${!showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
-                                    >
-                                        <Music className="w-3.5 h-3.5 inline mr-1.5" />Song Requests
-                                    </button>
-                                    <button
-                                        onClick={() => setShowChat(true)}
-                                        className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
-                                    >
-                                        <MessageSquare className="w-3.5 h-3.5 inline mr-1.5" />Live Chat
-                                    </button>
-                                    <button onClick={() => setIsMobilePcoPanel(false)} className="p-2 text-gray-500 hover:text-white ml-2 shrink-0">
-                                        <X className="w-5 h-5" />
-                                    </button>
+                    {/* Mobile Slide-Up BottomSheet (Chat + Song Request) */}
+                    <BottomSheet open={isMobilePcoPanel} onClose={() => setIsMobilePcoPanel(false)}>
+                        {/* Panel Header Tabs */}
+                        <div className="flex items-center border-b border-white/10 px-4 pt-1 pb-2 shrink-0">
+                            <button
+                                onClick={() => setShowChat(false)}
+                                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${!showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
+                            >
+                                <Music className="w-3.5 h-3.5 inline mr-1.5" />Song Requests
+                            </button>
+                            <button
+                                onClick={() => setShowChat(true)}
+                                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
+                            >
+                                <MessageSquare className="w-3.5 h-3.5 inline mr-1.5" />Live Chat
+                            </button>
+                            <button onClick={() => setIsMobilePcoPanel(false)} className="p-2 text-gray-500 hover:text-white ml-2 shrink-0">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Tab Content */}
+                        {!showChat ? (
+                            /* Song Request Tab */
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                                {/* Search */}
+                                <div className="p-3 border-b border-white/5 shrink-0">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            placeholder="Search songs to request..."
+                                            className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-1.5 px-1">
+                                        {3 - dailyRequestsUsed > 0 ? `${3 - dailyRequestsUsed} requests left today` : 'Daily request limit reached'}
+                                    </p>
                                 </div>
 
-                                {/* Tab Content */}
-                                {!showChat ? (
-                                    /* Song Request Tab */
-                                    <div className="flex-1 flex flex-col overflow-hidden">
-                                        {/* Search */}
-                                        <div className="p-3 border-b border-white/5 shrink-0">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
-                                                <input
-                                                    type="text"
-                                                    value={searchQuery}
-                                                    onChange={e => setSearchQuery(e.target.value)}
-                                                    placeholder="Search songs to request..."
-                                                    className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
-                                                    autoFocus
-                                                />
-                                            </div>
-                                            <p className="text-[10px] text-gray-500 mt-1.5 px-1">
-                                                {3 - dailyRequestsUsed > 0 ? `${3 - dailyRequestsUsed} requests left today` : 'Daily request limit reached'}
-                                            </p>
-                                        </div>
-
-                                        {/* Search Results / Queue */}
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
-                                            {searchResults.length > 0 && (
-                                                <div className="mb-4">
-                                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Results</h3>
-                                                    <div className="space-y-2">
-                                                        {searchResults.map((t) => (
-                                                            <div key={t.id} className="flex flex-col gap-1.5 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                                                                <div className="flex items-center gap-3">
-                                                                    <img src={t.image} alt={t.song} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <h4 className="text-white text-sm font-bold truncate">{t.song}</h4>
-                                                                        <p className="text-gray-400 text-xs truncate">{t.singers}</p>
-                                                                    </div>
-                                                                </div>
-                                                                {isAdminUser ? (
-                                                                    <div className="flex items-center gap-1 justify-end pt-1 border-t border-white/5">
-                                                                        <button
-                                                                            onClick={() => { handlePcoAdminDirectPlay(t); setIsMobilePcoPanel(false); }}
-                                                                            className="text-[10px] font-black bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
-                                                                        >
-                                                                            <Play className="w-2.5 h-2.5 fill-current" /> Play Now
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => { handlePcoAdminPlayNext(t); setIsMobilePcoPanel(false); }}
-                                                                            className="text-[10px] font-black bg-indigo-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
-                                                                        >
-                                                                            <SkipForward className="w-2.5 h-2.5 fill-current" /> Play Next
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => { handlePcoAdminAddToQueue(t); setIsMobilePcoPanel(false); }}
-                                                                            className="text-[10px] font-black bg-zinc-800 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
-                                                                        >
-                                                                            <PlusCircle className="w-2.5 h-2.5" /> Add Queue
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={() => { handlePcoSongRequest(t); setIsMobilePcoPanel(false); }}
-                                                                        className="w-full py-1.5 mt-1 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 shadow"
-                                                                    >
-                                                                        <PlusCircle className="w-3.5 h-3.5" /> Request Song
-                                                                    </button>
-                                                                )}
+                                {/* Search Results / Queue */}
+                                <div data-sheet-scroll className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                                    {searchResults.length > 0 && (
+                                        <div className="mb-4">
+                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Results</h3>
+                                            <div className="space-y-2">
+                                                {searchResults.map((t) => (
+                                                    <div key={t.id} className="flex flex-col gap-1.5 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <img src={t.image} alt={t.song} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="text-white text-sm font-bold truncate">{t.song}</h4>
+                                                                <p className="text-gray-400 text-xs truncate">{t.singers}</p>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Queue ({queue.length})</h3>
-                                                {queue.length === 0 ? (
-                                                    <p className="text-sm text-gray-600 px-1 italic">Queue is empty</p>
-                                                ) : (
-                                                    <div className="space-y-1">
-                                                        {queue.map((t, idx) => (
-                                                            <div key={`m-${t.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                                                                <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
-                                                                <img src={t.image} alt={t.song} className="w-8 h-8 rounded-md object-cover" />
-                                                                <div className="flex-1 min-w-0">
-                                                                    <h4 className="text-white text-sm font-medium truncate">{t.song}</h4>
-                                                                    <p className="text-gray-400 text-[10px] truncate">{t.singers}</p>
-                                                                </div>
+                                                        </div>
+                                                        {isAdminUser ? (
+                                                            <div className="flex items-center gap-1 justify-end pt-1 border-t border-white/5">
+                                                                <button
+                                                                    onClick={() => { handlePcoAdminDirectPlay(t); setIsMobilePcoPanel(false); }}
+                                                                    className="text-[10px] font-black bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
+                                                                >
+                                                                    <Play className="w-2.5 h-2.5 fill-current" /> Play Now
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { handlePcoAdminPlayNext(t); setIsMobilePcoPanel(false); }}
+                                                                    className="text-[10px] font-black bg-indigo-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
+                                                                >
+                                                                    <SkipForward className="w-2.5 h-2.5 fill-current" /> Play Next
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { handlePcoAdminAddToQueue(t); setIsMobilePcoPanel(false); }}
+                                                                    className="text-[10px] font-black bg-zinc-800 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
+                                                                >
+                                                                    <PlusCircle className="w-2.5 h-2.5" /> Add Queue
+                                                                </button>
                                                             </div>
-                                                        ))}
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => { handlePcoSongRequest(t); setIsMobilePcoPanel(false); }}
+                                                                className="w-full py-1.5 mt-1 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 shadow"
+                                                            >
+                                                                <PlusCircle className="w-3.5 h-3.5" /> Request Song
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    /* Live Chat Tab */
-                                    <div className="flex-1 flex flex-col overflow-hidden">
-                                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                                            {messages.length === 0 && (
-                                                <p className="text-gray-600 text-sm text-center mt-8 italic">No messages yet. Say something!</p>
-                                            )}
-                                            {messages.map((msg, i) => (
-                                                <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                                    <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
-                                                        {msg.text}
+                                    )}
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Queue ({queue.length})</h3>
+                                        {queue.length === 0 ? (
+                                            <p className="text-sm text-gray-600 px-1 italic">Queue is empty</p>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {queue.map((t, idx) => (
+                                                    <div key={`m-${t.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                                                        <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
+                                                        <img src={t.image} alt={t.song} className="w-8 h-8 rounded-md object-cover" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-white text-sm font-medium truncate">{t.song}</h4>
+                                                            <p className="text-gray-400 text-[10px] truncate">{t.singers}</p>
+                                                        </div>
                                                     </div>
-                                                    <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="p-3 border-t border-white/5 bg-black/50 shrink-0">
-                                            <form onSubmit={handleSendMessage} className="relative">
-                                                <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
-                                                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
-                                            </form>
-                                        </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            /* Live Chat Tab */
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                                <div data-sheet-scroll className="flex-1 overflow-y-auto p-4 space-y-3">
+                                    {messages.length === 0 && (
+                                        <p className="text-gray-600 text-sm text-center mt-8 italic">No messages yet. Say something!</p>
+                                    )}
+                                    {messages.map((msg, i) => (
+                                        <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
+                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
+                                                {msg.text}
+                                            </div>
+                                            <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.user}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-3 border-t border-white/5 bg-black/50 shrink-0">
+                                    <form onSubmit={handleSendMessage} className="relative">
+                                        <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
+                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </BottomSheet>
 
                     {/* Mobile Bottom Bar */}
                     <div className="md:hidden fixed bottom-0 inset-x-0 z-[150] bg-[#07050d]/95 backdrop-blur-2xl border-t border-white/10 px-3 py-2 flex items-center gap-3 safe-area-bottom">
@@ -3337,6 +3380,15 @@ export const MusicDate = () => {
 
                         {/* Action Buttons */}
                         <div className="flex items-center gap-1.5 shrink-0">
+                            {isAdminUser && (
+                                <button
+                                    onClick={() => navigate.push('/sparx/music/admin')}
+                                    className="p-2.5 rounded-xl bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 active:scale-95 transition-all border border-pink-500/20"
+                                    title="Open DJ Mission Control Console"
+                                >
+                                    <Shield className="w-4.5 h-4.5" />
+                                </button>
+                            )}
                             <button
                                 onClick={() => { setIsMobilePcoPanel(true); setShowChat(false); }}
                                 className="p-2.5 rounded-xl bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 active:scale-95 transition-all border border-violet-500/20"
@@ -3456,7 +3508,19 @@ export const MusicDate = () => {
                     onPlayNow={handlePcoAdminDirectPlay}
                     onPlayNext={handlePcoAdminPlayNext}
                     onAddToQueue={handlePcoAdminAddToQueue}
-                    onRemoveFromQueue={(trackId) => setQueue(prev => prev.filter(t => t.id !== trackId))}
+                    onRemoveFromQueue={(trackId) => {
+                        setQueue(prev => {
+                            const nextQueue = prev.filter(t => t.id !== trackId);
+                            if (supabase) {
+                                supabase.channel('campus_pco_live_chat').send({
+                                    type: 'broadcast',
+                                    event: 'PCO_QUEUE_SYNC',
+                                    payload: { queue: nextQueue }
+                                });
+                            }
+                            return nextQueue;
+                        });
+                    }}
                     onSkipCurrent={handleSkip}
                     onBroadcastBanner={(text) => {
                         triggerPinnedBanner(text);

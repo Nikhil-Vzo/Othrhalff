@@ -590,9 +590,9 @@ export const Sparx: React.FC = () => {
                 <Music className="w-4 h-4 animate-bounce" />
               </div>
 
-              <div className="flex flex-col min-w-0 max-w-[130px]">
+              <div className="flex flex-col min-w-0 max-w-[140px]">
                 <span className="text-xs font-black text-white truncate flex items-center gap-1">
-                  Campus PCO
+                  Sparx FM
                   <span className="px-1.5 py-0.5 rounded-full bg-pink-500 text-[8px] font-black text-white uppercase tracking-wider animate-pulse">24/7</span>
                 </span>
                 <span className="text-[9px] text-purple-300 font-semibold flex items-center gap-1 mt-0.5">
@@ -600,7 +600,7 @@ export const Sparx: React.FC = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                   </span>
-                  Radio & Live Chat
+                  Campus Radio & Requests
                 </span>
               </div>
             </button>
