@@ -605,28 +605,6 @@ export const Sparx: React.FC = () => {
               </div>
             </button>
 
-            {/* Admin DJ Dashboard Shortcut (Visible only to authorized PCO Admins) */}
-            {isPcoAdmin && (
-              <button
-                onClick={() => router.push('/sparx/music/admin')}
-                className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-fuchsia-950/70 to-pink-950/80 border border-fuchsia-500/60 hover:border-fuchsia-400 hover:bg-fuchsia-900/40 transition-all duration-300 shadow-[0_0_25px_rgba(217,70,239,0.3)] active:scale-95 text-left group"
-              >
-                <div className="w-8 h-8 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center text-fuchsia-300 group-hover:rotate-12 transition-transform">
-                  <Shield className="w-4 h-4 text-pink-400" />
-                </div>
-
-                <div className="flex flex-col min-w-0 max-w-[130px]">
-                  <span className="text-xs font-black text-white truncate flex items-center gap-1">
-                    PCO Admin
-                    <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-[8px] font-black text-white uppercase tracking-wider">DJ</span>
-                  </span>
-                  <span className="text-[9px] text-fuchsia-300 font-semibold flex items-center gap-1 mt-0.5">
-                    Dashboard & Team
-                  </span>
-                </div>
-              </button>
-            )}
-
             {/* Other Active User Rooms */}
             {activeRooms
               .filter(r => !r.room_id.includes('Campus_PCO'))
