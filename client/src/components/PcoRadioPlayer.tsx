@@ -22,6 +22,7 @@ interface PcoRadioPlayerProps {
   isAdmin: boolean;
   requestsLeft: number;
   pinnedBanner?: { text: string; expiresAt: number } | null;
+  floatingChatMessages?: { id: string; user: string; text: string }[];
   isSidebarOpen?: boolean;
   onToggleLyrics: () => void;
   onPlayPause: () => void;
@@ -48,6 +49,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   isAdmin,
   requestsLeft,
   pinnedBanner,
+  floatingChatMessages,
   isSidebarOpen = false,
   onToggleLyrics,
   onPlayPause,
@@ -160,11 +162,28 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         </div>
       )}
 
-      {/* 🎨 Center Area: Clean Wallpaper + Animated Vector Swipe/Tap Gesture Hint */}
+      {/* 💬 Live Floating On-Screen Chat Stream */}
+      {floatingChatMessages && floatingChatMessages.length > 0 && (
+        <div className="relative z-20 px-4 max-w-md mx-auto w-full flex flex-col items-center gap-2 pointer-events-none my-auto">
+          {floatingChatMessages.map((msg) => (
+            <div
+              key={msg.id}
+              className="pointer-events-auto bg-[#140c18]/85 hover:bg-[#140c18]/95 backdrop-blur-2xl border border-pink-500/30 px-4 py-2 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.8)] text-xs text-white flex items-center gap-2 max-w-full animate-bounce"
+              style={{ animationIterationCount: 1, animationDuration: '0.4s' }}
+            >
+              <span className="font-bold text-pink-400 shrink-0">{msg.user}:</span>
+              <span className="text-white/90 truncate">{msg.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 🎨 Center Area: Clean Wallpaper + Mobile-Only Swipe/Tap Gesture Hint */}
       <main className="relative z-10 flex-1 flex flex-col justify-end items-center pb-2.5 pointer-events-none">
+        {/* Only visible on mobile/phones, completely hidden on PC */}
         <button
           onClick={onToggleSidebar}
-          className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-xl border border-white/10 hover:border-pink-500/40 text-white/70 hover:text-white transition-all active:scale-95 group shadow-lg cursor-pointer"
+          className="pointer-events-auto flex md:hidden items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-xl border border-white/10 hover:border-pink-500/40 text-white/70 hover:text-white transition-all active:scale-95 group shadow-lg cursor-pointer"
           title="Swipe up or tap for Requests & Chat"
           aria-label="Swipe up for requests and chat"
         >

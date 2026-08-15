@@ -551,7 +551,7 @@ export const MusicDate = () => {
         setFloatingNotifications(prev => [...prev.slice(-3), { id, user, text }]);
         setTimeout(() => {
             setFloatingNotifications(prev => prev.filter(item => item.id !== id));
-        }, 2000);
+        }, 4500);
     };
 
     const [adminRequestModal, setAdminRequestModal] = useState<{ requester: string; track: Track; requestId?: string } | null>(null);
@@ -2940,6 +2940,7 @@ export const MusicDate = () => {
                             isAdmin={isAdminUser}
                             requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
                             pinnedBanner={pinnedBanner}
+                            floatingChatMessages={floatingNotifications}
                             isSidebarOpen={!isSidebarHidden}
                             onToggleLyrics={toggleLyrics}
                             onPlayPause={handlePlayPause}
