@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useRef } from 'react';
-import { ArrowLeft, Play, Pause, SkipForward, MessageSquare, ChevronUp, FileText, Radio } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  ArrowLeft, Play, Pause, SkipForward, SkipBack, MessageSquare, 
+  FileText, ListMusic, PlusCircle, Volume2, Sparkles, Radio, Mic2
+} from 'lucide-react';
 
 export interface PcoTrackLike {
   id: string;
@@ -29,28 +32,13 @@ interface PcoRadioPlayerProps {
   onBack: () => void;
 }
 
-const DEFAULT_WALL = '/sparxfm-wall.jpg';
+const DEFAULT_BG = '/fm.png';
 
-const fmt = (s: number) => {
+const formatTime = (s: number) => {
   const m = Math.floor(Math.max(0, s) / 60);
   const sec = String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0');
   return `${m}:${sec}`;
 };
-
-const Eq: React.FC<{ playing: boolean }> = ({ playing }) => (
-  <span className="flex items-end gap-[2px] h-3">
-    {[0, 1, 2, 3].map(i => (
-      <span
-        key={i}
-        className="w-[3px] rounded-full bg-pink-400"
-        style={{
-          height: playing ? undefined : '25%',
-          animation: playing ? `eq 0.9s ease-in-out ${i * 0.15}s infinite` : 'none'
-        }}
-      />
-    ))}
-  </span>
-);
 
 export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   currentTrack,
@@ -69,195 +57,277 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   onBack
 }) => {
   const t = currentTrack;
-  const art = t?.image || DEFAULT_WALL;
+  const art = t?.image || '/sparxfm-wall.jpg';
   const dur = Number(t?.duration) || 240;
-  const touchY = useRef<number | null>(null);
 
-  const handleArtError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (e.currentTarget.src !== DEFAULT_WALL) {
-      e.currentTarget.src = DEFAULT_WALL;
-    }
+  // Live Clock (e.g. "9:04 pm")
+  const [timeString, setTimeString] = useState('');
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTimeString(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase());
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Retro Indian Truck Horn SFX generator (Web Audio API)
+  const [honking, setHonking] = useState(false);
+  const playHornSound = () => {
+    setHonking(true);
+    setTimeout(() => setHonking(false), 900);
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'sawtooth';
+      osc2.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(340, ctx.currentTime);
+      osc2.frequency.setValueAtTime(425, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.6);
+      osc2.stop(ctx.currentTime + 0.6);
+    } catch (_) {}
   };
 
   return (
-    <div
-      className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between"
-      onTouchStart={e => {
-        touchY.current = e.touches[0].clientY;
-      }}
-      onTouchEnd={e => {
-        if (touchY.current !== null && touchY.current - e.changedTouches[0].clientY > 60) {
-          onOpenRequests();
-        }
-        touchY.current = null;
-      }}
-    >
-      {/* Ambient background wallpaper */}
-      <img
-        src={art}
-        alt=""
-        onError={handleArtError}
-        className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-40 transition-all duration-1000"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/35 to-black/95" />
-      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-pink-600/20 blur-[120px] pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-purple-600/20 blur-[120px] pointer-events-none" />
-
-      {/* Slim Top Chrome Bar */}
-      <div className="relative z-20 flex items-center justify-between px-3 sm:px-4 pt-3 sm:pt-4 shrink-0 gap-1.5">
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button
-            onClick={onBack}
-            className="p-2 bg-white/10 border border-white/10 rounded-full backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all shrink-0"
-            title="Leave Radio & Back to Sparx Hub"
-          >
-            <ArrowLeft className="w-4 h-4 text-white/90" />
-          </button>
-          <span className="font-mono text-[10px] sm:text-[11px] font-black tracking-[0.2em] sm:tracking-[0.3em] text-white/90 flex items-center gap-1">
-            SPARX<span className="text-pink-400">FM</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-bold text-white/90 backdrop-blur-md shrink-0">
-            <Radio className="w-3 h-3 text-pink-400" />
-            <span>{listenerCount}</span>
-            <span className="hidden sm:inline">listening</span>
-          </span>
-        </div>
+    <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
+      {/* 🌟 Background: FM.png Aesthetic Wallpaper with Cinematic Vignette */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={DEFAULT_BG}
+          alt="Sparx FM Ambient"
+          className="w-full h-full object-cover object-center filter brightness-[0.92] contrast-[1.05]"
+          onError={(e) => {
+            // Graceful fallback to album art with heavy blur
+            e.currentTarget.src = art;
+            e.currentTarget.className = "w-full h-full object-cover filter blur-3xl opacity-50";
+          }}
+        />
+        {/* Soft film grain and atmospheric gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.6)_100%)] pointer-events-none" />
       </div>
 
-      {/* Main Lock-Screen Style Stack */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 gap-2.5 sm:gap-3 md:gap-5 min-h-0 overflow-y-auto">
-        {/* Realtime DJ Announcement Pinned Banner */}
-        {pinnedBanner && (
-          <div className="w-full max-w-md bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white font-bold text-xs px-3.5 py-2 rounded-2xl shadow-[0_0_25px_rgba(236,72,153,0.5)] border border-pink-400/40 flex items-center justify-between animate-pulse shrink-0">
-            <span className="truncate mr-2 font-black">{pinnedBanner.text}</span>
-            <span className="text-[9px] font-mono opacity-80 bg-black/40 px-2 py-0.5 rounded-full shrink-0">ANNOUNCEMENT</span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/90 text-white text-[9px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(236,72,153,0.5)]">
-            <Eq playing={isPlaying} /> Live on air
-          </span>
+      {/* 👑 Top Bar: Time, Live Listener Pill, Back Button */}
+      <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
+        {/* Left: Clock */}
+        <div className="font-mono text-xs sm:text-sm font-semibold tracking-wider text-white/80 drop-shadow">
+          {timeString || '9:00 pm'}
         </div>
 
-        {/* Artwork (Tap for lyrics, neon breathing ring) */}
-        <button
-          onClick={onToggleLyrics}
-          title="Tap artwork for animated lyrics"
-          className={`relative w-48 h-48 sm:w-56 sm:h-56 md:w-72 md:h-72 rounded-[2rem] overflow-hidden border border-white/20 transition-all duration-700 active:scale-95 shrink-0 ${
-            isPlaying
-              ? 'scale-100 shadow-[0_0_70px_rgba(236,72,153,0.35)]'
-              : 'scale-95 shadow-[0_25px_80px_rgba(0,0,0,0.8)]'
-          }`}
-        >
-          <img
-            src={art}
-            alt={t?.song || 'Campus PCO'}
-            onError={handleArtError}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        </button>
+        {/* Center: Live Listener Pill */}
+        <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-xs font-semibold text-white/90 shadow-lg">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-mono font-bold text-emerald-300">{listenerCount || 581}</span>
+          <span className="text-white/70">on the airwaves</span>
+        </div>
 
-        {/* Track Title & Artist */}
-        <div className="text-center min-w-0 max-w-md w-full shrink-0">
-          <h1 className="text-xl sm:text-2xl md:text-4xl font-black text-white truncate drop-shadow-lg tracking-tight">
-            {t?.song || 'Tuning the airwaves…'}
+        {/* Right: Leave / Back Button */}
+        <button
+          onClick={onBack}
+          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/60 flex items-center justify-center transition-all active:scale-95 shadow-lg"
+          title="Back to Sparx Hub"
+          aria-label="Back"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+      </header>
+
+      {/* 📢 DJ Announcement Toast */}
+      {pinnedBanner && (
+        <div className="relative z-20 mx-auto mt-2 max-w-md w-[90%] bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-2xl shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-pink-400/40 flex items-center justify-between animate-pulse">
+          <span className="truncate mr-2 font-black">{pinnedBanner.text}</span>
+          <span className="text-[9px] font-mono opacity-80 bg-black/40 px-2 py-0.5 rounded-full shrink-0">LIVE</span>
+        </div>
+      )}
+
+      {/* 🎨 Center Hero Stage: Aesthetic Indian Truck Typography & Horn Button */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-6 pointer-events-none">
+        {/* Left Interactive Easter Egg: "हॉर्न ओके प्लीज / Horn OK Please" */}
+        <div className="absolute left-4 sm:left-10 top-1/2 -translate-y-1/2 pointer-events-auto">
+          <button
+            onClick={playHornSound}
+            className={`group flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-black/40 hover:bg-black/70 backdrop-blur-xl border border-white/15 text-left transition-all active:scale-95 shadow-2xl ${
+              honking ? 'scale-110 border-pink-500 shadow-[0_0_25px_rgba(236,72,153,0.6)] bg-pink-950/60' : ''
+            }`}
+            title="Press for nostalgic truck horn sound!"
+          >
+            <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-pink-300 group-hover:scale-110 transition-transform">
+              <Volume2 className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-black text-white leading-tight font-sans">
+                हॉर्न ओके प्लीज
+              </p>
+              <p className="text-[9px] text-white/50 font-mono leading-none">
+                Horn pleaseeee
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {/* Center Aesthetic Hero Title */}
+        <div className="space-y-2 pointer-events-auto">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white tracking-normal drop-shadow-[0_12px_40px_rgba(0,0,0,0.85)] font-sans">
+            ट्रक वाला
           </h1>
-          <p className="text-xs sm:text-sm md:text-base text-white/70 font-medium truncate mt-1">
-            {t?.singers || '24/7 Campus Radio'}
+          <p className="text-xs sm:text-sm md:text-base font-semibold text-white/80 tracking-widest drop-shadow italic">
+            दिल्ली अभी दूर है ☕
           </p>
         </div>
+      </main>
 
-        {/* Progress Bar (Ambient glow for listeners, seekable slider for DJ) */}
-        <div className="w-full max-w-md shrink-0">
-          {isAdmin && onSeek ? (
-            <input
-              type="range"
-              min={0}
-              max={dur}
-              value={Math.min(currentTime, dur)}
-              onChange={e => onSeek(Number(e.target.value))}
-              className="w-full h-1.5 bg-white/20 accent-pink-500 cursor-pointer rounded-full"
-            />
-          ) : (
-            <div className="w-full h-1.5 rounded-full bg-white/15 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full shadow-[0_0_12px_rgba(236,72,153,0.8)] transition-all duration-500"
-                style={{ width: `${Math.min(100, (currentTime / dur) * 100)}%` }}
+      {/* 🎵 Bottom Floating Island Player (The exact aesthetic glass capsule) */}
+      <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">
+        <div className="max-w-xl w-full bg-[#180e14]/85 backdrop-blur-3xl border border-white/20 rounded-full px-3.5 sm:px-5 py-2.5 sm:py-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3 sm:gap-4 transition-all">
+          
+          {/* Left: Spinning Album Thumbnail + Track Title & Scrub */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {/* Spinning Vinyl Album Art */}
+            <div 
+              onClick={onToggleLyrics}
+              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 border border-white/30 shadow-md cursor-pointer group"
+              title="Tap for synced lyrics"
+            >
+              <img
+                src={art}
+                alt={t?.song || 'Campus PCO'}
+                className={`w-full h-full object-cover ${isPlaying ? 'animate-spin' : ''}`}
+                style={{ animationDuration: '8s' }}
               />
+              <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+              <div className="absolute inset-0 m-auto w-3 h-3 rounded-full bg-[#180e14] border border-white/40" />
             </div>
-          )}
-          <div className="flex justify-between text-[10px] font-mono text-white/50 mt-1.5">
-            <span>{fmt(currentTime)}</span>
-            <span>{fmt(dur)}</span>
-          </div>
-        </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-3 sm:gap-4 md:gap-6 shrink-0 mt-1">
-          <button
-            onClick={onToggleLyrics}
-            className="p-3 rounded-full bg-white/10 border border-white/10 text-white/80 hover:bg-white/20 hover:text-white backdrop-blur-md active:scale-95 transition-all"
-            title="Lyrics view"
-          >
-            <FileText className="w-5 h-5" />
-          </button>
+            {/* Song Name, Artist, and Seek Timeline */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-white truncate max-w-[130px] sm:max-w-[180px]">
+                  {t?.song || 'Connecting radio...'}
+                </h3>
+              </div>
+              <p className="text-[10px] sm:text-xs text-white/60 truncate leading-tight">
+                {t?.singers || '24/7 Campus Radio'}
+              </p>
 
-          {isAdmin ? (
-            <>
-              <button
-                onClick={onPlayPause}
-                className="w-14 h-14 md:w-18 md:h-18 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.35)] hover:scale-105 active:scale-95 transition-all"
-                title={isPlaying ? 'Pause Station' : 'Resume Station'}
-              >
-                {isPlaying ? (
-                  <Pause className="w-6 h-6 md:w-7 md:h-7 fill-current" />
+              {/* Sleek Progress Line */}
+              <div className="mt-1 flex items-center gap-2">
+                {isAdmin && onSeek ? (
+                  <input
+                    type="range"
+                    min={0}
+                    max={dur}
+                    value={Math.min(currentTime, dur)}
+                    onChange={e => onSeek(Number(e.target.value))}
+                    className="w-full h-1 bg-white/20 accent-pink-500 cursor-pointer rounded-full"
+                  />
                 ) : (
-                  <Play className="w-6 h-6 md:w-7 md:h-7 fill-current ml-1" />
+                  <div className="w-full h-1 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, (currentTime / dur) * 100)}%` }}
+                    />
+                  </div>
                 )}
-              </button>
-              <button
-                onClick={onSkip}
-                className="p-3 rounded-full bg-white/10 border border-white/10 text-white/80 hover:bg-white/20 hover:text-white backdrop-blur-md active:scale-95 transition-all"
-                title="Skip Track"
-              >
-                <SkipForward className="w-5 h-5" />
-              </button>
-            </>
-          ) : (
+                <span className="text-[9px] font-mono text-white/50 shrink-0">
+                  {formatTime(currentTime)} / {formatTime(dur)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Controls (Lyrics, Request/Queue, Play/Pause, Skip, Chat) */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            
+            {/* 📝 Extra Lyric Button */}
+            <button
+              onClick={onToggleLyrics}
+              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+              title="Toggle Live Synced Lyrics"
+              aria-label="Lyrics"
+            >
+              <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-pink-300" />
+            </button>
+
+            {/* 🎵 Song Request / Add Button */}
             <button
               onClick={onOpenRequests}
-              className="px-5 sm:px-6 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs font-black shadow-[0_0_30px_rgba(236,72,153,0.4)] active:scale-95 transition-all tracking-wider"
+              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all relative"
+              title={`Request Song (${requestsLeft} left today)`}
+              aria-label="Request Song"
             >
-              REQUEST SONG ({requestsLeft})
+              <PlusCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-purple-300" />
+              {requestsLeft > 0 && (
+                <span className="absolute 0 top-1 right-1 w-2 h-2 rounded-full bg-pink-500 animate-ping" />
+              )}
             </button>
-          )}
 
-          <button
-            onClick={onOpenChat}
-            className="p-3 rounded-full bg-white/10 border border-white/10 text-white/80 hover:bg-white/20 hover:text-white backdrop-blur-md active:scale-95 transition-all"
-            title="Live Chat"
-          >
-            <MessageSquare className="w-5 h-5" />
-          </button>
+            {/* 💬 Live Chat Button */}
+            <button
+              onClick={onOpenChat}
+              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+              title="Live Chat"
+              aria-label="Chat"
+            >
+              <MessageSquare className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-indigo-300" />
+            </button>
+
+            {/* ⏸️ / ▶️ Main White Circular Play / Pause Button */}
+            <button
+              onClick={onPlayPause}
+              disabled={!isAdmin}
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all ${
+                isAdmin ? 'hover:scale-105 active:scale-90 cursor-pointer' : 'cursor-default opacity-95'
+              }`}
+              title={isAdmin ? (isPlaying ? 'Pause Station' : 'Resume Station') : 'Campus Live Radio'}
+              aria-label="Play / Pause"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-black text-black" />
+              ) : (
+                <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-black text-black ml-0.5" />
+              )}
+            </button>
+
+            {/* ⏭️ Skip Button (For Admin DJ) */}
+            {isAdmin && (
+              <button
+                onClick={onSkip}
+                className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+                title="Skip Track (Admin DJ)"
+                aria-label="Skip"
+              >
+                <SkipForward className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              </button>
+            )}
+
+            {/* ☰ Queue / Playlist Panel Trigger */}
+            <button
+              onClick={onOpenRequests}
+              className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+              title="View Queue & Scheduled Songs"
+              aria-label="Queue"
+            >
+              <ListMusic className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            </button>
+          </div>
         </div>
-
-        {/* Swipe-up / Click hint to open Requests/Chat */}
-        <button
-          onClick={onOpenRequests}
-          className="flex flex-col items-center text-white/50 hover:text-white/90 transition-colors mt-2 pb-1 group"
-        >
-          <ChevronUp className="w-4 h-4 animate-bounce text-pink-400 mb-0.5 group-hover:scale-110 transition-transform" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/70 group-hover:text-white">
-            Swipe up to req & chat
-          </span>
-        </button>
-      </div>
+      </footer>
     </div>
   );
 };
