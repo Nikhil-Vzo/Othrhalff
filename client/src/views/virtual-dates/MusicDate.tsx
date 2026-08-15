@@ -633,18 +633,17 @@ export const MusicDate = () => {
         setRoomName('Campus PCO (24/7 Radio)');
         setShowChat(true);
 
-        // 1. Initial time-synced real vocal track fetch & load
-        fetchPcoRealSongs().then((realTracks) => {
-            setPcoPlaylist(realTracks);
-            const { track, offsetSec } = getPcoSyncedTrack(realTracks);
-            setCurrentTrack(track);
-            setIsPlaying(true);
-            setTimeout(() => {
-                if (audioRef.current) {
-                    audioRef.current.currentTime = offsetSec;
-                }
-            }, 800);
-        });
+        // 1. Initial time-synced deterministic romantic playlist
+        const baseList = seededShuffle(curatedRomanticTracks as Track[], 789456);
+        setPcoPlaylist(baseList);
+        const { track, offsetSec } = getPcoSyncedTrack(baseList);
+        setCurrentTrack(track);
+        setIsPlaying(true);
+        setTimeout(() => {
+            if (audioRef.current) {
+                audioRef.current.currentTime = offsetSec;
+            }
+        }, 800);
 
         // 2. Realtime Channel with Presence & Audio Broadcasts
         const pcoChannel = supabase.channel('campus_pco_live_chat', {
