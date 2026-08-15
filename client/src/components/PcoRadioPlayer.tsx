@@ -78,12 +78,12 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
       }}
     >
       {/* 🌟 Background: Responsive Wallpaper (fm_phone.png on mobile/phones, desktop wallpaper on PC) */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <picture>
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <picture className="w-full h-full block">
           <source media="(max-width: 767px)" srcSet="/fm_phone.png" />
           <source media="(min-width: 768px)" srcSet={DEFAULT_BG} />
           <img
-            src={DEFAULT_BG}
+            src="/fm_phone.png"
             alt="Sparx FM Ambient"
             className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05]"
             onError={(e) => {
