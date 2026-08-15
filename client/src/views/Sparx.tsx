@@ -120,8 +120,25 @@ export const Sparx: React.FC = () => {
 
   useEffect(() => {
     fetchActiveRooms();
-    const interval = setInterval(fetchActiveRooms, 8000);
-    return () => clearInterval(interval);
+
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('sparx_active_rooms_lobby')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'active_rooms' },
+        () => {
+          fetchActiveRooms();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(fetchActiveRooms, 10000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const parseRoomDetails = (roomId: string) => {
@@ -159,6 +176,9 @@ export const Sparx: React.FC = () => {
     
     if (isPrivate) {
       const generatedPasscode = Math.floor(1000 + Math.random() * 9000).toString();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`room_passcode_${roomId}`, generatedPasscode);
+      }
       redirectUrl += `&private=true&passcode=${generatedPasscode}`;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '../../../src/components/ErrorBoundary';
 
 const CinemaDate = dynamic(
   () => import('../../../src/views/virtual-dates/CinemaDate').then(mod => mod.CinemaDate),
@@ -8,5 +9,9 @@ const CinemaDate = dynamic(
 );
 
 export default function Page() {
-  return <CinemaDate />;
+  return (
+    <ErrorBoundary>
+      <CinemaDate />
+    </ErrorBoundary>
+  );
 }

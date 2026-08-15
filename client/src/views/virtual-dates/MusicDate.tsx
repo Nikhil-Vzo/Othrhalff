@@ -80,6 +80,12 @@ export const MusicDate = () => {
 
     const isPrivateRoomRef = useRef(isPrivateRoom);
     const roomPasscodeRef = useRef(roomPasscode);
+    const lastSyncTimeRef = useRef<number>(0);
+    const staleHostProcessingRef = useRef<boolean>(false);
+    const dummyStreamRef = useRef<MediaStream | null>(null);
+    const dummyAudioCtxRef = useRef<AudioContext | null>(null);
+    const lyricsAbortControllerRef = useRef<AbortController | null>(null);
+    const currentObjectUrlRef = useRef<string | null>(null);
 
     useEffect(() => {
         isPrivateRoomRef.current = isPrivateRoom;
@@ -122,6 +128,8 @@ export const MusicDate = () => {
 
     // Draggable Cams State
     const [camPositions, setCamPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
+    const camPositionsRef = useRef(camPositions);
+    useEffect(() => { camPositionsRef.current = camPositions; }, [camPositions]);
     const dragInfo = useRef<{ id: string | null, startX: number, startY: number, initialX: number, initialY: number }>({
         id: null, startX: 0, startY: 0, initialX: 0, initialY: 0
     });
@@ -152,13 +160,51 @@ export const MusicDate = () => {
         myStreamRef.current = myStream;
     }, [roomHostId, roomCode, myPeerId, peers, isHost, myStream]);
 
+    // Helper: Create Dummy Stream (Cached & AudioContext Safe) for Spectators/Errors
+    const createDummyStream = () => {
+        if (dummyStreamRef.current && dummyStreamRef.current.active) {
+            return dummyStreamRef.current;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 640, 480);
+            ctx.font = '30px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('Spectator', 250, 240);
+        }
+        const videoTrack = canvas.captureStream(30).getVideoTracks()[0];
+
+        if (!dummyAudioCtxRef.current || dummyAudioCtxRef.current.state === 'closed') {
+            dummyAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        const dst = dummyAudioCtxRef.current.createMediaStreamDestination();
+        const audioTrack = dst.stream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = false;
+        }
+
+        const stream = new MediaStream([videoTrack, audioTrack].filter(Boolean));
+        dummyStreamRef.current = stream;
+        return stream;
+    };
+
     const handleHostDisconnect = async () => {
         setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
         
-        const remainingPeerIds = [myPeerIdRef.current, ...peersRef.current.map(p => p.peerId)].sort();
+        // 1. Query active open connections as source of truth for peer election
+        const connectedPeerIds = Object.keys(connections.current).filter(
+            id => connections.current[id]?.open
+        );
+        const remainingPeerIds = [myPeerIdRef.current, ...connectedPeerIds].sort();
         
         if (remainingPeerIds.length === 0) return;
         
+        // 2. Smallest alphabetical ID becomes the new host
         const newHostId = remainingPeerIds[0];
         
         if (newHostId === myPeerIdRef.current) {
@@ -176,7 +222,7 @@ export const MusicDate = () => {
                             updated_at: new Date().toISOString(),
                             is_private: isPrivateRoomRef.current,
                             passcode: roomPasscodeRef.current,
-                            participant_count: peersRef.current.length + 1,
+                            participant_count: connectedPeerIds.length + 1,
                             host_user_id: currentUser?.id
                         });
                     setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
@@ -191,49 +237,95 @@ export const MusicDate = () => {
     };
 
     const handleStaleHost = async () => {
-        if (supabase && roomHostIdRef.current) {
-            try {
-                // Fetch the room entry to verify the current host and check if it's actually stale
+        const currentRoom = roomCodeRef.current;
+        if (!currentRoom) return;
+
+        if (staleHostProcessingRef.current) return;
+        staleHostProcessingRef.current = true;
+
+        try {
+            if (supabase && roomHostIdRef.current) {
                 const { data: roomData } = await supabase
                     .from('active_rooms')
                     .select('host_peer_id, updated_at')
-                    .eq('room_id', roomCodeRef.current)
+                    .eq('room_id', currentRoom)
                     .single();
 
                 if (roomData) {
                     const lastActive = new Date(roomData.updated_at).getTime();
                     const now = Date.now();
-                    const isStale = (now - lastActive) > 15000; // Stale if no update in 15 seconds
+                    const isStale = (now - lastActive) > 15000;
 
-                    // Only delete if the host peer ID matches the expected stale host and it's actually stale
                     if (roomData.host_peer_id === roomHostIdRef.current && isStale) {
                         await supabase
                             .from('active_rooms')
                             .delete()
-                            .eq('room_id', roomCodeRef.current)
+                            .eq('room_id', currentRoom)
                             .eq('host_peer_id', roomHostIdRef.current);
                     } else {
-                        console.log("Host is not stale or has been taken over by another peer.");
-                        return; // Skip restart/takeover if host is still valid/active
+                        return;
                     }
                 }
-            } catch (err) {
-                console.error("Error cleaning up stale host:", err);
             }
-        }
-        const currentRoom = roomCodeRef.current;
-        setRoomCode('');
-        setRoomHostId(null);
-        setIsHost(false);
-        setTimeout(() => {
+
+            if (peerInstance.current) {
+                peerInstance.current.destroy();
+                peerInstance.current = null;
+            }
+            setPeers([]);
+            setRoomHostId(null);
+            setIsHost(false);
+            setRoomCode('');
+            await new Promise(r => setTimeout(r, 400));
             setRoomCode(currentRoom);
-        }, 300);
+        } catch (err) {
+            console.error("Error cleaning up stale host:", err);
+        } finally {
+            staleHostProcessingRef.current = false;
+        }
     };
 
     const handleLeaveRoom = () => {
         if (typeof window !== 'undefined') {
             window.history.replaceState(null, '', window.location.pathname);
         }
+
+        // Broadcast LEAVE message
+        try {
+            broadcastData({ type: 'LEAVE' });
+        } catch (_) {}
+
+        // Synchronously stop all local media tracks
+        if (myStreamRef.current) {
+            myStreamRef.current.getTracks().forEach(track => {
+                track.stop();
+                track.enabled = false;
+            });
+        }
+        setMyStream(null);
+
+        // Cancel in-flight lyrics requests
+        if (lyricsAbortControllerRef.current) {
+            lyricsAbortControllerRef.current.abort();
+            lyricsAbortControllerRef.current = null;
+        }
+
+        // Revoke active audio object URL safely
+        if (currentObjectUrlRef.current) {
+            URL.revokeObjectURL(currentObjectUrlRef.current);
+            currentObjectUrlRef.current = null;
+        }
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = '';
+        }
+
+        // Close all peer connections
+        Object.values(connections.current).forEach(conn => {
+            try { conn.close(); } catch (_) {}
+        });
+        connections.current = {};
+
         if (isHost && supabase && peerInstance.current) {
             supabase
                 .from('active_rooms')
@@ -244,6 +336,13 @@ export const MusicDate = () => {
                     if (delErr) console.error("Error deleting room host on leave:", delErr);
                 });
         }
+
+        if (peerInstance.current) {
+            peerInstance.current.destroy();
+            peerInstance.current = null;
+        }
+
+        setPeers([]);
         setMode('landing');
         setRoomCode('');
         setRoomName('');
@@ -360,24 +459,25 @@ export const MusicDate = () => {
     const peerNamesRef = useRef<Record<string, string>>(peerNames);
     useEffect(() => { peerNamesRef.current = peerNames; }, [peerNames]);
 
-    // Navigation blocker — prevent accidental session loss
+    // Navigation blocker — prevent accidental session loss with clean history stack
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const pendingNavRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (mode !== 'room') return;
+        let isBlocked = true;
 
         const handlePopState = () => {
-            // User pressed browser back button — push state back and show modal
+            if (!isBlocked) return;
             window.history.pushState(null, '', window.location.href);
             setShowLeaveModal(true);
         };
 
-        // Push an extra history entry so we can intercept the back button
         window.history.pushState(null, '', window.location.href);
         window.addEventListener('popstate', handlePopState);
 
         return () => {
+            isBlocked = false;
             window.removeEventListener('popstate', handlePopState);
         };
     }, [mode]);
@@ -669,15 +769,38 @@ export const MusicDate = () => {
 
 
 
-    // Warn on tab close / refresh while in a room
+    // Warn on tab close / refresh while in a room & handle visibility change on mobile
     useEffect(() => {
         if (mode !== 'room') return;
+
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             e.preventDefault();
             e.returnValue = '';
         };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden' && peerInstance.current) {
+                try { broadcastData({ type: 'LEAVE' }); } catch (_) {}
+            }
+        };
+
+        const handleUnload = () => {
+            if (peerInstance.current) {
+                try { broadcastData({ type: 'LEAVE' }); } catch (_) {}
+                peerInstance.current.destroy();
+            }
+        };
+
         window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('unload', handleUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('unload', handleUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            dummyAudioCtxRef.current?.close().catch(() => {});
+        };
     }, [mode]);
 
     const parseRoomName = (roomId: string) => {
@@ -793,21 +916,7 @@ export const MusicDate = () => {
                         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     } catch (err) {
                         console.warn("Media Access Failed", err);
-                        const canvas = document.createElement('canvas');
-                        canvas.width = 640;
-                        canvas.height = 480;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                            ctx.fillStyle = '#000000';
-                            ctx.fillRect(0, 0, 640, 480);
-                            ctx.font = '30px Arial';
-                            ctx.fillStyle = '#ffffff';
-                            ctx.fillText('Spectator', 250, 240);
-                        }
-                        const videoTrack = canvas.captureStream(30).getVideoTracks()[0];
-                        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-                        const audioTrack = audioCtx.createMediaStreamDestination().stream.getAudioTracks()[0];
-                        stream = new MediaStream([videoTrack, audioTrack]);
+                        stream = createDummyStream();
                         setError("Camera unavailable. Joining as Spectator.");
                         setTimeout(() => setError(null), 5000);
                     }
@@ -860,13 +969,14 @@ export const MusicDate = () => {
                                         .upsert({
                                             room_id: roomCode,
                                             host_peer_id: id,
-                                            is_private: isPrivateRoom,
-                                            passcode: roomPasscodeRef.current || roomPasscode,
                                             updated_at: new Date().toISOString(),
+                                            is_private: isPrivateRoomRef.current,
+                                            passcode: roomPasscodeRef.current,
+                                            participant_count: 1,
                                             host_user_id: currentUser?.id
                                         });
-                                } catch (dbErr) {
-                                    console.error("Failed to register room host in Supabase:", dbErr);
+                                } catch (err) {
+                                    console.error("Error upserting active room:", err);
                                 }
                             }
                             analytics.virtualDateStart('Music Jam');
@@ -919,6 +1029,7 @@ export const MusicDate = () => {
                         console.log('Receiving call from:', call.peer);
                         call.answer(stream);
                         call.on('stream', (remoteStream) => {
+                            console.log('Received remote stream from host:', remoteStream.getTracks());
                             setPeers(prev => {
                                 if (prev.find(p => p.peerId === call.peer)) return prev;
                                 
@@ -935,7 +1046,13 @@ export const MusicDate = () => {
                                 return [...prev, { peerId: call.peer, stream: remoteStream }];
                             });
                         });
-                        call.on('close', () => setPeers(prev => prev.filter(p => p.peerId !== call.peer)));
+                        call.on('close', () => {
+                            console.log("Call closed for peer:", call.peer);
+                            setPeers(prev => prev.filter(p => p.peerId !== call.peer));
+                        });
+                        call.on('error', (err) => {
+                            console.error("Call error:", err);
+                        });
                     });
 
                     peer.on('connection', (conn) => {
@@ -944,9 +1061,11 @@ export const MusicDate = () => {
                     });
 
                     peerInstance.current = peer;
+
                 } catch (err: any) {
                     console.error("Critical Peer Init Error:", err);
                     setError(`System Error: ${err.message || 'Unknown'}`);
+                    setIsConnecting(false);
                 }
             };
             initPeer();
@@ -975,7 +1094,7 @@ export const MusicDate = () => {
                 }
             };
         }
-    }, [roomCode, needsPasscode, roomPasscode, mode]);
+    }, [roomCode, needsPasscode, roomPasscode]);
 
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
         console.log(`Attempting to connect to Host: ${targetId}`);
@@ -1185,13 +1304,21 @@ export const MusicDate = () => {
         
         const loadAudioAsBlob = async () => {
             try {
-                // Fetch the full audio file once instead of letting the browser make multiple range requests
                 const response = await fetch(currentTrack.media_url, { signal: controller.signal });
                 if (!response.ok) {
                     throw new Error(`Failed to fetch audio: ${response.status}`);
                 }
                 const blob = await response.blob();
                 const objectUrl = URL.createObjectURL(blob);
+
+                // Revoke old object URL if any
+                if (currentObjectUrlRef.current) {
+                    const oldUrl = currentObjectUrlRef.current;
+                    setTimeout(() => {
+                        try { URL.revokeObjectURL(oldUrl); } catch (_) {}
+                    }, 2000);
+                }
+                currentObjectUrlRef.current = objectUrl;
                 
                 if (audioRef.current) {
                     audioRef.current.src = objectUrl;
@@ -1202,7 +1329,6 @@ export const MusicDate = () => {
             } catch (err: any) {
                 if (err.name === 'AbortError') return;
                 console.error("Blob fetch error:", err);
-                // Fallback to direct streaming if blob setup fails
                 if (audioRef.current) {
                     audioRef.current.src = currentTrack.media_url;
                     audioRef.current.volume = musicVolume;
@@ -1216,10 +1342,6 @@ export const MusicDate = () => {
 
         return () => {
             controller.abort();
-            if (audioRef.current?.src?.startsWith('blob:')) {
-                URL.revokeObjectURL(audioRef.current.src);
-                // Intentionally NOT setting audioRef.current.src = '' here because it triggers an artificial onError event in the browser.
-            }
         };
     }, [currentTrack]);
 
@@ -1341,9 +1463,17 @@ export const MusicDate = () => {
         if (!showLyrics) {
             if (!lyricsData && !plainLyrics) {
                 setIsLoadingLyrics(true);
+
+                if (lyricsAbortControllerRef.current) {
+                    lyricsAbortControllerRef.current.abort();
+                }
+                lyricsAbortControllerRef.current = new AbortController();
+
                 try {
                     const q = encodeURIComponent(`${currentTrack.song} ${currentTrack.singers.split(',')[0]}`);
-                    const res = await fetch(`https://lrclib.net/api/search?q=${q}`);
+                    const res = await fetch(`https://lrclib.net/api/search?q=${q}`, {
+                        signal: lyricsAbortControllerRef.current.signal
+                    });
                     const data = await res.json();
 
                     if (data && data.length > 0) {
@@ -1358,8 +1488,10 @@ export const MusicDate = () => {
                     } else {
                         setPlainLyrics("<p class='text-gray-500 italic mt-8'>No lyrics available for this track.</p>");
                     }
-                } catch (err) {
-                    setPlainLyrics("<p class='text-red-400 mt-8'>Error loading lyrics.</p>");
+                } catch (err: any) {
+                    if (err.name !== 'AbortError') {
+                        setPlainLyrics("<p class='text-red-400 mt-8'>Error loading lyrics.</p>");
+                    }
                 } finally {
                     setIsLoadingLyrics(false);
                 }
@@ -1762,60 +1894,63 @@ export const MusicDate = () => {
         }
     };
 
-    // Draggable Cam logic — shared position update
-    const startDrag = (id: string, startX: number, startY: number) => {
-        const pos = camPositions[id] || { x: 0, y: 0 };
-        dragInfo.current = { id, startX, startY, initialX: pos.x, initialY: pos.y };
-    };
-
-    const moveDrag = (clientX: number, clientY: number) => {
-        if (!dragInfo.current.id) return;
-        const dx = clientX - dragInfo.current.startX;
-        const dy = clientY - dragInfo.current.startY;
-        setCamPositions(prev => ({
-            ...prev,
-            [dragInfo.current.id as string]: { x: dragInfo.current.initialX + dx, y: dragInfo.current.initialY + dy }
-        }));
-    };
-
-    const endDrag = () => {
-        dragInfo.current.id = null;
-    };
-
+    // Draggable Cam logic — persistent window listener with ref tracking
     const handleCamMouseDown = (e: React.MouseEvent, id: string) => {
-        e.preventDefault();
-        startDrag(id, e.clientX, e.clientY);
+        if ((e.target as HTMLElement).closest('.resize-handle')) return;
+        const pos = camPositionsRef.current[id] || { x: 0, y: 0 };
+        dragInfo.current = { id, startX: e.clientX, startY: e.clientY, initialX: pos.x, initialY: pos.y };
+    };
 
-        const handleMouseMove = (mvEvent: MouseEvent) => moveDrag(mvEvent.clientX, mvEvent.clientY);
+    const handleCamTouchStart = (e: React.TouchEvent, id: string) => {
+        if ((e.target as HTMLElement).closest('.resize-handle')) return;
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        const pos = camPositionsRef.current[id] || { x: 0, y: 0 };
+        dragInfo.current = { id, startX: touch.clientX, startY: touch.clientY, initialX: pos.x, initialY: pos.y };
+    };
+
+    useEffect(() => {
+        const updateDrag = (clientX: number, clientY: number) => {
+            if (!dragInfo.current.id) return;
+            const dx = clientX - dragInfo.current.startX;
+            const dy = clientY - dragInfo.current.startY;
+            const newX = dragInfo.current.initialX + dx;
+            const newY = dragInfo.current.initialY + dy;
+            setCamPositions(prev => ({
+                ...prev,
+                [dragInfo.current.id as string]: { x: newX, y: newY }
+            }));
+        };
+
+        const handleMouseMove = (e: MouseEvent) => {
+            updateDrag(e.clientX, e.clientY);
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (e.touches.length !== 1) return;
+            if (dragInfo.current.id) {
+                e.preventDefault();
+            }
+            const touch = e.touches[0];
+            updateDrag(touch.clientX, touch.clientY);
+        };
+
         const handleEnd = () => {
-            endDrag();
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleEnd);
+            dragInfo.current.id = null;
         };
 
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleEnd);
-    };
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
+        window.addEventListener('touchend', handleEnd);
 
-    const handleCamTouchStart = (e: React.TouchEvent, id: string) => {
-        if (e.touches.length !== 1) return;
-        const touch = e.touches[0];
-        startDrag(id, touch.clientX, touch.clientY);
-
-        const handleTouchMove = (mvEvent: TouchEvent) => {
-            mvEvent.preventDefault(); // Prevent page scroll while dragging
-            if (mvEvent.touches.length !== 1) return;
-            moveDrag(mvEvent.touches[0].clientX, mvEvent.touches[0].clientY);
-        };
-        const handleEnd = () => {
-            endDrag();
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleEnd);
             window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('touchend', handleEnd);
         };
-
-        window.addEventListener('touchmove', handleTouchMove, { passive: false });
-        window.addEventListener('touchend', handleEnd);
-    };
+    }, []);
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();

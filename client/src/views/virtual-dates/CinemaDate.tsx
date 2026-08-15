@@ -86,6 +86,11 @@ export const CinemaDate: React.FC = () => {
 
     const isPrivateRoomRef = useRef(isPrivateRoom);
     const roomPasscodeRef = useRef(roomPasscode);
+    const lastSyncTimeRef = useRef<number>(0);
+    const staleHostProcessingRef = useRef<boolean>(false);
+    const dummyStreamRef = useRef<MediaStream | null>(null);
+    const dummyAudioCtxRef = useRef<AudioContext | null>(null);
+    const fileStreamRef = useRef<MediaStream | null>(null);
 
     useEffect(() => {
         isPrivateRoomRef.current = isPrivateRoom;
@@ -101,8 +106,14 @@ export const CinemaDate: React.FC = () => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [showChat, setShowChat] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
     const [camPositions, setCamPositions] = useState<Record<string, { x: number, y: number }>>({});
     const [camSizes, setCamSizes] = useState<Record<string, { width: number, height: number }>>({ 'YOU': { width: 96, height: 64 } });
+    const camPositionsRef = useRef(camPositions);
+    const camSizesRef = useRef(camSizes);
+    useEffect(() => { camPositionsRef.current = camPositions; }, [camPositions]);
+    useEffect(() => { camSizesRef.current = camSizes; }, [camSizes]);
+
     const activeDragId = useRef<string | null>(null);
     const activeResizeId = useRef<string | null>(null);
     const dragOffset = useRef({ x: 0, y: 0 });
@@ -163,7 +174,10 @@ export const CinemaDate: React.FC = () => {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
+    const inRoom = !['landing', 'create_room', 'join_room'].includes(mode);
+
     useEffect(() => {
+        if (!inRoom) return;
         const interval = setInterval(() => {
             if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
                 setVideoProgress(playerRef.current.getCurrentTime() || 0);
@@ -176,7 +190,7 @@ export const CinemaDate: React.FC = () => {
             }
         }, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [inRoom]);
 
     // Profile Info
     const { currentUser } = useAuth();
@@ -271,8 +285,11 @@ export const CinemaDate: React.FC = () => {
     const handleHostDisconnect = async () => {
         setMessages(prev => [...prev, { user: 'System', text: 'Host disconnected. Electing a new room host...' }]);
         
-        // 1. Get all active peer IDs (including ourselves and remaining peers in the mesh)
-        const remainingPeerIds = [myPeerIdRef.current, ...peersRef.current.map(p => p.peerId)].sort();
+        // 1. Query active open connections as source of truth for peer election
+        const connectedPeerIds = Object.keys(connections.current).filter(
+            id => connections.current[id]?.open
+        );
+        const remainingPeerIds = [myPeerIdRef.current, ...connectedPeerIds].sort();
         
         if (remainingPeerIds.length === 0) return;
         
@@ -295,7 +312,7 @@ export const CinemaDate: React.FC = () => {
                             updated_at: new Date().toISOString(),
                             is_private: isPrivateRoomRef.current,
                             passcode: roomPasscodeRef.current,
-                            participant_count: peersRef.current.length + 1,
+                            participant_count: connectedPeerIds.length + 1,
                             host_user_id: currentUser?.id
                         });
                     setMessages(prev => [...prev, { user: 'System', text: 'You are now the host of this room.' }]);
@@ -310,44 +327,52 @@ export const CinemaDate: React.FC = () => {
     };
 
     const handleStaleHost = async () => {
-        if (supabase && roomHostIdRef.current) {
-            try {
-                // Fetch the room entry to verify the current host and check if it's actually stale
+        const currentRoom = roomCodeRef.current;
+        if (!currentRoom) return;
+
+        if (staleHostProcessingRef.current) return;
+        staleHostProcessingRef.current = true;
+
+        try {
+            if (supabase && roomHostIdRef.current) {
                 const { data: roomData } = await supabase
                     .from('active_rooms')
                     .select('host_peer_id, updated_at')
-                    .eq('room_id', roomCodeRef.current)
+                    .eq('room_id', currentRoom)
                     .single();
 
                 if (roomData) {
                     const lastActive = new Date(roomData.updated_at).getTime();
                     const now = Date.now();
-                    const isStale = (now - lastActive) > 15000; // Stale if no update in 15 seconds
+                    const isStale = (now - lastActive) > 15000;
 
-                    // Only delete if the host peer ID matches the expected stale host and it's actually stale
                     if (roomData.host_peer_id === roomHostIdRef.current && isStale) {
                         await supabase
                             .from('active_rooms')
                             .delete()
-                            .eq('room_id', roomCodeRef.current)
+                            .eq('room_id', currentRoom)
                             .eq('host_peer_id', roomHostIdRef.current);
                     } else {
-                        console.log("Host is not stale or has been taken over by another peer.");
-                        return; // Skip restart/takeover if host is still valid/active
+                        return;
                     }
                 }
-            } catch (err) {
-                console.error("Error cleaning up stale host:", err);
             }
-        }
-        // Restart connection process
-        const currentRoom = roomCodeRef.current;
-        setRoomCode('');
-        setRoomHostId(null);
-        setIsHost(false);
-        setTimeout(() => {
+
+            if (peerInstance.current) {
+                peerInstance.current.destroy();
+                peerInstance.current = null;
+            }
+            setPeers([]);
+            setRoomHostId(null);
+            setIsHost(false);
+            setRoomCode('');
+            await new Promise(r => setTimeout(r, 400));
             setRoomCode(currentRoom);
-        }, 300);
+        } catch (err) {
+            console.error("Error handling stale host:", err);
+        } finally {
+            staleHostProcessingRef.current = false;
+        }
     };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -379,53 +404,69 @@ export const CinemaDate: React.FC = () => {
     const peerNamesRef = useRef<Record<string, string>>(peerNames);
     useEffect(() => { peerNamesRef.current = peerNames; }, [peerNames]);
 
-    const inRoom = !['landing', 'create_room', 'join_room'].includes(mode);
-
-    // Navigation blocker — prevent accidental session loss
+    // Navigation blocker — prevent accidental session loss with clean history stack
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const pendingNavRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!inRoom) return;
+        let isBlocked = true;
 
         const handlePopState = () => {
-            // User pressed browser back button — push state back and show modal
+            if (!isBlocked) return;
             window.history.pushState(null, '', window.location.href);
             setShowLeaveModal(true);
         };
 
-        // Push an extra history entry so we can intercept the back button
         window.history.pushState(null, '', window.location.href);
         window.addEventListener('popstate', handlePopState);
 
         return () => {
+            isBlocked = false;
             window.removeEventListener('popstate', handlePopState);
         };
     }, [inRoom]);
 
-    // Warn on tab close / refresh while in a room
+    // Warn on tab close / refresh while in a room & handle visibility change on mobile
     useEffect(() => {
         if (!inRoom) return;
+
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             e.preventDefault();
             e.returnValue = '';
         };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden' && peerInstance.current) {
+                broadcastData({ type: 'LEAVE' });
+            }
+        };
+
         const handleUnload = () => {
             if (peerInstance.current) {
                 broadcastData({ type: 'LEAVE' });
                 peerInstance.current.destroy();
             }
         };
+
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('unload', handleUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('unload', handleUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            dummyAudioCtxRef.current?.close().catch(() => {});
         };
     }, [inRoom]);
 
-    // Helper: Create Dummy Stream (Black Screen + Silence) for Spectators/Errors
+    // Helper: Create Dummy Stream (Cached & AudioContext Safe) for Spectators/Errors
     const createDummyStream = () => {
+        if (dummyStreamRef.current && dummyStreamRef.current.active) {
+            return dummyStreamRef.current;
+        }
+
         const canvas = document.createElement('canvas');
         canvas.width = 640;
         canvas.height = 480;
@@ -439,15 +480,18 @@ export const CinemaDate: React.FC = () => {
         }
         const videoTrack = canvas.captureStream(30).getVideoTracks()[0];
 
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const dst = audioCtx.createMediaStreamDestination();
-        osc.connect(dst); // Connect to destination
-        // Don't start osc or keep it silent/frequency 0 to avoid noise, or just disable track
+        if (!dummyAudioCtxRef.current || dummyAudioCtxRef.current.state === 'closed') {
+            dummyAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        const dst = dummyAudioCtxRef.current.createMediaStreamDestination();
         const audioTrack = dst.stream.getAudioTracks()[0];
-        audioTrack.enabled = false; // Mute it tightly
+        if (audioTrack) {
+            audioTrack.enabled = false;
+        }
 
-        return new MediaStream([videoTrack, audioTrack]);
+        const stream = new MediaStream([videoTrack, audioTrack].filter(Boolean));
+        dummyStreamRef.current = stream;
+        return stream;
     };
 
     // Initialize Peer on Room Entry
@@ -682,7 +726,7 @@ export const CinemaDate: React.FC = () => {
                 }
             };
         }
-    }, [roomCode, needsPasscode, roomPasscode, mode]); // Re-run when room identity, passcode state, or mode changes
+    }, [roomCode, needsPasscode, roomPasscode]); // Mode removed to prevent destroying peer on mode change
 
     const parseRoomName = (roomId: string) => {
         const parts = roomId.split('_');
@@ -812,7 +856,7 @@ export const CinemaDate: React.FC = () => {
         });
     };
 
-    // --- YouTube API Integration (Manual) ---
+    // --- YouTube API Integration (Manual with resilient ready loop) ---
     useEffect(() => {
         if (!url || mode !== 'youtube') return;
 
@@ -824,7 +868,9 @@ export const CinemaDate: React.FC = () => {
         const videoId = getYouTubeId(url);
         if (!videoId) return;
 
-        // 1. Inject API Script
+        let cancelled = false;
+
+        // 1. Inject API Script if not present
         if (!(window as any).YT) {
             const tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
@@ -832,39 +878,53 @@ export const CinemaDate: React.FC = () => {
             firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
         }
 
-        // 2. Init Player
+        // 2. Resilient Init Player Loop
         const initPlayer = () => {
-            if ((window as any).YT && (window as any).YT.Player) {
-                // If element exists (it should, rendered by JSX)
-                if (!document.getElementById('youtube-iframe-element')) return;
+            if (cancelled) return;
 
-                playerRef.current = new (window as any).YT.Player('youtube-iframe-element', {
-                    events: {
-                        'onReady': (event: any) => {
-                            // setIsPlaying(true); // Don't force play here, let useEffect handle it or user interaction
-                        },
-                        'onStateChange': (event: any) => {
-                            // If Player Drives State (Host)
-                            if (isHost) {
-                                if (event.data === 0) { handleVideoEnded(); } // Video ended
-                                if (event.data === 1) { setIsPlaying(true); handleVideoPlay(); }
-                                if (event.data === 2) { setIsPlaying(false); handleVideoPause(); }
-                                // Buffer
-                                if (event.data === 3) handleVideoBuffer();
+            if (!document.getElementById('youtube-iframe-element')) {
+                requestAnimationFrame(() => setTimeout(initPlayer, 100));
+                return;
+            }
+
+            if ((window as any).YT && (window as any).YT.Player) {
+                try {
+                    playerRef.current = new (window as any).YT.Player('youtube-iframe-element', {
+                        events: {
+                            'onReady': () => {},
+                            'onStateChange': (event: any) => {
+                                if (hostRef.current) {
+                                    if (event.data === 0) { handleVideoEnded(); }
+                                    if (event.data === 1) { setIsPlaying(true); handleVideoPlay(); }
+                                    if (event.data === 2) { setIsPlaying(false); handleVideoPause(); }
+                                    if (event.data === 3) handleVideoBuffer();
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                } catch (err) {
+                    console.warn("YouTube player init retry:", err);
+                    setTimeout(initPlayer, 200);
+                }
+            } else {
+                setTimeout(initPlayer, 100);
             }
         };
 
         if ((window as any).YT && (window as any).YT.Player) {
-            setTimeout(initPlayer, 1000); // Small delay to ensure IFrame ready
+            requestAnimationFrame(() => setTimeout(initPlayer, 50));
         } else {
             (window as any).onYouTubeIframeAPIReady = initPlayer;
         }
 
-    }, [url, mode, isHost]);
+        return () => {
+            cancelled = true;
+            if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+                try { playerRef.current.destroy(); } catch (_) {}
+                playerRef.current = null;
+            }
+        };
+    }, [url, mode]);
 
     // 3. Sync State -> Player
     useEffect(() => {
@@ -888,7 +948,7 @@ export const CinemaDate: React.FC = () => {
         return () => clearInterval(interval);
     }, [isHost, isPlaying]);
 
-    // 5. State Integrity Poller (Fixes "Event Missed" bugs)
+    // 5. State Integrity Poller (2s interval for optimal CPU usage)
     useEffect(() => {
         if (!isHost) return;
         const statePoller = setInterval(() => {
@@ -908,7 +968,7 @@ export const CinemaDate: React.FC = () => {
                     }
                 } catch (e) { /* Ignore not-ready errors */ }
             }
-        }, 500);
+        }, 2000);
         return () => clearInterval(statePoller);
     }, [isHost, isPlaying]);
 
@@ -1206,23 +1266,42 @@ export const CinemaDate: React.FC = () => {
 
 
 
+    const isValidYouTubeUrl = (urlStr: string): boolean => {
+        try {
+            const parsed = new URL(urlStr);
+            const validHosts = ['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com'];
+            if (!validHosts.includes(parsed.hostname)) return false;
+            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            return regExp.test(urlStr);
+        } catch {
+            return false;
+        }
+    };
+
     // Handle Input Change (Local Only)
     const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputUrl(e.target.value);
     };
 
-    // Handle Input Submit (Commit & Broadcast)
+    // Handle Input Submit (Commit & Broadcast with validation)
     const handleUrlSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (inputUrl.trim()) {
-            setUrl(inputUrl);
-            setMode('youtube');
-            setIsPlaying(true); // Auto-play on load
-            broadcastData({ type: 'SYNC_PLAYER', action: 'url', payload: inputUrl, mode: 'youtube' });
-            broadcastData({ type: 'SYNC_PLAYER', action: 'play' }); // Ensure peers play too
-            setInputUrl(''); // Clear input
-            setError(null);
+        const trimmed = inputUrl.trim();
+        if (!trimmed) return;
+
+        if (!isValidYouTubeUrl(trimmed)) {
+            setError('Please enter a valid YouTube URL (e.g. https://youtu.be/...)');
+            setTimeout(() => setError(null), 4000);
+            return;
         }
+
+        setUrl(trimmed);
+        setMode('youtube');
+        setIsPlaying(true);
+        broadcastData({ type: 'SYNC_PLAYER', action: 'url', payload: trimmed, mode: 'youtube' });
+        broadcastData({ type: 'SYNC_PLAYER', action: 'play' });
+        setInputUrl('');
+        setError(null);
     };
 
     // --- Sync Helpers ---
@@ -1253,12 +1332,10 @@ export const CinemaDate: React.FC = () => {
     };
 
     const handleVideoProgress = (state: any = null) => {
-        // Host periodically sends time updates for drift correction and spectator UI
         if (!isHost || !isPlaying) return;
         
         const now = Date.now();
-        // @ts-ignore
-        if (!window.lastSyncTime || now - window.lastSyncTime > 1000) {
+        if (now - lastSyncTimeRef.current > 1000) {
             let currentTime = 0;
             let duration = 0;
 
@@ -1273,8 +1350,7 @@ export const CinemaDate: React.FC = () => {
             }
 
             broadcastSync('time_update', { time: currentTime, duration });
-            // @ts-ignore
-            window.lastSyncTime = now;
+            lastSyncTimeRef.current = now;
         }
     };
 
@@ -1297,24 +1373,38 @@ export const CinemaDate: React.FC = () => {
         }
     };
 
+    const getOrCreateFileStream = () => {
+        if (fileStreamRef.current && fileStreamRef.current.active) {
+            return fileStreamRef.current;
+        }
+        if (!localVideoRef.current) return null;
+
+        const video = localVideoRef.current;
+        const captureFn = (video as any).captureStream || (video as any).mozCaptureStream;
+        if (!captureFn) return null;
+
+        const stream = captureFn.call(video, 30);
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack && 'contentHint' in videoTrack) {
+            (videoTrack as any).contentHint = 'motion';
+        }
+        fileStreamRef.current = stream;
+        return stream;
+    };
+
     // Effect to start streaming when local video is ready
     useEffect(() => {
         if (isHost && mode === 'file' && url && localVideoRef.current && peerInstance.current) {
             const video = localVideoRef.current;
 
             const startStreaming = () => {
-                // @ts-ignore
-                const stream = video.captureStream ? video.captureStream(30) : (video as any).mozCaptureStream ? (video as any).mozCaptureStream(30) : null;
-
+                const stream = getOrCreateFileStream();
                 if (stream) {
-                    const videoTrack = stream.getVideoTracks()[0];
-                    if (videoTrack && 'contentHint' in videoTrack) {
-                        // @ts-ignore
-                        videoTrack.contentHint = 'motion';
-                    }
                     console.log("Starting broadcast of high-quality local video stream...");
                     Object.values(connections.current).forEach(conn => {
-                        peerInstance.current?.call(conn.peer, stream, { metadata: { type: 'video' } });
+                        if (conn.open && peerInstance.current) {
+                            peerInstance.current.call(conn.peer, stream, { metadata: { type: 'video' } });
+                        }
                     });
                 }
             };
@@ -1327,19 +1417,33 @@ export const CinemaDate: React.FC = () => {
         }
     }, [isHost, mode, url]);
 
-
     const handleScreenShare = async () => {
         try {
             const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            setUrl(mediaStream as any);
+            
+            // Listen for screen share cancellation via browser UI
+            const videoTrack = mediaStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.addEventListener('ended', () => {
+                    setScreenStream(null);
+                    setMode('select');
+                    broadcastSync('url', { payload: '', mode: 'select' });
+                });
+            }
+
+            setScreenStream(mediaStream);
             setMode('screen');
             setIsPlaying(true);
 
-            // We could try to replace our video track in the peer connection with this screen track
-            // But for simplicity, we treat it as "Main Stage" content and local user sees it.
-            // To show to others, we'd need to replaceTrack on all peer connections.
-            // Current "Main Stage" architecture (ReactPlayer) vs "Video Grid" (PeerJS) separation.
-            // If we want to broadcast screen, usually we add it as a stream.
+            // Broadcast mode to peers
+            broadcastSync('url', { payload: 'SCREEN_SHARE', mode: 'screen' });
+
+            // Send screen stream to all connected peers
+            Object.values(connections.current).forEach(conn => {
+                if (conn.open && peerInstance.current) {
+                    peerInstance.current.call(conn.peer, mediaStream, { metadata: { type: 'video' } });
+                }
+            });
         } catch (err) {
             setError("Screen sharing cancelled or failed.");
             setTimeout(() => setError(null), 3000);
@@ -1368,6 +1472,30 @@ export const CinemaDate: React.FC = () => {
 
         // Broadcast that I am leaving
         broadcastData({ type: 'LEAVE' });
+
+        // Synchronously stop all local media tracks
+        if (myStreamRef.current) {
+            myStreamRef.current.getTracks().forEach(track => {
+                track.stop();
+                track.enabled = false;
+            });
+        }
+        setMyStream(null);
+
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+            setScreenStream(null);
+        }
+
+        if (fileStreamRef.current) {
+            fileStreamRef.current = null;
+        }
+
+        // Close all peer data connections
+        Object.values(connections.current).forEach(conn => {
+            try { conn.close(); } catch (_) {}
+        });
+        connections.current = {};
 
         // If we were host, delete host registration
         if (isHost && supabase && peerInstance.current) {
@@ -1434,9 +1562,9 @@ export const CinemaDate: React.FC = () => {
 
     // --- Draggable Cam Box Logic ---
     const handleCamMouseDown = (e: React.MouseEvent, id: string) => {
-        if ((e.target as HTMLElement).closest('.resize-handle')) return; // Don't drag if clicking resize handle
+        if ((e.target as HTMLElement).closest('.resize-handle')) return;
         activeDragId.current = id;
-        const pos = camPositions[id] || { x: 0, y: 0 };
+        const pos = camPositionsRef.current[id] || { x: 0, y: 0 };
         dragOffset.current = {
             x: e.clientX - pos.x,
             y: e.clientY - pos.y
@@ -1448,7 +1576,7 @@ export const CinemaDate: React.FC = () => {
         if (e.touches.length !== 1) return;
         activeDragId.current = id;
         const touch = e.touches[0];
-        const pos = camPositions[id] || { x: 0, y: 0 };
+        const pos = camPositionsRef.current[id] || { x: 0, y: 0 };
         dragOffset.current = {
             x: touch.clientX - pos.x,
             y: touch.clientY - pos.y
@@ -1458,7 +1586,7 @@ export const CinemaDate: React.FC = () => {
     const handleCamResizeMouseDown = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         activeResizeId.current = id;
-        const size = camSizes[id] || { width: 96, height: 64 };
+        const size = camSizesRef.current[id] || { width: 96, height: 64 };
         resizeStart.current = {
             width: size.width,
             height: size.height,
@@ -1472,7 +1600,7 @@ export const CinemaDate: React.FC = () => {
         if (e.touches.length !== 1) return;
         activeResizeId.current = id;
         const touch = e.touches[0];
-        const size = camSizes[id] || { width: 96, height: 64 };
+        const size = camSizesRef.current[id] || { width: 96, height: 64 };
         resizeStart.current = {
             width: size.width,
             height: size.height,
@@ -1487,7 +1615,7 @@ export const CinemaDate: React.FC = () => {
                 const id = activeDragId.current;
                 let newX = clientX - dragOffset.current.x;
                 let newY = clientY - dragOffset.current.y;
-                const size = camSizes[id] || { width: 96, height: 64 };
+                const size = camSizesRef.current[id] || { width: 96, height: 64 };
                 const maxX = window.innerWidth - size.width;
                 const maxY = window.innerHeight - size.height;
                 newX = Math.max(0, Math.min(newX, maxX));
@@ -1519,7 +1647,7 @@ export const CinemaDate: React.FC = () => {
         const handleTouchMove = (e: TouchEvent) => {
             if (e.touches.length !== 1) return;
             if (activeDragId.current || activeResizeId.current) {
-                e.preventDefault(); // Prevent page scroll while dragging
+                e.preventDefault();
             }
             const touch = e.touches[0];
             updateDragPosition(touch.clientX, touch.clientY);
@@ -1541,7 +1669,7 @@ export const CinemaDate: React.FC = () => {
             window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('touchend', handleEnd);
         };
-    }, [camPositions, camSizes]);
+    }, []);
 
     // Listen for fullscreen change events (e.g. user pressing ESC)
     useEffect(() => {
@@ -2323,6 +2451,33 @@ export const CinemaDate: React.FC = () => {
                                             </div>
                                         )}
                                         {/* Spectator Blockers */}
+                                        <div className="absolute inset-0 z-20 cursor-default bg-transparent" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {mode === 'screen' && (
+                            <div className="w-full h-full relative bg-black flex items-center justify-center">
+                                {isHost ? (
+                                    screenStream ? (
+                                        <StreamVideo stream={screenStream} mirrored={false} objectFit="contain" />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center gap-4 text-gray-500">
+                                            <MonitorPlay className="w-12 h-12 animate-pulse text-neon" />
+                                            <p className="text-sm font-medium">Sharing your screen...</p>
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="w-full h-full relative">
+                                        {remoteVideoStream ? (
+                                            <StreamVideo stream={remoteVideoStream} mirrored={false} objectFit="contain" />
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center gap-4 text-gray-500">
+                                                <MonitorPlay className="w-12 h-12 animate-pulse" />
+                                                <p className="text-sm font-medium">Connecting to Host's Screen Stream...</p>
+                                            </div>
+                                        )}
                                         <div className="absolute inset-0 z-20 cursor-default bg-transparent" />
                                     </div>
                                 )}

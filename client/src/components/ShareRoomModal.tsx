@@ -30,10 +30,15 @@ interface MatchPartner {
 
 export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose, roomUrl }) => {
   const { currentUser } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [matches, setMatches] = useState<MatchPartner[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [sentMessages, setSentMessages] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen && currentUser) {
@@ -158,7 +163,7 @@ export const ShareRoomModal: React.FC<ShareRoomModalProps> = ({ isOpen, onClose,
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const content = (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4" onClick={onClose}>
