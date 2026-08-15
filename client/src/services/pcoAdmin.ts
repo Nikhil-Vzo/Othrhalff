@@ -208,15 +208,20 @@ export async function submitPcoSongRequest(
         .select()
         .maybeSingle();
 
-      if (!error && data) {
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data) {
         return { success: true, data: data as PcoSongRequest };
       }
     }
   } catch (err: any) {
-    console.warn('[PCO Admin] Failed to persist song request to database, falling back to broadcast only:', err);
+    console.warn('[PCO Admin] Failed to persist song request to database:', err);
+    return { success: false, error: err.message || 'Failed to submit song request.' };
   }
 
-  // Graceful fallback for offline / unmigrated database
+  // Fallback only if supabase is not initialized
   return {
     success: true,
     data: {

@@ -10,7 +10,7 @@ import { getIceServers } from '../../utils/webrtc';
 import { hashPasscode } from '../../utils/security';
 import { curatedRomanticTracks, trendingRomanticQueries } from '../../data/pcoRomanticTracks';
 import { PcoAdminQuickPanel } from '../../components/PcoAdminQuickPanel';
-import { checkIsPcoAdmin, submitPcoSongRequest } from '../../services/pcoAdmin';
+import { checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus } from '../../services/pcoAdmin';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'room';
 type LyricLine = { time: number; text: string };
@@ -545,7 +545,7 @@ export const MusicDate = () => {
         }, 2000);
     };
 
-    const [adminRequestModal, setAdminRequestModal] = useState<{ requester: string; track: Track } | null>(null);
+    const [adminRequestModal, setAdminRequestModal] = useState<{ requester: string; track: Track; requestId?: string } | null>(null);
     const [pinnedBanner, setPinnedBanner] = useState<{ text: string; expiresAt: number } | null>(null);
     const [listenerCount, setListenerCount] = useState(1);
     const [presenceUsers, setPresenceUsers] = useState<string[]>([]);
@@ -680,7 +680,7 @@ export const MusicDate = () => {
                     setMessages(prev => [...prev.slice(-149), { user: 'System', text: `🎵 ${payload.requester} requested: "${payload.track.song}"` }]);
                     
                     if (isAdminUser) {
-                        setAdminRequestModal({ requester: payload.requester, track: payload.track });
+                        setAdminRequestModal({ requester: payload.requester, track: payload.track, requestId: payload.requestId });
                     }
                 }
             })
@@ -1735,7 +1735,7 @@ export const MusicDate = () => {
             supabase.channel('campus_pco_live_chat').send({
                 type: 'broadcast',
                 event: 'PCO_REQUEST_NOTIFICATION',
-                payload: { track, requester: displayName }
+                payload: { track, requester: displayName, requestId: result.data?.id }
             });
         }
         setSearchQuery('');
@@ -1746,6 +1746,10 @@ export const MusicDate = () => {
         if (!adminRequestModal) return;
         const track = adminRequestModal.track;
         const requester = adminRequestModal.requester;
+        const requestId = adminRequestModal.requestId;
+        if (requestId) {
+            updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
+        }
         setCurrentTrack(track);
         setIsPlaying(true);
         triggerPinnedBanner(`🔥 Admin Approved: "${track.song}" (by ${requester})`);
@@ -1764,6 +1768,10 @@ export const MusicDate = () => {
         if (!adminRequestModal) return;
         const track = adminRequestModal.track;
         const requester = adminRequestModal.requester;
+        const requestId = adminRequestModal.requestId;
+        if (requestId) {
+            updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
+        }
         setQueue(prev => [track, ...prev]);
         triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}" (by ${requester})`);
         addFloatingNotification('System', `Admin Queued Next: "${track.song}"`);
@@ -1773,6 +1781,13 @@ export const MusicDate = () => {
                 event: 'PCO_PLAY_NEXT',
                 payload: { track, requester }
             });
+        }
+        setAdminRequestModal(null);
+    };
+
+    const handleAdminDeclineRequest = () => {
+        if (adminRequestModal?.requestId) {
+            updatePcoSongRequestStatus(adminRequestModal.requestId, 'declined', currentUser?.id);
         }
         setAdminRequestModal(null);
     };
@@ -2461,7 +2476,7 @@ export const MusicDate = () => {
 
                         <div className="flex gap-2">
                             <button
-                                onClick={() => setAdminRequestModal(null)}
+                                onClick={handleAdminDeclineRequest}
                                 className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-gray-300 font-bold rounded-xl text-xs transition-colors"
                             >
                                 Decline
