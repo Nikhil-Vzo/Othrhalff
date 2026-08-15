@@ -77,18 +77,22 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         touchStartY.current = null;
       }}
     >
-      {/* 🌟 Background: FM.png Aesthetic Campus Wallpaper */}
+      {/* 🌟 Background: Responsive Wallpaper (fm_phone.png on mobile/phones, desktop wallpaper on PC) */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <img
-          src={DEFAULT_BG}
-          alt="Sparx FM Ambient"
-          className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05]"
-          onError={(e) => {
-            // Graceful fallback to album art with heavy blur
-            e.currentTarget.src = art;
-            e.currentTarget.className = "w-full h-full object-cover filter blur-3xl opacity-50";
-          }}
-        />
+        <picture>
+          <source media="(max-width: 767px)" srcSet="/fm_phone.png" />
+          <source media="(min-width: 768px)" srcSet={DEFAULT_BG} />
+          <img
+            src={DEFAULT_BG}
+            alt="Sparx FM Ambient"
+            className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05]"
+            onError={(e) => {
+              // Graceful fallback to album art with heavy blur
+              e.currentTarget.src = art;
+              e.currentTarget.className = "w-full h-full object-cover filter blur-3xl opacity-50";
+            }}
+          />
+        </picture>
         {/* Soft atmospheric gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
