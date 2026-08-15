@@ -578,67 +578,7 @@ export const MusicDate = () => {
     };
 
     const fetchPcoRealSongs = async (): Promise<Track[]> => {
-        let allTracks: Track[] = curatedRomanticTracks.map(t => ({
-            id: t.id,
-            song: t.song,
-            singers: t.singers,
-            image: t.image,
-            media_url: t.media_url,
-            duration: t.duration
-        }));
-
-        try {
-            // Fetch multiple trending romantic queries concurrently
-            const fetchPromises = trendingRomanticQueries.slice(0, 10).map(async (query) => {
-                try {
-                    const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(query)}`);
-                    if (!res.ok) return [];
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        return data.map((t: any) => ({
-                            id: String(t.id || Math.random().toString(36).substring(2, 9)),
-                            song: t.song,
-                            singers: t.singers || t.primary_artists || 'Romantic Special',
-                            image: t.image ? t.image.replace('150x150', '500x500') : 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg',
-                            media_url: t.media_url,
-                            media_preview_url: t.media_preview_url,
-                            duration: t.duration || '240'
-                        }));
-                    }
-                } catch (e) {
-                    return [];
-                }
-                return [];
-            });
-
-            const results = await Promise.all(fetchPromises);
-            results.forEach(trackList => {
-                if (trackList && trackList.length > 0) {
-                    allTracks.push(...trackList);
-                }
-            });
-        } catch (e) {
-            console.error("Failed to fetch dynamic tracks:", e);
-        }
-
-        // Deduplicate tracks by song name
-        const seen = new Set<string>();
-        const uniqueTracks: Track[] = [];
-        for (const t of allTracks) {
-            if (!t.media_url) continue;
-            const key = t.song.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (!seen.has(key)) {
-                seen.add(key);
-                uniqueTracks.push(t);
-            }
-        }
-
-        // 1. Sort by ID to ensure identical baseline across varying network latencies
-        uniqueTracks.sort((a, b) => a.id.localeCompare(b.id));
-
-        // 2. Deterministically shuffle with seed so songs are randomized yet 100% identical for everyone
-        const baseList = uniqueTracks.length > 0 ? uniqueTracks : (curatedRomanticTracks as Track[]);
-        return seededShuffle(baseList, 789456);
+        return seededShuffle(curatedRomanticTracks as Track[], 789456);
     };
 
     const getPcoSyncedTrack = (tracks: Track[]) => {

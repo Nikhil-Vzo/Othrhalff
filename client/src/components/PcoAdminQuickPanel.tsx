@@ -59,17 +59,18 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
       .subscribe();
 
     // Listen for broadcast requests in real-time
-    const liveChannel = supabase.channel('campus_pco_live_chat');
-    liveChannel
+    const liveChannel = supabase.channel('pco_quick_panel_broadcasts')
       .on('broadcast', { event: 'PCO_SONG_REQUEST' }, () => {
         loadRequests();
       })
       .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, () => {
         loadRequests();
-      });
+      })
+      .subscribe();
 
     return () => {
       supabase.removeChannel(dbChannel);
+      supabase.removeChannel(liveChannel);
     };
   }, []);
 
