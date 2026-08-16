@@ -34,16 +34,18 @@ const POLICE_GUARDS = [
 ];
 
 const BENCH_ZONES = [
-  // Center Diamond Plaza Bench
-  { id: 'bench-plaza-c', x: 1280, y: 700, radius: 140 },
+  // Diamond Plaza Benches
+  { id: 'bench-diamond-right', x: 1480, y: 700, radius: 150 },
+  { id: 'bench-diamond-left',  x: 600,  y: 700, radius: 150 },
+  { id: 'bench-diamond-top',   x: 1060, y: 280, radius: 150 },
+  { id: 'bench-diamond-bottom',x: 1060, y: 1120, radius: 150 },
   
-  // Top Row Benches (Under trees)
-  { id: 'bench-top-left', x: 1000, y: 200, radius: 140 },
-  { id: 'bench-top-right', x: 1560, y: 200, radius: 140 },
-  
-  // Bottom Row Benches
-  { id: 'bench-bottom-left', x: 1000, y: 1100, radius: 140 },
-  { id: 'bench-bottom-right', x: 1560, y: 1100, radius: 140 }
+  // Center & Outer Benches
+  { id: 'bench-plaza-c',       x: 1280, y: 700, radius: 150 },
+  { id: 'bench-top-left',      x: 1000, y: 200, radius: 150 },
+  { id: 'bench-top-right',     x: 1560, y: 200, radius: 150 },
+  { id: 'bench-bottom-left',   x: 1000, y: 1100, radius: 150 },
+  { id: 'bench-bottom-right',  x: 1560, y: 1100, radius: 150 }
 ];
 
 // ---------------------------------------------------------
@@ -75,6 +77,8 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   const posRef = useRef(localPosition);
   const [localDir, setLocalDir] = useState<Direction>('down');
   const [localIsMoving, setLocalIsMoving] = useState(false);
+  const [nearbyBench, setNearbyBench] = useState<typeof BENCH_ZONES[0] | null>(null);
+  const nearbyBenchRef = useRef<string | null>(null);
 
   const dirRef = useRef<Direction>('down');
   const movingRef = useRef(false);
@@ -380,6 +384,19 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0) scale(0.6)`;
       }
 
+      // Check proximity to benches in real-time 60fps loop
+      const nearZone = BENCH_ZONES.find(zone => {
+        const dx = posRef.current.x - zone.x;
+        const dy = posRef.current.y - zone.y;
+        return Math.sqrt(dx * dx + dy * dy) < zone.radius;
+      });
+
+      const nearId = nearZone ? nearZone.id : null;
+      if (nearId !== nearbyBenchRef.current) {
+        nearbyBenchRef.current = nearId;
+        setNearbyBench(nearZone || null);
+      }
+
       // Network broadcast: Instant (0ms) on start/stop/turn, 100ms continuous for smooth real-time sync
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
       if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 100))) {
@@ -422,34 +439,24 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         }}
       >
 
-        
-        {/* Render Zones */}
-        {BENCH_ZONES.map(zone => {
-          const dx = posRef.current.x - zone.x;
-          const dy = posRef.current.y - zone.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          const isNear = dist < zone.radius;
-
-          if (!isNear || sitState !== 'IDLE') return null;
-
-          return (
-            <div key={zone.id} className="absolute z-20 pointer-events-none" style={{ transform: `translate3d(${zone.x}px, ${zone.y}px, 0)` }}>
-              <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-                <button 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    keys.current = {};
-                    posRef.current = { x: zone.x, y: zone.y - 10 };
-                    onSitRequest(zone.id, zone.x, zone.y); 
-                  }}
-                  className="absolute -top-10 px-3 py-1 bg-black/85 text-white text-xs font-bold rounded-full border border-white/20 whitespace-nowrap shadow-xl animate-bounce pointer-events-auto cursor-pointer hover:bg-black hover:border-white/40 transition-colors backdrop-blur-md"
-                >
-                  Press SPACE or Click to Sit
-                </button>
-              </div>
+        {/* Real-time Proximity Sit Prompt */}
+        {nearbyBench && sitState === 'IDLE' && (
+          <div className="absolute z-30 pointer-events-none" style={{ transform: `translate3d(${nearbyBench.x}px, ${nearbyBench.y - 35}px, 0)` }}>
+            <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  keys.current = {};
+                  posRef.current = { x: nearbyBench.x, y: nearbyBench.y - 10 };
+                  onSitRequest(nearbyBench.id, nearbyBench.x, nearbyBench.y); 
+                }}
+                className="px-4 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-black rounded-full border-2 border-white/40 whitespace-nowrap shadow-[0_0_25px_rgba(236,72,153,0.8)] animate-bounce pointer-events-auto cursor-pointer hover:scale-105 active:scale-95 transition-all backdrop-blur-md flex items-center gap-1.5"
+              >
+                <span>🪑 Press SPACE or Click to Sit</span>
+              </button>
             </div>
-          );
-        })}
+          </div>
+        )}
 
         {/* Stand Up Prompt when Sitting */}
         {sitState === 'SITTING' && (
