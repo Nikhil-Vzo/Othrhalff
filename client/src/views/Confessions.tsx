@@ -272,7 +272,7 @@ export const Confessions: React.FC = () => {
     }, [currentUser?.id, currentUser?.university, sortType, feedMode]);
 
 
-    // 3. Fetch Logic
+    // 3. High-Speed Streamlined Fetch Logic
     const fetchConfessions = useCallback(async (pageIndex: number, reset = false) => {
         if (!supabase) return;
         if (pageIndex > 0) setIsLoadingMore(true);
@@ -283,19 +283,14 @@ export const Confessions: React.FC = () => {
         const targetUniv = currentUser ? currentUser.university : null;
         const targetUnivClean = targetUniv?.trim();
 
+        // Optimized query: Eliminate slow lateral joins on foreign tables
         let query = supabase.from('confessions')
             .select(`
-                *, 
-                poll_options (*), 
-                confession_reactions (emoji, user_id), 
-                confession_comments (
-                    id, text, created_at, user_id, 
-                    profiles:user_id (anonymous_id)
-                ),
-                comment_count:confession_comments(count)
+                id, user_id, text, image_url, university, type, created_at,
+                poll_options (id, text, vote_count), 
+                confession_reactions (emoji, user_id),
+                confession_comments (id)
             `)
-            .order('created_at', { foreignTable: 'confession_comments', ascending: false })
-            .limit(3, { foreignTable: 'confession_comments' })
             .range(from, to);
 
         if (feedMode === 'campus' && targetUnivClean) {
@@ -323,20 +318,21 @@ export const Confessions: React.FC = () => {
 
         if (posts.length < POSTS_PER_PAGE) setHasMore(false);
 
-        // Fetch votes in parallel (fire immediately, await result below)
-        const postIds = posts.map(p => p.id);
-        let myVotes: any[] = [];
-        if (currentUser) {
-            const votesPromise = supabase.from('poll_votes').select('confession_id, option_id').in('confession_id', postIds).eq('user_id', currentUser.id);
-            const { data } = await votesPromise;
-            myVotes = data || [];
+        // Fetch votes in parallel only for poll posts
+        const pollPostIds = posts.filter((p: any) => p.type === 'poll' || (p.poll_options && p.poll_options.length > 0)).map((p: any) => p.id);
+        let myVoteMap = new Map();
+        if (currentUser && pollPostIds.length > 0) {
+            const { data: myVotes } = await supabase
+                .from('poll_votes')
+                .select('confession_id, option_id')
+                .in('confession_id', pollPostIds)
+                .eq('user_id', currentUser.id);
+            myVotes?.forEach(v => myVoteMap.set(v.confession_id, v.option_id));
         }
-        const myVoteMap = new Map();
-        myVotes?.forEach(v => myVoteMap.set(v.confession_id, v.option_id));
 
         const formatted: Confession[] = posts.map((p: any) => {
             const reactionCounts: Record<string, number> = {};
-            p.confession_reactions.forEach((r: any) => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
+            p.confession_reactions?.forEach((r: any) => { reactionCounts[r.emoji] = (reactionCounts[r.emoji] || 0) + 1; });
 
             const isVideo = p.type === 'video' || (p.image_url && /\.(mp4|webm|mov)(\?.*)?$/i.test(p.image_url));
 
@@ -347,20 +343,15 @@ export const Confessions: React.FC = () => {
                 imageUrl: isVideo ? undefined : p.image_url,
                 videoUrl: isVideo ? p.image_url : undefined,
                 timestamp: new Date(p.created_at).getTime(),
-                likes: p.confession_reactions.length, 
+                likes: p.confession_reactions?.length || 0, 
                 reactions: reactionCounts,
-                comments: p.confession_comments?.map((c: any) => ({
-                    id: c.id,
-                    userId: c.profiles?.anonymous_id || 'Anonymous',
-                    text: c.text,
-                    timestamp: new Date(c.created_at).getTime()
-                })) || [],
-                commentCount: (p as any).comment_count?.[0]?.count || p.confession_comments?.length || 0,
+                comments: [],
+                commentCount: p.confession_comments?.length || 0,
                 university: p.university, 
                 type: (isVideo ? 'video' : p.type) as 'text' | 'poll' | 'video',
                 pollOptions: p.poll_options?.map((opt: any) => ({ id: opt.id, text: opt.text, votes: opt.vote_count })),
                 userVote: myVoteMap.get(p.id),
-                userReaction: currentUser ? p.confession_reactions.find((r: any) => r.user_id === currentUser.id)?.emoji : undefined
+                userReaction: currentUser ? p.confession_reactions?.find((r: any) => r.user_id === currentUser.id)?.emoji : undefined
             };
         });
 
@@ -379,7 +370,7 @@ export const Confessions: React.FC = () => {
         setIsLoadingMore(false);
     }, [currentUser?.id, currentUser?.university, sortType, feedMode]);
 
-    // 4. Infinite Scroll
+    // 4. Infinite Scroll with 600px Lookahead Buffer
     useEffect(() => {
         const observer = new IntersectionObserver(entries => {
             if (entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading && !isRefreshing) {
@@ -387,7 +378,10 @@ export const Confessions: React.FC = () => {
                 setPage(nextPage);
                 fetchConfessions(nextPage, false);
             }
-        }, { threshold: 1.0 });
+        }, { 
+            rootMargin: '600px 0px', // Preload next page 600px before user hits bottom
+            threshold: 0.1 
+        });
         if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
     }, [hasMore, isLoadingMore, isLoading, isRefreshing, page, fetchConfessions]);
