@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
-  ArrowLeft, Play, Pause, SkipForward, FileText, Menu, X, Shield
+  ArrowLeft, Play, Pause, SkipForward, FileText, Menu, X, Shield, Maximize, Minimize
 } from 'lucide-react';
 
 export interface PcoTrackLike {
@@ -64,6 +64,32 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   const dur = Number(t?.duration) || 240;
   const touchStartY = useRef<number | null>(null);
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch((err) => {
+        console.warn('Fullscreen error:', err);
+      });
+    } else {
+      document.exitFullscreen?.().catch((err) => {
+        console.warn('Exit fullscreen error:', err);
+      });
+    }
+  };
+
   return (
     <div
       className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans"
@@ -93,7 +119,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
 
-      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), Menu/Admin (Right) */}
+      {/* 👑 Top Bar: Back Button (Left), Live Listener Pill (Center), Fullscreen & Menu/Admin (Right) */}
       <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 shrink-0">
         {/* Left: Back / Leave Button */}
         <button
@@ -112,8 +138,22 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
           <span className="text-white/70">on the airwaves</span>
         </div>
 
-        {/* Right Corner: Admin Badge (if admin) + Glowing 3-Bars Menu Toggle Button */}
+        {/* Right Corner: Fullscreen Button + Admin Badge (if admin) + Glowing 3-Bars Menu Toggle Button */}
         <div className="flex items-center gap-2">
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/50 backdrop-blur-xl border border-white/15 text-white/80 hover:text-white hover:bg-black/70 flex items-center justify-center transition-all active:scale-90 shadow-lg cursor-pointer"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? (
+              <Minimize className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            ) : (
+              <Maximize className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            )}
+          </button>
+
           {/* Admin DJ Shield Badge (Only for Admins) */}
           {isAdmin && onToggleAdminPanel && (
             <button
