@@ -35,18 +35,18 @@ const POLICE_GUARDS = [
 
 const BENCH_ZONES = [
   // Top row near trees
-  { id: 'bench-top-1', x: 1420, y: 280, radius: 80 },
-  { id: 'bench-top-2', x: 1530, y: 280, radius: 80 },
-  { id: 'bench-top-3', x: 1640, y: 280, radius: 80 },
-  { id: 'bench-top-4', x: 1750, y: 280, radius: 80 },
+  { id: 'bench-top-1', x: 1220, y: 280, radius: 90 },
+  { id: 'bench-top-2', x: 1330, y: 280, radius: 90 },
+  { id: 'bench-top-3', x: 1440, y: 280, radius: 90 },
+  { id: 'bench-top-4', x: 1550, y: 280, radius: 90 },
   
   // Center Plaza
-  { id: 'bench-plaza-tl', x: 1540, y: 770, radius: 80 },
-  { id: 'bench-plaza-tr', x: 1950, y: 770, radius: 80 },
-  { id: 'bench-plaza-c',  x: 1740, y: 930, radius: 80 },
-  { id: 'bench-plaza-bl', x: 1540, y: 1110, radius: 80 },
-  { id: 'bench-plaza-bc', x: 1760, y: 1240, radius: 80 },
-  { id: 'bench-plaza-br', x: 1890, y: 1110, radius: 80 }
+  { id: 'bench-plaza-tl', x: 1330, y: 770, radius: 95 },
+  { id: 'bench-plaza-tr', x: 1730, y: 770, radius: 95 },
+  { id: 'bench-plaza-c',  x: 1530, y: 925, radius: 95 },
+  { id: 'bench-plaza-bl', x: 1330, y: 1110, radius: 95 },
+  { id: 'bench-plaza-bc', x: 1530, y: 1240, radius: 95 },
+  { id: 'bench-plaza-br', x: 1845, y: 1110, radius: 95 }
 ];
 
 // ---------------------------------------------------------

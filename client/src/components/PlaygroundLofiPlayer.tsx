@@ -17,56 +17,40 @@ export const LOFI_PLAYLIST: LofiTrack[] = [
     title: 'Fluffy',
     artist: 'Purrple Cat',
     cover: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3',
-    duration: 152
+    src: 'https://stream.zeno.fm/f3wvbbqmdg8uv', // 24/7 Lofi Study Live Stream (Always Online)
+    duration: 180
   },
   {
     id: 'lofi-2',
     title: 'Moonlit Walk',
     artist: 'Purrple Cat',
     cover: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2022/10/14/audio_9939f792cb.mp3?filename=cozy-lounge-123405.mp3',
-    duration: 168
+    src: 'https://stream.zeno.fm/0r0xa792kwzuv', // Lofi Chillhop Beats 24/7
+    duration: 210
   },
   {
     id: 'lofi-3',
     title: 'Golden Hour',
     artist: 'Purrple Cat',
     cover: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=lofi-chill-medium-version-159456.mp3',
-    duration: 184
+    src: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
+    duration: 195
   },
   {
     id: 'lofi-4',
     title: 'Sunflowers',
     artist: 'Purrple Cat',
     cover: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2023/04/09/audio_651e73752e.mp3?filename=empty-mind-118973.mp3',
-    duration: 195
+    src: 'https://stream.zeno.fm/0r0xa792kwzuv',
+    duration: 175
   },
   {
     id: 'lofi-5',
     title: 'Heart of the Ocean',
     artist: 'Purrple Cat',
     cover: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=chill-abstract-intention-12099.mp3',
-    duration: 142
-  },
-  {
-    id: 'lofi-6',
-    title: 'Midnight Chai',
-    artist: 'Chillhop Campus',
-    cover: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2022/11/06/audio_03d987d698.mp3?filename=spirit-blossom-15285.mp3',
-    duration: 178
-  },
-  {
-    id: 'lofi-7',
-    title: 'Rainy Dorm Window',
-    artist: 'Lofi Girl Club',
-    cover: 'https://images.unsplash.com/photo-1519692933481-e162a57d6721?w=300&auto=format&fit=crop&q=80',
-    src: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3?filename=lofi-rain-ambient-116348.mp3',
-    duration: 160
+    src: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
+    duration: 220
   }
 ];
 
@@ -74,47 +58,57 @@ export const PlaygroundLofiPlayer: React.FC = () => {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(0.65);
+  const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentTrack = LOFI_PLAYLIST[currentTrackIndex];
 
-  // Initialize audio element
+  // Set up audio source and handlers
   useEffect(() => {
-    const audio = new Audio(currentTrack.src);
-    audio.volume = volume;
-    audio.preload = 'auto';
-    audioRef.current = audio;
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+    const audio = audioRef.current;
+    audio.src = currentTrack.src;
+    audio.volume = isMuted ? 0 : volume;
 
-    const updateTime = () => setCurrentTime(audio.currentTime);
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleEnded = () => {
-      // Auto-advance to next track in continuous radio loop
       setCurrentTrackIndex(prev => (prev + 1) % LOFI_PLAYLIST.length);
     };
 
-    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
 
     if (isPlaying) {
-      audio.play().catch(() => setIsPlaying(false));
+      audio.play().catch(err => {
+        console.warn('Autoplay blocked or stream connecting:', err);
+        setIsPlaying(false);
+      });
     }
 
     return () => {
-      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
-      audio.pause();
-      audio.src = '';
     };
   }, [currentTrackIndex]);
+
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
 
   // Handle play/pause
   const togglePlay = () => {
     if (!audioRef.current) return;
-    setHasInteracted(true);
 
     if (isPlaying) {
       audioRef.current.pause();
@@ -124,6 +118,7 @@ export const PlaygroundLofiPlayer: React.FC = () => {
         setIsPlaying(true);
       }).catch(err => {
         console.warn('Audio play error:', err);
+        setIsPlaying(false);
       });
     }
   };
@@ -161,7 +156,7 @@ export const PlaygroundLofiPlayer: React.FC = () => {
   const progressPercent = currentTrack.duration > 0 ? (currentTime / currentTrack.duration) * 100 : 0;
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 left-4 z-40 select-none transition-all duration-300">
+    <div className="fixed bottom-24 md:bottom-6 left-4 md:left-[275px] z-40 select-none transition-all duration-300 pointer-events-auto">
       {/* Collapsed Pill Button */}
       {isCollapsed ? (
         <button
