@@ -23,6 +23,20 @@ interface NotificationItem {
   };
 }
 
+// Relative time formatter for notifications
+function formatNotificationTime(timestamp: number): string {
+  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return new Date(timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 export const Notifications: React.FC = () => {
   const { currentUser } = useAuth();
   const { notifications, loading, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
@@ -48,8 +62,8 @@ export const Notifications: React.FC = () => {
   const handleMessageClick = async (notif: NotificationItem) => {
     if (!currentUser || !supabase || !notif.fromUserId) return;
 
-    // 1. Delete the notification (User has seen it)
-    await deleteNotification(notif.id);
+    // 1. Mark as read (User has seen it) without deleting history
+    await markAsRead(notif.id);
 
     // 2. Find Match ID and Navigate
     try {
@@ -386,8 +400,8 @@ export const Notifications: React.FC = () => {
                         </p>
                       )}
                     </div>
-                    <span className="text-[10px] text-gray-600 uppercase tracking-wide font-mono whitespace-nowrap">
-                      {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wide font-mono whitespace-nowrap">
+                      {formatNotificationTime(notif.timestamp)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-400 leading-relaxed">{notif.message}</p>

@@ -336,7 +336,12 @@ self.addEventListener('push', (event) => {
     let data = { title: 'New Notification', body: 'You have a new update.' };
 
     if (event.data) {
-        data = event.data.json();
+        try {
+            data = event.data.json();
+        } catch (e) {
+            console.warn('[SW] Failed to parse push payload as JSON, falling back to text:', e);
+            data.body = event.data.text();
+        }
     }
 
     const options = {
@@ -397,9 +402,16 @@ self.addEventListener('notificationclick', (event) => {
             })
         );
     } else {
-        // If they click the notification itself (not the button), open the app
+        // If they click the notification itself (not the button), focus existing tab or open new
         event.waitUntil(
-            clients.openWindow('/')
+            clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+                for (const client of clientList) {
+                    if (client.url.includes(self.location.origin) && 'focus' in client) {
+                        return client.focus();
+                    }
+                }
+                return clients.openWindow('/');
+            })
         );
     }
 });

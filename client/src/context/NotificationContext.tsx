@@ -70,7 +70,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 .from('notifications')
                 .select('*')
                 .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(50);
 
             if (error) throw error;
 
@@ -165,7 +166,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         }, 1000); // Wait 1 second for all updates to settle
     }, [fetchNotifications]);
 
-    // Realtime Subscription
+    // Realtime Subscription & Mobile App Wakeup
     useEffect(() => {
         if (!currentUser?.id) return;
 
@@ -181,11 +182,23 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             )
             .subscribe();
 
+        // Refresh when app wakes from background / tab focus
+        const handleWakeup = () => {
+            if (document.visibilityState === 'visible') {
+                fetchNotifications(true);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleWakeup);
+        window.addEventListener('focus', handleWakeup);
+
         return () => {
             supabase.removeChannel(channel);
             if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+            document.removeEventListener('visibilitychange', handleWakeup);
+            window.removeEventListener('focus', handleWakeup);
         };
-    }, [currentUser?.id, debouncedFetch]);
+    }, [currentUser?.id, debouncedFetch, fetchNotifications]);
 
     // Fetch real-time unread messages count for the chat badge without subscribing to the global messages table.
     useEffect(() => {
@@ -303,14 +316,39 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     }, [currentUser?.id]);
 
     const markAsRead = async (id: string) => {
-        // 1. Optimistic Update
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        const notif = notifications.find(n => n.id === id);
+
+        // 1. Optimistic Update (mark all in group as read)
+        setNotifications(prev => prev.map(n => {
+            if (n.id === id) return { ...n, read: true };
+            if (notif?.fromUserId && (notif.type === 'like' || notif.type === 'match') && n.fromUserId === notif.fromUserId && n.type === notif.type) {
+                return { ...n, read: true };
+            }
+            return n;
+        }));
+
+        const unreadInGroup = notifications.filter(n => {
+            if (n.id === id) return !n.read;
+            if (notif?.fromUserId && (notif.type === 'like' || notif.type === 'match') && n.fromUserId === notif.fromUserId && n.type === notif.type) {
+                return !n.read;
+            }
+            return false;
+        }).length;
+
+        setUnreadCount(prev => Math.max(0, prev - unreadInGroup));
 
         if (!currentUser || !supabase) return;
 
         // 2. Database Update
-        const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+        let query = supabase.from('notifications').update({ read: true });
+
+        if (notif?.fromUserId && (notif.type === 'like' || notif.type === 'match')) {
+            query = query.eq('user_id', currentUser.id).eq('from_user_id', notif.fromUserId).eq('type', notif.type);
+        } else {
+            query = query.eq('user_id', currentUser.id).eq('id', id);
+        }
+
+        const { error } = await query;
         if (error) {
             console.error("Failed to mark read. Check RLS policies!", error);
             // Revert on error
