@@ -197,12 +197,14 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
       // Handle interaction key (SPACE) for benches
       if (e.code === 'Space' && sitState === 'IDLE') {
+        e.preventDefault();
         const nearZone = BENCH_ZONES.find(zone => {
           const dx = posRef.current.x - zone.x;
           const dy = posRef.current.y - zone.y;
           return Math.sqrt(dx*dx + dy*dy) < zone.radius;
         });
         if (nearZone) {
+          keys.current = {};
           onSitRequest(nearZone.id, nearZone.x, nearZone.y);
         }
       }
@@ -361,7 +363,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
       // Keep local avatar sprite transform in sync in real-time
       if (localAvatarRef.current) {
-        localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y + (sitState === 'SITTING' ? 15 : 0)}px, 0) scale(0.6)`;
+        localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0) scale(0.6)`;
       }
 
       // Network broadcast: Instant (0ms) on start/stop/turn, 100ms continuous for smooth real-time sync

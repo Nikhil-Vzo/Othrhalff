@@ -316,15 +316,13 @@ export const Playground: React.FC = () => {
       return;
     }
 
-    let seatX = benchX - 18; // Default left seat
-    if (occupants.length === 1 && occupants[0].x < benchX) {
-      seatX = benchX + 18; // Left is taken, take right seat
-    } else if (occupants.length === 1 && occupants[0].x >= benchX) {
-      seatX = benchX - 18; // Right is taken, take left seat
+    let seatX = benchX; // Center for single sitter
+    if (occupants.length === 1) {
+      seatX = occupants[0].x < benchX ? benchX + 16 : benchX - 16;
     }
 
-    // Position the avatar directly onto the bench seating plank
-    const seatY = benchY - 6;
+    // Position the avatar center directly onto the bench seating plank
+    const seatY = benchY - 14;
     
     setSitState('SITTING');
     setActiveBench(benchId);
