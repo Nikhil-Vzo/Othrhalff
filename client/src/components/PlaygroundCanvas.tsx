@@ -34,19 +34,16 @@ const POLICE_GUARDS = [
 ];
 
 const BENCH_ZONES = [
-  // Top row near trees
-  { id: 'bench-top-1', x: 1220, y: 280, radius: 90 },
-  { id: 'bench-top-2', x: 1330, y: 280, radius: 90 },
-  { id: 'bench-top-3', x: 1440, y: 280, radius: 90 },
-  { id: 'bench-top-4', x: 1550, y: 280, radius: 90 },
+  // Center Diamond Plaza Bench
+  { id: 'bench-plaza-c', x: 1280, y: 700, radius: 140 },
   
-  // Center Plaza
-  { id: 'bench-plaza-tl', x: 1330, y: 770, radius: 95 },
-  { id: 'bench-plaza-tr', x: 1730, y: 770, radius: 95 },
-  { id: 'bench-plaza-c',  x: 1530, y: 925, radius: 95 },
-  { id: 'bench-plaza-bl', x: 1330, y: 1110, radius: 95 },
-  { id: 'bench-plaza-bc', x: 1530, y: 1240, radius: 95 },
-  { id: 'bench-plaza-br', x: 1845, y: 1110, radius: 95 }
+  // Top Row Benches (Under trees)
+  { id: 'bench-top-left', x: 1000, y: 200, radius: 140 },
+  { id: 'bench-top-right', x: 1560, y: 200, radius: 140 },
+  
+  // Bottom Row Benches
+  { id: 'bench-bottom-left', x: 1000, y: 1100, radius: 140 },
+  { id: 'bench-bottom-right', x: 1560, y: 1100, radius: 140 }
 ];
 
 // ---------------------------------------------------------
@@ -453,6 +450,23 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
             </div>
           );
         })}
+
+        {/* Stand Up Prompt when Sitting */}
+        {sitState === 'SITTING' && (
+          <div className="absolute z-30 pointer-events-none" style={{ transform: `translate3d(${posRef.current.x}px, ${posRef.current.y - 45}px, 0)` }}>
+            <div className="absolute -translate-x-1/2 -translate-y-1/2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPositionChange(posRef.current.x, posRef.current.y + 25, 'down', true, null);
+                }}
+                className="px-3.5 py-1 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-full border border-white/30 whitespace-nowrap shadow-xl pointer-events-auto cursor-pointer animate-pulse transition-transform active:scale-95"
+              >
+                🚶 Stand Up
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Campus Police NPCs */}
         {POLICE_GUARDS.map(guard => (
