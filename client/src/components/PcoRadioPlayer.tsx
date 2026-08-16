@@ -77,22 +77,18 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
         touchStartY.current = null;
       }}
     >
-      {/* 🌟 Background: Responsive Wallpaper (fm_phone.png on mobile/phones, desktop wallpaper on PC) */}
+      {/* 🌟 Background: Responsive Looping Video */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <picture className="w-full h-full block">
-          <source media="(max-width: 767px)" srcSet="/fm_phone.png" />
-          <source media="(min-width: 768px)" srcSet={DEFAULT_BG} />
-          <img
-            src="/fm_phone.png"
-            alt="Sparx FM Ambient"
-            className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05]"
-            onError={(e) => {
-              // Graceful fallback to album art with heavy blur
-              e.currentTarget.src = art;
-              e.currentTarget.className = "w-full h-full object-cover filter blur-3xl opacity-50";
-            }}
-          />
-        </picture>
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster={DEFAULT_BG}
+          className="w-full h-full object-cover object-center filter brightness-[0.95] contrast-[1.05]"
+        >
+          <source src="/loop.mp4" type="video/mp4" />
+        </video>
         {/* Soft atmospheric gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       </div>
