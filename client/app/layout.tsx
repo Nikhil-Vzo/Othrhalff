@@ -1,12 +1,30 @@
 import React from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Providers } from './providers';
 import { AppLayout } from '../src/layouts/AppLayout';
 import '../src/index.css';
 
+export const viewport: Viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.othrhalff.in'),
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Othrhalff',
+  },
+  formatDetection: {
+    telephone: false,
+  },
   title: {
     default: 'Othrhalff – Campus Connections, Dating & Beyond | Find Your Vibe',
     template: '%s | Othrhalff'
@@ -29,11 +47,12 @@ export const metadata: Metadata = {
   applicationName: 'Othrhalff',
   icons: {
     icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
       { url: '/favicon.png', type: 'image/png' },
       { url: '/favicon.ico' },
     ],
     shortcut: '/favicon.ico',
-    apple: '/favicon.png',
+    apple: '/icons/icon-192x192.png',
   },
   robots: {
     index: true,
