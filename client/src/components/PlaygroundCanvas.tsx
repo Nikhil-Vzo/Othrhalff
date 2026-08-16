@@ -221,6 +221,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         });
         if (nearZone) {
           keys.current = {};
+          posRef.current = { x: nearZone.x, y: nearZone.y - 10 };
           onSitRequest(nearZone.id, nearZone.x, nearZone.y);
         }
       }
@@ -438,7 +439,12 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
             <div key={zone.id} className="absolute z-20 pointer-events-none" style={{ transform: `translate3d(${zone.x}px, ${zone.y}px, 0)` }}>
               <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); onSitRequest(zone.id, zone.x, zone.y); }}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    keys.current = {};
+                    posRef.current = { x: zone.x, y: zone.y - 10 };
+                    onSitRequest(zone.id, zone.x, zone.y); 
+                  }}
                   className="absolute -top-10 px-3 py-1 bg-black/85 text-white text-xs font-bold rounded-full border border-white/20 whitespace-nowrap shadow-xl animate-bounce pointer-events-auto cursor-pointer hover:bg-black hover:border-white/40 transition-colors backdrop-blur-md"
                 >
                   Press SPACE or Click to Sit

@@ -342,10 +342,11 @@ export const Playground: React.FC = () => {
     }
 
     // Position the avatar center directly onto the bench seating plank
-    const seatY = benchY - 14;
+    const seatY = benchY - 10;
     
     setSitState('SITTING');
     setActiveBench(benchId);
+    setMyPos({ x: seatX, y: seatY });
     
     // Teleport local player to seat and broadcast sitting state
     handlePositionChange(seatX, seatY, 'down', false, benchId);
