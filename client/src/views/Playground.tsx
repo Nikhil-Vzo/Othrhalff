@@ -316,15 +316,15 @@ export const Playground: React.FC = () => {
       return;
     }
 
-    let seatX = benchX - 25; // Default left
+    let seatX = benchX - 18; // Default left seat
     if (occupants.length === 1 && occupants[0].x < benchX) {
-      seatX = benchX + 25; // Left is taken
+      seatX = benchX + 18; // Left is taken, take right seat
     } else if (occupants.length === 1 && occupants[0].x >= benchX) {
-      seatX = benchX - 25; // Right is taken
+      seatX = benchX - 18; // Right is taken, take left seat
     }
 
-    // Move the avatar further down so they sit on the grey seat area instead of floating on the backrest
-    const seatY = benchY + 15;
+    // Position the avatar directly onto the bench seating plank
+    const seatY = benchY - 6;
     
     setSitState('SITTING');
     setActiveBench(benchId);

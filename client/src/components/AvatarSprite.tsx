@@ -58,7 +58,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       displayX.current = targetX;
       displayY.current = targetY;
       if (spriteRef.current) {
-        spriteRef.current.style.transform = `translate3d(${targetX}px, ${targetY + (isSitting ? 15 : 0)}px, 0) scale(0.6)`;
+        spriteRef.current.style.transform = `translate3d(${targetX}px, ${targetY}px, 0) scale(0.6)`;
       }
       return;
     }
@@ -70,7 +70,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       displayY.current += (targetY - displayY.current) * 0.15;
 
       if (spriteRef.current) {
-        spriteRef.current.style.transform = `translate3d(${displayX.current}px, ${displayY.current + (isSitting ? 15 : 0)}px, 0) scale(0.6)`;
+        spriteRef.current.style.transform = `translate3d(${displayX.current}px, ${displayY.current}px, 0) scale(0.6)`;
       }
       
       // Stop lerping when close enough to save CPU
@@ -84,26 +84,27 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
 
     animationFrameId = requestAnimationFrame(lerp);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [targetX, targetY, isLocal, isSitting]);
+  }, [targetX, targetY, isLocal]);
 
   // The LPC sprites are exactly 64x64 per frame
   const spriteWidth = 64;
   const spriteHeight = 64;
   
-  const bgX = -(frame * spriteWidth);
-  const bgY = -(directionToRow[direction] * spriteHeight);
+  const effectiveDirection = isSitting ? 'down' : direction;
+  const effectiveFrame = isSitting ? 0 : frame;
+  const bgX = -(effectiveFrame * spriteWidth);
+  const bgY = -(directionToRow[effectiveDirection] * spriteHeight);
 
   return (
     <div 
       ref={spriteRef}
       className={`absolute ${isLocal ? 'z-20' : 'z-10'} flex flex-col items-center justify-center`}
       style={{ 
-        transform: `translate3d(${targetX}px, ${targetY + (isSitting ? 15 : 0)}px, 0) scale(0.6)`,
+        transform: `translate3d(${targetX}px, ${targetY}px, 0) scale(0.6)`,
         width: `${spriteWidth}px`,
         height: `${spriteHeight}px`,
         marginTop: `-${spriteHeight / 2}px`, 
         marginLeft: `-${spriteWidth / 2}px`,
-        clipPath: isSitting ? 'inset(0 0 35% 0)' : 'none',
         willChange: 'transform'
       }}
     >
