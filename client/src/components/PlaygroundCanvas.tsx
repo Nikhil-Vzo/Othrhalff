@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { AvatarSprite, Direction } from './AvatarSprite';
+import { PoliceNPC } from './PoliceNPC';
 
 export interface Player {
   id: string;
@@ -9,6 +10,7 @@ export interface Player {
   direction?: Direction;
   isMoving?: boolean;
   sittingOn?: string | null;
+  avatarId?: string;
 }
 
 interface PlaygroundCanvasProps {
@@ -22,8 +24,14 @@ interface PlaygroundCanvasProps {
   activeBench: string | null;
   onSitRequest: (benchId: string, benchX: number, benchY: number) => void;
   gpsEnabled?: boolean;
+  avatarId?: string;
   onCollisionCheckerReady?: (checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => void;
 }
+
+const POLICE_GUARDS = [
+  { id: 'police-main-gate', x: 1280, y: 225, name: 'Campus Police 👮', warningText: 'Idhar Jana Allowed nahi hai!' },
+  { id: 'police-east-stair', x: 2050, y: 310, name: 'Campus Guard 🚨', warningText: 'Idhar Jana Allowed nahi hai!' }
+];
 
 const BENCH_ZONES = [
   // Top row near trees
@@ -58,6 +66,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   activeBench,
   onSitRequest,
   gpsEnabled = false,
+  avatarId = 'default',
   onCollisionCheckerReady
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -115,6 +124,13 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       }
 
       if (dist < benchCollisionRadius) return true;
+    }
+
+    const guardCollisionRadius = 35;
+    for (const guard of POLICE_GUARDS) {
+      const dx = x - guard.x;
+      const dy = y - (guard.y - 15);
+      if (Math.sqrt(dx * dx + dy * dy) < guardCollisionRadius) return true;
     }
 
     if (!collisionPixelsRef.current) return false;
@@ -432,6 +448,19 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
           );
         })}
         
+        {/* Campus Police NPCs */}
+        {POLICE_GUARDS.map(guard => (
+          <PoliceNPC
+            key={guard.id}
+            x={guard.x}
+            y={guard.y}
+            playerX={posRef.current.x}
+            playerY={posRef.current.y}
+            name={guard.name}
+            warningText={guard.warningText}
+          />
+        ))}
+
         {/* Remote Players */}
         {remotePlayers.map((player) => {
            // Calculate distance
@@ -453,6 +482,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
                username={player.id.substring(0, 5)}
                speechBubble={canReadBubble ? bubble?.text : undefined}
                isSitting={!!player.sittingOn}
+               avatarId={player.avatarId || 'default'}
              />
            );
         })}
@@ -468,6 +498,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
            speechBubble={speechBubbles.get(localSessionId)?.text}
            isSitting={sitState === 'SITTING'}
            isGpsActive={gpsEnabled}
+           avatarId={avatarId}
         />
 
       </div>

@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
+import { AvatarSelectionModal } from '../components/AvatarSelectionModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MapPin, MapPinOff, Users, Smile, Send, Mic, MicOff } from 'lucide-react';
+import { MapPin, MapPinOff, Users, Smile, Send, Mic, MicOff, UserCheck } from 'lucide-react';
 import { db } from '../lib/db';
 import { useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
@@ -14,6 +15,23 @@ export const Playground: React.FC = () => {
   const { currentUser } = useAuth();
   const [remotePlayers, setRemotePlayers] = useState<Map<string, Player>>(new Map());
   const [onlineCount, setOnlineCount] = useState(0);
+
+  // Avatar Selection State
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('M_01');
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+  const selectedAvatarRef = useRef('M_01');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('playground_avatar');
+      if (saved) {
+        setSelectedAvatar(saved);
+        selectedAvatarRef.current = saved;
+      } else {
+        setShowAvatarSelector(true); // First-time prompt to select character
+      }
+    }
+  }, []);
 
   // Default coordinates (approx center of canvas)
   const [myPos, setMyPos] = useState({ x: 1600, y: 720 });
@@ -175,7 +193,8 @@ export const Playground: React.FC = () => {
           direction: payload.direction || 'down',
           isMoving: payload.isMoving || false,
           color: payload.color || '#3b82f6',
-          sittingOn: payload.sittingOn || null
+          sittingOn: payload.sittingOn || null,
+          avatarId: payload.avatarId || 'default'
         });
         return newMap;
       });
@@ -247,7 +266,8 @@ export const Playground: React.FC = () => {
           direction: dir,
           isMoving: moving,
           color: '#3b82f6',
-          sittingOn
+          sittingOn,
+          avatarId: selectedAvatarRef.current
         }
       }).catch(() => {});
     },
@@ -474,6 +494,16 @@ export const Playground: React.FC = () => {
 
         {/* Right: GPS & Spatial Mic Toggles */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Avatar / Character Selector Toggle */}
+          <button
+            onClick={() => setShowAvatarSelector(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-pink-500/40 bg-pink-950/60 backdrop-blur-md text-pink-300 hover:text-white hover:border-pink-400 transition-all shadow-md active:scale-95 cursor-pointer"
+            title="Change Character Avatar"
+          >
+            <UserCheck size={14} className="text-pink-400" />
+            <span className="text-[11px] font-bold">Avatar</span>
+          </button>
+
           {/* GPS Toggle */}
           <button
             onClick={toggleGpsMode}
@@ -563,9 +593,24 @@ export const Playground: React.FC = () => {
           activeBench={activeBench}
           onSitRequest={handleSitRequest}
           gpsEnabled={gpsEnabled}
+          avatarId={selectedAvatar}
           onCollisionCheckerReady={handleCollisionCheckerReady}
         />
       </div>
+
+      {/* Character Selection Modal */}
+      {showAvatarSelector && (
+        <AvatarSelectionModal
+          currentAvatar={selectedAvatar}
+          onSelect={(avatarId) => {
+            setSelectedAvatar(avatarId);
+            selectedAvatarRef.current = avatarId;
+            broadcastPosition(myPos.x, myPos.y, 'down', false, sitState === 'SITTING' ? activeBench : null);
+          }}
+          onClose={() => setShowAvatarSelector(false)}
+          isInitialSelection={typeof window !== 'undefined' && !localStorage.getItem('playground_avatar_selected')}
+        />
+      )}
 
       {/* Floating Chat Input Bar — elevated above mobile navbar with safe-area spacing */}
       <div className="absolute bottom-[98px] md:bottom-4 left-3 right-3 z-30 flex justify-center pointer-events-none">

@@ -13,19 +13,28 @@ interface AvatarSpriteProps {
   speechBubble?: string;
   isSitting?: boolean;
   isGpsActive?: boolean;
+  avatarId?: string;
 }
 
 // LPC Universal Spritesheet standard rows for walking
-const directionToRow = {
+const lpcDirectionToRow = {
   up: 8,
   left: 9,
   down: 10,
   right: 11
 };
 
+// 32 Characters Column mapping (4 cols x 3 rows)
+const char32DirectionToCol = {
+  down: 0,
+  left: 1,
+  up: 2,
+  right: 3
+};
+
 export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(({
   x: targetX, y: targetY, direction, isMoving, color = '#3b82f6', username = 'Player', isLocal = false,
-  speechBubble, isSitting = false, isGpsActive = false
+  speechBubble, isSitting = false, isGpsActive = false, avatarId = 'default'
 }, ref) => {
   const [frame, setFrame] = useState(0);
   const spriteRef = useRef<HTMLDivElement>(null);
@@ -37,6 +46,8 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
   const displayX = useRef(targetX);
   const displayY = useRef(targetY);
 
+  const is32Char = avatarId && (avatarId.startsWith('M_') || avatarId.startsWith('F_'));
+
   // Walk animation loop
   useEffect(() => {
     if (!isMoving) {
@@ -44,13 +55,23 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       return;
     }
     
-    // Cycle through 9 frames of the walk animation at a natural 100ms pace
-    const interval = setInterval(() => {
-      setFrame(prev => (prev + 1) % 9);
-    }, 100);
-    
-    return () => clearInterval(interval);
-  }, [isMoving]);
+    if (is32Char) {
+      // 32 Characters walk cycle: [0, 1, 0, 2]
+      const frames = [0, 1, 0, 2];
+      let idx = 0;
+      const interval = setInterval(() => {
+        idx = (idx + 1) % frames.length;
+        setFrame(frames[idx]);
+      }, 120);
+      return () => clearInterval(interval);
+    } else {
+      // Cycle through 9 frames of LPC walk animation
+      const interval = setInterval(() => {
+        setFrame(prev => (prev + 1) % 9);
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isMoving, is32Char]);
 
   // Client-side interpolation (Lerping) for remote players (bypasses React diffs for 60FPS smoothness)
   useEffect(() => {
@@ -58,7 +79,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       displayX.current = targetX;
       displayY.current = targetY;
       if (spriteRef.current) {
-        spriteRef.current.style.transform = `translate3d(${targetX}px, ${targetY}px, 0) scale(0.6)`;
+        spriteRef.current.style.transform = `translate3d(${targetX}px, ${targetY}px, 0)`;
       }
       return;
     }
@@ -70,7 +91,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       displayY.current += (targetY - displayY.current) * 0.15;
 
       if (spriteRef.current) {
-        spriteRef.current.style.transform = `translate3d(${displayX.current}px, ${displayY.current}px, 0) scale(0.6)`;
+        spriteRef.current.style.transform = `translate3d(${displayX.current}px, ${displayY.current}px, 0)`;
       }
       
       // Stop lerping when close enough to save CPU
@@ -86,14 +107,69 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
     return () => cancelAnimationFrame(animationFrameId);
   }, [targetX, targetY, isLocal]);
 
-  // The LPC sprites are exactly 64x64 per frame
-  const spriteWidth = 64;
-  const spriteHeight = 64;
-  
   const effectiveDirection = isSitting ? 'down' : direction;
   const effectiveFrame = isSitting ? 0 : frame;
+
+  // 32 Characters setup (16x17 px per tile, 4 cols x 3 rows)
+  if (is32Char) {
+    const isMale = avatarId.startsWith('M_');
+    const imgPath = isMale ? `/assets/characters/Males/${avatarId}.png` : `/assets/characters/Females/${avatarId}.png`;
+    const col = char32DirectionToCol[effectiveDirection];
+    const row = effectiveFrame; // 0 = idle, 1 = walk1, 2 = walk2
+    const bgX = -(col * 16);
+    const bgY = -(row * 17);
+
+    return (
+      <div 
+        ref={spriteRef}
+        className={`absolute ${isLocal ? 'z-20' : 'z-10'} flex flex-col items-center justify-center`}
+        style={{ 
+          transform: `translate3d(${targetX}px, ${targetY}px, 0)`,
+          width: '38px',
+          height: '42px',
+          marginTop: '-21px', 
+          marginLeft: '-19px',
+          willChange: 'transform'
+        }}
+      >
+        {/* The 32_Characters pixel-art sprite */}
+        <div 
+          className="w-[16px] h-[17px] bg-no-repeat relative"
+          style={{
+            backgroundImage: `url('${imgPath}')`,
+            backgroundPosition: `${bgX}px ${bgY}px`,
+            transform: 'scale(2.4)',
+            transformOrigin: 'center center',
+            imageRendering: 'pixelated',
+          }}
+        />
+        
+        {/* Drop Shadow */}
+        <div className="absolute bottom-0 w-7 h-2 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
+
+        {/* GPS Active Ping */}
+        {isGpsActive && (
+          <div className="absolute bottom-1 w-10 h-5 border-2 border-cyan-400/80 rounded-[100%] animate-ping pointer-events-none -z-10 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
+        )}
+
+        {/* Speech Bubble */}
+        {speechBubble && (
+          <div className="absolute -top-10 flex flex-col items-center pointer-events-none z-30 animate-bounce">
+            <div className="bg-white text-black px-3 py-1.5 rounded-2xl text-xs font-bold max-w-[150px] text-center shadow-lg break-words border-2 border-gray-200">
+              {speechBubble}
+            </div>
+            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-white -mt-[2px]"></div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Classic LPC Universal Spritesheet (64x64 px per frame)
+  const spriteWidth = 64;
+  const spriteHeight = 64;
   const bgX = -(effectiveFrame * spriteWidth);
-  const bgY = -(directionToRow[effectiveDirection] * spriteHeight);
+  const bgY = -(lpcDirectionToRow[effectiveDirection] * spriteHeight);
 
   return (
     <div 
@@ -157,3 +233,4 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
 });
 
 AvatarSprite.displayName = 'AvatarSprite';
+
