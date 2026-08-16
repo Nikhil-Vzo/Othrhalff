@@ -47,9 +47,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
   }, []);
 
   // Enforce auth & onboarding routing
@@ -134,10 +144,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   return (
     <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden selection:bg-neon selection:text-white">
       {/* Desktop Sidebar Placeholder to prevent layout shift */}
-      <div className="hidden md:block shrink-0 h-full bg-black z-10 w-[280px]" />
+      {!isFullscreen && (
+        <div className="hidden md:block shrink-0 h-full bg-black z-10 w-[280px]" />
+      )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col bg-black z-50 absolute left-0 top-0 bottom-0 w-[280px] shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+      {!isFullscreen && (
+        <aside className="hidden md:flex flex-col bg-black z-50 absolute left-0 top-0 bottom-0 w-[280px] shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
         <div className="w-full flex flex-col h-full">
           {/* Brand Header */}
           <div className="p-8 pb-4 flex justify-start">
@@ -319,7 +332,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </div>
 
         {/* Mobile Bottom Nav */}
-        {!(pathname.startsWith('/chat') || pathname === '/discover' || pathname.startsWith('/sparx/cinema') || pathname.startsWith('/sparx/music')) && (
+        {!isFullscreen && !(pathname.startsWith('/chat') || pathname === '/discover' || pathname.startsWith('/sparx/cinema') || pathname.startsWith('/sparx/music')) && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe pointer-events-none">
             {/* The main bar background */}
             <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/95 backdrop-blur-md border-t-[1.5px] border-gray-800 pointer-events-auto" />
