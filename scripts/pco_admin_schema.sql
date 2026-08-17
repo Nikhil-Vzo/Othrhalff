@@ -89,6 +89,7 @@ AS $$
   )
   OR lower(coalesce(auth.jwt() ->> 'email', '')) IN (
     'nikhilyadav200530@gmail.com',
+    'avneeshkumarjha1506@gmail.com',
     'avneeshjha1506@gmail.com',
     'dpursuit14@gmail.com',
     'lachavzo11@gmail.com'
@@ -229,6 +230,7 @@ EXECUTE FUNCTION public.enforce_pco_daily_limit();
 INSERT INTO public.admin_users (email, role)
 VALUES 
   ('nikhilyadav200530@gmail.com', 'super_admin'),
+  ('avneeshkumarjha1506@gmail.com', 'super_admin'),
   ('avneeshjha1506@gmail.com', 'super_admin'),
   ('dpursuit14@gmail.com', 'super_admin'),
   ('lachavzo11@gmail.com', 'super_admin')
@@ -236,8 +238,8 @@ ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role;
 
 UPDATE public.profiles 
 SET is_admin = TRUE 
-WHERE university_email IN ('nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com')
-   OR admin_email IN ('nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com');
+WHERE university_email IN ('nikhilyadav200530@gmail.com', 'avneeshkumarjha1506@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com')
+   OR admin_email IN ('nikhilyadav200530@gmail.com', 'avneeshkumarjha1506@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com');
 
 -- ==============================================================================
 -- REALTIME PUBLICATION

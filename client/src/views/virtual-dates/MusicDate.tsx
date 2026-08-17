@@ -521,7 +521,7 @@ export const MusicDate = () => {
     // Admin & PCO State (Checks Supabase admin_users, profiles.is_admin, and fallback emails)
     const [isAdminUser, setIsAdminUser] = useState<boolean>(() => {
         const email = (currentUser?.universityEmail || '').toLowerCase().trim();
-        return ['nikhilyadav200530@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(email);
+        return ['nikhilyadav200530@gmail.com', 'avneeshkumarjha1506@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(email);
     });
     const isAdminUserRef = useRef(isAdminUser);
     useEffect(() => {

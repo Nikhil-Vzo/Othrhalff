@@ -39,6 +39,7 @@ export interface PcoLiveSchedule {
 
 const KNOWN_ADMIN_EMAILS = [
   'nikhilyadav200530@gmail.com',
+  'avneeshkumarjha1506@gmail.com',
   'avneeshjha1506@gmail.com',
   'dpursuit14@gmail.com',
   'lachavzo11@gmail.com'

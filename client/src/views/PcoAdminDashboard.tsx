@@ -22,6 +22,7 @@ import {
 const FALLBACK_ART = 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg';
 const PRIMARY_OWNERS = [
   'nikhilyadav200530@gmail.com',
+  'avneeshkumarjha1506@gmail.com',
   'avneeshjha1506@gmail.com',
   'dpursuit14@gmail.com',
   'lachavzo11@gmail.com'
