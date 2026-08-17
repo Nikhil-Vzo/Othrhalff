@@ -22,7 +22,6 @@ import {
   Plus,
   Radio,
   Send,
-  ShieldCheck,
   Sparkles,
   UserRound,
   Video,
@@ -540,27 +539,6 @@ const ArtDirectedExperience: React.FC = () => {
   );
 };
 
-const SafetyScene: React.FC = () => (
-  <section id="safety" className="relative overflow-hidden bg-[#080e0e] px-5 py-24 sm:px-10 lg:min-h-[100svh] lg:px-16 lg:py-36">
-    <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(127,255,212,.06)_1px,transparent_1px),linear-gradient(rgba(127,255,212,.06)_1px,transparent_1px)] bg-[size:44px_44px]" />
-    <div className="relative mx-auto flex max-w-6xl flex-col items-center text-center">
-      <motion.div initial={{ opacity: 0, scale: .75, y: 24 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: .9, ease: sceneEase }} className="relative flex h-44 w-44 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-300/[.07] shadow-[0_0_0_18px_rgba(116,255,211,.025),0_0_90px_rgba(116,255,211,.13)] sm:h-52 sm:w-52">
-        <div className="absolute inset-3 rounded-full border border-dashed border-emerald-200/25 animate-[spin_18s_linear_infinite]" />
-        <ShieldCheck className="h-16 w-16 text-emerald-200 sm:h-20 sm:w-20" strokeWidth={1.2} />
-        <span className="absolute -bottom-3 rounded-full border border-emerald-200/20 bg-[#080e0e] px-3 py-1.5 font-mono text-[9px] font-bold tracking-[.14em] text-emerald-100">YOUR PACE</span>
-      </motion.div>
-      <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ delay: .15, duration: .85, ease: sceneEase }}>
-        <SectionKicker index="07" title="THE PART WE DON&apos;T NEGOTIATE" />
-        <h2 className="mt-8 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.8rem]">You decide<br />what opens.</h2>
-        <p className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-white/60 sm:text-lg">Browse Confessions without an account. Be anonymous when the moment calls for it. Block, report, leave. On Othrhalff, being curious never means giving up control.</p>
-      </motion.div>
-      <motion.div initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: .45, duration: .7 }} className="mt-11 flex flex-wrap justify-center gap-2.5 font-mono text-[10px] font-bold tracking-[.12em] text-emerald-50/75">
-        {['COLLEGE IDENTITY', 'ANON CONTROLS', 'BLOCK + REPORT', 'YOUR BOUNDARIES'].map((item) => <span key={item} className="rounded-full border border-emerald-100/15 bg-emerald-50/[.04] px-3 py-2">{item}</span>)}
-      </motion.div>
-    </div>
-  </section>
-);
-
 const MarqueeBar: React.FC = () => (
   <div className="relative w-full overflow-hidden bg-[#07030d] py-0">
     <div className="-ml-[5vw] w-[110vw] -rotate-2 border-y border-[#F45D9B]/30 bg-[#F45D9B]/10 py-7 shadow-[0_0_80px_rgba(244,93,155,0.1)] sm:py-10">
@@ -608,7 +586,7 @@ export const Landing: React.FC = () => {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const onEnter = () => navigate.push('/login');
-  const navItems = [{ name: 'Experience', link: '#experience' }, { name: 'Stories', link: '/blog' }, { name: 'World', link: '#playground' }, { name: 'Safety', link: '#safety' }];
+  const navItems = [{ name: 'Experience', link: '#experience' }, { name: 'Stories', link: '/blog' }, { name: 'World', link: '#playground' }, { name: 'About', link: '/about' }];
 
   const isOAuthCallback = typeof window !== 'undefined' && (
     window.location.hash.includes('access_token=') ||
@@ -658,7 +636,6 @@ export const Landing: React.FC = () => {
       </header>
       <ManifestoSection />
       <ArtDirectedExperience />
-      <SafetyScene />
       <MarqueeBar />
       <Footer />
     </div>
