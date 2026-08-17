@@ -330,13 +330,28 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         style={{
           width: `${WORLD_WIDTH}px`,
           height: `${WORLD_HEIGHT}px`,
-          backgroundImage: `url('/assets/campus map.png')`,
+          backgroundImage: `url('/assets/campus-map.png')`,
           backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
           imageRendering: 'pixelated',
           willChange: 'transform'
         }}
       >
+        {/* Crisp Campus Map Background Layer */}
+        <img
+          src="/assets/campus-map.png"
+          alt="Campus Map"
+          className="absolute inset-0 w-full h-full pointer-events-none select-none z-0"
+          style={{ imageRendering: 'pixelated', width: `${WORLD_WIDTH}px`, height: `${WORLD_HEIGHT}px` }}
+          onError={(e) => {
+            const target = e.currentTarget as HTMLImageElement;
+            if (target.src.includes('campus-map.png')) {
+              target.src = '/assets/campus map.png';
+            } else if (target.src.includes('campus map.png')) {
+              target.src = '/assets/campus map.jpeg';
+            }
+          }}
+        />
         
         {/* Autonomous Roaming Hop Pet (wonders within the white walkable area) */}
         <HopNPC
