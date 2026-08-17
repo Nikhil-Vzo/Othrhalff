@@ -184,11 +184,11 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
       }}
       onClick={handleHopClick}
     >
-      {/* Speech Bubble */}
+      {/* Minimalist Dark Speech Bubble */}
       {bubbleText && (
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white/95 text-gray-900 text-[11px] font-black px-3 py-1 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.4)] whitespace-nowrap border border-pink-400/50 animate-bounce">
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-medium tracking-wide px-3 py-1 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.8)] whitespace-nowrap border border-white/15 animate-bounce">
           {bubbleText}
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-pink-400/50" />
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-black/90 rotate-45 border-r border-b border-white/15" />
         </div>
       )}
 
