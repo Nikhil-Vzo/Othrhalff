@@ -366,7 +366,7 @@ const conversationStages = [
     body: 'The best conversations are allowed to be a little strange from the beginning.',
     features: ['2 Truths & a Lie', 'Would You Rather', 'A game when words stall'],
     slot: 'chat-games-system',
-    image: undefined,
+    image: '/assets/chat_games_mockup.png',
     tone: 'bg-[#d9d2ff] text-[#130d28]',
     frame: 'border-[#130d28]/25 bg-[#17102c] text-white',
     accent: 'text-[#7657ed]',
@@ -406,7 +406,7 @@ const ConversationStage: React.FC<{
   >
     <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-current opacity-[.13]" />
     <div className="absolute bottom-0 left-0 h-1.5 w-[36%] bg-current opacity-90" />
-    <div className="relative grid gap-8 lg:grid-cols-[.7fr_1.3fr] lg:gap-14">
+    <div className="relative grid gap-8 items-center lg:grid-cols-[.7fr_1.3fr] lg:gap-14">
       <div className="flex flex-col justify-between">
         <div>
           <div className="flex items-center gap-3 font-mono text-[10px] font-bold tracking-[.16em] opacity-55"><span>{number}</span><span className="h-px w-7 bg-current" /><span>{label}</span></div>
@@ -417,23 +417,14 @@ const ConversationStage: React.FC<{
           {features.map((feature) => <li key={feature} className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-current" />{feature}</li>)}
         </ul>
       </div>
-      <div data-asset-slot={slot} className={`relative aspect-[5/4] overflow-hidden border ${image ? 'p-0' : 'p-4 sm:p-6'} ${frame}`}>
+      <div data-asset-slot={slot} className={`relative flex items-center justify-center overflow-hidden rounded-2xl border ${image ? 'p-2 sm:p-3 bg-[#0a0512]' : 'aspect-[5/4] p-4 sm:p-6'} ${frame}`}>
         {image ? (
-          <div className="relative h-full w-full overflow-hidden bg-black flex items-center justify-center">
+          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-[#0a0512]">
             <img 
               src={image} 
               alt={label} 
-              className="h-full w-full object-cover object-center transition-transform duration-700 hover:scale-105" 
+              className="max-h-[460px] w-full object-contain object-center rounded-lg transition-transform duration-500 hover:scale-[1.02]" 
             />
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-              <span className="flex items-center gap-2 px-2.5 py-1 bg-black/80 backdrop-blur-md rounded-full border border-white/15 text-[10px] font-mono font-medium text-white/90">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F45D9B] animate-pulse" />
-                Live Chat
-              </span>
-              <span className="px-2.5 py-1 bg-purple-950/80 backdrop-blur-md rounded-full border border-purple-400/30 text-[9px] font-mono font-bold text-purple-300 uppercase tracking-wider">
-                Encrypted
-              </span>
-            </div>
           </div>
         ) : (
           <>
