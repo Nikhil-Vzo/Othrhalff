@@ -9,6 +9,14 @@ interface HopNPCProps {
 const WORLD_WIDTH = 2560;
 const WORLD_HEIGHT = 1440;
 
+// Verified Open White Walkable Zones (Central Diamond Plaza, Pathways & Courtyards)
+const WHITE_WALKABLE_ZONES = [
+  { minX: 1500, maxX: 2150, minY: 500, maxY: 1100 }, // Main Open Central Plaza & Lawn Walkway
+  { minX: 1450, maxX: 1900, minY: 350, maxY: 600 },  // Upper North Plaza
+  { minX: 1550, maxX: 2200, minY: 750, maxY: 1200 }, // Lower South Plaza
+  { minX: 950,  maxX: 1350, minY: 150, maxY: 320 },  // Top North Courtyard
+];
+
 const HOP_MESSAGES = [
   'Hop! 🐰✨',
   'Zoomies! 💨',
@@ -19,9 +27,9 @@ const HOP_MESSAGES = [
 ];
 
 export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY }) => {
-  // Start near the central open plaza (white walkable area)
-  const posRef = useRef({ x: 1280, y: 720 });
-  const [renderPos, setRenderPos] = useState({ x: 1280, y: 720 });
+  // Start right in the middle of the main open white plaza
+  const posRef = useRef({ x: 1680, y: 720 });
+  const [renderPos, setRenderPos] = useState({ x: 1680, y: 720 });
   const [facingRight, setFacingRight] = useState(true);
   const [isHopping, setIsHopping] = useState(false);
   const [bubbleText, setBubbleText] = useState<string | null>(null);
@@ -30,19 +38,30 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
 
   const targetPosRef = useRef<{ x: number; y: number } | null>(null);
   const stateRef = useRef<'IDLE' | 'MOVING'>('IDLE');
-  const idleTimerRef = useRef(0);
+  const idleTimerRef = useRef(0.5);
   const hopCycleRef = useRef(0);
 
-  // Pick a random valid target coordinate inside the white area
+  // Pick a random valid target coordinate strictly inside the white walkable area
   const pickRandomWhiteAreaTarget = useCallback(() => {
-    for (let attempts = 0; attempts < 30; attempts++) {
-      // Pick within a radius of 200 - 450px from current position
-      const distance = 150 + Math.random() * 300;
+    // 1. Try picking from the confirmed open white zones first
+    for (let attempts = 0; attempts < 40; attempts++) {
+      const zone = WHITE_WALKABLE_ZONES[Math.floor(Math.random() * WHITE_WALKABLE_ZONES.length)];
+      const testX = Math.round(zone.minX + Math.random() * (zone.maxX - zone.minX));
+      const testY = Math.round(zone.minY + Math.random() * (zone.maxY - zone.minY));
+
+      // Strictly verify coordinate is NOT blocked by any black mask pixel (checkCollision === false)
+      if (!checkCollision(testX, testY, 24)) {
+        return { x: testX, y: testY };
+      }
+    }
+
+    // 2. Fallback to nearby white radius
+    for (let attempts = 0; attempts < 25; attempts++) {
+      const distance = 80 + Math.random() * 250;
       const angle = Math.random() * Math.PI * 2;
       const testX = Math.round(posRef.current.x + Math.cos(angle) * distance);
       const testY = Math.round(posRef.current.y + Math.sin(angle) * distance);
 
-      // Verify coordinate is within bounds and on walkable white area (collision === false)
       if (
         testX > 200 && testX < WORLD_WIDTH - 200 &&
         testY > 150 && testY < WORLD_HEIGHT - 150 &&
@@ -52,8 +71,8 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
       }
     }
 
-    // Fallback toward center plaza if stuck
-    return { x: 1280 + (Math.random() * 200 - 100), y: 720 + (Math.random() * 200 - 100) };
+    // Default safe white area coordinate in the central plaza
+    return { x: 1680 + (Math.random() * 120 - 60), y: 720 + (Math.random() * 120 - 60) };
   }, [checkCollision]);
 
   // Main 60 FPS autonomous roaming animation loop
@@ -61,9 +80,27 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
     let animationFrameId: number;
     let lastTime = performance.now();
 
+    // Verify initial spawn is in white area once collision mask loads
+    const initialTarget = pickRandomWhiteAreaTarget();
+    if (checkCollision(posRef.current.x, posRef.current.y, 24)) {
+      posRef.current = { x: initialTarget.x, y: initialTarget.y };
+      setRenderPos({ x: initialTarget.x, y: initialTarget.y });
+    }
+
     const wanderLoop = (currentTime: number) => {
       const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
       lastTime = currentTime;
+
+      // Ensure Hop never stays stuck on a black blocked pixel
+      if (checkCollision(posRef.current.x, posRef.current.y, 24)) {
+        const safeSpot = pickRandomWhiteAreaTarget();
+        posRef.current = { x: safeSpot.x, y: safeSpot.y };
+        setRenderPos({ x: safeSpot.x, y: safeSpot.y });
+        stateRef.current = 'IDLE';
+        idleTimerRef.current = 1.0;
+        setIsHopping(false);
+        targetPosRef.current = null;
+      }
 
       if (stateRef.current === 'IDLE') {
         idleTimerRef.current -= delta;
@@ -85,21 +122,21 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
           setIsHopping(false);
           targetPosRef.current = null;
         } else {
-          // Move towards target
-          const speed = 75; // pixels per second
+          // Move towards target at a pleasant hopping speed
+          const speed = 70; // pixels per second
           const moveDist = Math.min(speed * delta, distance);
           const nextX = posRef.current.x + (dx / distance) * moveDist;
           const nextY = posRef.current.y + (dy / distance) * moveDist;
 
-          // Check if path is blocked
+          // Check if path is strictly in white area (not blocked)
           if (!checkCollision(nextX, nextY, 24)) {
             posRef.current = { x: nextX, y: nextY };
             setFacingRight(dx > 0);
-            hopCycleRef.current += delta * 10;
+            hopCycleRef.current += delta * 9;
           } else {
-            // Blocked by obstacle -> pause and pick new target
+            // Blocked by obstacle or black zone -> pause and pick a new target
             stateRef.current = 'IDLE';
-            idleTimerRef.current = 1.0;
+            idleTimerRef.current = 0.8;
             setIsHopping(false);
             targetPosRef.current = null;
           }
