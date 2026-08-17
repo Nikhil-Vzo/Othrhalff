@@ -137,6 +137,30 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
     return () => clearInterval(interval);
   }, [isOpen]);
 
+  // Accessibility: Escape key listener and focus management
+  const loginButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Focus primary button when modal opens
+    const timer = setTimeout(() => {
+      loginButtonRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSignUp = () => {
@@ -145,11 +169,17 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/85 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* CSS for custom float animations */}
@@ -174,13 +204,14 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
       `}</style>
 
       {/* Glassmorphic Modal Card */}
-      <div className="relative w-full max-w-md bg-neutral-950/80 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_0_50px_rgba(255,0,127,0.15)] z-10 text-center">
+      <div className="relative w-full max-w-md bg-neutral-950/80 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_0_50px_rgba(255,0,127,0.15)] z-10 text-center animate-in fade-in zoom-in-95 duration-150">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white rounded-full hover:bg-white/5 transition-colors"
+          aria-label="Close dialog"
+          className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white rounded-full hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-neon/50"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         {/* Mascot Header */}
@@ -195,7 +226,7 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Dynamic ASCII Logo blowing a kiss */}
-        <div className="flex flex-col items-center justify-center mb-6 relative">
+        <div className="flex flex-col items-center justify-center mb-6 relative" aria-hidden="true">
           <div className="relative w-full max-w-[240px] flex items-center justify-center overflow-visible">
             <pre className="text-[2.2px] sm:text-[2.6px] leading-[1.0] text-[#ff007f] filter drop-shadow-[0_0_6px_rgba(255,0,127,0.5)] font-mono font-bold select-none whitespace-pre text-center">
               {getGhostFrame(frame)}
@@ -221,7 +252,7 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
 
         {/* Message */}
         <div className="space-y-3 mb-6">
-          <h2 className="text-lg sm:text-xl font-black tracking-tight text-white uppercase">
+          <h2 id="auth-modal-title" className="text-lg sm:text-xl font-black tracking-tight text-white uppercase">
             {message || "Signup to access other sections"}
           </h2>
           <p className="text-xs sm:text-sm text-neutral-400 font-medium leading-relaxed max-w-xs mx-auto">
@@ -232,14 +263,15 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
         {/* Action Buttons */}
         <div className="flex flex-col gap-3">
           <button
+            ref={loginButtonRef}
             onClick={handleSignUp}
-            className="w-full py-3 bg-neon text-white font-bold text-sm uppercase tracking-wider rounded-full hover:scale-[1.02] transition-transform shadow-[0_0_20px_rgba(255,0,127,0.4)] hover:shadow-[0_0_30px_rgba(255,0,127,0.6)]"
+            className="w-full py-3 bg-neon text-white font-bold text-sm uppercase tracking-wider rounded-full hover:scale-[1.02] transition-transform shadow-[0_0_20px_rgba(255,0,127,0.4)] hover:shadow-[0_0_30px_rgba(255,0,127,0.6)] focus:outline-none focus:ring-2 focus:ring-white/50"
           >
             Log In / Sign Up
           </button>
           <button
             onClick={onClose}
-            className="w-full py-3 bg-transparent text-gray-500 hover:text-gray-300 font-bold text-sm uppercase tracking-wider rounded-full border border-gray-800 hover:border-gray-700 transition-colors"
+            className="w-full py-3 bg-transparent text-gray-500 hover:text-gray-300 font-bold text-sm uppercase tracking-wider rounded-full border border-gray-800 hover:border-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-600"
           >
             Stay as Guest
           </button>
