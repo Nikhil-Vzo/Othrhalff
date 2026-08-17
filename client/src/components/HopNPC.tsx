@@ -164,10 +164,19 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
     }
   };
 
+  const bubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+    };
+  }, []);
+
   const handleHopClick = () => {
     const randomMsg = HOP_MESSAGES[Math.floor(Math.random() * HOP_MESSAGES.length)];
     setBubbleText(randomMsg);
-    setTimeout(() => setBubbleText(null), 3500);
+    if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+    bubbleTimeoutRef.current = setTimeout(() => setBubbleText(null), 3500);
 
     // Give a playful little jump
     targetPosRef.current = pickRandomWhiteAreaTarget();
