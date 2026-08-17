@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { AvatarSelectionModal } from '../components/AvatarSelectionModal';
-import { PlaygroundLofiPlayer } from '../components/PlaygroundLofiPlayer';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { MapPin, MapPinOff, Users, Smile, Send, Mic, MicOff, UserCheck } from 'lucide-react';
@@ -563,9 +562,6 @@ export const Playground: React.FC = () => {
           onCollisionCheckerReady={handleCollisionCheckerReady}
         />
       </div>
-
-      {/* Cozy Lofi Music Radio Player (lofi.town style) */}
-      <PlaygroundLofiPlayer />
 
       {/* Character Selection Modal */}
       {showAvatarSelector && (
