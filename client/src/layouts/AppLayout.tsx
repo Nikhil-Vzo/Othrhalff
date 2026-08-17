@@ -284,6 +284,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
