@@ -16,13 +16,10 @@ export interface Player {
 interface PlaygroundCanvasProps {
   localPlayerId: string;
   localSessionId: string;
-  onPositionChange: (x: number, y: number, dir: Direction, moving: boolean, sittingOn?: string | null) => void;
+  onPositionChange: (x: number, y: number, dir: Direction, moving: boolean) => void;
   remotePlayers: Player[];
   localPosition: { x: number; y: number };
   speechBubbles: Map<string, {text: string, timestamp: number}>;
-  sitState: 'IDLE' | 'SITTING';
-  activeBench: string | null;
-  onSitRequest: (benchId: string, benchX: number, benchY: number) => void;
   gpsEnabled?: boolean;
   avatarId?: string;
   onCollisionCheckerReady?: (checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => void;
@@ -31,21 +28,6 @@ interface PlaygroundCanvasProps {
 const POLICE_GUARDS = [
   { id: 'police-main-gate', x: 1280, y: 225, name: 'Campus Police 👮', warningText: 'Idhar Jana Allowed nahi hai!' },
   { id: 'police-east-stair', x: 2050, y: 310, name: 'Campus Guard 🚨', warningText: 'Idhar Jana Allowed nahi hai!' }
-];
-
-const BENCH_ZONES = [
-  // Diamond Plaza Benches
-  { id: 'bench-diamond-right', x: 1480, y: 700, radius: 150 },
-  { id: 'bench-diamond-left',  x: 600,  y: 700, radius: 150 },
-  { id: 'bench-diamond-top',   x: 1060, y: 280, radius: 150 },
-  { id: 'bench-diamond-bottom',x: 1060, y: 1120, radius: 150 },
-  
-  // Center & Outer Benches
-  { id: 'bench-plaza-c',       x: 1280, y: 700, radius: 150 },
-  { id: 'bench-top-left',      x: 1000, y: 200, radius: 150 },
-  { id: 'bench-top-right',     x: 1560, y: 200, radius: 150 },
-  { id: 'bench-bottom-left',   x: 1000, y: 1100, radius: 150 },
-  { id: 'bench-bottom-right',  x: 1560, y: 1100, radius: 150 }
 ];
 
 // ---------------------------------------------------------
@@ -61,9 +43,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   remotePlayers,
   localPosition,
   speechBubbles,
-  sitState,
-  activeBench,
-  onSitRequest,
   gpsEnabled = false,
   avatarId = 'default',
   onCollisionCheckerReady
@@ -77,8 +56,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   const posRef = useRef(localPosition);
   const [localDir, setLocalDir] = useState<Direction>('down');
   const [localIsMoving, setLocalIsMoving] = useState(false);
-  const [nearbyBench, setNearbyBench] = useState<typeof BENCH_ZONES[0] | null>(null);
-  const nearbyBenchRef = useRef<string | null>(null);
 
   const dirRef = useRef<Direction>('down');
   const movingRef = useRef(false);
@@ -90,42 +67,12 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
   const joystickKnobRef = useRef<HTMLDivElement>(null);
 
-  const activeBenchRef = useRef(activeBench);
-  const lastActiveBenchRef = useRef<string | null>(null);
-  
-  useEffect(() => { 
-    activeBenchRef.current = activeBench; 
-    if (activeBench) {
-      lastActiveBenchRef.current = activeBench;
-    }
-  }, [activeBench]);
-
   // COLLISION MASK ENGINE (Cached Uint8ClampedArray for instant zero-copy lookups)
   const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const collisionPixelsRef = useRef<Uint8ClampedArray | null>(null);
 
   const checkPixelCollision = useCallback((x: number, y: number, size: number = 32) => {
     if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
-
-    const benchCollisionRadius = 30;
-    for (const zone of BENCH_ZONES) {
-      if (zone.id === activeBenchRef.current) continue;
-      
-      const dx = x - zone.x;
-      const dy = y - (zone.y + 10);
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      // If stood up recently, allow walking out until clear
-      if (zone.id === lastActiveBenchRef.current) {
-        if (dist > benchCollisionRadius + 2) {
-          lastActiveBenchRef.current = null;
-        } else {
-          continue;
-        }
-      }
-
-      if (dist < benchCollisionRadius) return true;
-    }
 
     const guardCollisionRadius = 35;
     for (const guard of POLICE_GUARDS) {
@@ -207,35 +154,17 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     const speed = isMobile ? 1.6 : 1.0;
     const playerCollisionSize = 32;
 
-
     const handleKeyDown = (e: KeyboardEvent) => { 
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
       keys.current[e.key.toLowerCase()] = true; 
-
-      // Handle interaction key (SPACE) for benches
-      if (e.code === 'Space' && sitState === 'IDLE') {
-        e.preventDefault();
-        const nearZone = BENCH_ZONES.find(zone => {
-          const dx = posRef.current.x - zone.x;
-          const dy = posRef.current.y - zone.y;
-          return Math.sqrt(dx*dx + dy*dy) < zone.radius;
-        });
-        if (nearZone) {
-          keys.current = {};
-          posRef.current = { x: nearZone.x, y: nearZone.y - 10 };
-          onSitRequest(nearZone.id, nearZone.x, nearZone.y);
-        }
-      }
     };
     const handleKeyUp = (e: KeyboardEvent) => { 
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
       keys.current[e.key.toLowerCase()] = false; 
     };
-    
 
     // Mobile Virtual Floating Touch Joystick Handlers
     const handleTouchStart = (e: TouchEvent) => {
-      // Do not capture if tapping interactive buttons/modals
       if ((e.target as HTMLElement)?.closest('button, a, input, textarea')) return;
       if (e.touches.length > 0) {
         const touch = e.touches[0];
@@ -251,12 +180,11 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!touchOriginRef.current) return;
-      e.preventDefault(); // Prevent pull-to-refresh & screen dragging
+      e.preventDefault(); 
       if (e.touches.length > 0) {
         const touch = e.touches[0];
         touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
 
-        // Position Knob element directly via DOM transform for 120Hz/60Hz latency-free tracking
         const diffX = touch.clientX - touchOriginRef.current.x;
         const diffY = touch.clientY - touchOriginRef.current.y;
         const dist = Math.hypot(diffX, diffY);
@@ -296,13 +224,11 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       let dy = 0;
       let newDir = dirRef.current;
 
-      // Keyboard input
       if (keys.current['w'] || keys.current['arrowup']) { dy -= speed; }
       if (keys.current['s'] || keys.current['arrowdown']) { dy += speed; }
       if (keys.current['a'] || keys.current['arrowleft']) { dx -= speed; }
       if (keys.current['d'] || keys.current['arrowright']) { dx += speed; }
 
-      // Analog Virtual Floating Joystick input
       if (touchOriginRef.current && touchCurrentRef.current) {
         const diffX = touchCurrentRef.current.x - touchOriginRef.current.x;
         const diffY = touchCurrentRef.current.y - touchOriginRef.current.y;
@@ -317,7 +243,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         }
       }
 
-      // Determine direction (favor Y axis if angle is steep)
       if (dx !== 0 || dy !== 0) {
         if (Math.abs(dy) > Math.abs(dx)) {
           newDir = dy < 0 ? 'up' : 'down';
@@ -341,7 +266,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         let proposedX = posRef.current.x + dx;
         let proposedY = posRef.current.y + dy;
 
-        // WALL SLIDING LOGIC using Pixel Collisions
         if (!checkPixelCollision(proposedX, proposedY, playerCollisionSize)) {
           posRef.current = { x: proposedX, y: proposedY };
         } else if (dx !== 0 && !checkPixelCollision(posRef.current.x + dx, posRef.current.y, playerCollisionSize)) {
@@ -351,56 +275,29 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         }
       }
 
-      // CAMERA PANNING LOGIC
       if (viewportRef.current && worldRef.current) {
         const vw = viewportRef.current.clientWidth;
         const vh = viewportRef.current.clientHeight;
         const isMobileScreen = vw < 768;
         
-        // Find interaction target if one exists
-        const targetZone = activeBench ? BENCH_ZONES.find(z => z.id === activeBench) : null;
-        
         let targetX = posRef.current.x;
         let targetY = posRef.current.y;
-        // Zoom out map on phones for a wider, clearer view of the campus
         let zoom = isMobileScreen ? 1.05 : 1.5;
-        
-        if (targetZone && sitState === 'SITTING') {
-          targetX = targetZone.x;
-          targetY = targetZone.y;
-          zoom = isMobileScreen ? 1.6 : 2.4; // Zoom in during bench interaction
-        }
 
         const offsetX = (vw / 2) - (targetX * zoom);
         const offsetY = (vh / 2) - (targetY * zoom);
         
         worldRef.current.style.transformOrigin = '0 0';
-        worldRef.current.style.transition = sitState === 'SITTING' ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' : 'none';
         worldRef.current.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${zoom})`;
       }
 
-      // Keep local avatar sprite transform in sync in real-time
       if (localAvatarRef.current) {
         localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0) scale(0.6)`;
       }
 
-      // Check proximity to benches in real-time 60fps loop
-      const nearZone = BENCH_ZONES.find(zone => {
-        const dx = posRef.current.x - zone.x;
-        const dy = posRef.current.y - zone.y;
-        return Math.sqrt(dx * dx + dy * dy) < zone.radius;
-      });
-
-      const nearId = nearZone ? nearZone.id : null;
-      if (nearId !== nearbyBenchRef.current) {
-        nearbyBenchRef.current = nearId;
-        setNearbyBench(nearZone || null);
-      }
-
-      // Network broadcast: Instant (0ms) on start/stop/turn, 100ms continuous for smooth real-time sync
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
       if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 100))) {
-        onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving, activeBenchRef.current);
+        onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving);
         lastBroadcastTime = timestamp;
       }
 
@@ -416,10 +313,11 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         viewportNode.removeEventListener('touchstart', handleTouchStart);
         viewportNode.removeEventListener('touchmove', handleTouchMove);
         viewportNode.removeEventListener('touchend', handleTouchEnd);
+        viewportNode.removeEventListener('touchcancel', handleTouchEnd);
       }
       cancelAnimationFrame(animationFrameId);
     };
-  }, [onPositionChange, onSitRequest, sitState]);
+  }, [onPositionChange]);
 
   return (
     <div ref={viewportRef} className="relative w-full h-full bg-black overflow-hidden select-none">
@@ -438,42 +336,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
           willChange: 'transform'
         }}
       >
-
-        {/* Real-time Proximity Sit Prompt */}
-        {nearbyBench && sitState === 'IDLE' && (
-          <div className="absolute z-30 pointer-events-none" style={{ transform: `translate3d(${nearbyBench.x}px, ${nearbyBench.y - 35}px, 0)` }}>
-            <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-              <button 
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  keys.current = {};
-                  posRef.current = { x: nearbyBench.x, y: nearbyBench.y - 10 };
-                  onSitRequest(nearbyBench.id, nearbyBench.x, nearbyBench.y); 
-                }}
-                className="px-4 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-black rounded-full border-2 border-white/40 whitespace-nowrap shadow-[0_0_25px_rgba(236,72,153,0.8)] animate-bounce pointer-events-auto cursor-pointer hover:scale-105 active:scale-95 transition-all backdrop-blur-md flex items-center gap-1.5"
-              >
-                <span>🪑 Press SPACE or Click to Sit</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Stand Up Prompt when Sitting */}
-        {sitState === 'SITTING' && (
-          <div className="absolute z-30 pointer-events-none" style={{ transform: `translate3d(${posRef.current.x}px, ${posRef.current.y - 45}px, 0)` }}>
-            <div className="absolute -translate-x-1/2 -translate-y-1/2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPositionChange(posRef.current.x, posRef.current.y + 25, 'down', true, null);
-                }}
-                className="px-3.5 py-1 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold rounded-full border border-white/30 whitespace-nowrap shadow-xl pointer-events-auto cursor-pointer animate-pulse transition-transform active:scale-95"
-              >
-                🚶 Stand Up
-              </button>
-            </div>
-          </div>
-        )}
         
         {/* Campus Police NPCs */}
         {POLICE_GUARDS.map(guard => (
@@ -508,7 +370,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
                color={player.color}
                username={player.id.substring(0, 5)}
                speechBubble={canReadBubble ? bubble?.text : undefined}
-               isSitting={!!player.sittingOn}
                avatarId={player.avatarId || 'default'}
              />
            );
@@ -523,7 +384,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
            isMoving={localIsMoving}
            isLocal={true}
            speechBubble={speechBubbles.get(localSessionId)?.text}
-           isSitting={sitState === 'SITTING'}
            isGpsActive={gpsEnabled}
            avatarId={avatarId}
         />

@@ -42,8 +42,6 @@ export const Playground: React.FC = () => {
   const [speechBubbles, setSpeechBubbles] = useState<Map<string, {text: string, timestamp: number}>>(new Map());
   const [chatInput, setChatInput] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [sitState, setSitState] = useState<'IDLE' | 'SITTING'>('IDLE');
-  const [activeBench, setActiveBench] = useState<string | null>(null);
   
   const EMOJI_LIST = ['👍', '👋', '❤️', '🔥', '✨', '👀', '🎉', '😂', '💀'];
 
@@ -254,7 +252,7 @@ export const Playground: React.FC = () => {
 
   // Broadcast our position and animation state to the channel
   const broadcastPosition = useCallback(
-    (x: number, y: number, dir: string, moving: boolean, sittingOn: string | null = null) => {
+    (x: number, y: number, dir: string, moving: boolean) => {
       if (!currentUser || !activeChannel || activeChannel.state !== 'joined') return;
 
       activeChannel.send({
@@ -267,7 +265,6 @@ export const Playground: React.FC = () => {
           direction: dir,
           isMoving: moving,
           color: '#3b82f6',
-          sittingOn,
           avatarId: selectedAvatarRef.current
         }
       }).catch(() => {});
@@ -276,15 +273,9 @@ export const Playground: React.FC = () => {
   );
 
   // Callback from the Canvas when the local player moves using WASD
-  const handlePositionChange = useCallback((x: number, y: number, dir: string, moving: boolean, sittingOn: string | null = null) => {
+  const handlePositionChange = useCallback((x: number, y: number, dir: string, moving: boolean) => {
     setMyPos({ x, y });
-    if (moving && sitState === 'SITTING') {
-      // If they try to move while sitting, stand them up
-      setSitState('IDLE');
-      setActiveBench(null);
-      sittingOn = null;
-    }
-    broadcastPosition(x, y, dir, moving, sittingOn);
+    broadcastPosition(x, y, dir, moving);
 
     // Debounce Save to Dexie IndexedDB (saves 2s after movement stops, avoiding 20 writes/sec battery drain)
     if (currentUser?.id) {
@@ -299,7 +290,7 @@ export const Playground: React.FC = () => {
         }).catch(() => {});
       }, 2000);
     }
-  }, [broadcastPosition, sitState, currentUser?.id, gpsEnabled]);
+  }, [broadcastPosition, currentUser?.id, gpsEnabled]);
 
   const handleSendSpeechBubble = (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,30 +318,6 @@ export const Playground: React.FC = () => {
 
   const handleEmojiClick = (emoji: string) => {
     setChatInput(prev => prev + emoji);
-  };
-
-  const handleSitRequest = (benchId: string, benchX: number, benchY: number) => {
-    const occupants = Array.from(remotePlayers.values()).filter(p => p.sittingOn === benchId);
-    if (occupants.length >= 2) {
-      setErrorMsg("Bench is full!");
-      setTimeout(() => setErrorMsg(null), 3000);
-      return;
-    }
-
-    let seatX = benchX; // Center for single sitter
-    if (occupants.length === 1) {
-      seatX = occupants[0].x < benchX ? benchX + 16 : benchX - 16;
-    }
-
-    // Position the avatar center directly onto the bench seating plank
-    const seatY = benchY - 10;
-    
-    setSitState('SITTING');
-    setActiveBench(benchId);
-    setMyPos({ x: seatX, y: seatY });
-    
-    // Teleport local player to seat and broadcast sitting state
-    handlePositionChange(seatX, seatY, 'down', false, benchId);
   };
 
   // 2. Geolocation Sync Engine
@@ -591,9 +558,6 @@ export const Playground: React.FC = () => {
           remotePlayers={Array.from(remotePlayers.values())}
           localPosition={myPos}
           speechBubbles={speechBubbles}
-          sitState={sitState}
-          activeBench={activeBench}
-          onSitRequest={handleSitRequest}
           gpsEnabled={gpsEnabled}
           avatarId={selectedAvatar}
           onCollisionCheckerReady={handleCollisionCheckerReady}
@@ -610,7 +574,7 @@ export const Playground: React.FC = () => {
           onSelect={(avatarId) => {
             setSelectedAvatar(avatarId);
             selectedAvatarRef.current = avatarId;
-            broadcastPosition(myPos.x, myPos.y, 'down', false, sitState === 'SITTING' ? activeBench : null);
+            broadcastPosition(myPos.x, myPos.y, 'down', false);
           }}
           onClose={() => setShowAvatarSelector(false)}
           isInitialSelection={typeof window !== 'undefined' && !localStorage.getItem('playground_avatar_selected')}
