@@ -493,16 +493,25 @@ const ArtDirectedExperience: React.FC = () => {
             <SectionKicker index="03" title="PLAYGROUND / COLLEGE, MULTIPLAYER" />
             <h2 className="mt-7 font-geist text-[3.25rem] font-black leading-[.88] tracking-[-.075em] text-white sm:text-7xl lg:text-[5.45rem]">Meet between<br />the moments.</h2>
             <p className="mt-8 max-w-md text-base leading-relaxed text-white/62 sm:text-lg">A shared place for games, tiny collisions, and the people who are still around after the group chat goes quiet.</p>
-            <p className="mt-8 font-mono text-[10px] font-bold tracking-[.15em] text-[#F45D9B]">GAMEPLAY VISUAL COMING FROM YOUR ASSET SET</p>
+            <p className="mt-8 font-mono text-[10px] font-bold tracking-[.15em] text-[#F45D9B]">2D REALTIME CAMPUS MULTIPLAYER</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: .94, y: 26 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true, amount: .24 }} transition={{ duration: 1, ease: sceneEase }} className="relative mx-auto w-full max-w-[49rem]">
             <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-[#F45D9B]/25 via-transparent to-[#6d63ff]/22 blur-2xl" />
-            <div data-asset-slot="playground-gameplay" className="relative aspect-[16/10] overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#11101a] p-4 shadow-[0_35px_100px_rgba(0,0,0,.5)] sm:rounded-[2.35rem] sm:p-6">
-              <div className="absolute inset-0 opacity-55" style={{ backgroundImage: 'linear-gradient(45deg, transparent 48.5%, rgba(255,255,255,.07) 49%, rgba(255,255,255,.07) 51%, transparent 51.5%), linear-gradient(-45deg, transparent 48.5%, rgba(255,255,255,.035) 49%, rgba(255,255,255,.035) 51%, transparent 51.5%)', backgroundSize: '36px 36px' }} />
-              <div className="relative flex h-full flex-col justify-between rounded-[1.3rem] border border-dashed border-white/25 px-5 py-5 sm:rounded-[1.7rem] sm:px-8 sm:py-7">
-                <div className="flex items-center justify-between font-mono text-[9px] font-bold tracking-[.16em] text-white/42"><span>PLAYGROUND / ASSET BAY</span><span>16:10</span></div>
-                <div><p className="font-geist text-3xl font-black leading-[.88] tracking-[-.06em] text-white sm:text-5xl">Drop the game<br /><span className="text-[#F45D9B]">mockup here.</span></p><p className="mt-4 max-w-sm text-xs leading-relaxed text-white/45 sm:text-sm">This is the exact frame reserved for your Playground screen. No fake gameplay stands in for the real thing.</p></div>
-                <div className="flex items-center gap-2 font-mono text-[9px] font-bold tracking-[.14em] text-white/48"><span className="h-2 w-2 rounded-full bg-[#F45D9B] shadow-[0_0_14px_#F45D9B]" />READY FOR ARTWORK</div>
+            <div data-asset-slot="playground-gameplay" className="relative aspect-[16/10] overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#11101a] shadow-[0_35px_100px_rgba(0,0,0,.5)] sm:rounded-[2.35rem]">
+              <img 
+                src="/assets/playground_mockup.jpg" 
+                alt="Othrhalff 2D Campus Playground" 
+                className="h-full w-full object-cover object-center transition-transform duration-700 hover:scale-105" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
+                <span className="flex items-center gap-2 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full border border-white/15 text-[11px] font-mono font-semibold text-white/90">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Campus Playground
+                </span>
+                <span className="px-3 py-1 bg-pink-950/70 backdrop-blur-md rounded-full border border-pink-500/40 text-[10px] font-mono font-bold text-pink-300 uppercase tracking-wider">
+                  Multiplayer
+                </span>
               </div>
             </div>
           </motion.div>
