@@ -24,11 +24,16 @@ export const Playground: React.FC = () => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('playground_avatar');
-      if (saved) {
+      const validAvatars = ['M_01', 'M_02', 'F_01', 'F_02'];
+      if (saved && validAvatars.includes(saved)) {
         setSelectedAvatar(saved);
         selectedAvatarRef.current = saved;
       } else {
-        setShowAvatarSelector(true); // First-time prompt to select character
+        setSelectedAvatar('M_01');
+        selectedAvatarRef.current = 'M_01';
+        if (!saved) {
+          setShowAvatarSelector(true);
+        }
       }
     }
   }, []);
