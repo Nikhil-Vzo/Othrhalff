@@ -152,7 +152,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
     let animationFrameId: number;
     const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
-    const speed = isMobile ? 1.6 : 1.0;
+    const speed = isMobile ? 3.8 : 3.2;
     const playerCollisionSize = 32;
 
     const handleKeyDown = (e: KeyboardEvent) => { 

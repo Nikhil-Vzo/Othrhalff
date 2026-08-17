@@ -442,22 +442,8 @@ export const Playground: React.FC = () => {
       {/* Top HUD overlay — single row responsive glassmorphism command bar */}
       <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none gap-2">
         
-        {/* Left: User Profile & Online Count with subtle live pulse dot */}
+        {/* Left: Online Count with subtle live pulse dot */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <div 
-            className="w-9 h-9 rounded-full overflow-hidden border border-white/20 bg-gray-900 cursor-pointer shadow-lg hover:border-neon transition-colors shrink-0" 
-            onClick={() => window.location.href = '/profile'}
-            title="My Profile"
-          >
-            {currentUser.avatar ? (
-              <img src={currentUser.avatar} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                <span className="text-white text-xs font-bold">{currentUser.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>
-              </div>
-            )}
-          </div>
-
           <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/15 shadow-md">
             <span className={`w-2 h-2 rounded-full ${connectionStatus === 'SUBSCRIBED' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
             <Users size={14} className="text-gray-300" />
