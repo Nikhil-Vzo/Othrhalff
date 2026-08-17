@@ -295,7 +295,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       }
 
       if (localAvatarRef.current) {
-        localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0) scale(0.6)`;
+        localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
       }
 
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;

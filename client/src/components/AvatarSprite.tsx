@@ -176,7 +176,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       ref={spriteRef}
       className={`absolute ${isLocal ? 'z-20' : 'z-10'} flex flex-col items-center justify-center`}
       style={{ 
-        transform: `translate3d(${targetX}px, ${targetY}px, 0) scale(0.6)`,
+        transform: `translate3d(${targetX}px, ${targetY}px, 0)`,
         width: `${spriteWidth}px`,
         height: `${spriteHeight}px`,
         marginTop: `-${spriteHeight / 2}px`, 
