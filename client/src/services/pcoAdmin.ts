@@ -213,6 +213,16 @@ export async function submitPcoSongRequest(
       }
 
       if (data) {
+        // Broadcast to live DJ console in real-time
+        try {
+          supabase.channel('campus_pco_live_chat').send({
+            type: 'broadcast',
+            event: 'PCO_SONG_REQUEST',
+            payload: data
+          });
+        } catch (bErr) {
+          console.debug('[PCO Admin] Broadcast notice:', bErr);
+        }
         return { success: true, data: data as PcoSongRequest };
       }
     }
@@ -252,11 +262,20 @@ export async function fetchPcoRequests(
     }
 
     const { data, error } = await query;
-    if (!error && data) {
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('404') || error.code === 'PGRST204' || error.code === 'PGRST205') {
+        console.debug('[PCO Admin] pco_song_requests table not yet created in Supabase. Run scripts/pco_admin_schema.sql to enable.');
+      } else {
+        console.warn('[PCO Admin] Query error on pco_song_requests:', error.message);
+      }
+      return [];
+    }
+
+    if (data) {
       return data as PcoSongRequest[];
     }
   } catch (err) {
-    console.warn('[PCO Admin] Error querying pco_song_requests:', err);
+    console.debug('[PCO Admin] Error querying pco_song_requests:', err);
   }
 
   return [];
