@@ -125,10 +125,10 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
         className={`absolute ${isLocal ? 'z-20' : 'z-10'} flex flex-col items-center justify-center`}
         style={{ 
           transform: `translate3d(${targetX}px, ${targetY}px, 0)`,
-          width: '38px',
-          height: '42px',
-          marginTop: '-21px', 
-          marginLeft: '-19px',
+          width: '28px',
+          height: '30px',
+          marginTop: '-15px', 
+          marginLeft: '-14px',
           willChange: 'transform'
         }}
       >
@@ -138,23 +138,23 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
           style={{
             backgroundImage: `url('${imgPath}')`,
             backgroundPosition: `${bgX}px ${bgY}px`,
-            transform: 'scale(2.4)',
+            transform: 'scale(1.65)',
             transformOrigin: 'center center',
             imageRendering: 'pixelated',
           }}
         />
         
         {/* Drop Shadow */}
-        <div className="absolute bottom-0 w-7 h-2 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
+        <div className="absolute bottom-0 w-5 h-1.5 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
 
         {/* GPS Active Ping */}
         {isGpsActive && (
-          <div className="absolute bottom-1 w-10 h-5 border-2 border-cyan-400/80 rounded-[100%] animate-ping pointer-events-none -z-10 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
+          <div className="absolute bottom-1 w-8 h-4 border-2 border-cyan-400/80 rounded-[100%] animate-ping pointer-events-none -z-10 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
         )}
 
         {/* Speech Bubble */}
         {speechBubble && (
-          <div className="absolute -top-10 flex flex-col items-center pointer-events-none z-30 animate-bounce">
+          <div className="absolute -top-9 flex flex-col items-center pointer-events-none z-30 animate-bounce">
             <div className="bg-white text-black px-3 py-1.5 rounded-2xl text-xs font-bold max-w-[150px] text-center shadow-lg break-words border-2 border-gray-200">
               {speechBubble}
             </div>
