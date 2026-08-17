@@ -38,9 +38,10 @@ function guestConfessionFingerprint(userId, payload) {
     .digest('hex');
 }
 
-// Post Guest Confession API (uses Service Role Key to bypass RLS)
-router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
-  const fingerprint = guestConfessionFingerprint(req.userId, req.body);
+// Post Guest Confession API (uses Service Role Key to bypass RLS for unauthenticated visitors)
+router.post('/post-guest-confession', async (req, res) => {
+  const userId = req.userId || req.headers['x-forwarded-for'] || GUEST_PROXY_PROFILE_ID;
+  const fingerprint = guestConfessionFingerprint(userId, req.body);
   const responseCacheKey = `guest_confession:response:${fingerprint}`;
   const lockKey = `guest_confession:lock:${fingerprint}`;
   let lockAcquired = false;

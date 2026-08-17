@@ -391,6 +391,7 @@ export const Confessions: React.FC = () => {
 
     const handleReactionClick = (e: React.MouseEvent, id: string) => {
         if (!currentUser) {
+            setCustomAuthMessage("Signup to react to confessions");
             setShowAuthModal(true);
             return;
         }
@@ -560,6 +561,7 @@ export const Confessions: React.FC = () => {
                 if (timeDiff < 24 * 60 * 60 * 1000) {
                     const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - timeDiff) / (1000 * 60 * 60));
                     alert(`Guests can only post once a day. You can post again in ${hoursLeft} hours!`);
+                    setCustomAuthMessage("Signup for unlimited daily confessions");
                     setShowAuthModal(true);
                     return;
                 }
@@ -572,6 +574,7 @@ export const Confessions: React.FC = () => {
 
     const handlePollVote = async (confessionId: string, optionId: string) => {
         if (!currentUser) {
+            setCustomAuthMessage("Signup to vote in campus polls");
             setShowAuthModal(true);
             return;
         }
@@ -593,6 +596,7 @@ export const Confessions: React.FC = () => {
 
     const handleReaction = async (id: string, emoji: string) => {
         if (!currentUser) {
+            setCustomAuthMessage("Signup to react to confessions");
             setShowAuthModal(true);
             return;
         }
@@ -730,6 +734,7 @@ export const Confessions: React.FC = () => {
         const text = commentInputs[confessionId];
         if (!text?.trim()) return;
         if (!currentUser) {
+            setCustomAuthMessage("Signup to comment on confessions");
             setShowAuthModal(true);
             return;
         }
@@ -1043,6 +1048,13 @@ export const Confessions: React.FC = () => {
                                                     value={commentInputs[conf.id] || ''} 
                                                     onChange={e => setCommentInputs({ ...commentInputs, [conf.id]: e.target.value })} 
                                                     onKeyDown={e => e.key === 'Enter' && handleCommentSubmit(conf.id)} 
+                                                    onFocus={(e) => {
+                                                        if (!currentUser) {
+                                                            setCustomAuthMessage("Signup to comment on confessions");
+                                                            setShowAuthModal(true);
+                                                            e.currentTarget.blur();
+                                                        }
+                                                    }}
                                                     placeholder="Add anonymous comment..." 
                                                     className="flex-1 bg-gray-900/60 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 outline-none focus:border-gray-700" 
                                                 />

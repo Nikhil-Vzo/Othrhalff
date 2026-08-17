@@ -7,6 +7,7 @@ import { useAuth } from '../../../../src/context/AuthContext';
 import { campusList } from '../../../../src/seo/data/campuses';
 import { VideoPlayer } from '../../../../src/components/VideoPlayer';
 import { Confession } from '../../../../src/types';
+import { AuthPromptModal } from '../../../../src/components/AuthPromptModal';
 import { 
   Heart, MessageCircle, Share2, ArrowLeft, Send, 
   Sparkles, Check, MoreVertical, Copy, Loader2, School, Ghost, SmilePlus, Crown
@@ -46,6 +47,8 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
   const [activeReactionMenu, setActiveReactionMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [customAuthMessage, setCustomAuthMessage] = useState<string | undefined>(undefined);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -138,6 +141,11 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
   }, [confessionId, currentUser?.id]);
 
   const handleReaction = async (emoji: string) => {
+    if (!currentUser) {
+      setCustomAuthMessage("Signup to react to confessions");
+      setShowAuthModal(true);
+      return;
+    }
     if (!confession) return;
     setActiveReactionMenu(false);
 
@@ -179,6 +187,11 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
   };
 
   const handlePollVote = async (optionId: string) => {
+    if (!currentUser) {
+      setCustomAuthMessage("Signup to vote in campus polls");
+      setShowAuthModal(true);
+      return;
+    }
     if (!confession || !confession.pollOptions || confession.userVote) return;
 
     setConfession({
@@ -204,6 +217,11 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      setCustomAuthMessage("Signup to comment on confessions");
+      setShowAuthModal(true);
+      return;
+    }
     if (!newComment.trim() || !confession || submittingComment) return;
 
     setSubmittingComment(true);
@@ -537,6 +555,13 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
                 <input
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
+                  onFocus={(e) => {
+                    if (!currentUser) {
+                      setCustomAuthMessage("Signup to comment on confessions");
+                      setShowAuthModal(true);
+                      e.currentTarget.blur();
+                    }
+                  }}
                   placeholder="Comment anonymously..."
                   className="flex-1 bg-black border border-gray-800 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-gray-700"
                 />
@@ -565,6 +590,15 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
             <span>→</span>
           </Link>
         </div>
+
+        <AuthPromptModal
+          isOpen={showAuthModal}
+          onClose={() => {
+            setShowAuthModal(false);
+            setCustomAuthMessage(undefined);
+          }}
+          message={customAuthMessage}
+        />
       </div>
     </main>
   );
