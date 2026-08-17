@@ -33,7 +33,7 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
   const [facingRight, setFacingRight] = useState(true);
   const [isHopping, setIsHopping] = useState(false);
   const [bubbleText, setBubbleText] = useState<string | null>(null);
-  const [imageSrc, setImageSrc] = useState('/assets/hop.png');
+  const [imageSrc, setImageSrc] = useState('/assets/hop.gif');
   const [imageError, setImageError] = useState(false);
 
   const targetPosRef = useRef<{ x: number; y: number } | null>(null);
