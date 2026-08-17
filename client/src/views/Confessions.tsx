@@ -84,6 +84,19 @@ const parseUniversity = (univStr: string) => {
     };
 };
 
+const getGuestFingerprint = (): string => {
+    try {
+        let fp = localStorage.getItem('otherhalf_guest_fingerprint');
+        if (!fp) {
+            fp = 'g_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+            localStorage.setItem('otherhalf_guest_fingerprint', fp);
+        }
+        return fp;
+    } catch {
+        return 'g_client_' + Date.now();
+    }
+};
+
 export const Confessions: React.FC = () => {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
@@ -391,6 +404,7 @@ export const Confessions: React.FC = () => {
 
     const handleReactionClick = (e: React.MouseEvent, id: string) => {
         if (!currentUser) {
+            setCustomAuthMessage("Signup to react to confessions");
             setShowAuthModal(true);
             return;
         }
@@ -404,6 +418,15 @@ export const Confessions: React.FC = () => {
 
     const submitPost = async (college: string, branch: string) => {
         if (!supabase) return;
+
+        // Preserve full draft state in case of rate-limiting or network error
+        const draftBackup = {
+            text: newText,
+            image: newImage,
+            video: uploadedVideoUrl,
+            isPoll: isPollMode,
+            pollOptions: [...pollOptions]
+        };
 
         setIsPosting(true);
 
@@ -430,7 +453,7 @@ export const Confessions: React.FC = () => {
             return updated;
         });
 
-        // Reset inputs immediately
+        // Clear inputs optimistically
         setNewText(''); setNewImage(null); setUploadedVideoUrl(null); setIsPollMode(false); setPollOptions(['', '']);
 
         try {
@@ -448,6 +471,12 @@ export const Confessions: React.FC = () => {
                 if (totalPosts >= 3) {
                     alert("Daily limit reached (3 posts)!");
                     setConfessions(prev => prev.filter(p => p.id !== optimisticId));
+                    // Restore draft so text isn't lost
+                    setNewText(draftBackup.text);
+                    setNewImage(draftBackup.image);
+                    setUploadedVideoUrl(draftBackup.video);
+                    setIsPollMode(draftBackup.isPoll);
+                    setPollOptions(draftBackup.pollOptions);
                     setIsPosting(false);
                     return;
                 }
@@ -461,6 +490,14 @@ export const Confessions: React.FC = () => {
                         const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - timeDiff) / (1000 * 60 * 60));
                         alert(`Guests can only post once a day. You can post again in ${hoursLeft} hours!`);
                         setConfessions(prev => prev.filter(p => p.id !== optimisticId));
+                        // Restore draft so text isn't lost
+                        setNewText(draftBackup.text);
+                        setNewImage(draftBackup.image);
+                        setUploadedVideoUrl(draftBackup.video);
+                        setIsPollMode(draftBackup.isPoll);
+                        setPollOptions(draftBackup.pollOptions);
+                        setCustomAuthMessage("Signup for unlimited daily confessions");
+                        setShowAuthModal(true);
                         setIsPosting(false);
                         return;
                     }
@@ -500,6 +537,7 @@ export const Confessions: React.FC = () => {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'x-guest-fingerprint': getGuestFingerprint(),
                         ...(guestToken ? { 'Authorization': `Bearer ${guestToken}` } : {})
                     },
                     body: JSON.stringify({
@@ -535,10 +573,15 @@ export const Confessions: React.FC = () => {
                 return updated;
             });
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('Post error:', err);
-            alert('Failed to post.');
-            // Revert state and cache
+            alert(err?.message || 'Failed to post.');
+            // Revert state and cache, restore draft
+            setNewText(draftBackup.text);
+            setNewImage(draftBackup.image);
+            setUploadedVideoUrl(draftBackup.video);
+            setIsPollMode(draftBackup.isPoll);
+            setPollOptions(draftBackup.pollOptions);
             setConfessions(prev => {
                 const reverted = prev.filter(p => p.id !== optimisticId);
                 writeCache(feedMode, reverted);
@@ -560,6 +603,7 @@ export const Confessions: React.FC = () => {
                 if (timeDiff < 24 * 60 * 60 * 1000) {
                     const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - timeDiff) / (1000 * 60 * 60));
                     alert(`Guests can only post once a day. You can post again in ${hoursLeft} hours!`);
+                    setCustomAuthMessage("Signup for unlimited daily confessions");
                     setShowAuthModal(true);
                     return;
                 }
@@ -572,6 +616,7 @@ export const Confessions: React.FC = () => {
 
     const handlePollVote = async (confessionId: string, optionId: string) => {
         if (!currentUser) {
+            setCustomAuthMessage("Signup to vote in campus polls");
             setShowAuthModal(true);
             return;
         }
@@ -593,6 +638,7 @@ export const Confessions: React.FC = () => {
 
     const handleReaction = async (id: string, emoji: string) => {
         if (!currentUser) {
+            setCustomAuthMessage("Signup to react to confessions");
             setShowAuthModal(true);
             return;
         }
@@ -670,7 +716,10 @@ export const Confessions: React.FC = () => {
             // Step 1: Request signed upload token from backend (bypasses RLS for all users)
             const signRes = await fetch(`${apiUrl}/api/sign-media-upload`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-guest-fingerprint': getGuestFingerprint()
+                },
                 body: JSON.stringify({ fileExt })
             });
 
@@ -730,6 +779,7 @@ export const Confessions: React.FC = () => {
         const text = commentInputs[confessionId];
         if (!text?.trim()) return;
         if (!currentUser) {
+            setCustomAuthMessage("Signup to comment on confessions");
             setShowAuthModal(true);
             return;
         }
@@ -1043,6 +1093,13 @@ export const Confessions: React.FC = () => {
                                                     value={commentInputs[conf.id] || ''} 
                                                     onChange={e => setCommentInputs({ ...commentInputs, [conf.id]: e.target.value })} 
                                                     onKeyDown={e => e.key === 'Enter' && handleCommentSubmit(conf.id)} 
+                                                    onFocus={(e) => {
+                                                        if (!currentUser) {
+                                                            setCustomAuthMessage("Signup to comment on confessions");
+                                                            setShowAuthModal(true);
+                                                            e.currentTarget.blur();
+                                                        }
+                                                    }}
                                                     placeholder="Add anonymous comment..." 
                                                     className="flex-1 bg-gray-900/60 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 outline-none focus:border-gray-700" 
                                                 />

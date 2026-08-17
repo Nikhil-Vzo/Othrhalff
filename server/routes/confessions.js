@@ -20,12 +20,30 @@ function normalizePollOptions(pollOptions) {
   return pollOptions.map(option => String(option).trim()).filter(Boolean);
 }
 
-function guestConfessionFingerprint(userId, payload) {
+/**
+ * Extract a robust composite client fingerprint (IP + Client Token / Fingerprint + User-Agent)
+ * to avoid blocking entire dorms/campuses sharing a single NAT gateway.
+ */
+function getCompositeClientIdentifier(req) {
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1')
+    .split(',')[0]
+    .trim();
+  const guestHeader = req.headers['x-guest-fingerprint'] || req.headers['x-client-fingerprint'] || '';
+  const userAgent = req.headers['user-agent'] || '';
+  
+  return crypto
+    .createHash('sha256')
+    .update(`${clientIp}:${guestHeader}:${userAgent}`)
+    .digest('hex')
+    .substring(0, 32);
+}
+
+function guestConfessionFingerprint(clientId, payload) {
   const normalizedPayload = {
-    userId,
-    college: String(payload.college || '').trim(),
-    branch: String(payload.branch || '').trim(),
-    text: String(payload.text || '').trim(),
+    clientId,
+    college: String(payload.college || '').trim().substring(0, 100),
+    branch: String(payload.branch || '').trim().substring(0, 100),
+    text: String(payload.text || '').trim().substring(0, 2000),
     imageUrl: String(payload.imageUrl || '').trim(),
     videoUrl: String(payload.videoUrl || '').trim(),
     type: String(payload.type || '').trim(),
@@ -38,9 +56,10 @@ function guestConfessionFingerprint(userId, payload) {
     .digest('hex');
 }
 
-// Post Guest Confession API (uses Service Role Key to bypass RLS)
-router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
-  const fingerprint = guestConfessionFingerprint(req.userId, req.body);
+// Post Guest Confession API (Strictly allow-listed payload, bypasses RLS safely)
+router.post('/post-guest-confession', async (req, res) => {
+  const compositeId = getCompositeClientIdentifier(req);
+  const fingerprint = guestConfessionFingerprint(compositeId, req.body);
   const responseCacheKey = `guest_confession:response:${fingerprint}`;
   const lockKey = `guest_confession:lock:${fingerprint}`;
   let lockAcquired = false;
@@ -59,15 +78,37 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
       });
     }
 
-    const { college, branch, text, imageUrl, videoUrl, type, pollOptions } = req.body;
+    // 1. Strict Payload Sanitization & Allow-listing (No raw body spread)
+    const rawText = String(req.body.text || '').trim();
+    if (!rawText && !req.body.imageUrl && !req.body.videoUrl) {
+      return res.status(400).json({ error: 'Confession content cannot be empty' });
+    }
+    if (rawText.length > 2500) {
+      return res.status(400).json({ error: 'Confession text exceeds 2500 characters limit' });
+    }
 
-    // Strict media URL validation for security
-    const mediaUrl = videoUrl || imageUrl;
-    if (mediaUrl) {
+    const sanitizedCollege = String(req.body.college || 'Guest').replace(/[\r\n\t]/g, '').trim().substring(0, 100);
+    const sanitizedBranch = String(req.body.branch || 'General').replace(/[\r\n\t]/g, '').trim().substring(0, 100);
+    
+    // Type allow-listing
+    const rawType = String(req.body.type || 'text').toLowerCase();
+    const allowedTypes = ['text', 'poll', 'video'];
+    let finalType = allowedTypes.includes(rawType) ? rawType : 'text';
+
+    // 2. Strict media URL validation for security (Supabase storage only)
+    const rawMedia = req.body.videoUrl || req.body.imageUrl;
+    let validatedMediaUrl = null;
+    if (rawMedia) {
       try {
-        const parsed = new URL(mediaUrl);
-        if (!parsed.hostname.endsWith('supabase.co') || !parsed.pathname.includes('/storage/v1/object/public/')) {
-          return res.status(400).json({ error: 'Invalid media host URL' });
+        const parsed = new URL(String(rawMedia));
+        if (
+          parsed.hostname.endsWith('supabase.co') &&
+          parsed.pathname.includes('/storage/v1/object/public/confession-media/')
+        ) {
+          validatedMediaUrl = parsed.toString();
+          if (req.body.videoUrl) finalType = 'video';
+        } else {
+          return res.status(400).json({ error: 'Invalid or unauthorized media storage URL' });
         }
       } catch (e) {
         return res.status(400).json({ error: 'Malformed media URL' });
@@ -83,29 +124,33 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Attribute the guest confession to the shared proxy guest profile
-    const finalType = videoUrl ? 'video' : (type || 'text');
+    // 3. Explicitly construct Database record (immune to object injection)
+    const dbPayload = {
+      user_id: GUEST_PROXY_PROFILE_ID,
+      university: `${sanitizedCollege}|${sanitizedBranch}`,
+      text: rawText,
+      image_url: validatedMediaUrl,
+      type: finalType
+    };
+
     const { data: post, error } = await supabase
       .from('confessions')
-      .insert({
-        user_id: GUEST_PROXY_PROFILE_ID,
-        university: `${college}|${branch}`,
-        text: text,
-        image_url: mediaUrl || null,
-        type: finalType
-      })
+      .insert(dbPayload)
       .select().single();
 
     if (error) throw error;
 
-    // Handle nested poll options if creating a poll confession
-    if (type === 'poll' && post) {
-      const optionsToInsert = normalizePollOptions(pollOptions).map(optText => ({
-        confession_id: post.id,
-        text: optText
-      }));
-      if (optionsToInsert.length > 0) {
-        const { error: pollError } = await supabase.from('poll_options').insert(optionsToInsert);
+    // 4. Handle nested poll options if poll type
+    if (finalType === 'poll' && post && Array.isArray(req.body.pollOptions)) {
+      const sanitizedOptions = normalizePollOptions(req.body.pollOptions)
+        .slice(0, 4) // Max 4 poll choices
+        .map(optText => ({
+          confession_id: post.id,
+          text: optText.substring(0, 100)
+        }));
+
+      if (sanitizedOptions.length >= 2) {
+        const { error: pollError } = await supabase.from('poll_options').insert(sanitizedOptions);
         if (pollError) {
           await supabase.from('confessions').delete().eq('id', post.id).catch(delErr => {
             console.error('Failed to clean up confession after poll option insert failure:', delErr);
@@ -138,9 +183,23 @@ router.post('/post-guest-confession', verifySupabaseToken, async (req, res) => {
   }
 });
 
-// Sign Media Upload URL endpoint (allows guests and users to upload media directly to Supabase storage bypassing RLS)
+// Sign Media Upload URL endpoint with rate-limiting and validation
 router.post('/sign-media-upload', async (req, res) => {
   try {
+    // Media Upload Rate Limiting (Max 10 uploads per 10 minutes per client)
+    const compositeId = getCompositeClientIdentifier(req);
+    const mediaRateLimitKey = `rate_limit:media_sign:${compositeId}`;
+    const currentUploads = await cacheGet(mediaRateLimitKey);
+
+    if (currentUploads && currentUploads.count >= 10) {
+      return res.status(429).json({
+        error: 'Too many media upload requests. Please wait a few minutes before trying again.'
+      });
+    }
+
+    const newCount = (currentUploads?.count || 0) + 1;
+    await cacheSet(mediaRateLimitKey, { count: newCount }, 600); // 10 min window
+
     const { fileExt } = req.body;
     const ext = String(fileExt || 'mp4').toLowerCase().replace(/^\./, '');
     const allowedExts = ['mp4', 'webm', 'mov', 'png', 'jpg', 'jpeg', 'webp'];
@@ -158,7 +217,7 @@ router.post('/sign-media-upload', async (req, res) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const folder = ['mp4', 'webm', 'mov'].includes(ext) ? 'videos' : 'images';
-    const filePath = `${folder}/${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
+    const filePath = `${folder}/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${ext}`;
 
     const { data, error } = await supabase.storage.from('confession-media').createSignedUploadUrl(filePath);
     if (error) throw error;

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { campusList } from '../../../src/seo/data/campuses';
-import CampusPageClient from './client';
+import CampusTeaClient from './CampusTeaClient';
 
 interface Props {
   params: { campus: string };
@@ -17,25 +17,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!campus) {
     return {
       title: 'Campus Not Found | Othrhalff',
-      description: 'The requested campus dating and confession community could not be found.',
+      description: 'The requested campus confession tea hub could not be found.',
     };
   }
 
-  const title = `Othrhalff ${campus.name} – Campus Speed Dating & Anonymous Confessions`;
-  const description = `The exclusive speed dating and anonymous confession app for verified ${campus.name} students in ${campus.location}. Match 1-on-1 with campus peers via text & HD video. Join ${campus.studentsCount} students.`;
+  const title = `Anonymous Campus Confessions & Tea – ${campus.name} | Othrhalff`;
+  const description = `Read the latest unfiltered campus tea, crushes, gossip, and confessions from verified ${campus.name} students in ${campus.location}. Join the discussion on Othrhalff.`;
 
   return {
     title,
     description,
     alternates: {
-      canonical: `https://www.othrhalff.in/campus/${campus.slug}`,
+      canonical: `https://www.othrhalff.in/tea/${campus.slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `https://www.othrhalff.in/campus/${campus.slug}`,
+      url: `https://www.othrhalff.in/tea/${campus.slug}`,
       type: 'website',
-      images: [{ url: 'https://www.othrhalff.in/og-image.png', width: 1200, height: 630, alt: `${campus.name} Dating & Confessions` }],
+      images: [{ url: 'https://www.othrhalff.in/og-image.png', width: 1200, height: 630, alt: `${campus.name} Campus Tea` }],
     },
     twitter: {
       card: 'summary_large_image',
@@ -58,10 +58,10 @@ export default function Page({ params }: Props) {
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: `Othrhalff ${campus.name} Campus Hub`,
-    description: `Speed dating, 1-on-1 video chats, and anonymous confessions for ${campus.name} students.`,
-    url: `https://www.othrhalff.in/campus/${campus.slug}`,
+    '@type': 'CollectionPage',
+    name: `${campus.name} Anonymous Campus Confessions & Tea`,
+    description: `Unfiltered anonymous confessions, student discussions, and campus tea for ${campus.name}.`,
+    url: `https://www.othrhalff.in/tea/${campus.slug}`,
     about: {
       '@type': 'CollegeOrUniversity',
       name: campus.name,
@@ -78,7 +78,7 @@ export default function Page({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CampusPageClient campusSlug={campus.slug} />
+      <CampusTeaClient campusSlug={campus.slug} />
     </>
   );
 }
