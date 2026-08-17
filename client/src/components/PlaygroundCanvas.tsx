@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { AvatarSprite, Direction } from './AvatarSprite';
 import { PoliceNPC } from './PoliceNPC';
+import { HopNPC } from './HopNPC';
 
 export interface Player {
   id: string;
@@ -337,6 +338,13 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         }}
       >
         
+        {/* Autonomous Roaming Hop Pet (wonders within the white walkable area) */}
+        <HopNPC
+          checkCollision={checkPixelCollision}
+          playerX={posRef.current.x}
+          playerY={posRef.current.y}
+        />
+
         {/* Campus Police NPCs */}
         {POLICE_GUARDS.map(guard => (
           <PoliceNPC
