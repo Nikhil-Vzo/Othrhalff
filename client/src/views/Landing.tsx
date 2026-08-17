@@ -354,6 +354,7 @@ const conversationStages = [
     body: 'The tiny proof that somebody is there — exactly when they are there.',
     features: ['Real-time messages', 'Typing indicator', 'Sent + read status', 'Reactions', 'Online + last seen'],
     slot: 'chat-conversation-system',
+    image: '/assets/chat_thread_mockup.png',
     tone: 'bg-[#f4cadb] text-[#160914]',
     frame: 'border-[#160914]/25 bg-[#180a15] text-white',
     accent: 'text-[#c72066]',
@@ -365,6 +366,7 @@ const conversationStages = [
     body: 'The best conversations are allowed to be a little strange from the beginning.',
     features: ['2 Truths & a Lie', 'Would You Rather', 'A game when words stall'],
     slot: 'chat-games-system',
+    image: undefined,
     tone: 'bg-[#d9d2ff] text-[#130d28]',
     frame: 'border-[#130d28]/25 bg-[#17102c] text-white',
     accent: 'text-[#7657ed]',
@@ -376,13 +378,25 @@ const conversationStages = [
     body: 'A call, a private room, a shared film, the first move that does not feel like a performance.',
     features: ['Audio + video call', 'Private virtual date invite', 'Cinema invite', 'Music invite'],
     slot: 'chat-together-system',
+    image: undefined,
     tone: 'bg-[#17111b] text-[#fff8ee]',
     frame: 'border-white/20 bg-[#f1e8d8] text-[#1b1118]',
     accent: 'text-[#f45d9b]',
   },
 ] as const;
 
-const ConversationStage: React.FC<(typeof conversationStages)[number]> = ({ number, label, title, body, features, slot, tone, frame, accent }) => (
+const ConversationStage: React.FC<{
+  number: string;
+  label: string;
+  title: React.ReactNode;
+  body: string;
+  features: readonly string[];
+  slot: string;
+  image?: string;
+  tone: string;
+  frame: string;
+  accent: string;
+}> = ({ number, label, title, body, features, slot, image, tone, frame, accent }) => (
   <motion.article
     initial={{ opacity: 0, y: 54, rotate: -1.5 }}
     whileInView={{ opacity: 1, y: 0, rotate: 0 }}
@@ -403,13 +417,34 @@ const ConversationStage: React.FC<(typeof conversationStages)[number]> = ({ numb
           {features.map((feature) => <li key={feature} className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-current" />{feature}</li>)}
         </ul>
       </div>
-      <div data-asset-slot={slot} className={`relative aspect-[5/4] overflow-hidden border p-4 sm:p-6 ${frame}`}>
-        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(135deg, transparent 49.5%, currentColor 50%, transparent 50.5%)', backgroundSize: '30px 30px' }} />
-        <div className="relative flex h-full flex-col justify-between border border-current/20 p-4 sm:p-6">
-          <div className="flex justify-between font-mono text-[9px] font-bold tracking-[.15em] opacity-50"><span>PRODUCT IMAGE</span><span>{number} / 03</span></div>
-          <div><span className={`font-geist text-4xl font-black tracking-[-.08em] sm:text-6xl ${accent}`}>OH</span><p className="mt-3 max-w-[14rem] text-xs leading-relaxed opacity-55">Reserved for the real product screen you provide.</p></div>
-          <span className="font-mono text-[8px] font-bold tracking-[.16em] opacity-50">IMAGE SLOT / NO FAKE UI</span>
-        </div>
+      <div data-asset-slot={slot} className={`relative aspect-[5/4] overflow-hidden border ${image ? 'p-0' : 'p-4 sm:p-6'} ${frame}`}>
+        {image ? (
+          <div className="relative h-full w-full overflow-hidden bg-black flex items-center justify-center">
+            <img 
+              src={image} 
+              alt={label} 
+              className="h-full w-full object-cover object-center transition-transform duration-700 hover:scale-105" 
+            />
+            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+              <span className="flex items-center gap-2 px-2.5 py-1 bg-black/80 backdrop-blur-md rounded-full border border-white/15 text-[10px] font-mono font-medium text-white/90">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F45D9B] animate-pulse" />
+                Live Chat
+              </span>
+              <span className="px-2.5 py-1 bg-purple-950/80 backdrop-blur-md rounded-full border border-purple-400/30 text-[9px] font-mono font-bold text-purple-300 uppercase tracking-wider">
+                Encrypted
+              </span>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(135deg, transparent 49.5%, currentColor 50%, transparent 50.5%)', backgroundSize: '30px 30px' }} />
+            <div className="relative flex h-full flex-col justify-between border border-current/20 p-4 sm:p-6">
+              <div className="flex justify-between font-mono text-[9px] font-bold tracking-[.15em] opacity-50"><span>PRODUCT IMAGE</span><span>{number} / 03</span></div>
+              <div><span className={`font-geist text-4xl font-black tracking-[-.08em] sm:text-6xl ${accent}`}>OH</span><p className="mt-3 max-w-[14rem] text-xs leading-relaxed opacity-55">Reserved for the real product screen you provide.</p></div>
+              <span className="font-mono text-[8px] font-bold tracking-[.16em] opacity-50">IMAGE SLOT / NO FAKE UI</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   </motion.article>
