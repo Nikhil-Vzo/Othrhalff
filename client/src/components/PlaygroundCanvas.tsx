@@ -5,6 +5,7 @@ import { HopNPC } from './HopNPC';
 
 export interface Player {
   id: string;
+  userId?: string;
   x: number;
   y: number;
   color: string;
@@ -12,6 +13,7 @@ export interface Player {
   isMoving?: boolean;
   sittingOn?: string | null;
   avatarId?: string;
+  lastSeen?: number;
 }
 
 interface PlaygroundCanvasProps {
@@ -373,8 +375,10 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
           />
         ))}
 
-        {/* Remote Players */}
-        {remotePlayers.map((player) => {
+        {/* Remote Players (Excludes local player's current or previous sessions) */}
+        {remotePlayers
+          .filter(p => p.id !== localSessionId && (!p.userId || p.userId !== localPlayerId))
+          .map((player) => {
            // Calculate distance
            const dx = player.x - posRef.current.x;
            const dy = player.y - posRef.current.y;

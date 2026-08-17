@@ -176,6 +176,27 @@ export const Playground: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentUser?.id]);
 
+  // Periodic cleanup for stale remote players (sweeps disconnected players every 2s)
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      setRemotePlayers(prev => {
+        if (prev.size === 0) return prev;
+        const now = Date.now();
+        let changed = false;
+        const updated = new Map(prev);
+        updated.forEach((player, id) => {
+          if (player.lastSeen && now - player.lastSeen > 6000) {
+            updated.delete(id);
+            changed = true;
+          }
+        });
+        return changed ? updated : prev;
+      });
+    }, 2000);
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
   // 1. Supabase Broadcast Setup for Real-time Multiplayer
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -187,18 +208,50 @@ export const Playground: React.FC = () => {
     const channel = supabase.channel('playground-global');
 
     channel.on('broadcast', { event: 'move' }, ({ payload }) => {
+      if (!payload || payload.id === sessionId || (payload.userId && payload.userId === currentUser.id)) {
+        return;
+      }
+
       setRemotePlayers(prev => {
         const newMap = new Map(prev);
+
+        // Remove any existing stale session from the same user
+        if (payload.userId) {
+          newMap.forEach((p, existingId) => {
+            if (p.userId === payload.userId && existingId !== payload.id) {
+              newMap.delete(existingId);
+            }
+          });
+        }
+
         newMap.set(payload.id, {
           id: payload.id,
+          userId: payload.userId,
           x: payload.x,
           y: payload.y,
           direction: payload.direction || 'down',
           isMoving: payload.isMoving || false,
           color: payload.color || '#3b82f6',
           sittingOn: payload.sittingOn || null,
-          avatarId: payload.avatarId || 'default'
+          avatarId: payload.avatarId || 'default',
+          lastSeen: Date.now()
         });
+        return newMap;
+      });
+    });
+
+    // Handle Explicit Player Leave Broadcast
+    channel.on('broadcast', { event: 'player_leave' }, ({ payload }) => {
+      setRemotePlayers(prev => {
+        const newMap = new Map(prev);
+        if (payload?.id) newMap.delete(payload.id);
+        if (payload?.userId) {
+          newMap.forEach((p, existingId) => {
+            if (p.userId === payload.userId) {
+              newMap.delete(existingId);
+            }
+          });
+        }
         return newMap;
       });
     });
@@ -218,11 +271,23 @@ export const Playground: React.FC = () => {
       });
     });
 
-    channel.on('presence', { event: 'leave' }, ({ key }) => {
+    channel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
       if (!isSubscribed) return;
       setRemotePlayers(prev => {
         const newMap = new Map(prev);
         newMap.delete(key);
+        if (leftPresences && Array.isArray(leftPresences)) {
+          leftPresences.forEach((presence: any) => {
+            if (presence?.id) newMap.delete(presence.id);
+            if (presence?.user_id) {
+              newMap.forEach((p, existingId) => {
+                if (p.userId === presence.user_id) {
+                  newMap.delete(existingId);
+                }
+              });
+            }
+          });
+        }
         return newMap;
       });
     });
@@ -247,7 +312,26 @@ export const Playground: React.FC = () => {
       }
     });
 
+    const handleLeave = () => {
+      try {
+        channel.send({
+          type: 'broadcast',
+          event: 'player_leave',
+          payload: { id: sessionId, userId: currentUser.id }
+        });
+        channel.untrack();
+      } catch {}
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', handleLeave);
+    }
+
     return () => {
+      handleLeave();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('beforeunload', handleLeave);
+      }
       isSubscribed = false;
       setActiveChannel(null);
       supabase.removeChannel(channel);
@@ -264,6 +348,7 @@ export const Playground: React.FC = () => {
         event: 'move',
         payload: {
           id: sessionId,
+          userId: currentUser.id,
           x,
           y,
           direction: dir,
