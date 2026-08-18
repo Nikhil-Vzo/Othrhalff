@@ -3,9 +3,12 @@ const mockEq = jest.fn(() => ({ maybeSingle: mockMaybeSingle }));
 const mockSelect = jest.fn(() => ({ eq: mockEq }));
 const mockFrom = jest.fn(() => ({ select: mockSelect }));
 
+const mockRpc = jest.fn();
+
 jest.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: () => mockFrom(),
+    rpc: (...args: any[]) => mockRpc(...args),
     channel: () => ({
       send: jest.fn(),
       on: jest.fn().mockReturnThis(),
@@ -21,7 +24,8 @@ import {
   updatePcoRadioState,
   setManualRadioOverride,
   returnToAutoRadioSchedule,
-  updateRadioQueue
+  updateRadioQueue,
+  getServerTimeMs
 } from '../../src/services/pcoAdmin';
 import { curatedRomanticTracks } from '../../src/data/pcoRomanticTracks';
 
@@ -137,6 +141,25 @@ describe('Campus PCO Radio Deterministic Scheduler & Admin Service', () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: { code: '42P01', message: 'relation does not exist' } });
       const state = await fetchPcoRadioState('Campus_PCO_247');
       expect(state).toBeNull();
+    });
+
+    test('getServerTimeMs retrieves server timestamp from Supabase RPC to prevent clock skew', async () => {
+      const serverTime = 1789000000000;
+      mockRpc.mockResolvedValue({ data: serverTime, error: null });
+
+      const time = await getServerTimeMs();
+      expect(time).toBe(serverTime);
+      expect(mockRpc).toHaveBeenCalledWith('get_server_time_ms');
+    });
+
+    test('getServerTimeMs falls back to Date.now() if RPC fails', async () => {
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'function not found' } });
+      const before = Date.now();
+      const time = await getServerTimeMs();
+      const after = Date.now();
+
+      expect(time).toBeGreaterThanOrEqual(before);
+      expect(time).toBeLessThanOrEqual(after);
     });
   });
 });

@@ -27,7 +27,13 @@ export const CampusPcoRadio: React.FC = () => {
   const router = useRouter();
   const { currentUser } = useAuth();
 
-  // 1. Audio Sync Hook
+  // 1. Admin & Presence State
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [listenerCount, setListenerCount] = useState<number>(1);
+  const [dailyRequestsUsed, setDailyRequestsUsed] = useState<number>(0);
+  const [pinnedBanner, setPinnedBanner] = useState<{ text: string; expiresAt: number } | null>(null);
+
+  // 2. Audio Sync Hook (with admin mutation privileges passed down)
   const {
     currentTrack,
     currentTime,
@@ -50,13 +56,7 @@ export const CampusPcoRadio: React.FC = () => {
     setCurrentTrack,
     setIsPlaying,
     setCurrentTime
-  } = usePcoRadioSync();
-
-  // 2. Admin & Presence State
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [listenerCount, setListenerCount] = useState<number>(1);
-  const [dailyRequestsUsed, setDailyRequestsUsed] = useState<number>(0);
-  const [pinnedBanner, setPinnedBanner] = useState<{ text: string; expiresAt: number } | null>(null);
+  } = usePcoRadioSync({ roomId: 'Campus_PCO_247', isAdmin });
 
   // 3. UI Panels & Drawers
   const [isLyricsOpen, setIsLyricsOpen] = useState(false);

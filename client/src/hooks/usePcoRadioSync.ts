@@ -15,6 +15,7 @@ export interface UsePcoRadioSyncOptions {
   onTrackChange?: (track: PcoTrack) => void;
   onTrackEnded?: () => void;
   roomId?: string;
+  isAdmin?: boolean;
 }
 
 export interface UsePcoRadioSyncReturn {
@@ -46,8 +47,9 @@ export interface UsePcoRadioSyncReturn {
  * High-performance, authoritative audio synchronization hook for Campus PCO Radio (Sparx FM).
  * Features:
  * 1. Authoritative DB State: Late joiners and reconnected users sync to the official live track.
- * 2. Seamless Auto-Fallback: When a manual track ends, smoothly transitions to queue or 24/7 deterministic schedule.
- * 3. Micro-Drift Slew Rate: 5-second interval imperceptible speed adjustment (1.03x / 0.97x) with pitch correction.
+ * 2. Admin-Only Mutator: Prevents 500-listener DB stampede when a song ends.
+ * 3. iOS Safari / Mobile Background Watchdog: Recovers playback even if mobile power management suspends onended.
+ * 4. Micro-Drift Slew Rate: 5-second interval imperceptible speed adjustment (1.03x / 0.97x) with pitch correction.
  */
 export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRadioSyncReturn {
   const roomId = options.roomId || 'Campus_PCO_247';
@@ -64,8 +66,15 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   const startedAtMsRef = useRef<number>(0);
   const queueRef = useRef<PcoTrack[]>([]);
   const isPlayingRef = useRef<boolean>(true);
+  const isAdminRef = useRef<boolean>(!!options.isAdmin);
+  const isAdvancingRef = useRef<boolean>(false);
   const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
+
+  // Synchronize refs with state
+  useEffect(() => {
+    isAdminRef.current = !!options.isAdmin;
+  }, [options.isAdmin]);
 
   // Synchronize refs with state
   useEffect(() => {
@@ -244,7 +253,55 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     };
   }, [roomId, setCurrentTrack, loadAutoScheduleTrack]);
 
-  // 3. High-Frequency Micro-Drift Correction using Slew Rate
+  // Centralized Track Advancement (Admin mutates DB, Student passively syncs)
+  const handleTrackEnd = useCallback(async () => {
+    if (isAdvancingRef.current) return;
+    isAdvancingRef.current = true;
+
+    try {
+      if (modeRef.current === 'manual') {
+        if (isAdminRef.current) {
+          // CRITICAL: Only authorized Admin DJs mutate the authoritative database queue!
+          // This completely prevents the 500-listener DB stampede.
+          if (queueRef.current.length > 0) {
+            const [nextTrack, ...remainingQueue] = queueRef.current;
+            await setManualRadioOverride(nextTrack, remainingQueue, roomId);
+          } else {
+            await returnToAutoRadioSchedule(roomId);
+          }
+        } else {
+          // Student listener: NEVER mutate the DB.
+          // Fetch current state to sync or smoothly fallback to 24/7 deterministic auto schedule
+          const dbState = await fetchPcoRadioState(roomId);
+          if (dbState && dbState.mode === 'manual' && dbState.current_track) {
+            const dur = parseInt(dbState.current_track.duration, 10) || 240;
+            const elapsed = Math.max(0, (Date.now() - dbState.started_at_ms) / 1000);
+            if (elapsed < dur) {
+              setCurrentTrack(dbState.current_track);
+              setCurrentTime(elapsed);
+              if (audioRef.current) {
+                audioRef.current.currentTime = elapsed;
+                audioRef.current.play().catch(() => {});
+              }
+              return;
+            }
+          }
+          // Default: resume 24/7 deterministic schedule
+          loadAutoScheduleTrack();
+        }
+      } else {
+        // Auto mode rollover
+        loadAutoScheduleTrack();
+      }
+    } finally {
+      options.onTrackEnded?.();
+      setTimeout(() => {
+        isAdvancingRef.current = false;
+      }, 2500);
+    }
+  }, [roomId, options, setCurrentTrack, loadAutoScheduleTrack]);
+
+  // 3. High-Frequency Micro-Drift Correction & Mobile Background Tab Watchdog
   // Checks every 5 seconds for smooth, click-free pitch-corrected sync
   useEffect(() => {
     driftIntervalRef.current = setInterval(() => {
@@ -252,24 +309,25 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
       if (!audio || audio.paused) return;
 
       if (modeRef.current === 'manual' && currentTrackRef.current) {
-        // --- MANUAL OVERRIDE DRIFT CORRECTION ---
+        // --- MANUAL OVERRIDE DRIFT CORRECTION & MOBILE BACKGROUND WATCHDOG ---
         const dur = parseInt(currentTrackRef.current.duration, 10) || 240;
         const expectedTime = Math.max(0, (Date.now() - startedAtMsRef.current) / 1000);
 
         if (expectedTime >= dur) {
-          // Manual track finished naturally!
-          if (queueRef.current.length > 0) {
-            const [nextTrack, ...remainingQueue] = queueRef.current;
-            setManualRadioOverride(nextTrack, remainingQueue, roomId);
-          } else {
-            returnToAutoRadioSchedule(roomId);
-          }
+          // Track time expired in real world!
+          handleTrackEnd();
           return;
         }
 
         const actualTime = audio.currentTime;
-        const drift = expectedTime - actualTime;
 
+        // Mobile / iOS Safari Watchdog: if audio reached the end while phone was locked
+        if (dur > 0 && actualTime >= dur - 0.5) {
+          handleTrackEnd();
+          return;
+        }
+
+        const drift = expectedTime - actualTime;
         if (Math.abs(drift) < 0.35) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
         } else if (drift > 0.35 && drift <= 2.5) {
@@ -286,7 +344,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         const sched = getPcoLiveSchedule();
         const activeTrack = currentTrackRef.current;
 
-        // Auto schedule rollover check
+        // Auto schedule rollover check or background tab watchdog
         if (!activeTrack || activeTrack.id !== sched.currentTrack.id) {
           setCurrentTrack(sched.currentTrack);
           audio.currentTime = sched.offsetSec;
@@ -319,7 +377,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         driftIntervalRef.current = null;
       }
     };
-  }, [roomId, setCurrentTrack]);
+  }, [roomId, handleTrackEnd, setCurrentTrack]);
 
   // Smooth playback time progression for 60fps lyrics and progress bar
   useEffect(() => {
@@ -340,25 +398,13 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   }, []);
 
   const handleSongEnded = useCallback(() => {
-    if (queueRef.current.length > 0) {
-      const [nextTrack, ...remainingQueue] = queueRef.current;
-      setManualRadioOverride(nextTrack, remainingQueue, roomId);
-    } else {
-      returnToAutoRadioSchedule(roomId);
-    }
-    options.onTrackEnded?.();
-  }, [roomId, options]);
+    handleTrackEnd();
+  }, [handleTrackEnd]);
 
   const handleAudioError = useCallback((e: any) => {
     console.warn('[PCO Radio] Audio playback error:', e);
-    // On playback error (e.g. broken CDN URL), advance cleanly
-    if (queueRef.current.length > 0) {
-      const [nextTrack, ...remainingQueue] = queueRef.current;
-      setManualRadioOverride(nextTrack, remainingQueue, roomId);
-    } else {
-      returnToAutoRadioSchedule(roomId);
-    }
-  }, [roomId]);
+    handleTrackEnd();
+  }, [handleTrackEnd]);
 
   // 5. User & Admin Actions with Authoritative DB Persistence
   const playTrackImmediately = useCallback(async (track: PcoTrack) => {

@@ -303,3 +303,11 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
+-- 9. SERVER TIME RPC (Eliminates client-side clock skew)
+CREATE OR REPLACE FUNCTION public.get_server_time_ms() 
+RETURNS BIGINT AS $$ 
+  SELECT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT; 
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.get_server_time_ms() TO anon, authenticated;
+

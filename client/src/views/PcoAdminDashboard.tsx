@@ -385,15 +385,14 @@ export const PcoAdminDashboard: React.FC = () => {
     syncQueue(next);
   };
 
-  const qRemove = (i: number) => {
-    syncQueue(queue.filter((_, x) => x !== i));
+  const qRemove = (trackId: string) => {
+    syncQueue(queue.filter(t => t.id !== trackId));
     flash('Track removed from queue');
   };
 
-  const qPlay = (i: number) => {
-    const t = queue[i];
-    syncQueue(queue.filter((_, x) => x !== i));
-    actPlayNow(t);
+  const qPlay = (track: PcoTrack) => {
+    syncQueue(queue.filter(t => t.id !== track.id));
+    actPlayNow(track);
   };
 
   /* 6. Real-time Search */
@@ -884,8 +883,8 @@ export const PcoAdminDashboard: React.FC = () => {
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => qMove(i, -1)} className={B} disabled={i === 0} title="Move Up">↑</button>
                   <button onClick={() => qMove(i, 1)} className={B} disabled={i === queue.length - 1} title="Move Down">↓</button>
-                  <button onClick={() => qPlay(i)} className={B} title="Play Now">▶</button>
-                  <button onClick={() => qRemove(i)} className="border border-red-500/60 bg-red-950/40 text-red-300 px-2 py-1 text-xs rounded hover:bg-red-900/60" title="Remove">✕</button>
+                  <button onClick={() => qPlay(t)} className={B} title="Play Now">▶</button>
+                  <button onClick={() => qRemove(t.id)} className="border border-red-500/60 bg-red-950/40 text-red-300 px-2 py-1 text-xs rounded hover:bg-red-900/60" title="Remove">✕</button>
                 </div>
               </div>
             ))}

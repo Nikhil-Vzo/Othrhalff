@@ -587,19 +587,38 @@ export async function updatePcoRadioState(
 }
 
 /**
- * Sets manual override mode with a specific track and started timestamp.
+ * Fetches server timestamp in milliseconds via Supabase RPC to prevent client clock skew.
+ * Falls back to local Date.now() if RPC is unreachable.
+ */
+export async function getServerTimeMs(): Promise<number> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.rpc('get_server_time_ms');
+      if (!error && typeof data === 'number' && data > 0) {
+        return data;
+      }
+    } catch (_) {}
+  }
+  return Date.now();
+}
+
+/**
+ * Sets manual override mode with a specific track and authoritative server timestamp.
  */
 export async function setManualRadioOverride(
   track: PcoTrack,
   queue?: PcoTrack[],
   roomId: string = 'Campus_PCO_247'
 ): Promise<boolean> {
+  const serverTimeMs = await getServerTimeMs();
+  const safeQueue = queue ? queue.slice(0, 50) : undefined;
+
   return updatePcoRadioState({
     mode: 'manual',
     current_track: track,
-    started_at_ms: Date.now(),
+    started_at_ms: serverTimeMs,
     paused: false,
-    ...(queue !== undefined ? { queue } : {})
+    ...(safeQueue !== undefined ? { queue: safeQueue } : {})
   }, roomId);
 }
 
@@ -618,13 +637,14 @@ export async function returnToAutoRadioSchedule(
 }
 
 /**
- * Updates the authoritative playlist queue.
+ * Updates only the radio queue with a safety cap of 50 songs.
  */
 export async function updateRadioQueue(
   queue: PcoTrack[],
   roomId: string = 'Campus_PCO_247'
 ): Promise<boolean> {
-  return updatePcoRadioState({ queue }, roomId);
+  const safeQueue = queue.slice(0, 50);
+  return updatePcoRadioState({
+    queue: safeQueue
+  }, roomId);
 }
-
-
