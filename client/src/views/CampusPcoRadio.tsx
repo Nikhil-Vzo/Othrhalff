@@ -355,7 +355,6 @@ export const CampusPcoRadio: React.FC = () => {
       {/* 🎵 Hidden Native Audio Element */}
       <audio
         ref={audioRef}
-        src={currentTrack?.media_url}
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleSongEnded}
