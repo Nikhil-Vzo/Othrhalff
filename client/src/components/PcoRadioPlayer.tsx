@@ -108,7 +108,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
     const elapsed = Date.now() - gestureRef.current.startTime;
 
     const isVerticalIntent = Math.abs(dy) > Math.abs(dx) * 1.5;
-    const isSwipeUp = dy < -70;
+    const isSwipeUp = dy < -80;
     const isFastEnough = elapsed < 650;
 
     if (isSwipeUp && isVerticalIntent && isFastEnough) {

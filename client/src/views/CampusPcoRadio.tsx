@@ -532,8 +532,7 @@ export const CampusPcoRadio: React.FC = () => {
 
               {/* Scrollable Song Catalog */}
               <div 
-                onTouchStart={e => e.stopPropagation()}
-                onTouchMove={e => e.stopPropagation()}
+                data-sheet-scroll
                 className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar"
                 style={{ touchAction: 'pan-y' }}
               >
@@ -598,8 +597,7 @@ export const CampusPcoRadio: React.FC = () => {
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div 
                 ref={chatScrollRef} 
-                onTouchStart={e => e.stopPropagation()}
-                onTouchMove={e => e.stopPropagation()}
+                data-sheet-scroll
                 className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2.5 custom-scrollbar"
                 style={{ touchAction: 'pan-y' }}
               >
