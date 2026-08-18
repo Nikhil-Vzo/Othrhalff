@@ -70,6 +70,7 @@ export const CampusPcoRadio: React.FC = () => {
   const [floatingChatMessages, setFloatingChatMessages] = useState<{ id: string; user: string; text: string }[]>([]);
   const lastChatSentTimeRef = useRef<number>(0);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatMountedRef = useRef<boolean>(false);
 
   // 5. Song Request & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -270,14 +271,27 @@ export const CampusPcoRadio: React.FC = () => {
     }, 50);
   };
 
-  // Auto-scroll chat on incoming messages or tab switch only if user is already near bottom (prevents yank-back on reading older messages)
+  // Auto-scroll chat on incoming messages or tab switch without yanking if user scrolled up
   useEffect(() => {
-    if (chatScrollRef.current && mobilePcoTab === 'chat') {
-      const { scrollHeight, scrollTop, clientHeight } = chatScrollRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
-      if (isAtBottom || scrollTop === 0) {
-        chatScrollRef.current.scrollTop = scrollHeight;
+    if (mobilePcoTab === 'chat') {
+      if (!chatMountedRef.current) {
+        // First time opening or switching to chat tab: Force scroll to bottom
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+        chatMountedRef.current = true;
+      } else {
+        // Already open: Only auto-scroll if user is resting near the bottom
+        if (chatScrollRef.current) {
+          const { scrollHeight, scrollTop, clientHeight } = chatScrollRef.current;
+          if (scrollHeight - scrollTop - clientHeight < 60) {
+            chatScrollRef.current.scrollTop = scrollHeight;
+          }
+        }
       }
+    } else {
+      // User switched away from chat tab, reset so next mount scrolls to bottom
+      chatMountedRef.current = false;
     }
   }, [messages, mobilePcoTab]);
 

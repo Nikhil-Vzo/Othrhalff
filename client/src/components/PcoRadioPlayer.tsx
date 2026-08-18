@@ -113,6 +113,9 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
     const isFastEnough = elapsed < 650;
 
     if (isSwipeUp && isVerticalIntent && isFastEnough) {
+      if (e.cancelable) {
+        e.preventDefault(); // Prevents mobile browser synthesized click double-toggle
+      }
       gestureLockRef.current = true;
       onToggleSidebar();
       setTimeout(() => {
