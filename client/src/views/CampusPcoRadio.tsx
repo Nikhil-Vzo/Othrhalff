@@ -270,16 +270,16 @@ export const CampusPcoRadio: React.FC = () => {
     }, 50);
   };
 
-  // Auto-scroll chat on incoming messages only if user is already near bottom (prevents yank-back on reading older messages)
+  // Auto-scroll chat on incoming messages or tab switch only if user is already near bottom (prevents yank-back on reading older messages)
   useEffect(() => {
-    if (chatScrollRef.current) {
+    if (chatScrollRef.current && mobilePcoTab === 'chat') {
       const { scrollHeight, scrollTop, clientHeight } = chatScrollRef.current;
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
       if (isAtBottom) {
         chatScrollRef.current.scrollTop = scrollHeight;
       }
     }
-  }, [messages]);
+  }, [messages, mobilePcoTab]);
 
   // 8. Search & Song Request Submission
   useEffect(() => {
