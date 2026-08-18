@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2, Eye, EyeOff, ChevronUp, ChevronDown, Shield } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Copy, PlusCircle, LogIn, LogOut, MessageSquare, Send, Mic, MicOff, Video, VideoOff, Loader, Volume2, Maximize, Minimize, FileText, Image as ImageIcon, SkipForward, ListMusic, Lock, Share2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter as useNavigate } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
@@ -8,11 +8,6 @@ import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
 import { getIceServers } from '../../utils/webrtc';
 import { hashPasscode } from '../../utils/security';
-import { curatedRomanticTracks, trendingRomanticQueries } from '../../data/pcoRomanticTracks';
-import { PcoAdminQuickPanel } from '../../components/PcoAdminQuickPanel';
-import { PcoRadioPlayer } from '../../components/PcoRadioPlayer';
-import { BottomSheet } from '../../components/BottomSheet';
-import { checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus } from '../../services/pcoAdmin';
 
 type DateMode = 'landing' | 'create_room' | 'join_room' | 'room';
 type LyricLine = { time: number; text: string };
@@ -289,6 +284,12 @@ export const MusicDate = () => {
                 }
             }
 
+            // CRITICAL: Close all ghost data channels before destroying peer
+            Object.values(connections.current).forEach(conn => {
+                try { conn.close(); } catch (_) {}
+            });
+            connections.current = {};
+
             if (peerInstance.current) {
                 peerInstance.current.destroy();
                 peerInstance.current = null;
@@ -518,285 +519,11 @@ export const MusicDate = () => {
         };
     }, [mode]);
 
-    // Admin & PCO State (Checks Supabase admin_users, profiles.is_admin, and fallback emails)
-    const [isAdminUser, setIsAdminUser] = useState<boolean>(() => {
-        const email = (currentUser?.universityEmail || '').toLowerCase().trim();
-        return ['nikhilyadav200530@gmail.com', 'avneeshkumarjha1506@gmail.com', 'avneeshjha1506@gmail.com', 'dpursuit14@gmail.com', 'lachavzo11@gmail.com'].includes(email);
-    });
-    const isAdminUserRef = useRef(isAdminUser);
-    useEffect(() => {
-        isAdminUserRef.current = isAdminUser;
-    }, [isAdminUser]);
-
-    const pendingOffsetRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        let isMounted = true;
-        const verifyAdmin = async () => {
-            let authEmail: string | null = null;
-            if (supabase) {
-                try {
-                    const { data } = await supabase.auth.getUser();
-                    authEmail = data?.user?.email || null;
-                } catch (_) {}
-            }
-            const hasAdmin = await checkIsPcoAdmin(currentUser, authEmail);
-            if (isMounted) {
-                setIsAdminUser(hasAdmin);
-            }
-        };
-        verifyAdmin();
-        return () => { isMounted = false; };
-    }, [currentUser]);
-    const [dailyRequestsUsed, setDailyRequestsUsed] = useState(0);
-    const [isSidebarHidden, setIsSidebarHidden] = useState(false);
-    const [isMobilePcoPanel, setIsMobilePcoPanel] = useState(false);
-    const [isAdminQuickPanelOpen, setIsAdminQuickPanelOpen] = useState(false);
-    const [floatingNotifications, setFloatingNotifications] = useState<{ id: string; user: string; text: string }[]>([]);
-
     // Playlist Link Import State (For standard Soul Sync rooms)
     const [isImportingPlaylist, setIsImportingPlaylist] = useState(false);
     const [importStatus, setImportStatus] = useState<string | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [playlistUrlInput, setPlaylistUrlInput] = useState('');
-
-    const addFloatingNotification = (user: string, text: string) => {
-        const id = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        setFloatingNotifications(prev => [...prev.slice(-3), { id, user, text }]);
-        setTimeout(() => {
-            setFloatingNotifications(prev => prev.filter(item => item.id !== id));
-        }, 4500);
-    };
-
-    const [adminRequestModal, setAdminRequestModal] = useState<{ requester: string; track: Track; requestId?: string } | null>(null);
-    const [pinnedBanner, setPinnedBanner] = useState<{ text: string; expiresAt: number } | null>(null);
-    const [listenerCount, setListenerCount] = useState(1);
-    const [presenceUsers, setPresenceUsers] = useState<string[]>([]);
-
-    const [pcoPlaylist, setPcoPlaylist] = useState<Track[]>([]);
-
-    // Seeded deterministic PRNG shuffle so 300+ romantic songs are randomized yet 100% synchronized across all listeners
-    const seededShuffle = <T,>(array: T[], seed: number = 789456): T[] => {
-        const arr = [...array];
-        let m = arr.length;
-        let t: T;
-        let i: number;
-        let s = seed;
-
-        const random = () => {
-            s |= 0;
-            s = (s + 0x6D2B79F5) | 0;
-            let t = Math.imul(s ^ (s >>> 15), 1 | s);
-            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-
-        while (m) {
-            i = Math.floor(random() * m--);
-            t = arr[m];
-            arr[m] = arr[i];
-            arr[i] = t;
-        }
-        return arr;
-    };
-
-    const fetchPcoRealSongs = async (): Promise<Track[]> => {
-        return seededShuffle(curatedRomanticTracks as Track[], 789456);
-    };
-
-    const getPcoSyncedTrack = (tracks: Track[]) => {
-        const totalDuration = tracks.reduce((acc, t) => acc + (parseInt(t.duration, 10) || 240), 0);
-        const nowSec = Math.floor(Date.now() / 1000);
-        let cycleTime = nowSec % totalDuration;
-
-        for (const track of tracks) {
-            const dur = parseInt(track.duration, 10) || 240;
-            if (cycleTime < dur) {
-                return { track, offsetSec: cycleTime };
-            }
-            cycleTime -= dur;
-        }
-        return { track: tracks[0], offsetSec: 0 };
-    };
-
-    const triggerPinnedBanner = (text: string) => {
-        setPinnedBanner({ text, expiresAt: Date.now() + 15000 });
-    };
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (pinnedBanner) {
-            interval = setInterval(() => {
-                if (Date.now() >= pinnedBanner.expiresAt) {
-                    setPinnedBanner(null);
-                }
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [pinnedBanner]);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const key = `pco_req_${todayStr}`;
-            setDailyRequestsUsed(parseInt(localStorage.getItem(key) || '0', 10));
-        }
-    }, []);
-
-    const incrementDailyRequests = () => {
-        const todayStr = new Date().toISOString().split('T')[0];
-        const key = `pco_req_${todayStr}`;
-        const newCount = dailyRequestsUsed + 1;
-        setDailyRequestsUsed(newCount);
-        localStorage.setItem(key, newCount.toString());
-    };
-
-    useEffect(() => {
-        if (!roomCode.includes('Campus_PCO') || !supabase) return;
-
-        setRoomName('Campus PCO (24/7 Radio)');
-        setShowChat(true);
-
-        // 1. Initial time-synced deterministic romantic playlist
-        const baseList = seededShuffle(curatedRomanticTracks as Track[], 789456);
-        setPcoPlaylist(baseList);
-        const { track, offsetSec } = getPcoSyncedTrack(baseList);
-        setCurrentTrack(track);
-        setIsPlaying(true);
-        pendingOffsetRef.current = offsetSec;
-        if (audioRef.current) {
-            audioRef.current.currentTime = offsetSec;
-        }
-
-        // 2. Realtime Channel with Presence & Audio Broadcasts
-        const pcoChannel = supabase.channel('campus_pco_live_chat', {
-            config: { presence: { key: currentUser?.id || Math.random().toString() } }
-        });
-
-        const updatePresenceState = () => {
-            const state = pcoChannel.presenceState();
-            const usersList: string[] = [];
-            Object.values(state).forEach((presences: any) => {
-                presences.forEach((p: any) => {
-                    if (p.user) usersList.push(p.user);
-                });
-            });
-            setListenerCount(usersList.length || 1);
-            setPresenceUsers(usersList);
-        };
-
-        pcoChannel
-            .on('presence', { event: 'sync' }, updatePresenceState)
-            .on('presence', { event: 'join' }, updatePresenceState)
-            .on('presence', { event: 'leave' }, updatePresenceState)
-            .on('broadcast', { event: 'LIVE_CHAT_MSG' }, ({ payload }) => {
-                if (payload && payload.text) {
-                    setMessages(prev => [...prev.slice(-149), { user: payload.user, text: payload.text, createdAt: payload.createdAt || Date.now() }]);
-                    addFloatingNotification(payload.user, payload.text);
-                }
-            })
-            .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, ({ payload }) => {
-                if (payload && payload.track) {
-                    triggerPinnedBanner(`📨 Song Request: "${payload.track.song}" (by ${payload.requester})`);
-                    addFloatingNotification('System', `${payload.requester} requested: "${payload.track.song}"`);
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `🎵 ${payload.requester} requested: "${payload.track.song}"` }]);
-                    
-                    if (isAdminUserRef.current) {
-                        setAdminRequestModal({ requester: payload.requester, track: payload.track, requestId: payload.requestId });
-                    }
-                }
-            })
-            .on('broadcast', { event: 'PCO_PLAY_IMMEDIATELY' }, ({ payload }) => {
-                if (payload && payload.track) {
-                    setCurrentTrack(payload.track);
-                    setIsPlaying(true);
-                    if (payload.senderId !== currentUser?.id) {
-                        triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
-                    }
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Now Playing: "${payload.track.song}"`, createdAt: Date.now() }]);
-                }
-            })
-            .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
-                if (payload && payload.track) {
-                    setQueue(prev => [payload.track, ...prev.filter(t => t.id !== payload.track.id)]);
-                    if (payload.senderId !== currentUser?.id) {
-                        triggerPinnedBanner(`⏭️ Playing Next: "${payload.track.song}"`);
-                    }
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Admin Queued Next: "${payload.track.song}"`, createdAt: Date.now() }]);
-                }
-            })
-            .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
-                if (payload && payload.track) {
-                    setQueue(prev => [...prev, payload.track]);
-                    if (payload.senderId !== currentUser?.id) {
-                        triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
-                    }
-                    setMessages(prev => [...prev.slice(-149), { user: 'System', text: `Added to Queue: "${payload.track.song}"`, createdAt: Date.now() }]);
-                }
-            })
-            .on('broadcast', { event: 'PCO_QUEUE_SYNC' }, ({ payload }) => {
-                if (payload && Array.isArray(payload.queue)) {
-                    setQueue(payload.queue);
-                }
-            })
-            .on('broadcast', { event: 'PCO_PLAY_STATE' }, ({ payload }) => {
-                if (payload && typeof payload.playing === 'boolean') {
-                    setIsPlaying(payload.playing);
-                }
-            })
-            .on('broadcast', { event: 'PCO_SEEK' }, ({ payload }) => {
-                if (audioRef.current && payload && typeof payload.time === 'number') {
-                    audioRef.current.currentTime = payload.time;
-                    setCurrentTime(payload.time);
-                }
-            })
-            .on('broadcast', { event: 'PCO_QUEUE_QUERY' }, () => {
-                pcoChannel.send({ type: 'broadcast', event: 'PCO_QUEUE_SYNC', payload: { queue: queueRef.current } });
-            })
-            .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
-                triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
-                addFloatingNotification('System', `Admin skipped the song`);
-                handleSongEnded();
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await pcoChannel.track({
-                        user: displayName,
-                        online_at: new Date().toISOString()
-                    });
-                }
-            });
-
-        // 3. Periodic 30-Second Drift Correction for PCO Radio
-        const driftInterval = setInterval(() => {
-            if (!audioRef.current || audioRef.current.paused || queueRef.current.length > 0) return;
-            const totalDuration = baseList.reduce((acc, t) => acc + (parseInt(t.duration, 10) || 240), 0);
-            if (totalDuration === 0) return;
-            const nowSec = Math.floor(Date.now() / 1000);
-            let cycleTime = nowSec % totalDuration;
-
-            for (const t of baseList) {
-                const dur = parseInt(t.duration, 10) || 240;
-                if (cycleTime < dur) {
-                    if (currentTrackRef.current?.id === t.id && audioRef.current) {
-                        const drift = Math.abs(audioRef.current.currentTime - cycleTime);
-                        if (drift > 1.5) {
-                            console.log(`[PCO Radio] Correcting clock drift: ${drift.toFixed(2)}s`);
-                            audioRef.current.currentTime = cycleTime;
-                            setCurrentTime(cycleTime);
-                        }
-                    }
-                    break;
-                }
-                cycleTime -= dur;
-            }
-        }, 30000);
-
-        return () => {
-            clearInterval(driftInterval);
-            supabase.removeChannel(pcoChannel);
-        };
-    }, [roomCode]);
 
     // Unblock browser autoplay on first user click or touch
     useEffect(() => {
@@ -936,15 +663,6 @@ export const MusicDate = () => {
             setPeers([]);
 
             const initPeer = async () => {
-                // Campus PCO is 24/7 radio mode: Pure Supabase presence & broadcast, NO WebRTC/PeerJS needed!
-                if (roomCode.includes('Campus_PCO')) {
-                    setIsHost(false);
-                    setMode('room');
-                    setIsConnecting(false);
-                    setMyStream(null);
-                    return;
-                }
-
                 setIsConnecting(true);
                 try {
                     // 1. Query Supabase to see if a host exists
@@ -980,20 +698,15 @@ export const MusicDate = () => {
                         }
                     }
 
-                    // 2. Request Media Permissions (Bypass in Campus PCO radio to keep full stereo loudspeaker audio output)
+                    // 2. Request Media Permissions
                     let stream: MediaStream;
-                    if (roomCode.includes('Campus_PCO')) {
-                        // Radio station mode: NEVER capture microphone! Capturing mic forces phone OS into low-quality "Call Earpiece" mode.
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    } catch (err) {
+                        console.warn("Media Access Failed", err);
                         stream = createDummyStream();
-                    } else {
-                        try {
-                            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                        } catch (err) {
-                            console.warn("Media Access Failed", err);
-                            stream = createDummyStream();
-                            setError("Camera unavailable. Joining as Spectator.");
-                            setTimeout(() => setError(null), 5000);
-                        }
+                        setError("Camera unavailable. Joining as Spectator.");
+                        setTimeout(() => setError(null), 5000);
                     }
                     setMyStream(stream);
 
@@ -1002,11 +715,7 @@ export const MusicDate = () => {
                     let currentIsHost = false;
                     const expectedHostId = 'host-' + roomCode;
 
-                    if (roomCode.includes('Campus_PCO')) {
-                        currentIsHost = true;
-                        setIsHost(true);
-                        setMode('room');
-                    } else if (activeHostId || !isHost) {
+                    if (activeHostId || !isHost) {
                         currentIsHost = false;
                         setIsHost(false);
                         const targetHost = activeHostId || expectedHostId;
@@ -1066,10 +775,6 @@ export const MusicDate = () => {
                         let msg = `Connection Error: ${err.type || 'Unknown'}`;
 
                         if (err.type === 'peer-unavailable') {
-                            if (roomCode.includes('Campus_PCO')) {
-                                // Campus PCO radio mode — ignore peer unavailable warning
-                                return;
-                            }
                             if (!activeHostId) {
                                 msg = "Waiting for host to start the room...";
                                 setError(msg);
@@ -1336,7 +1041,7 @@ export const MusicDate = () => {
                 audioRef.current.currentTime = data.time;
             } else if (data.action === 'time_update' && audioRef.current) {
                 const diff = Math.abs(audioRef.current.currentTime - data.time);
-                if (diff > 0.6) audioRef.current.currentTime = data.time;
+                if (diff > 2.0) audioRef.current.currentTime = data.time;
             } else if (data.action === 'queue_add') {
                 setQueue(prev => [...prev, data.payload]);
             } else if (data.action === 'queue_add_multiple') {
@@ -1441,7 +1146,7 @@ export const MusicDate = () => {
                     navigator.mediaSession.metadata = new MediaMetadata({
                         title: currentTrack.song,
                         artist: currentTrack.singers || 'Sparx FM Radio',
-                        album: 'Campus PCO Radio',
+                        album: 'Soul Sync',
                         artwork: [
                             { src: currentTrack.image || '/fm.png', sizes: '512x512', type: 'image/png' }
                         ]
@@ -1456,7 +1161,7 @@ export const MusicDate = () => {
                 if (playPromise !== undefined) {
                     playPromise.catch(e => {
                         if (e.name !== 'AbortError') {
-                            console.warn("[PCO Audio] Play prevented:", e);
+                            console.warn("[SoulSync Audio] Play prevented:", e);
                         }
                     });
                 }
@@ -1471,7 +1176,7 @@ export const MusicDate = () => {
             const playPromise = audioRef.current.play();
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
-                    if (e.name !== 'AbortError') console.warn("[PCO Audio] Play error:", e);
+                    if (e.name !== 'AbortError') console.warn("[SoulSync Audio] Play error:", e);
                 });
             }
         } else {
@@ -1834,134 +1539,6 @@ export const MusicDate = () => {
         }
     };
 
-    const handlePcoAdminDirectPlay = (track: Track) => {
-        setCurrentTrack(track);
-        setIsPlaying(true);
-        triggerPinnedBanner(`🔥 Admin Played: "${track.song}"`);
-        if (supabase && roomCode.includes('Campus_PCO')) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_IMMEDIATELY',
-                payload: { track, senderId: currentUser?.id }
-            });
-        }
-        setSearchQuery('');
-        setSearchResults([]);
-    };
-
-    const handlePcoAdminPlayNext = (track: Track) => {
-        setQueue(prev => [track, ...prev]);
-        triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}"`);
-        if (supabase && roomCode.includes('Campus_PCO')) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_NEXT',
-                payload: { track, requester: displayName, senderId: currentUser?.id }
-            });
-        }
-        setSearchQuery('');
-        setSearchResults([]);
-    };
-
-    const handlePcoAdminAddToQueue = (track: Track) => {
-        setQueue(prev => [...prev, track]);
-        triggerPinnedBanner(`➕ Admin Added to Queue: "${track.song}"`);
-        if (supabase && roomCode.includes('Campus_PCO')) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_ADD_QUEUE',
-                payload: { track, requester: displayName, senderId: currentUser?.id }
-            });
-        }
-        setSearchQuery('');
-        setSearchResults([]);
-    };
-
-    const handlePcoSongRequest = async (track: Track) => {
-        if (!currentUser) {
-            setError("Please log in to submit a song request!");
-            setTimeout(() => setError(null), 4000);
-            return;
-        }
-
-        if (!isAdminUser && dailyRequestsUsed >= 3) {
-            setError("You have reached your limit of 3 song requests per day!");
-            setTimeout(() => setError(null), 4000);
-            return;
-        }
-
-        const result = await submitPcoSongRequest(track, currentUser, displayName);
-        if (!result.success) {
-            setError(result.error || "Song request failed. Please try again.");
-            setTimeout(() => setError(null), 4000);
-            return;
-        }
-
-        if (!isAdminUser) {
-            incrementDailyRequests();
-        }
-
-        triggerPinnedBanner(`📨 Request sent: "${track.song}" (by ${displayName})`);
-
-        if (supabase && roomCode.includes('Campus_PCO')) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_REQUEST_NOTIFICATION',
-                payload: { track, requester: displayName, requestId: result.data?.id, senderId: currentUser?.id }
-            });
-        }
-        setSearchQuery('');
-        setSearchResults([]);
-    };
-
-    const handleAdminAcceptRequest = () => {
-        if (!adminRequestModal) return;
-        const track = adminRequestModal.track;
-        const requester = adminRequestModal.requester;
-        const requestId = adminRequestModal.requestId;
-        if (requestId) {
-            updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
-        }
-        setCurrentTrack(track);
-        setIsPlaying(true);
-        triggerPinnedBanner(`🔥 Admin Approved: "${track.song}" (by ${requester})`);
-        if (supabase) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_IMMEDIATELY',
-                payload: { track, senderId: currentUser?.id }
-            });
-        }
-        setAdminRequestModal(null);
-    };
-
-    const handleAdminPlayNextRequest = () => {
-        if (!adminRequestModal) return;
-        const track = adminRequestModal.track;
-        const requester = adminRequestModal.requester;
-        const requestId = adminRequestModal.requestId;
-        if (requestId) {
-            updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
-        }
-        setQueue(prev => [track, ...prev]);
-        triggerPinnedBanner(`⏭️ Admin Queued Next: "${track.song}" (by ${requester})`);
-        if (supabase) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_NEXT',
-                payload: { track, requester, senderId: currentUser?.id }
-            });
-        }
-        setAdminRequestModal(null);
-    };
-
-    const handleAdminDeclineRequest = () => {
-        if (adminRequestModal?.requestId) {
-            updatePcoSongRequestStatus(adminRequestModal.requestId, 'declined', currentUser?.id);
-        }
-        setAdminRequestModal(null);
-    };
-
     const handleSongEnded = () => {
         if (queueRef.current.length > 0) {
             const nextTrack = queueRef.current[0];
@@ -1969,22 +1546,6 @@ export const MusicDate = () => {
             setQueue(newQueue);
             broadcastSync('queue_sync', { payload: newQueue });
             playSelectedTrack(nextTrack);
-        } else if (roomCode.includes('Campus_PCO') && pcoPlaylist.length > 0) {
-            // Automatically play the exact NEXT real song in the Campus PCO playlist!
-            const currentIndex = pcoPlaylist.findIndex(t => t.id === currentTrackRef.current?.id);
-            const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % pcoPlaylist.length : 0;
-            const nextTrack = pcoPlaylist[nextIndex];
-            setCurrentTrack(nextTrack);
-            setIsPlaying(true);
-            triggerPinnedBanner(`🎵 Playing Next: "${nextTrack.song}"`);
-            // Only admin broadcasts to prevent N duplicate broadcasts (Bug B16)
-            if (isAdminUserRef.current && supabase) {
-                supabase.channel('campus_pco_live_chat').send({
-                    type: 'broadcast',
-                    event: 'PCO_PLAY_IMMEDIATELY',
-                    payload: { track: nextTrack }
-                });
-            }
         } else if (isHost) {
             setIsPlaying(false);
             broadcastSync('pause');
@@ -1993,22 +1554,12 @@ export const MusicDate = () => {
 
     const handleAudioLoadedData = () => {
         setAudioReady(true);
-        if (pendingOffsetRef.current !== null && audioRef.current) {
-            audioRef.current.currentTime = pendingOffsetRef.current;
-            setCurrentTime(pendingOffsetRef.current);
-            pendingOffsetRef.current = null;
-        }
     };
 
     const handleSkip = () => {
-        if (roomCode.includes('Campus_PCO') && supabase) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_ADMIN_SKIP',
-                payload: { user: displayName }
-            });
+        if (queueRef.current.length > 0) {
+            handleSongEnded();
         }
-        handleSongEnded();
     };
 
     const isResolvingFallbackRef = useRef(false);
@@ -2020,7 +1571,7 @@ export const MusicDate = () => {
         }
 
         isResolvingFallbackRef.current = true;
-        console.warn(`[PCO Audio] Stream error for "${currentTrack.song}". Resolving live stream fallback...`);
+        console.warn(`[SoulSync Audio] Stream error for "${currentTrack.song}". Resolving live stream fallback...`);
 
         try {
             const query = `${currentTrack.song} ${currentTrack.singers || ''}`.trim();
@@ -2033,7 +1584,7 @@ export const MusicDate = () => {
                         media_url: data[0].media_url,
                         image: data[0].image || currentTrack.image
                     };
-                    console.log(`[PCO Audio] Recovered with live stream URL for "${currentTrack.song}"`);
+                    console.log(`[SoulSync Audio] Recovered with live stream URL for "${currentTrack.song}"`);
                     setCurrentTrack(fallbackTrack);
                     if (audioRef.current) {
                         audioRef.current.src = data[0].media_url;
@@ -2045,7 +1596,7 @@ export const MusicDate = () => {
                 }
             }
         } catch (err) {
-            console.warn("[PCO Audio] Fallback lookup failed:", err);
+            console.warn("[SoulSync Audio] Fallback lookup failed:", err);
         }
 
         isResolvingFallbackRef.current = false;
@@ -2053,25 +1604,11 @@ export const MusicDate = () => {
         handleSongEnded();
     };
 
-    const pcoSeekTimer = useRef<any>(null);
-
     const handlePlayPause = () => {
-        if (!currentTrack) return;
-        const isPco = roomCode.includes('Campus_PCO');
-        if (isPco && !isAdminUser) return;
-        if (!isPco && !isHost) return;
-
+        if (!currentTrack || !isHost) return;
         const next = !isPlaying;
         setIsPlaying(next);
-        if (isPco && supabase) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_STATE',
-                payload: { playing: next }
-            });
-        } else {
-            broadcastSync(next ? 'play' : 'pause');
-        }
+        broadcastSync(next ? 'play' : 'pause');
     };
 
     const currentTimeRef = useRef(0);
@@ -2159,26 +1696,11 @@ export const MusicDate = () => {
     };
 
     const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!audioRef.current) return;
-        const isPco = roomCode.includes('Campus_PCO');
-        if (isPco ? !isAdminUser : !isHost) return;
-
+        if (!audioRef.current || !isHost) return;
         const t = Number(e.target.value);
         audioRef.current.currentTime = t;
         setCurrentTime(t);
-
-        if (isPco && supabase) {
-            clearTimeout(pcoSeekTimer.current);
-            pcoSeekTimer.current = setTimeout(() => {
-                supabase.channel('campus_pco_live_chat').send({
-                    type: 'broadcast',
-                    event: 'PCO_SEEK',
-                    payload: { time: t }
-                });
-            }, 250);
-        } else {
-            broadcastSync('seek', { time: t });
-        }
+        broadcastSync('seek', { time: t });
     };
 
     const generateRoomCode = () => {
@@ -2356,17 +1878,7 @@ export const MusicDate = () => {
         if (!newMessage.trim()) return;
         const msg = { user: displayName, text: newMessage, createdAt: Date.now() };
         setMessages(prev => [...prev.slice(-149), msg]);
-        addFloatingNotification(displayName, newMessage);
-
-        if (roomCode.includes('Campus_PCO') && supabase) {
-            supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'LIVE_CHAT_MSG',
-                payload: msg
-            });
-        } else {
-            broadcastData({ type: 'CHAT', text: newMessage, createdAt: Date.now() });
-        }
+        broadcastData({ type: 'CHAT', text: newMessage, createdAt: Date.now() });
         setNewMessage('');
     };
 
@@ -2612,10 +2124,8 @@ export const MusicDate = () => {
         if (!currentTrack) return null;
         const totalDur = Number(currentTrack.duration) || 1;
         const isHalfWay = (currentTime / totalDur) >= 0.5;
-        const nextTrack = pcoPlaylist.length > 0
-            ? pcoPlaylist[(pcoPlaylist.findIndex(t => t.id === currentTrack.id) + 1) % pcoPlaylist.length]
-            : null;
-        const canControl = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+        const nextTrack = queue.length > 0 ? queue[0] : null;
+        const canControl = isHost;
 
         return (
             <div className={`bg-[#0c0915]/95 backdrop-blur-2xl border border-white/15 rounded-2xl px-5 ${isHalfWay ? 'py-3.5' : 'py-3'} shadow-[0_10px_40px_rgba(0,0,0,0.8)] hidden md:flex flex-col gap-2 max-w-sm sm:max-w-md w-full transition-all duration-500 pointer-events-auto`}>
@@ -2677,56 +2187,6 @@ export const MusicDate = () => {
 
     return (
         <div ref={containerRef} className="flex flex-col h-[100dvh] w-full bg-[#050510] text-white overflow-hidden font-sans relative">
-            {/* Admin Song Request Approval Popup Modal */}
-            {adminRequestModal && (
-                <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-gradient-to-b from-purple-900/90 to-zinc-950 border-2 border-purple-500/50 rounded-3xl p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(168,85,247,0.4)]">
-                        <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mx-auto mb-4 text-purple-300 animate-bounce">
-                            <Music className="w-7 h-7" />
-                        </div>
-                        <span className="text-[10px] font-black tracking-widest text-purple-400 uppercase bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
-                            Admin Notification
-                        </span>
-                        <h3 className="text-xl font-extrabold text-white mt-3 mb-1">
-                            Song Request Received!
-                        </h3>
-                        <p className="text-xs text-purple-200 mb-4">
-                            <strong className="text-pink-400">{adminRequestModal.requester}</strong> wants to play:
-                        </p>
-                        
-                        <div className="flex items-center gap-3 bg-black/60 p-3 rounded-2xl border border-white/10 mb-6 text-left">
-                            <img src={adminRequestModal.track.image} alt={adminRequestModal.track.song} className="w-12 h-12 rounded-xl object-cover" />
-                            <div className="min-w-0 flex-1">
-                                <h4 className="text-sm font-bold text-white truncate">{adminRequestModal.track.song}</h4>
-                                <p className="text-xs text-gray-400 truncate">{adminRequestModal.track.singers}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleAdminDeclineRequest}
-                                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-gray-300 font-bold rounded-xl text-xs transition-colors"
-                            >
-                                Decline
-                            </button>
-                            <button
-                                onClick={handleAdminPlayNextRequest}
-                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all flex items-center justify-center gap-1"
-                            >
-                                <SkipForward className="w-3.5 h-3.5 fill-current" />
-                                Play Next
-                            </button>
-                            <button
-                                onClick={handleAdminAcceptRequest}
-                                className="flex-1 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl text-xs shadow-lg transition-all flex items-center justify-center gap-1"
-                            >
-                                <Play className="w-3.5 h-3.5 fill-current" />
-                                Play Now
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <ShareRoomModal 
                 isOpen={isShareModalOpen} 
@@ -2744,8 +2204,8 @@ export const MusicDate = () => {
                 onLoadedData={handleAudioLoadedData} 
             />
 
-            {/* Header / Nav Bar - Hidden in Campus PCO (Sparx FM) because PcoRadioPlayer has its own integrated header */}
-            {!isFullscreen && !roomCode.includes('Campus_PCO') && (
+            {/* Header / Nav Bar */}
+            {!isFullscreen && (
                 <div className="h-14 md:h-16 border-b border-white/5 flex items-center justify-between px-2.5 sm:px-4 md:px-6 bg-black/40 backdrop-blur-md relative z-30 gap-1.5">
                     <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0">
                         <button
@@ -2758,16 +2218,12 @@ export const MusicDate = () => {
                         </button>
                         <div className="flex items-center gap-1.5 md:gap-3 border border-violet-500/30 bg-violet-500/10 px-2.5 md:px-4 py-1 md:py-1.5 rounded-full min-w-0 shrink">
                             <span className="font-bold text-gray-200 text-xs sm:text-sm md:text-base truncate max-w-[85px] sm:max-w-[140px] md:max-w-[240px]">{roomName}</span>
-                            {!roomCode.includes('Campus_PCO') && (
-                                <>
-                                    <div className="hidden sm:block w-px h-3.5 bg-white/20 shrink-0" />
-                                    <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="hidden sm:flex font-mono text-neon font-bold items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
-                                        <Hash className="w-3 h-3" />
-                                        {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
-                                        <Copy className="w-3 h-3 text-neon/75 ml-0.5 shrink-0" />
-                                    </span>
-                                </>
-                            )}
+                                                            <div className="hidden sm:block w-px h-3.5 bg-white/20 shrink-0" />
+                                <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="hidden sm:flex font-mono text-neon font-bold items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
+                                    <Hash className="w-3 h-3" />
+                                    {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
+                                    <Copy className="w-3 h-3 text-neon/75 ml-0.5 shrink-0" />
+                                </span>
                             {isHost && (
                                 <div className="hidden md:flex items-center gap-1 px-2 py-0.5 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold shrink-0">
                                     <Users className="w-3 h-3" />
@@ -2777,13 +2233,7 @@ export const MusicDate = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2.5 shrink-0">
-                        {roomCode.includes('Campus_PCO') ? (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/10 border border-pink-500/20 text-pink-300 text-xs font-bold rounded-full shrink-0 shadow-sm">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                                <span>{listenerCount} listening</span>
-                            </div>
-                        ) : (
-                            <div className="relative">
+                        <div className="relative">
                                 <button onClick={() => setShowUsersList(!showUsersList)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors flex items-center gap-1 md:gap-1.5 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
                                     <Users className="w-4 h-4 md:w-5 md:h-5 text-pink-400 shrink-0" />
                                     <span className="text-[10px] md:text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-1.5 py-0.5 rounded-full">
@@ -2807,7 +2257,6 @@ export const MusicDate = () => {
                                     </div>
                                 )}
                             </div>
-                        )}
                         <button onClick={() => setIsShareModalOpen(true)} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block" title="Share Room">
                             <Share2 className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
@@ -2895,7 +2344,7 @@ export const MusicDate = () => {
 
                 {/* Left Side: Now Playing / Radio Player */}
                 <div className={`flex-1 z-10 flex flex-col items-center justify-center relative min-h-0 ${
-                    roomCode.includes('Campus_PCO') ? 'overflow-hidden p-0 pb-2 md:pb-0' : 'overflow-y-auto p-3 md:p-8'
+                    'overflow-y-auto p-3 md:p-8'
                 }`}>
                     {showLyrics ? (
                         <>
@@ -2927,7 +2376,7 @@ export const MusicDate = () => {
                                                     key={idx}
                                                     id={`lyric-${idx}`}
                                                     onClick={() => {
-                                                        const canSeek = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+                                                        const canSeek = isHost;
                                                         if (canSeek && audioRef.current) {
                                                             audioRef.current.currentTime = line.time;
                                                             setCurrentTime(line.time);
@@ -2965,53 +2414,13 @@ export const MusicDate = () => {
                                 )}
                             </div>
 
-                            {/* Floating Player Tracer Bar (Right side when sidebar is open and not fullscreen) */}
-                            {currentTrack && !isSidebarHidden && !isFullscreen && (
+                            {/* Floating Player Tracer Bar (Right side when not fullscreen) */}
+                            {currentTrack && !isFullscreen && (
                                 <div className="absolute bottom-6 right-6 z-40 hidden md:flex">
                                     {renderPlayerTracerBar()}
                                 </div>
                             )}
                         </>
-                    ) : roomCode.includes('Campus_PCO') ? (
-                        <PcoRadioPlayer
-                            currentTrack={currentTrack}
-                            currentTime={currentTime}
-                            isPlaying={isPlaying}
-                            listenerCount={listenerCount}
-                            isAdmin={isAdminUser}
-                            requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
-                            pinnedBanner={pinnedBanner}
-                            floatingChatMessages={floatingNotifications}
-                            isSidebarOpen={!isSidebarHidden}
-                            onToggleLyrics={toggleLyrics}
-                            onPlayPause={handlePlayPause}
-                            onSkip={handleSkip}
-                            onSeek={(t: number) => {
-                                if (audioRef.current) {
-                                    audioRef.current.currentTime = t;
-                                    setCurrentTime(t);
-                                    if (supabase) {
-                                        clearTimeout(pcoSeekTimer.current);
-                                        pcoSeekTimer.current = setTimeout(() => {
-                                            supabase.channel('campus_pco_live_chat').send({
-                                                type: 'broadcast',
-                                                event: 'PCO_SEEK',
-                                                payload: { time: t }
-                                            });
-                                        }, 250);
-                                    }
-                                }
-                            }}
-                            onToggleSidebar={() => {
-                                if (isMobile) {
-                                    setIsMobilePcoPanel(prev => !prev);
-                                } else {
-                                    setIsSidebarHidden(prev => !prev);
-                                }
-                            }}
-                            onToggleAdminPanel={() => setIsAdminQuickPanelOpen(prev => !prev)}
-                            onBack={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
-                        />
                     ) : !currentTrack ? (
                         /* Fix 2: Prominent search prompt when no track is playing */
                         <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center transition-all my-auto z-10 px-4">
@@ -3089,7 +2498,7 @@ export const MusicDate = () => {
                             {/* Playback Controls & Progress */}
                             <div className="w-full max-w-md shrink-0 relative z-20">
                                 {(() => {
-                                    const canControlPlayback = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+                                    const canControlPlayback = isHost;
                                     return (
                                         <>
                                             <input
@@ -3123,11 +2532,7 @@ export const MusicDate = () => {
                                                     <SkipForward className="w-5 h-5 fill-current" />
                                                 </button>
                                             </div>
-                                            {roomCode.includes('Campus_PCO') ? (
-                                                !isAdminUser && <p className="mt-2 text-[10px] text-pink-400/90 font-medium text-center">📻 Live 24/7 Radio • Controls managed by Admin DJ</p>
-                                            ) : (
-                                                !isHost && <p className="mt-2 text-[10px] text-gray-500 text-center">Only host can skip tracks or control progress.</p>
-                                            )}
+                                            {!isHost && <p className="mt-2 text-[10px] text-gray-500 text-center">Only host can skip tracks or control progress.</p>}
                                         </>
                                     );
                                 })()}
@@ -3136,179 +2541,8 @@ export const MusicDate = () => {
                     )}
                 </div>
 
-                {/* Campus PCO Split Right Panel Layout (Top: Song Requests, Bottom: YouTube Live Chat) */}
-                {roomCode.includes('Campus_PCO') ? (
-                    <>
-                        {/* Right Sidebar (Hidden when isSidebarHidden is true) */}
-                        {!isSidebarHidden && (
-                            <div className="hidden md:flex w-80 lg:w-96 border-l border-white/10 bg-black/95 flex-col flex-shrink-0 h-full z-20 overflow-hidden transition-all duration-300 animate-fade-in">
-                                {/* TOP HALF: Song Requests & Queue */}
-                                <div className="h-1/2 flex flex-col border-b border-white/10 p-3 bg-[#07050d] overflow-hidden transition-all duration-300">
-                                    <div className="flex items-center justify-between shrink-0">
-                                        <span className="text-xs font-black text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
-                                            <Music className="w-3.5 h-3.5 text-pink-400" /> Song Requests
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[9px] font-bold text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-full">
-                                                {isAdminUser ? 'Admin Unlimited' : `${3 - dailyRequestsUsed}/3 Requests Today`}
-                                            </span>
-                                            {/* Hide Entire Sidebar */}
-                                            <button
-                                                onClick={() => setIsSidebarHidden(true)}
-                                                className="p-1.5 px-2.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-white transition-all border border-purple-500/30 flex items-center gap-1.5 text-[10px] font-bold shadow-sm"
-                                                title="Hide Sidebar (Floating Chat Mode)"
-                                            >
-                                                <EyeOff className="w-3.5 h-3.5" />
-                                                <span>Hide</span>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Search Input */}
-                                    <div className="relative my-2 shrink-0">
-                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                                        {isSearching && <Loader className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-400 animate-spin" />}
-                                        <input
-                                            type="text"
-                                            value={searchQuery}
-                                            onChange={e => setSearchQuery(e.target.value)}
-                                            placeholder="Search song to request..."
-                                            className="w-full bg-gray-900 border border-white/10 rounded-xl py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none focus:border-purple-500"
-                                        />
-                                    </div>
-
-                                    {/* Search Results / Queue List */}
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-                                        {searchResults.length > 0 ? (
-                                            searchResults.map(t => (
-                                                <div key={t.id} className="flex flex-col gap-1.5 bg-white/5 hover:bg-purple-600/20 p-2 rounded-xl transition-colors group border border-transparent hover:border-purple-500/30">
-                                                    <div className="flex items-center gap-2">
-                                                        <img src={t.image} alt={t.song} className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <h5 className="text-xs font-bold text-white truncate">{t.song}</h5>
-                                                            <p className="text-[10px] text-gray-400 truncate">{t.singers}</p>
-                                                        </div>
-                                                    </div>
-                                                    {isAdminUser ? (
-                                                        <div className="flex items-center gap-1 mt-0.5 justify-end">
-                                                            <button
-                                                                onClick={() => handlePcoAdminDirectPlay(t)}
-                                                                className="text-[9px] font-black bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-2 py-1 rounded-md shadow uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
-                                                                title="Play song right now"
-                                                            >
-                                                                <Play className="w-2.5 h-2.5 fill-current" /> Play Now
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handlePcoAdminPlayNext(t)}
-                                                                className="text-[9px] font-black bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded-md shadow uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
-                                                                title="Play immediately after current song"
-                                                            >
-                                                                <SkipForward className="w-2.5 h-2.5 fill-current" /> Play Next
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handlePcoAdminAddToQueue(t)}
-                                                                className="text-[9px] font-black bg-zinc-800 hover:bg-zinc-700 text-purple-300 hover:text-white border border-purple-500/30 px-2 py-1 rounded-md shadow uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
-                                                                title="Append to queue"
-                                                            >
-                                                                <PlusCircle className="w-2.5 h-2.5" /> Add to Queue
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handlePcoSongRequest(t)}
-                                                            className="text-[10px] font-bold bg-pink-500 text-white px-2.5 py-1 rounded-lg hover:bg-pink-600 self-end shadow-md"
-                                                        >
-                                                            Request ({3 - dailyRequestsUsed} left)
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="text-center py-6 text-gray-500 text-xs">
-                                                <p className="font-semibold text-gray-400">Search above to request songs!</p>
-                                                <p className="text-[10px] mt-1 text-purple-400/80">Requests play automatically</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* BOTTOM HALF: YouTube-Style Live Chat */}
-                                <div className="h-1/2 flex flex-col p-3 bg-black overflow-hidden transition-all duration-300">
-                                    <div className="flex items-center justify-between mb-2 shrink-0">
-                                        <span className="text-xs font-black text-pink-400 uppercase tracking-wider flex items-center gap-1.5">
-                                            <MessageSquare className="w-3.5 h-3.5 text-purple-400" /> Live Chat
-                                        </span>
-                                        <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1 font-bold">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            YouTube Live
-                                        </span>
-                                    </div>
-
-                                    {/* 15-Second Sticky Pinned Announcement Banner */}
-                                    {pinnedBanner && (
-                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl mb-2 bg-black/60 backdrop-blur-2xl border border-white/10 text-xs text-white/90 shadow-md animate-in fade-in duration-300 shrink-0">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
-                                            <span className="truncate font-medium text-white/90 text-[11.5px]">{pinnedBanner.text}</span>
-                                        </div>
-                                    )}
-
-                                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1 mb-2">
-                                        {messages.map((msg, i) => (
-                                            <div key={i} className="text-xs leading-relaxed break-words">
-                                                <span className={`font-black mr-1.5 ${msg.user === displayName ? 'text-pink-400' : 'text-purple-300'}`}>
-                                                    {msg.user}:
-                                                </span>
-                                                <span className="text-gray-200 font-medium">{msg.text}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <form onSubmit={handleSendMessage} className="relative shrink-0">
-                                        <input
-                                            type="text"
-                                            value={newMessage}
-                                            onChange={e => setNewMessage(e.target.value)}
-                                            placeholder="Chat live in Campus PCO..."
-                                            className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2 pl-3 pr-8 text-xs text-white focus:outline-none focus:border-pink-500"
-                                        />
-                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-pink-400 hover:text-pink-300 p-1">
-                                            <Send className="w-3.5 h-3.5" />
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Floating Notifications, Floating Text Bar, & Player Tracer Stack (When sidebar is hidden OR in Fullscreen) */}
-                        {(isSidebarHidden || isFullscreen) && (
-                            <div className="hidden md:flex fixed bottom-6 right-6 z-50 flex-col items-end gap-2.5 max-w-sm sm:max-w-md w-auto pointer-events-none">
-                                {/* Top: 2-Second Floating Notification Cards */}
-                                {floatingNotifications.length > 0 && (
-                                    <div className="flex flex-col items-end gap-2 w-full pointer-events-auto">
-                                        {floatingNotifications.map(notif => (
-                                            <div
-                                                key={notif.id}
-                                                className="animate-fade-in-down bg-black/90 backdrop-blur-2xl border border-pink-500/40 text-white text-xs px-4 py-2.5 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center gap-2.5 max-w-sm transition-all duration-300"
-                                            >
-                                                <div className="w-2 h-2 rounded-full bg-pink-500 animate-pulse shrink-0" />
-                                                <div className="truncate min-w-0">
-                                                    <span className="font-black text-pink-400 mr-1.5">{notif.user}:</span>
-                                                    <span className="text-gray-200 font-medium">{notif.text}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Bottom: Song Player Tracer Bar in Fullscreen / Hidden Sidebar mode */}
-                                {showLyrics && currentTrack && renderPlayerTracerBar()}
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <>
-                        {/* Standard Music Date Right Panel */}
-                        {!isFullscreen && (showMobileSearch || !isMobile) && (
+                {/* Standard Music Date Right Panel */}
+                {!isFullscreen && (showMobileSearch || !isMobile) && (
                             <div className={`${showMobileSearch ? 'fixed inset-x-0 bottom-20 top-auto h-[55vh] z-50 rounded-t-3xl border-t-2 border-violet-500/30' : 'hidden md:flex w-80 lg:w-96 border-l'} border-white/5 bg-black/95 md:bg-black/40 backdrop-blur-md md:backdrop-blur-md z-20 flex flex-col flex-shrink-0`}>
                                 <div className="p-3 md:p-4 border-b border-white/5 bg-gray-950/50 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
@@ -3437,161 +2671,10 @@ export const MusicDate = () => {
                                 </div>
                             </div>
                         )}
-                    </>
-                )}
             </div>
 
-            {/* ===== MOBILE-ONLY: Campus PCO Bottom Bar & Slide-Up Panel ===== */}
-            {roomCode.includes('Campus_PCO') && (
-                <>
-                    {/* Mobile Slide-Up BottomSheet (Chat + Song Request) */}
-                    <BottomSheet open={isMobilePcoPanel} onClose={() => setIsMobilePcoPanel(false)}>
-                        {/* Panel Header Tabs */}
-                        <div className="flex items-center border-b border-white/10 px-4 pt-1 pb-2 shrink-0">
-                            <button
-                                onClick={() => setShowChat(false)}
-                                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${!showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
-                            >
-                                <Music className="w-3.5 h-3.5 inline mr-1.5" />Song Requests
-                            </button>
-                            <button
-                                onClick={() => setShowChat(true)}
-                                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider text-center transition-colors border-b-2 ${showChat ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500'}`}
-                            >
-                                <MessageSquare className="w-3.5 h-3.5 inline mr-1.5" />Live Chat
-                            </button>
-                            <button onClick={() => setIsMobilePcoPanel(false)} className="p-2 text-gray-500 hover:text-white ml-2 shrink-0">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Tab Content */}
-                        {!showChat ? (
-                            /* Song Request Tab */
-                            <div className="flex-1 flex flex-col overflow-hidden">
-                                {/* Search */}
-                                <div className="p-3 border-b border-white/5 shrink-0">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
-                                        <input
-                                            type="text"
-                                            value={searchQuery}
-                                            onChange={e => setSearchQuery(e.target.value)}
-                                            placeholder="Search songs to request..."
-                                            className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
-                                        />
-                                    </div>
-                                    <p className="text-[10px] text-gray-500 mt-1.5 px-1">
-                                        {3 - dailyRequestsUsed > 0 ? `${3 - dailyRequestsUsed} requests left today` : 'Daily request limit reached'}
-                                    </p>
-                                </div>
-
-                                {/* Search Results / Queue */}
-                                <div data-sheet-scroll className="flex-1 overflow-y-auto custom-scrollbar p-3">
-                                    {searchResults.length > 0 && (
-                                        <div className="mb-4">
-                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Results</h3>
-                                            <div className="space-y-2">
-                                                {searchResults.map((t) => (
-                                                    <div key={t.id} className="flex flex-col gap-1.5 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                                                        <div className="flex items-center gap-3">
-                                                            <img src={t.image} alt={t.song} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                                                            <div className="flex-1 min-w-0">
-                                                                <h4 className="text-white text-sm font-bold truncate">{t.song}</h4>
-                                                                <p className="text-gray-400 text-xs truncate">{t.singers}</p>
-                                                            </div>
-                                                        </div>
-                                                        {isAdminUser ? (
-                                                            <div className="flex items-center gap-1 justify-end pt-1 border-t border-white/5">
-                                                                <button
-                                                                    onClick={() => { handlePcoAdminDirectPlay(t); setIsMobilePcoPanel(false); }}
-                                                                    className="text-[10px] font-black bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
-                                                                >
-                                                                    <Play className="w-2.5 h-2.5 fill-current" /> Play Now
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => { handlePcoAdminPlayNext(t); setIsMobilePcoPanel(false); }}
-                                                                    className="text-[10px] font-black bg-indigo-600 text-white px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
-                                                                >
-                                                                    <SkipForward className="w-2.5 h-2.5 fill-current" /> Play Next
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => { handlePcoAdminAddToQueue(t); setIsMobilePcoPanel(false); }}
-                                                                    className="text-[10px] font-black bg-zinc-800 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-md shadow uppercase flex items-center gap-1"
-                                                                >
-                                                                    <PlusCircle className="w-2.5 h-2.5" /> Add Queue
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => { handlePcoSongRequest(t); setIsMobilePcoPanel(false); }}
-                                                                className="w-full py-1.5 mt-1 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 shadow"
-                                                            >
-                                                                <PlusCircle className="w-3.5 h-3.5" /> Request Song
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Queue ({queue.length})</h3>
-                                        {queue.length === 0 ? (
-                                            <p className="text-sm text-gray-600 px-1 italic">Queue is empty</p>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {queue.map((t, idx) => (
-                                                    <div key={`m-${t.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                                                        <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
-                                                        <img src={t.image} alt={t.song} className="w-8 h-8 rounded-md object-cover" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-white text-sm font-medium truncate">{t.song}</h4>
-                                                            <p className="text-gray-400 text-[10px] truncate">{t.singers}</p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            /* Live Chat Tab */
-                            <div className="flex-1 flex flex-col overflow-hidden">
-                                <div data-sheet-scroll className="flex-1 overflow-y-auto p-4 space-y-3.5">
-                                    {messages.length === 0 && (
-                                        <p className="text-gray-600 text-sm text-center mt-8 italic">No messages yet. Say something!</p>
-                                    )}
-                                    {messages.map((msg, i) => (
-                                        <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                            <div className="flex items-center gap-1.5 px-1.5 mb-1 text-[11px]">
-                                                <span className="font-bold text-gray-200">{msg.user}</span>
-                                                <span className="text-pink-400 font-bold">•</span>
-                                                <span className="text-pink-300/90 font-mono text-[10px] font-semibold">{formatChatTimestamp(msg.createdAt)}</span>
-                                            </div>
-                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`}>
-                                                {msg.text}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-3 border-t border-white/5 bg-black/50 shrink-0">
-                                    <form onSubmit={handleSendMessage} className="relative">
-                                        <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
-                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
-                                    </form>
-                                </div>
-                            </div>
-                        )}
-                    </BottomSheet>
-                </>
-            )}
-
-            {/* Fix 3: Video Grids Overlay - disabled in Campus PCO mode for clean radio experience */}
-            {!roomCode.includes('Campus_PCO') && (
-                <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
+            {/* Video Grids Overlay */}
+            <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
                     {myStream && (
                         <div
                             onMouseDown={(e) => handleCamMouseDown(e, 'me')}
@@ -3628,7 +2711,6 @@ export const MusicDate = () => {
                         </div>
                     ))}
                 </div>
-            )}
 
             {/* Navigation Blocker Modal */}
             {showLeaveModal && (
@@ -3679,43 +2761,6 @@ export const MusicDate = () => {
                 </div>
             )}
 
-            {/* In-Room Admin Quick Panel for Campus PCO Radio */}
-            {roomCode.includes('Campus_PCO') && isAdminUser && (
-                <PcoAdminQuickPanel
-                    isOpen={isAdminQuickPanelOpen}
-                    onToggle={() => setIsAdminQuickPanelOpen(prev => !prev)}
-                    queue={queue}
-                    onPlayNow={handlePcoAdminDirectPlay}
-                    onPlayNext={handlePcoAdminPlayNext}
-                    onAddToQueue={handlePcoAdminAddToQueue}
-                    onRemoveFromQueue={(trackId) => {
-                        setQueue(prev => {
-                            const nextQueue = prev.filter(t => t.id !== trackId);
-                            if (supabase) {
-                                supabase.channel('campus_pco_live_chat').send({
-                                    type: 'broadcast',
-                                    event: 'PCO_QUEUE_SYNC',
-                                    payload: { queue: nextQueue }
-                                });
-                            }
-                            return nextQueue;
-                        });
-                    }}
-                    onSkipCurrent={handleSkip}
-                    onBroadcastBanner={(text) => {
-                        triggerPinnedBanner(text);
-                        if (supabase) {
-                            supabase.channel('campus_pco_live_chat').send({
-                                type: 'broadcast',
-                                event: 'LIVE_CHAT_MSG',
-                                payload: { user: 'Admin DJ 👑', text }
-                            });
-                        }
-                    }}
-                    currentTrack={currentTrack}
-                    adminUserId={currentUser?.id}
-                />
-            )}
         </div>
     );
 };

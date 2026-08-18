@@ -50,37 +50,75 @@ export const PcoLyricsScroller: React.FC<PcoLyricsScrollerProps> = React.memo(({
     const fetchLyrics = async () => {
       setIsLoading(true);
       try {
-        const cleanTrackId = currentTrack.id.replace('pco-rom-', '');
-        const res = await fetch(`https://saavn.dev/api/lyrics?id=${cleanTrackId}`, {
-          signal: abortController.signal
-        });
-        const json = await res.json();
+        const cleanSong = currentTrack.song
+          .replace(/\(.*\)/g, '')
+          .replace(/\[.*\]/g, '')
+          .replace(/-.*$/g, '')
+          .trim();
+        const primaryArtist = currentTrack.singers.split(',')[0].trim();
+
+        // 1. Direct match on lrclib
+        let rawSynced: string | null = null;
+        let rawPlain: string | null = null;
+
+        try {
+          const res = await fetch(
+            `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanSong)}&artist_name=${encodeURIComponent(primaryArtist)}`,
+            { signal: abortController.signal }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            rawSynced = data.syncedLyrics || null;
+            rawPlain = data.plainLyrics || null;
+          }
+        } catch {
+          // ignore direct fail, try search
+        }
+
+        // 2. Fallback search on lrclib
+        if (!rawSynced && !rawPlain) {
+          try {
+            const searchRes = await fetch(
+              `https://lrclib.net/api/search?q=${encodeURIComponent(cleanSong + ' ' + primaryArtist)}`,
+              { signal: abortController.signal }
+            );
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (Array.isArray(searchData) && searchData.length > 0) {
+                const match = searchData.find((d: any) => d.syncedLyrics) || searchData[0];
+                rawSynced = match.syncedLyrics || null;
+                rawPlain = match.plainLyrics || null;
+              }
+            }
+          } catch {
+            // fallback
+          }
+        }
 
         if (!isMounted) return;
 
-        if (json?.data?.lyrics) {
-          const raw = json.data.lyrics;
-          // Check if synced timestamp format [00:12.34]
-          if (raw.includes('[') && raw.includes(']')) {
-            const lines: LyricLine[] = [];
-            const regex = /\[(\d+):(\d+(?:\.\d+)?)\](.*)/g;
-            let match;
-            while ((match = regex.exec(raw)) !== null) {
-              const min = parseInt(match[1], 10);
-              const sec = parseFloat(match[2]);
-              const text = match[3].trim();
-              if (text) {
-                lines.push({ time: min * 60 + sec, text });
-              }
-            }
-            if (lines.length > 0) {
-              setLyricsData(lines);
-              setPlainLyrics(null);
-              setIsLoading(false);
-              return;
+        if (rawSynced) {
+          const lines: LyricLine[] = [];
+          const regex = /\[(\d+):(\d+(?:\.\d+)?)\](.*)/g;
+          let match;
+          while ((match = regex.exec(rawSynced)) !== null) {
+            const min = parseInt(match[1], 10);
+            const sec = parseFloat(match[2]);
+            const text = match[3].trim();
+            if (text) {
+              lines.push({ time: min * 60 + sec, text });
             }
           }
-          setPlainLyrics(raw);
+          if (lines.length > 0) {
+            setLyricsData(lines);
+            setPlainLyrics(null);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        if (rawPlain) {
+          setPlainLyrics(rawPlain);
           setLyricsData(null);
         } else {
           setPlainLyrics('Enjoy the music! Lyrics not available for this track.');
@@ -88,7 +126,7 @@ export const PcoLyricsScroller: React.FC<PcoLyricsScrollerProps> = React.memo(({
         }
       } catch (err: any) {
         if (err.name !== 'AbortError' && isMounted) {
-          setPlainLyrics('Lyrics unavailable.');
+          setPlainLyrics('Enjoy the music!');
           setLyricsData(null);
         }
       } finally {

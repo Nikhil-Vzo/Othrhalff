@@ -11,6 +11,7 @@ import {
   updateRadioQueue,
   getServerTimeMs
 } from '../services/pcoAdmin';
+import { curatedRomanticTracks } from '../data/pcoRomanticTracks';
 
 export interface UsePcoRadioSyncOptions {
   onTrackChange?: (track: PcoTrack) => void;
@@ -518,11 +519,13 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   const skipCurrentTrack = useCallback(async () => {
     if (queueRef.current.length > 0) {
       const [nextTrack, ...remainingQueue] = queueRef.current;
-      await setManualRadioOverride(nextTrack, remainingQueue, roomId);
+      setQueue(remainingQueue);
+      await playTrackImmediately(nextTrack);
     } else {
-      await returnToAutoRadioSchedule(roomId);
+      // Empty queue: cleanly return to / continue 24/7 Radio stream
+      await returnToAuto();
     }
-  }, [roomId]);
+  }, [returnToAuto, playTrackImmediately]);
 
   const togglePlayPause = useCallback(() => {
     const audio = audioRef.current;

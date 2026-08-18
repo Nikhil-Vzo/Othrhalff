@@ -144,21 +144,49 @@ export const CampusPcoRadio: React.FC = () => {
     return () => clearInterval(interval);
   }, [pinnedBanner]);
 
-  // 6. Supabase Realtime Channel & Broadcast Handlers
+  // Stable refs for Realtime broadcast handlers to eliminate reconnection storms
+  const liveChannelRef = useRef<any>(null);
+  const anonymousIdRef = useRef(`anon_${Math.random().toString(36).substring(2, 9)}`);
+  const presenceKey = currentUser?.id || anonymousIdRef.current;
+
+  const handlersRef = useRef({
+    playTrackImmediately,
+    playTrackNext,
+    addTrackToQueue,
+    setIsPlaying,
+    seek,
+    skipCurrentTrack,
+    triggerPinnedBanner,
+    addFloatingNotification
+  });
+
+  useEffect(() => {
+    handlersRef.current = {
+      playTrackImmediately,
+      playTrackNext,
+      addTrackToQueue,
+      setIsPlaying,
+      seek,
+      skipCurrentTrack,
+      triggerPinnedBanner,
+      addFloatingNotification
+    };
+  });
+
+  // 6. Supabase Realtime Channel & Broadcast Handlers (Created ONCE per user/session)
   useEffect(() => {
     if (!supabase) return;
 
     const channel = supabase.channel('campus_pco_live_chat', {
-      config: { presence: { key: currentUser?.id || `anon_${Math.random().toString(36).substring(2, 7)}` } }
+      config: { presence: { key: presenceKey } }
     });
+    liveChannelRef.current = channel;
 
     const updatePresenceState = () => {
       const state = channel.presenceState();
-      let total = 0;
-      Object.values(state).forEach((p: any) => {
-        total += (p?.length || 0);
-      });
-      setListenerCount(Math.max(1, total));
+      // Count unique presence keys so single user/tabs don't cause 1->2 flickering
+      const uniqueUsers = Object.keys(state).length;
+      setListenerCount(Math.max(1, uniqueUsers));
     };
 
     channel
@@ -172,45 +200,43 @@ export const CampusPcoRadio: React.FC = () => {
             text: payload.text,
             createdAt: payload.createdAt || Date.now()
           }]);
-          addFloatingNotification(payload.user, payload.text);
+          handlersRef.current.addFloatingNotification(payload.user, payload.text);
         }
       })
       .on('broadcast', { event: 'PCO_PLAY_IMMEDIATELY' }, ({ payload }) => {
         if (payload?.track) {
-          playTrackImmediately(payload.track);
-          triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
+          handlersRef.current.playTrackImmediately(payload.track);
+          handlersRef.current.triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
         }
       })
       .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
         if (payload?.track) {
-          playTrackNext(payload.track);
-          triggerPinnedBanner(`⏭️ Queued Next: "${payload.track.song}"`);
+          handlersRef.current.playTrackNext(payload.track);
+          handlersRef.current.triggerPinnedBanner(`⏭️ Queued Next: "${payload.track.song}"`);
         }
       })
       .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
         if (payload?.track) {
-          addTrackToQueue(payload.track);
-          triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
+          handlersRef.current.addTrackToQueue(payload.track);
+          handlersRef.current.triggerPinnedBanner(`➕ Added to Queue: "${payload.track.song}"`);
         }
       })
       .on('broadcast', { event: 'PCO_PLAY_STATE' }, ({ payload }) => {
         if (typeof payload?.playing === 'boolean') {
-          setIsPlaying(payload.playing);
+          handlersRef.current.setIsPlaying(payload.playing);
         }
       })
       .on('broadcast', { event: 'PCO_SEEK' }, ({ payload }) => {
         if (typeof payload?.time === 'number') {
-          seek(payload.time);
+          handlersRef.current.seek(payload.time);
         }
       })
       .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
-        triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
-        skipCurrentTrack();
+        handlersRef.current.triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
+        handlersRef.current.skipCurrentTrack();
       })
-      .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, ({ payload }) => {
-        if (payload?.track) {
-          triggerPinnedBanner(`📨 Song Request: "${payload.track.song}" (by ${payload.requester})`);
-        }
+      .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, () => {
+        // Requests appear directly inside the Admin DJ Panel tab without flashing on screen
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -223,19 +249,9 @@ export const CampusPcoRadio: React.FC = () => {
 
     return () => {
       supabase.removeChannel(channel);
+      liveChannelRef.current = null;
     };
-  }, [
-    currentUser?.id,
-    displayName,
-    addFloatingNotification,
-    triggerPinnedBanner,
-    playTrackImmediately,
-    playTrackNext,
-    addTrackToQueue,
-    setIsPlaying,
-    seek,
-    skipCurrentTrack
-  ]);
+  }, [presenceKey, displayName]);
 
   // 7. Chat Send with Anti-Spam Rate Limit
   const handleSendMessage = (e: React.FormEvent) => {
@@ -256,12 +272,21 @@ export const CampusPcoRadio: React.FC = () => {
 
     setMessages(prev => [...prev.slice(-99), newMsg]);
     setChatInput('');
+    addFloatingNotification(newMsg.user, newMsg.text);
 
-    supabase.channel('campus_pco_live_chat').send({
-      type: 'broadcast',
-      event: 'LIVE_CHAT_MSG',
-      payload: newMsg
-    });
+    if (liveChannelRef.current) {
+      liveChannelRef.current.send({
+        type: 'broadcast',
+        event: 'LIVE_CHAT_MSG',
+        payload: newMsg
+      });
+    } else {
+      supabase.channel('campus_pco_live_chat').send({
+        type: 'broadcast',
+        event: 'LIVE_CHAT_MSG',
+        payload: newMsg
+      });
+    }
 
     // Auto-scroll chat for sender
     setTimeout(() => {
@@ -295,17 +320,49 @@ export const CampusPcoRadio: React.FC = () => {
     }
   }, [messages, mobilePcoTab]);
 
-  // 8. Search & Song Request Submission
+  // 8. Search & Song Request Submission (Local curated fast-match + live API fallback)
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults(curatedRomanticTracks.slice(0, 10));
       return;
     }
     const q = searchQuery.toLowerCase();
-    const filtered = curatedRomanticTracks.filter(
+    const localFiltered = curatedRomanticTracks.filter(
       t => t.song.toLowerCase().includes(q) || t.singers.toLowerCase().includes(q)
     );
-    setSearchResults(filtered);
+
+    if (localFiltered.length > 0) {
+      setSearchResults(localFiltered);
+    }
+
+    // Debounced online search
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const apiTracks: PcoTrack[] = data
+            .slice(0, 10)
+            .map((x: any) => ({
+              id: String(x.id || `api_${Math.random()}`),
+              song: (x.song || x.title || 'Untitled').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&'),
+              singers: (x.singers || x.primary_artists || x.artist || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&'),
+              image: x.image || 'https://c.saavncdn.com/221/Soulful-Hits-Hindi-2026-20260529163806-500x500.jpg',
+              media_url: x.media_url || '',
+              duration: String(x.duration || 240)
+            }))
+            .filter((x: PcoTrack) => x.media_url);
+
+          if (apiTracks.length > 0) {
+            setSearchResults(apiTracks);
+          }
+        }
+      } catch (err) {
+        console.warn('[PCO Request] Search API fallback error:', err);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const handleRequestSong = async (track: PcoTrack) => {
@@ -397,47 +454,43 @@ export const CampusPcoRadio: React.FC = () => {
           queue={queue}
           onPlayNow={(t, id) => {
             playTrackImmediately(t);
+            triggerPinnedBanner(`🔥 Now Playing: "${t.song}"`);
             if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
-            if (supabase) {
-              supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_IMMEDIATELY',
-                payload: { track: t, senderId: currentUser?.id }
-              });
-            }
+            liveChannelRef.current?.send({
+              type: 'broadcast',
+              event: 'PCO_PLAY_IMMEDIATELY',
+              payload: { track: t, senderId: currentUser?.id }
+            });
           }}
           onPlayNext={(t, id) => {
             playTrackNext(t);
+            triggerPinnedBanner(`⏭️ Queued Next: "${t.song}"`);
             if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
-            if (supabase) {
-              supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_PLAY_NEXT',
-                payload: { track: t, senderId: currentUser?.id }
-              });
-            }
+            liveChannelRef.current?.send({
+              type: 'broadcast',
+              event: 'PCO_PLAY_NEXT',
+              payload: { track: t, senderId: currentUser?.id }
+            });
           }}
           onAddToQueue={(t, id) => {
             addTrackToQueue(t);
+            triggerPinnedBanner(`➕ Added to Queue: "${t.song}"`);
             if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
-            if (supabase) {
-              supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_ADD_QUEUE',
-                payload: { track: t, senderId: currentUser?.id }
-              });
-            }
+            liveChannelRef.current?.send({
+              type: 'broadcast',
+              event: 'PCO_ADD_QUEUE',
+              payload: { track: t, senderId: currentUser?.id }
+            });
           }}
           onRemoveFromQueue={removeFromQueue}
           onSkipCurrent={() => {
             skipCurrentTrack();
-            if (supabase) {
-              supabase.channel('campus_pco_live_chat').send({
-                type: 'broadcast',
-                event: 'PCO_ADMIN_SKIP',
-                payload: {}
-              });
-            }
+            triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
+            liveChannelRef.current?.send({
+              type: 'broadcast',
+              event: 'PCO_ADMIN_SKIP',
+              payload: {}
+            });
           }}
           onBroadcastBanner={(text) => {
             triggerPinnedBanner(text);
@@ -459,19 +512,14 @@ export const CampusPcoRadio: React.FC = () => {
       >
         <div 
           onTouchStart={e => e.stopPropagation()}
-          className="flex flex-col h-full max-h-[80dvh] bg-[#0d0716] text-white overflow-hidden"
+          className="flex flex-col h-full bg-[#0d0716] text-white overflow-hidden"
         >
-          {/* Top Bar: Swipe Down Affordance Pill + Quota Status */}
-          <div className="pt-2 pb-1.5 px-4 bg-purple-950/30 border-b border-white/10 flex flex-col gap-2 shrink-0">
-            <div className="flex justify-center">
-              <div className="w-12 h-1 rounded-full bg-white/25" />
+          {/* Top Bar: Quota Status & Close */}
+          <div className="pt-3 pb-2 px-4 bg-purple-950/30 border-b border-white/10 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1.5 text-pink-300 font-bold text-xs">
+              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+              <span>Campus Airwaves</span>
             </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-pink-300 font-bold text-xs">
-                <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-                <span>Campus Airwaves</span>
-              </div>
               <div className="flex items-center gap-2">
                 <div className="font-mono text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30">
                   {isAdmin ? 'DJ Admin (Unlimited)' : `${Math.max(0, 3 - dailyRequestsUsed)} reqs left today`}
@@ -485,7 +533,6 @@ export const CampusPcoRadio: React.FC = () => {
                 </button>
               </div>
             </div>
-          </div>
 
           {/* Segmented Tab Switcher */}
           <div className="flex items-center border-b border-white/10 px-3 bg-black/40 shrink-0">
@@ -545,7 +592,7 @@ export const CampusPcoRadio: React.FC = () => {
 
                 {/* Quick Filter Tags */}
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none mt-2">
-                  {trendingRomanticQueries.slice(0, 5).map((tag, i) => (
+                  {trendingRomanticQueries.slice(0, 5).map((tag: string, i: number) => (
                     <button
                       key={i}
                       onClick={() => setSearchQuery(tag)}

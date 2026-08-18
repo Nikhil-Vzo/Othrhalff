@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface BottomSheetProps {
   open: boolean;
@@ -13,140 +13,69 @@ interface BottomSheetProps {
 export const BottomSheet: React.FC<BottomSheetProps> = ({
   open,
   onClose,
-  height = '75dvh',
+  height = '80dvh',
   zIndex = 190,
   children
 }) => {
-  const [visible, setVisible] = useState(open);
-  const [closing, setClosing] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<any>(null);
 
-  const requestClose = useCallback(() => {
-    if (closing) return;
-    setClosing(true);
-    const el = sheetRef.current;
-    if (el) {
-      el.style.transition = '';
-      el.style.transform = '';
-    }
-    if (backdropRef.current) backdropRef.current.style.opacity = '';
-    closeTimer.current = setTimeout(() => {
-      setVisible(false);
-      setClosing(false);
-      onClose();
-    }, 210);
-  }, [closing, onClose]);
-
+  // Close on Escape key press
   useEffect(() => {
-    if (open) {
-      setVisible(true);
-      setClosing(false);
-    } else if (visible) {
-      requestClose();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    const prevPosition = document.body.style.position;
-    const prevTop = document.body.style.top;
-    const prevWidth = document.body.style.width;
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
+    if (!open) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') requestClose();
-    };
-
-    const mq = window.matchMedia('(min-width: 768px)');
-    const onMq = () => {
-      if (mq.matches) requestClose();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     };
 
     window.addEventListener('keydown', onKey);
-    mq.addEventListener('change', onMq);
-
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.position = prevPosition;
-      document.body.style.top = prevTop;
-      document.body.style.width = prevWidth;
-      window.scrollTo(0, scrollY);
       window.removeEventListener('keydown', onKey);
-      mq.removeEventListener('change', onMq);
-      clearTimeout(closeTimer.current);
     };
-  }, [visible, requestClose]);
+  }, [open, onClose]);
 
-  // Native (non-passive) drag listener
+  // Touch drag-down to dismiss on mobile
   useEffect(() => {
     const el = sheetRef.current;
-    if (!el || !visible) return;
+    if (!el || !open) return;
 
     let startY = 0;
     let curDy = 0;
-    let lastY = 0;
-    let lastT = 0;
-    let vel = 0;
-    let active = false;
     let dragging = false;
 
     const onStart = (e: TouchEvent) => {
-      startY = lastY = e.touches[0].clientY;
-      lastT = Date.now();
-      vel = 0;
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY;
       curDy = 0;
-      active = true;
       dragging = false;
     };
 
     const onMove = (e: TouchEvent) => {
-      if (!active) return;
       const y = e.touches[0].clientY;
       const dy = y - startY;
       const scroller = el.querySelector('[data-sheet-scroll]') as HTMLElement | null;
       const atTop = !scroller || scroller.scrollTop <= 5;
 
       if (dy > 0 && atTop) {
-        if (!dragging) {
-          dragging = true;
-          el.style.transition = 'none';
-        }
-        curDy = dy;
+        dragging = true;
         el.style.transform = `translateY(${dy}px)`;
-        if (backdropRef.current) {
-          backdropRef.current.style.opacity = String(Math.max(0, 1 - dy / 400));
-        }
-        const now = Date.now();
-        vel = (y - lastY) / Math.max(1, now - lastT);
-        lastY = y;
-        lastT = now;
-        e.preventDefault();
-      } else if (dy < 0) {
-        active = false;
+        el.style.transition = 'none';
+        if (e.cancelable) e.preventDefault();
       }
     };
 
     const onEnd = () => {
       if (dragging) {
-        dragging = false;
-        active = false;
-        el.style.transition = '';
-        if (curDy > 140 || vel > 0.5) {
-          requestClose();
+        el.style.transition = 'transform 0.2s ease-out';
+        if (curDy > 120) {
+          el.style.transform = 'translateY(100%)';
+          setTimeout(onClose, 200);
         } else {
-          el.style.transform = '';
-          if (backdropRef.current) backdropRef.current.style.opacity = '';
+          el.style.transform = 'translateY(0)';
         }
       }
-      active = false;
+      dragging = false;
     };
 
     el.addEventListener('touchstart', onStart, { passive: true });
@@ -160,34 +89,26 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       el.removeEventListener('touchend', onEnd);
       el.removeEventListener('touchcancel', onEnd);
     };
-  }, [visible, requestClose]);
+  }, [open, onClose]);
 
-  if (!visible) return null;
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 md:hidden" style={{ zIndex }}>
-      {/* Backdrop */}
+    <div className="fixed inset-0 select-auto" style={{ zIndex }}>
+      {/* 1. Backdrop (Dim overlay, click anywhere to close) */}
       <div
-        ref={backdropRef}
-        onClick={requestClose}
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
-          closing ? 'opacity-0' : ''
-        }`}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
       />
 
-      {/* Sheet Container */}
+      {/* 2. Responsive Panel: Bottom Sheet on Mobile | Floating Right Drawer on Desktop */}
       <div
         ref={sheetRef}
-        className={`absolute inset-x-0 bottom-0 bg-[#07050d] border-t border-purple-500/30 rounded-t-3xl flex flex-col shadow-2xl ${
-          closing ? 'animate-slide-down' : 'animate-slide-up'
-        }`}
-        style={{
-          height,
-          paddingBottom: 'env(safe-area-inset-bottom)'
-        }}
+        onClick={e => e.stopPropagation()}
+        className="absolute inset-x-0 bottom-0 md:inset-x-auto md:bottom-auto md:top-20 md:right-6 md:w-[440px] md:max-w-[calc(100vw-2rem)] h-[80dvh] md:h-[78vh] max-h-[82vh] bg-[#0d0716] border-t md:border border-purple-500/30 rounded-t-3xl md:rounded-3xl flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.95)] overflow-hidden animate-slide-up md:animate-fade-in-down"
       >
-        {/* Drag pill handle */}
-        <div className="flex justify-center pt-2.5 pb-1.5 shrink-0 cursor-grab">
+        {/* Mobile drag handle bar */}
+        <div className="flex md:hidden justify-center pt-2.5 pb-1 shrink-0 cursor-grab">
           <div className="w-12 h-1.5 rounded-full bg-white/20" />
         </div>
 

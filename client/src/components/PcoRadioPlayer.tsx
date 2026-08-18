@@ -238,23 +238,23 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
         </div>
       </header>
 
-      {/* 📢 DJ Announcement - Ultra Minimalist Pill */}
+      {/* 📢 DJ Announcement - Ultra Sleek Floating Banner */}
       {pinnedBanner && (
-        <div className="relative z-30 flex justify-center px-4 mt-2 pointer-events-none">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-2xl border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.5)] text-xs text-white/90 animate-in fade-in slide-in-from-top-2 duration-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
-            <span className="truncate max-w-[280px] sm:max-w-md font-medium text-white/90">{pinnedBanner.text}</span>
+        <div className="relative z-30 flex justify-center px-4 mt-3 pointer-events-none">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/85 backdrop-blur-2xl border border-pink-500/40 shadow-[0_8px_32px_rgba(236,72,153,0.35)] text-xs font-semibold text-white animate-in fade-in slide-in-from-top-3 duration-300">
+            <span className="w-2 h-2 rounded-full bg-pink-400 animate-ping shrink-0" />
+            <span className="truncate max-w-[280px] sm:max-w-lg text-white font-medium">{pinnedBanner.text}</span>
           </div>
         </div>
       )}
 
-      {/* 💬 Live On-Screen Chat Stream (Centered, Clean & Aesthetic) */}
+      {/* 💬 Live On-Screen Chat Stream (Centered, Vibrant & Aesthetic) */}
       {floatingChatMessages && floatingChatMessages.length > 0 && (
-        <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 z-20 pointer-events-none flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+        <div className="absolute inset-x-4 top-[45%] -translate-y-1/2 z-30 pointer-events-none flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
           {floatingChatMessages.map((msg) => (
             <div
               key={msg.id}
-              className="bg-black/60 backdrop-blur-xl border border-pink-500/30 px-4 py-2 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.8)] text-xs text-white flex items-center gap-2 max-w-full animate-in fade-in zoom-in-95 duration-300 pointer-events-none"
+              className="bg-black/85 backdrop-blur-2xl border border-purple-500/40 px-4 py-2.5 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.9)] text-xs text-white flex items-center gap-2.5 max-w-full animate-in fade-in zoom-in-95 duration-300 pointer-events-none"
             >
               <span className="font-bold text-pink-400 shrink-0">{msg.user}:</span>
               <span className="text-white/95 truncate font-medium">{msg.text}</span>
@@ -391,10 +391,8 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
             {/* ⏸️ / ▶️ Main White Circular Play / Pause Button with Ambient Halo */}
             <button
               onClick={onPlayPause}
-              disabled={!isAdmin}
-              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.45)] hover:shadow-[0_0_35px_rgba(255,255,255,0.7)] transition-all ${isAdmin ? 'hover:scale-105 active:scale-90 cursor-pointer' : 'cursor-default opacity-95'
-                }`}
-              title={isAdmin ? (isPlaying ? 'Pause Station' : 'Resume Station') : 'Campus Live Radio'}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.45)] hover:shadow-[0_0_35px_rgba(255,255,255,0.7)] hover:scale-105 active:scale-90 cursor-pointer transition-all"
+              title={isAdmin ? (isPlaying ? 'Pause Station (Admin)' : 'Resume Station (Admin)') : (isPlaying ? 'Pause Local Audio' : 'Tune In / Unmute Live Radio')}
               aria-label="Play / Pause"
             >
               {isPlaying ? (
