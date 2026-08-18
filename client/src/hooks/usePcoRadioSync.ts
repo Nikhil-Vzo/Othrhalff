@@ -99,6 +99,17 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     options.onTrackChange?.(track);
   }, [options]);
 
+  const ensurePreservesPitch = useCallback((audio: HTMLAudioElement | null) => {
+    if (!audio) return;
+    if ('preservesPitch' in audio) {
+      (audio as any).preservesPitch = true;
+    } else if ('mozPreservesPitch' in audio) {
+      (audio as any).mozPreservesPitch = true;
+    } else if ('webkitPreservesPitch' in audio) {
+      (audio as any).webkitPreservesPitch = true;
+    }
+  }, []);
+
   // Load deterministic auto track helper
   const loadAutoScheduleTrack = useCallback((seekOffset?: number) => {
     const sched = getPcoLiveSchedule();
@@ -109,13 +120,14 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     setCurrentTime(targetOffset);
 
     if (audioRef.current) {
+      ensurePreservesPitch(audioRef.current);
       audioRef.current.currentTime = targetOffset;
       audioRef.current.playbackRate = 1.0;
       audioRef.current.play().catch(() => {
         setIsPlaying(false);
       });
     }
-  }, [setCurrentTrack]);
+  }, [setCurrentTrack, ensurePreservesPitch]);
 
   // 1. Initial State Hydration on Mount (Fetch authoritative DB state or fallback to deterministic auto)
   useEffect(() => {
@@ -331,8 +343,10 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         if (Math.abs(drift) < 0.35) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
         } else if (drift > 0.35 && drift <= 2.5) {
+          ensurePreservesPitch(audio);
           audio.playbackRate = 1.03;
         } else if (drift < -0.35 && drift >= -2.5) {
+          ensurePreservesPitch(audio);
           audio.playbackRate = 0.97;
         } else if (Math.abs(drift) > 2.5) {
           audio.currentTime = expectedTime;
@@ -360,8 +374,10 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         if (Math.abs(drift) < 0.35) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
         } else if (drift > 0.35 && drift <= 2.5) {
+          ensurePreservesPitch(audio);
           audio.playbackRate = 1.03;
         } else if (drift < -0.35 && drift >= -2.5) {
+          ensurePreservesPitch(audio);
           audio.playbackRate = 0.97;
         } else if (Math.abs(drift) > 2.5) {
           audio.currentTime = expectedTime;
@@ -377,20 +393,10 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         driftIntervalRef.current = null;
       }
     };
-  }, [roomId, handleTrackEnd, setCurrentTrack]);
-
-  // Smooth playback time progression for 60fps lyrics and progress bar
-  useEffect(() => {
-    if (!isPlaying) return;
-    const smoothTimer = setInterval(() => {
-      if (audioRef.current && !audioRef.current.paused) {
-        setCurrentTime(audioRef.current.currentTime);
-      }
-    }, 150);
-    return () => clearInterval(smoothTimer);
-  }, [isPlaying]);
+  }, [roomId, handleTrackEnd, setCurrentTrack, ensurePreservesPitch]);
 
   // 4. Audio Event Handlers
+  // Native 4Hz onTimeUpdate with GPU CSS linear interpolation handles 60fps with 0 CPU overhead
   const handleTimeUpdate = useCallback(() => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
@@ -416,13 +422,14 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     setCurrentTime(0);
 
     if (audioRef.current) {
+      ensurePreservesPitch(audioRef.current);
       audioRef.current.currentTime = 0;
       audioRef.current.playbackRate = 1.0;
       audioRef.current.play().catch(() => {});
     }
 
     await setManualRadioOverride(track, queueRef.current, roomId);
-  }, [roomId, setCurrentTrack]);
+  }, [roomId, setCurrentTrack, ensurePreservesPitch]);
 
   const playTrackNext = useCallback(async (track: PcoTrack) => {
     const updatedQueue = [track, ...queueRef.current.filter(t => t.id !== track.id)];

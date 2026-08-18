@@ -481,13 +481,21 @@ export const CampusPcoRadio: React.FC = () => {
           </div>
 
           {/* Split Content: Song Catalog (Top) & Live Chat Stream (Bottom) */}
-          <div className="flex-1 overflow-y-auto divide-y divide-white/5 custom-scrollbar">
+          <div 
+            onTouchStart={e => e.stopPropagation()}
+            onTouchMove={e => e.stopPropagation()}
+            className="flex-1 overflow-y-auto divide-y divide-white/5 custom-scrollbar"
+          >
             {/* Song Results */}
             <div className="p-3 space-y-2">
               <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                 {searchQuery ? 'Search Results' : 'Recommended Songs'}
               </h4>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+              <div 
+                onTouchStart={e => e.stopPropagation()}
+                onTouchMove={e => e.stopPropagation()}
+                className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1"
+              >
                 {searchResults.slice(0, 8).map(track => (
                   <div
                     key={track.id}
@@ -524,7 +532,12 @@ export const CampusPcoRadio: React.FC = () => {
                 <span>Live Campus Chat</span>
               </h4>
 
-              <div ref={chatScrollRef} className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+              <div 
+                ref={chatScrollRef} 
+                onTouchStart={e => e.stopPropagation()}
+                onTouchMove={e => e.stopPropagation()}
+                className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar"
+              >
                 {messages.length === 0 ? (
                   <div className="text-center py-8 text-xs text-gray-500">
                     No messages yet. Say hello to the campus airwaves!
