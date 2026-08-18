@@ -238,11 +238,21 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
             setIsPlaying(!nextState.paused);
 
             if (audioRef.current) {
-              audioRef.current.currentTime = elapsedSec;
+              const audio = audioRef.current;
+              ensurePreservesPitch(audio);
+              if (audioReadyListenerRef.current) {
+                audio.removeEventListener('canplay', audioReadyListenerRef.current);
+                audioReadyListenerRef.current = null;
+              }
+              if (audio.src !== nextState.current_track.media_url) {
+                audio.src = nextState.current_track.media_url;
+                audio.load();
+              }
+              audio.currentTime = elapsedSec;
               if (!nextState.paused) {
-                audioRef.current.play().catch(() => {});
+                audio.play().catch(() => {});
               } else {
-                audioRef.current.pause();
+                audio.pause();
               }
             }
           }
@@ -269,11 +279,21 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
             setIsPlaying(!payload.paused);
 
             if (audioRef.current) {
-              audioRef.current.currentTime = elapsedSec;
+              const audio = audioRef.current;
+              ensurePreservesPitch(audio);
+              if (audioReadyListenerRef.current) {
+                audio.removeEventListener('canplay', audioReadyListenerRef.current);
+                audioReadyListenerRef.current = null;
+              }
+              if (audio.src !== payload.current_track.media_url) {
+                audio.src = payload.current_track.media_url;
+                audio.load();
+              }
+              audio.currentTime = elapsedSec;
               if (!payload.paused) {
-                audioRef.current.play().catch(() => {});
+                audio.play().catch(() => {});
               } else {
-                audioRef.current.pause();
+                audio.pause();
               }
             }
           }
@@ -451,6 +471,13 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     if (audioRef.current) {
       const audio = audioRef.current;
       ensurePreservesPitch(audio);
+
+      // Clean up ghost listeners from previous auto-schedule or rapid loads
+      if (audioReadyListenerRef.current) {
+        audio.removeEventListener('canplay', audioReadyListenerRef.current);
+        audioReadyListenerRef.current = null;
+      }
+
       if (audio.src !== track.media_url) {
         audio.src = track.media_url;
         audio.load();
