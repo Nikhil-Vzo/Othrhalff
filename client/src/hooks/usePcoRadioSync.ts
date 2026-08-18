@@ -321,6 +321,17 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     };
   }, [roomId, setCurrentTrack]);
 
+  // Smooth playback time progression for 60fps lyrics and progress bar
+  useEffect(() => {
+    if (!isPlaying) return;
+    const smoothTimer = setInterval(() => {
+      if (audioRef.current && !audioRef.current.paused) {
+        setCurrentTime(audioRef.current.currentTime);
+      }
+    }, 150);
+    return () => clearInterval(smoothTimer);
+  }, [isPlaying]);
+
   // 4. Audio Event Handlers
   const handleTimeUpdate = useCallback(() => {
     if (audioRef.current) {

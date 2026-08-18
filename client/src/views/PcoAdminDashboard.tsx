@@ -483,6 +483,12 @@ export const PcoAdminDashboard: React.FC = () => {
     });
   };
 
+  const actSkipRef = useRef(actSkip);
+  actSkipRef.current = actSkip;
+
+  const actPauseToggleRef = useRef(actPauseToggle);
+  actPauseToggleRef.current = actPauseToggle;
+
   /* 8. Keyboard Shortcuts (1-6 for Tabs, S for Skip, P for Pause) */
   useEffect(() => {
     if (!isAdmin) return;
@@ -494,14 +500,14 @@ export const PcoAdminDashboard: React.FC = () => {
       if (e.key >= '1' && e.key <= '6') {
         setTab(tabOrder[Number(e.key) - 1]);
       } else if (e.key.toLowerCase() === 's') {
-        actSkip();
+        actSkipRef.current();
       } else if (e.key.toLowerCase() === 'p') {
-        actPauseToggle();
+        actPauseToggleRef.current();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isAdmin, radioPlaying]);
+  }, [isAdmin]);
 
   /* 9. Render Auth Gates */
   if (isAdmin === null) {

@@ -91,18 +91,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   };
 
   return (
-    <div
-      className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans"
-      onTouchStart={(e) => {
-        touchStartY.current = e.touches[0].clientY;
-      }}
-      onTouchEnd={(e) => {
-        if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 50) {
-          onToggleSidebar(); // Swipe up on phones opens the panel
-        }
-        touchStartY.current = null;
-      }}
-    >
+    <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
       {/* 🌟 Background: Responsive Looping Video */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <video
@@ -215,6 +204,15 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
         {/* Strictly Mobile Only (Hidden on PC) with sleek aesthetic design */}
         <button
           onClick={onToggleSidebar}
+          onTouchStart={(e) => {
+            touchStartY.current = e.touches[0].clientY;
+          }}
+          onTouchEnd={(e) => {
+            if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 40) {
+              onToggleSidebar();
+            }
+            touchStartY.current = null;
+          }}
           className="pointer-events-auto flex md:hidden items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/45 hover:bg-black/70 backdrop-blur-xl border border-white/15 text-white/80 active:scale-95 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all cursor-pointer group"
           title="Swipe up for Chat & Requests"
           aria-label="Swipe up for Chat and Requests"
@@ -242,7 +240,18 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
       </main>
 
       {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule with Glowing Accents) */}
-      <footer className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center">
+      <footer
+        onTouchStart={(e) => {
+          touchStartY.current = e.touches[0].clientY;
+        }}
+        onTouchEnd={(e) => {
+          if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 40) {
+            onToggleSidebar();
+          }
+          touchStartY.current = null;
+        }}
+        className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center"
+      >
         <div className="max-w-xl w-full bg-[#180e14]/85 backdrop-blur-3xl border border-white/20 hover:border-pink-500/30 rounded-full px-3.5 sm:px-5 py-2.5 sm:py-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3 sm:gap-4 transition-all">
 
           {/* Left: Spinning Album Thumbnail + Track Title & Scrub */}
@@ -288,7 +297,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
                 ) : (
                   <div className="w-full h-1 rounded-full bg-white/20 overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full transition-[width] duration-150 ease-linear"
                       style={{ width: `${Math.min(100, (currentTime / dur) * 100)}%` }}
                     />
                   </div>

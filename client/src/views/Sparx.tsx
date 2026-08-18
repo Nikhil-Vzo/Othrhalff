@@ -22,6 +22,7 @@ interface GlimpseProfile {
 }
 
 interface GlimpseReaction {
+  id?: string;
   reaction_type: 'heart' | 'fire' | 'like';
   user_id: string;
 }
@@ -502,41 +503,43 @@ export const Sparx: React.FC = () => {
           if (!matchesCampus) setNewGlimpsesAlert(true);
         }
       })
-      // Listen for updates on reactions in memory to avoid full-feed network fetches
+      // Listen for updates on reactions in memory with index-targeted shallow updates
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'glimpse_reactions' }, (payload) => {
         const newReaction = payload.new;
+        if (!newReaction?.glimpse_id) return;
         setGlimpses(prev => {
-          const exists = prev.some(g => g.id === newReaction.glimpse_id);
-          if (!exists) return prev;
-          return prev.map(g => {
-            if (g.id === newReaction.glimpse_id) {
-              const existsRx = g.glimpse_reactions?.some((r: any) => r.user_id === newReaction.user_id && r.reaction_type === newReaction.reaction_type);
-              if (!existsRx) {
-                return {
-                  ...g,
-                  glimpse_reactions: [...(g.glimpse_reactions || []), { id: newReaction.id, reaction_type: newReaction.reaction_type, user_id: newReaction.user_id }]
-                };
-              }
-            }
-            return g;
-          });
+          const index = prev.findIndex(g => g.id === newReaction.glimpse_id);
+          if (index === -1) return prev;
+          const target = prev[index];
+          const existsRx = target.glimpse_reactions?.some(
+            (r: any) => r.user_id === newReaction.user_id && r.reaction_type === newReaction.reaction_type
+          );
+          if (existsRx) return prev;
+          const updated = [...prev];
+          updated[index] = {
+            ...target,
+            glimpse_reactions: [
+              ...(target.glimpse_reactions || []),
+              { id: newReaction.id, reaction_type: newReaction.reaction_type, user_id: newReaction.user_id }
+            ]
+          };
+          return updated;
         });
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'glimpse_reactions' }, (payload) => {
         const oldReaction = payload.old;
-        if (oldReaction?.id) {
-          setGlimpses(prev => {
-            const affectedGlimpse = prev.find(g => (g.glimpse_reactions || []).some((r: any) => r.id === oldReaction.id));
-            if (!affectedGlimpse) return prev;
-            return prev.map(g => {
-              if (g.id !== affectedGlimpse.id) return g;
-              return {
-                ...g,
-                glimpse_reactions: (g.glimpse_reactions || []).filter((r: any) => r.id !== oldReaction.id)
-              };
-            });
-          });
-        }
+        if (!oldReaction?.id) return;
+        setGlimpses(prev => {
+          const index = prev.findIndex(g => (g.glimpse_reactions || []).some((r: any) => r.id === oldReaction.id));
+          if (index === -1) return prev;
+          const target = prev[index];
+          const updated = [...prev];
+          updated[index] = {
+            ...target,
+            glimpse_reactions: (target.glimpse_reactions || []).filter((r: any) => r.id !== oldReaction.id)
+          };
+          return updated;
+        });
       })
       .subscribe();
 
