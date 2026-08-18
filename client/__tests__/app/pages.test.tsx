@@ -80,6 +80,10 @@ jest.mock('../../src/views/virtual-dates/MusicDate', () => ({
   MusicDate: () => <div data-testid="music-date-page">MusicDate</div>,
 }));
 
+jest.mock('../../src/views/CampusPcoRadio', () => ({
+  CampusPcoRadio: () => <div data-testid="campus-pco-radio-page">CampusPcoRadio</div>,
+}));
+
 jest.mock('../../src/views/Profile', () => ({
   Profile: () => <div data-testid="profile-page">Profile</div>,
 }));
@@ -251,9 +255,9 @@ describe('Sparx Music page (app/sparx/music/page.tsx)', () => {
     expect(() => render(<SparxMusicPage />)).not.toThrow();
   });
 
-  it('renders the MusicDate component', () => {
+  it('renders the CampusPcoRadio component by default', () => {
     render(<SparxMusicPage />);
-    expect(screen.getByTestId('music-date-page')).toBeInTheDocument();
+    expect(screen.getByTestId('campus-pco-radio-page')).toBeInTheDocument();
   });
 });
 

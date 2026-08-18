@@ -41,7 +41,7 @@ const formatTime = (s: number) => {
   return `${m}:${sec}`;
 };
 
-export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
+export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   currentTrack,
   currentTime,
   isPlaying,
@@ -345,6 +345,8 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
       </footer>
     </div>
   );
-};
+});
+
+PcoRadioPlayer.displayName = 'PcoRadioPlayer';
 
 export default PcoRadioPlayer;
