@@ -604,13 +604,15 @@ export async function getServerTimeMs(): Promise<number> {
 
 /**
  * Sets manual override mode with a specific track and authoritative server timestamp.
+ * Optionally takes a customStartedAtMs (e.g. on manual seek).
  */
 export async function setManualRadioOverride(
   track: PcoTrack,
   queue?: PcoTrack[],
-  roomId: string = 'Campus_PCO_247'
+  roomId: string = 'Campus_PCO_247',
+  customStartedAtMs?: number
 ): Promise<boolean> {
-  const serverTimeMs = await getServerTimeMs();
+  const serverTimeMs = customStartedAtMs !== undefined ? customStartedAtMs : await getServerTimeMs();
   const safeQueue = queue ? queue.slice(0, 50) : undefined;
 
   return updatePcoRadioState({

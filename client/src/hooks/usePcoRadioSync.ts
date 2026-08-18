@@ -8,7 +8,8 @@ import {
   fetchPcoRadioState,
   setManualRadioOverride,
   returnToAutoRadioSchedule,
-  updateRadioQueue
+  updateRadioQueue,
+  getServerTimeMs
 } from '../services/pcoAdmin';
 
 export interface UsePcoRadioSyncOptions {
@@ -110,7 +111,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     }
   }, []);
 
-  // Load deterministic auto track helper
+  // Load deterministic auto track helper with buffer readiness check
   const loadAutoScheduleTrack = useCallback((seekOffset?: number) => {
     const sched = getPcoLiveSchedule();
     setMode('auto');
@@ -120,12 +121,23 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     setCurrentTime(targetOffset);
 
     if (audioRef.current) {
-      ensurePreservesPitch(audioRef.current);
-      audioRef.current.currentTime = targetOffset;
-      audioRef.current.playbackRate = 1.0;
-      audioRef.current.play().catch(() => {
-        setIsPlaying(false);
-      });
+      const audio = audioRef.current;
+      ensurePreservesPitch(audio);
+
+      const onReady = () => {
+        audio.currentTime = targetOffset;
+        audio.playbackRate = 1.0;
+        audio.play().catch(() => {
+          setIsPlaying(false);
+        });
+        audio.removeEventListener('canplay', onReady);
+      };
+
+      if (audio.readyState >= 3) {
+        onReady();
+      } else {
+        audio.addEventListener('canplay', onReady);
+      }
     }
   }, [setCurrentTrack, ensurePreservesPitch]);
 
@@ -416,7 +428,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   const playTrackImmediately = useCallback(async (track: PcoTrack) => {
     setMode('manual');
     modeRef.current = 'manual';
-    startedAtMsRef.current = Date.now();
+    // Let the Realtime echo from setManualRadioOverride set the exact server time to avoid clock skew
     setCurrentTrack(track);
     setIsPlaying(true);
     setCurrentTime(0);
@@ -481,12 +493,27 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
     }
   }, []);
 
-  const seek = useCallback((timeInSec: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = timeInSec;
-      setCurrentTime(timeInSec);
+  const seek = useCallback(async (timeInSec: number) => {
+    if (!audioRef.current || !currentTrackRef.current) return;
+
+    audioRef.current.currentTime = timeInSec;
+    setCurrentTime(timeInSec);
+
+    // CRITICAL: If in Manual mode, update the authoritative start time 
+    // so the 5-second drift corrector doesn't snap the audio back!
+    if (modeRef.current === 'manual' && isAdminRef.current) {
+      const serverNow = await getServerTimeMs();
+      const newStartedAtMs = serverNow - (timeInSec * 1000);
+      startedAtMsRef.current = newStartedAtMs;
+
+      await setManualRadioOverride(
+        currentTrackRef.current,
+        queueRef.current,
+        roomId,
+        newStartedAtMs
+      );
     }
-  }, []);
+  }, [roomId]);
 
   const duration = currentTrack ? (parseInt(currentTrack.duration, 10) || 240) : 240;
 

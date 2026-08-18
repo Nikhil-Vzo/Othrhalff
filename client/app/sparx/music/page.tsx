@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { ErrorBoundary } from '../../../src/components/ErrorBoundary';
 
 const CampusPcoRadio = dynamic(
@@ -14,15 +15,27 @@ const MusicDate = dynamic(
   { ssr: false }
 );
 
-export default function Page() {
+function PageContent() {
   const searchParams = useSearchParams();
   const room = searchParams?.get('room') || '';
 
   const isRadioMode = !room || room.includes('Campus_PCO') || room.toLowerCase() === 'radio';
 
+  return isRadioMode ? <CampusPcoRadio /> : <MusicDate />;
+}
+
+export default function Page() {
   return (
     <ErrorBoundary>
-      {isRadioMode ? <CampusPcoRadio /> : <MusicDate />}
+      <Suspense
+        fallback={
+          <div className="h-screen w-screen bg-[#0d070b] flex items-center justify-center text-white/70 font-mono text-xs">
+            Connecting to Sparx FM...
+          </div>
+        }
+      >
+        <PageContent />
+      </Suspense>
     </ErrorBoundary>
   );
 }
