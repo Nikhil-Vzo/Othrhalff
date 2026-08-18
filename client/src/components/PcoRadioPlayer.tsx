@@ -116,7 +116,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
       onToggleSidebar();
       setTimeout(() => {
         gestureLockRef.current = false;
-      }, 400);
+      }, 250);
     }
   };
 
@@ -317,6 +317,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Spinning Vinyl Album Art with Glow */}
             <div
+              data-no-swipe
               onClick={onToggleLyrics}
               className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 border border-pink-400/40 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] cursor-pointer group transition-all active:scale-90"
               title="Tap for synced lyrics"

@@ -262,13 +262,24 @@ export const CampusPcoRadio: React.FC = () => {
       payload: newMsg
     });
 
-    // Auto-scroll chat
+    // Auto-scroll chat for sender
     setTimeout(() => {
       if (chatScrollRef.current) {
         chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
       }
     }, 50);
   };
+
+  // Auto-scroll chat on incoming messages only if user is already near bottom (prevents yank-back on reading older messages)
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      const { scrollHeight, scrollTop, clientHeight } = chatScrollRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
+      if (isAtBottom) {
+        chatScrollRef.current.scrollTop = scrollHeight;
+      }
+    }
+  }, [messages]);
 
   // 8. Search & Song Request Submission
   useEffect(() => {
@@ -433,7 +444,10 @@ export const CampusPcoRadio: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
         height="80dvh"
       >
-        <div className="flex flex-col h-full max-h-[80dvh] bg-[#0d0716] text-white overflow-hidden">
+        <div 
+          onTouchStart={e => e.stopPropagation()}
+          className="flex flex-col h-full max-h-[80dvh] bg-[#0d0716] text-white overflow-hidden"
+        >
           {/* Top Bar: Swipe Down Affordance Pill + Quota Status */}
           <div className="pt-2 pb-1.5 px-4 bg-purple-950/30 border-b border-white/10 flex flex-col gap-2 shrink-0">
             <div className="flex justify-center">
@@ -624,7 +638,7 @@ export const CampusPcoRadio: React.FC = () => {
               {/* Chat Input Form (pinned bottom with safe-area spacing) */}
               <form 
                 onSubmit={handleSendMessage} 
-                className="flex items-center gap-2 p-3 border-t border-white/10 bg-black/60 shrink-0"
+                className="flex items-center gap-2 p-3 border-t border-white/10 bg-black/60 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
               >
                 <input
                   type="text"
