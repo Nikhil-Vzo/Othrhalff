@@ -75,6 +75,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   const isSwipeBlockedTarget = (target: EventTarget | null) => {
     const el = target as HTMLElement | null;
     if (!el) return true;
+    if (el.closest('[data-swipe-handle]')) return false;
     return !!el.closest(
       'button, input, textarea, select, a, [data-no-swipe], input[type="range"]'
     );
@@ -151,7 +152,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
+    <div className="relative w-full h-[100svh] overflow-hidden select-none flex flex-col justify-between bg-black text-white font-sans">
       {/* 🌟 Background: Responsive Looping Video */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <video
@@ -268,6 +269,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
       >
         {/* Subtle top drag pill handle for visual affordance */}
         <div 
+          data-swipe-handle
           onClick={onToggleSidebar}
           className="flex md:hidden flex-col items-center gap-1 mb-1 cursor-pointer group"
           title="Open Song Requests & Chat"
@@ -277,6 +279,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
 
         {/* Strictly Mobile Only (Hidden on PC) with sleek aesthetic design */}
         <button
+          data-swipe-handle
           onClick={onToggleSidebar}
           className="flex md:hidden items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/45 hover:bg-black/70 backdrop-blur-xl border border-white/15 text-white/80 active:scale-95 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all cursor-pointer group"
           title="Swipe up for Chat & Requests"

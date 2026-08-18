@@ -275,7 +275,7 @@ export const CampusPcoRadio: React.FC = () => {
     if (chatScrollRef.current && mobilePcoTab === 'chat') {
       const { scrollHeight, scrollTop, clientHeight } = chatScrollRef.current;
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
-      if (isAtBottom) {
+      if (isAtBottom || scrollTop === 0) {
         chatScrollRef.current.scrollTop = scrollHeight;
       }
     }
@@ -337,7 +337,7 @@ export const CampusPcoRadio: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-[100dvh] bg-black text-white overflow-hidden select-none font-sans">
+    <div className="relative w-full h-[100svh] bg-black text-white overflow-hidden select-none font-sans">
       {/* 🎵 Hidden Native Audio Element */}
       <audio
         ref={audioRef}
