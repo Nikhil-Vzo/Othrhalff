@@ -62,7 +62,67 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   const t = currentTrack;
   const art = t?.image || '/sparxfm-wall.jpg';
   const dur = Number(t?.duration) || 240;
-  const touchStartY = useRef<number | null>(null);
+  
+  // Production-grade gesture tracking
+  const gestureRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    startTime: 0
+  });
+  const gestureLockRef = useRef(false);
+
+  const isSwipeBlockedTarget = (target: EventTarget | null) => {
+    const el = target as HTMLElement | null;
+    if (!el) return true;
+    return !!el.closest(
+      'button, input, textarea, select, a, [data-no-swipe], input[type="range"]'
+    );
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isSidebarOpen) return;
+    if (gestureLockRef.current) return;
+    if (e.touches.length !== 1) return;
+    if (isSwipeBlockedTarget(e.target)) return;
+
+    const touch = e.touches[0];
+    gestureRef.current = {
+      active: true,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startTime: Date.now()
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!gestureRef.current.active) return;
+    gestureRef.current.active = false;
+
+    if (isSidebarOpen) return;
+    if (gestureLockRef.current) return;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - gestureRef.current.startX;
+    const dy = touch.clientY - gestureRef.current.startY;
+    const elapsed = Date.now() - gestureRef.current.startTime;
+
+    const isVerticalIntent = Math.abs(dy) > Math.abs(dx) * 1.5;
+    const isSwipeUp = dy < -70;
+    const isFastEnough = elapsed < 650;
+
+    if (isSwipeUp && isVerticalIntent && isFastEnough) {
+      gestureLockRef.current = true;
+      onToggleSidebar();
+      setTimeout(() => {
+        gestureLockRef.current = false;
+      }, 400);
+    }
+  };
+
+  const handleTouchCancel = () => {
+    gestureRef.current.active = false;
+  };
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -199,19 +259,22 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
         </div>
       )}
 
-      {/* 🎨 Center Area: Clean Wallpaper + Mobile-Only Swipe-Up Affordance Pill */}
+      {/* 🎨 Center Area: Clean Wallpaper + Mobile-Only Swipe-Up Affordance */}
       <main 
-        onTouchStart={(e) => {
-          touchStartY.current = e.touches[0].clientY;
-        }}
-        onTouchEnd={(e) => {
-          if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 40) {
-            onToggleSidebar();
-          }
-          touchStartY.current = null;
-        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         className="relative z-10 flex-1 flex flex-col justify-end items-center pb-2.5"
       >
+        {/* Subtle top drag pill handle for visual affordance */}
+        <div 
+          onClick={onToggleSidebar}
+          className="flex md:hidden flex-col items-center gap-1 mb-1 cursor-pointer group"
+          title="Open Song Requests & Chat"
+        >
+          <div className="w-10 h-1 rounded-full bg-white/30 group-hover:bg-pink-400/80 transition-colors" />
+        </div>
+
         {/* Strictly Mobile Only (Hidden on PC) with sleek aesthetic design */}
         <button
           onClick={onToggleSidebar}
@@ -243,15 +306,9 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
 
       {/* 🎵 Bottom Floating Island Player (Streamlined Aesthetic Capsule with Glowing Accents) */}
       <footer
-        onTouchStart={(e) => {
-          touchStartY.current = e.touches[0].clientY;
-        }}
-        onTouchEnd={(e) => {
-          if (touchStartY.current !== null && touchStartY.current - e.changedTouches[0].clientY > 40) {
-            onToggleSidebar();
-          }
-          touchStartY.current = null;
-        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         className="relative z-30 pb-6 sm:pb-8 px-4 flex justify-center items-center"
       >
         <div className="max-w-xl w-full bg-[#180e14]/85 backdrop-blur-3xl border border-white/20 hover:border-pink-500/30 rounded-full px-3.5 sm:px-5 py-2.5 sm:py-3 shadow-[0_20px_60px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3 sm:gap-4 transition-all">

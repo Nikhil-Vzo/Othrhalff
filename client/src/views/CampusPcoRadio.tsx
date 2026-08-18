@@ -10,7 +10,7 @@ import { PcoRadioPlayer } from '../components/PcoRadioPlayer';
 import { PcoLyricsScroller } from '../components/PcoLyricsScroller';
 import { PcoAdminQuickPanel } from '../components/PcoAdminQuickPanel';
 import { BottomSheet } from '../components/BottomSheet';
-import { Search, Send, PlusCircle, Sparkles, AlertCircle, MessageSquare } from 'lucide-react';
+import { Search, Send, PlusCircle, Sparkles, AlertCircle, MessageSquare, Music, X } from 'lucide-react';
 import { curatedRomanticTracks, trendingRomanticQueries } from '../data/pcoRomanticTracks';
 
 interface ChatMessage {
@@ -62,6 +62,7 @@ export const CampusPcoRadio: React.FC = () => {
   const [isLyricsOpen, setIsLyricsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [mobilePcoTab, setMobilePcoTab] = useState<'request' | 'chat'>('request');
 
   // 4. Chat State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -430,22 +431,68 @@ export const CampusPcoRadio: React.FC = () => {
       <BottomSheet
         open={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        height="80dvh"
       >
-        <div className="flex flex-col h-[70vh] bg-[#0d0716] text-white">
-          {/* Tabs / Request Quota Alert */}
-          <div className="px-4 py-2 bg-purple-950/40 border-b border-white/10 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 text-pink-300 font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-              <span>Campus Radio Airwaves</span>
+        <div className="flex flex-col h-full max-h-[80dvh] bg-[#0d0716] text-white overflow-hidden">
+          {/* Top Bar: Swipe Down Affordance Pill + Quota Status */}
+          <div className="pt-2 pb-1.5 px-4 bg-purple-950/30 border-b border-white/10 flex flex-col gap-2 shrink-0">
+            <div className="flex justify-center">
+              <div className="w-12 h-1 rounded-full bg-white/25" />
             </div>
-            <div className="font-mono text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30">
-              {isAdmin ? 'DJ Admin (Unlimited)' : `${Math.max(0, 3 - dailyRequestsUsed)} reqs left today`}
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-pink-300 font-bold text-xs">
+                <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                <span>Campus Airwaves</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="font-mono text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30">
+                  {isAdmin ? 'DJ Admin (Unlimited)' : `${Math.max(0, 3 - dailyRequestsUsed)} reqs left today`}
+                </div>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Segmented Tab Switcher */}
+          <div className="flex items-center border-b border-white/10 px-3 bg-black/40 shrink-0">
+            <button
+              onClick={() => setMobilePcoTab('request')}
+              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+                mobilePcoTab === 'request'
+                  ? 'border-pink-500 text-pink-400 bg-pink-500/5'
+                  : 'border-transparent text-white/50 hover:text-white/80'
+              }`}
+            >
+              <Music className="w-3.5 h-3.5" />
+              <span>Song Requests</span>
+            </button>
+
+            <button
+              onClick={() => setMobilePcoTab('chat')}
+              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+                mobilePcoTab === 'chat'
+                  ? 'border-pink-500 text-pink-400 bg-pink-500/5'
+                  : 'border-transparent text-white/50 hover:text-white/80'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Live Campus Chat</span>
+              {messages.length > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
+              )}
+            </button>
           </div>
 
           {/* Request Status Feedback Alert */}
           {requestStatusMsg && (
-            <div className={`px-4 py-2 text-xs flex items-center gap-2 font-bold ${
+            <div className={`px-4 py-2 text-xs flex items-center gap-2 font-bold shrink-0 ${
               requestStatusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border-b border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-b border-rose-500/30'
             }`}>
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -453,130 +500,152 @@ export const CampusPcoRadio: React.FC = () => {
             </div>
           )}
 
-          {/* Search Bar for Song Requests */}
-          <div className="p-3 border-b border-white/10 bg-black/40">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search romantic songs to request..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-colors"
-              />
-            </div>
+          {/* TAB 1: SONG REQUESTS */}
+          {mobilePcoTab === 'request' && (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Search Bar for Song Requests */}
+              <div className="p-3 border-b border-white/10 bg-black/30 shrink-0">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search romantic songs to request..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-colors"
+                  />
+                </div>
 
-            {/* Quick Filter Tags */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none mt-2">
-              {trendingRomanticQueries.slice(0, 5).map((tag, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSearchQuery(tag)}
-                  className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-lg text-[9px] whitespace-nowrap shrink-0 transition-colors"
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
+                {/* Quick Filter Tags */}
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none mt-2">
+                  {trendingRomanticQueries.slice(0, 5).map((tag, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSearchQuery(tag)}
+                      className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-lg text-[9px] whitespace-nowrap shrink-0 transition-colors"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Split Content: Song Catalog (Top) & Live Chat Stream (Bottom) */}
-          <div 
-            onTouchStart={e => e.stopPropagation()}
-            onTouchMove={e => e.stopPropagation()}
-            className="flex-1 overflow-y-auto divide-y divide-white/5 custom-scrollbar"
-          >
-            {/* Song Results */}
-            <div className="p-3 space-y-2">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                {searchQuery ? 'Search Results' : 'Recommended Songs'}
-              </h4>
+              {/* Scrollable Song Catalog */}
               <div 
                 onTouchStart={e => e.stopPropagation()}
                 onTouchMove={e => e.stopPropagation()}
-                className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1"
+                className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar"
+                style={{ touchAction: 'pan-y' }}
               >
-                {searchResults.slice(0, 8).map(track => (
-                  <div
-                    key={track.id}
-                    className="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-purple-950/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <img
-                        src={track.image}
-                        alt={track.song}
-                        className="w-8 h-8 rounded-lg object-cover shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-white truncate">{track.song}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{track.singers}</p>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  {searchQuery ? 'Search Results' : 'Recommended Songs'}
+                </h4>
+                <div className="space-y-1.5">
+                  {searchResults.map(track => (
+                    <div
+                      key={track.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 hover:bg-purple-950/30 transition-colors border border-white/5"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <img
+                          src={track.image}
+                          alt={track.song}
+                          className="w-9 h-9 rounded-lg object-cover shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-white truncate">{track.song}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{track.singers}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {isAdmin ? (
+                          <>
+                            <button
+                              onClick={() => playTrackImmediately(track)}
+                              className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold rounded-lg active:scale-95 transition-transform"
+                              title="Play Immediately"
+                            >
+                              Play Now
+                            </button>
+                            <button
+                              onClick={() => addTrackToQueue(track)}
+                              className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold rounded-lg active:scale-95 transition-transform"
+                              title="Add to Queue"
+                            >
+                              + Queue
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleRequestSong(track)}
+                            disabled={isRequestSubmitting || (!isAdmin && dailyRequestsUsed >= 3)}
+                            className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 active:scale-95 transition-transform shadow-sm"
+                          >
+                            <PlusCircle className="w-3 h-3" />
+                            <span>Request</span>
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleRequestSong(track)}
-                      disabled={isRequestSubmitting || (!isAdmin && dailyRequestsUsed >= 3)}
-                      className="px-2.5 py-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg shrink-0 flex items-center gap-1 active:scale-95 transition-transform"
-                    >
-                      <PlusCircle className="w-3 h-3" />
-                      <span>Request</span>
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Live Chat Messages */}
-            <div className="p-3 flex flex-col h-56">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
-                <MessageSquare className="w-3 h-3 text-purple-400" />
-                <span>Live Campus Chat</span>
-              </h4>
-
+          {/* TAB 2: LIVE CHAT */}
+          {mobilePcoTab === 'chat' && (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div 
                 ref={chatScrollRef} 
                 onTouchStart={e => e.stopPropagation()}
                 onTouchMove={e => e.stopPropagation()}
-                className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar"
+                className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2.5 custom-scrollbar"
+                style={{ touchAction: 'pan-y' }}
               >
                 {messages.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-gray-500">
-                    No messages yet. Say hello to the campus airwaves!
+                  <div className="text-center py-16 text-xs text-gray-500 flex flex-col items-center gap-2">
+                    <MessageSquare className="w-6 h-6 text-gray-600" />
+                    <span>No messages yet. Say hello to the campus airwaves!</span>
                   </div>
                 ) : (
                   messages.map((m, idx) => (
-                    <div key={idx} className="bg-white/5 p-2 rounded-xl text-xs flex flex-col gap-0.5">
+                    <div key={idx} className="bg-white/5 p-2.5 rounded-xl text-xs flex flex-col gap-0.5 border border-white/5">
                       <div className="flex items-center justify-between text-[10px] text-pink-400 font-bold">
                         <span>{m.user}</span>
                         <span className="text-gray-500 font-mono text-[9px]">
                           {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <p className="text-gray-200 text-xs break-words">{m.text}</p>
+                      <p className="text-gray-200 text-xs break-words leading-relaxed">{m.text}</p>
                     </div>
                   ))
                 )}
               </div>
 
-              {/* Chat Input Form */}
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2 mt-2 pt-2 border-t border-white/10">
+              {/* Chat Input Form (pinned bottom with safe-area spacing) */}
+              <form 
+                onSubmit={handleSendMessage} 
+                className="flex items-center gap-2 p-3 border-t border-white/10 bg-black/60 shrink-0"
+              >
                 <input
                   type="text"
                   placeholder="Chat with listeners..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   maxLength={160}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-colors"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!chatInput.trim()}
-                  className="p-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-40 text-white rounded-xl active:scale-95 transition-transform"
+                  className="p-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-40 text-white rounded-xl active:scale-95 transition-transform shadow-md"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4" />
                 </button>
               </form>
             </div>
-          </div>
+          )}
         </div>
       </BottomSheet>
     </div>
