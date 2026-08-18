@@ -29,6 +29,19 @@ export interface PcoTrack {
   is_drm?: boolean;
 }
 
+export type PcoRadioMode = 'auto' | 'manual';
+
+export interface PcoRadioState {
+  room_id: string;
+  mode: PcoRadioMode;
+  current_track: PcoTrack | null;
+  started_at_ms: number;
+  paused: boolean;
+  queue: PcoTrack[];
+  version: number;
+  updated_at: string;
+}
+
 export interface PcoLiveSchedule {
   currentTrack: PcoTrack;
   offsetSec: number;
@@ -481,4 +494,137 @@ export async function removeAdminUser(email: string): Promise<{ success: boolean
     return { success: false, error: err.message || 'Failed to remove admin user' };
   }
 }
+
+/**
+ * Fetches the authoritative radio state row from Supabase.
+ * Returns null if table is not created yet or on fetch error.
+ */
+export async function fetchPcoRadioState(roomId: string = 'Campus_PCO_247'): Promise<PcoRadioState | null> {
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('pco_radio_state')
+      .select('*')
+      .eq('room_id', roomId)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('404') || error.code === 'PGRST204' || error.code === 'PGRST205') {
+        console.debug('[PCO Admin] pco_radio_state table not created yet. Operating in deterministic auto mode.');
+      } else {
+        console.warn('[PCO Admin] Failed to fetch pco_radio_state:', error.message);
+      }
+      return null;
+    }
+
+    if (data) {
+      return {
+        room_id: data.room_id || roomId,
+        mode: data.mode || 'auto',
+        current_track: data.current_track || null,
+        started_at_ms: Number(data.started_at_ms || 0),
+        paused: Boolean(data.paused),
+        queue: Array.isArray(data.queue) ? data.queue : [],
+        version: Number(data.version || 1),
+        updated_at: data.updated_at || new Date().toISOString()
+      };
+    }
+  } catch (err) {
+    console.debug('[PCO Admin] Error fetching radio state:', err);
+  }
+
+  return null;
+}
+
+/**
+ * Updates the authoritative radio state in Supabase and broadcasts change.
+ */
+export async function updatePcoRadioState(
+  patch: Partial<PcoRadioState>,
+  roomId: string = 'Campus_PCO_247'
+): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    const currentState = await fetchPcoRadioState(roomId);
+    const nextVersion = (currentState?.version || 1) + 1;
+
+    const payload = {
+      room_id: roomId,
+      mode: patch.mode !== undefined ? patch.mode : (currentState?.mode || 'auto'),
+      current_track: patch.current_track !== undefined ? patch.current_track : (currentState?.current_track || null),
+      started_at_ms: patch.started_at_ms !== undefined ? patch.started_at_ms : (currentState?.started_at_ms || Date.now()),
+      paused: patch.paused !== undefined ? patch.paused : (currentState?.paused || false),
+      queue: patch.queue !== undefined ? patch.queue : (currentState?.queue || []),
+      version: nextVersion,
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('pco_radio_state')
+      .upsert(payload, { onConflict: 'room_id' });
+
+    if (error) {
+      console.warn('[PCO Admin] Failed to update pco_radio_state:', error.message);
+      return false;
+    }
+
+    // Broadcast state update immediately for sub-millisecond sync
+    try {
+      supabase.channel('campus_pco_live_chat').send({
+        type: 'broadcast',
+        event: 'PCO_STATE_UPDATED',
+        payload
+      });
+    } catch (_) {}
+
+    return true;
+  } catch (err) {
+    console.warn('[PCO Admin] Error updating radio state:', err);
+    return false;
+  }
+}
+
+/**
+ * Sets manual override mode with a specific track and started timestamp.
+ */
+export async function setManualRadioOverride(
+  track: PcoTrack,
+  queue?: PcoTrack[],
+  roomId: string = 'Campus_PCO_247'
+): Promise<boolean> {
+  return updatePcoRadioState({
+    mode: 'manual',
+    current_track: track,
+    started_at_ms: Date.now(),
+    paused: false,
+    ...(queue !== undefined ? { queue } : {})
+  }, roomId);
+}
+
+/**
+ * Returns station to 24/7 deterministic auto schedule.
+ */
+export async function returnToAutoRadioSchedule(
+  roomId: string = 'Campus_PCO_247'
+): Promise<boolean> {
+  return updatePcoRadioState({
+    mode: 'auto',
+    current_track: null,
+    started_at_ms: 0,
+    paused: false
+  }, roomId);
+}
+
+/**
+ * Updates the authoritative playlist queue.
+ */
+export async function updateRadioQueue(
+  queue: PcoTrack[],
+  roomId: string = 'Campus_PCO_247'
+): Promise<boolean> {
+  return updatePcoRadioState({ queue }, roomId);
+}
+
 

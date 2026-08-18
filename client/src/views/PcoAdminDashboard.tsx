@@ -16,7 +16,12 @@ import {
   removeAdminUser,
   AdminUserRecord,
   getPcoLiveSchedule,
-  broadcastPcoAction
+  broadcastPcoAction,
+  PcoRadioMode,
+  fetchPcoRadioState,
+  setManualRadioOverride,
+  returnToAutoRadioSchedule,
+  updateRadioQueue
 } from '../services/pcoAdmin';
 
 const FALLBACK_ART = 'https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230613054804-500x500.jpg';
@@ -67,6 +72,7 @@ export const PcoAdminDashboard: React.FC = () => {
   const channelRef = useRef<any>(null);
 
   const [liveTrack, setLiveTrack] = useState<PcoTrack | null>(null);
+  const [radioMode, setRadioMode] = useState<PcoRadioMode>('auto');
   const [startedAt, setStartedAt] = useState(Date.now());
   const [startOffset, setStartOffset] = useState(0);
   const [radioPlaying, setRadioPlaying] = useState(true);
@@ -124,14 +130,30 @@ export const PcoAdminDashboard: React.FC = () => {
 
   const reload = async () => {
     try {
-      const [r, a, ad] = await Promise.all([
+      const [r, a, ad, radioState] = await Promise.all([
         fetchPcoRequests('all', 200),
         getPcoAnalytics(),
-        fetchAdminUsers()
+        fetchAdminUsers(),
+        fetchPcoRadioState()
       ]);
       setRequests(r);
       setAnalytics(a);
       setAdmins(ad);
+
+      if (radioState) {
+        setRadioMode(radioState.mode);
+        if (radioState.mode === 'manual' && radioState.current_track) {
+          const dur = parseInt(radioState.current_track.duration, 10) || 240;
+          const elapsedSec = Math.max(0, (Date.now() - radioState.started_at_ms) / 1000);
+          if (elapsedSec < dur) {
+            setLiveTrack(radioState.current_track);
+            setStartOffset(elapsedSec);
+            setStartedAt(Date.now());
+            setRadioPlaying(!radioState.paused);
+            setQueue(radioState.queue || []);
+          }
+        }
+      }
     } catch (err) {
       console.warn('[PCO Console] Reload error:', err);
     }
@@ -168,14 +190,14 @@ export const PcoAdminDashboard: React.FC = () => {
           setStartOffset(0);
           setStartedAt(Date.now());
           setRadioPlaying(true);
-          setLastAction('force');
-          log('RADIO', `Force Play → "${payload.track.song}"`);
+          setRadioMode('manual');
+          log('RADIO', `On Air → "${payload.track.song}"`);
         }
       })
       .on('broadcast', { event: 'PCO_PLAY_NEXT' }, ({ payload }) => {
         if (payload?.track) {
           setQueue(q => [payload.track, ...q.filter(t => t.id !== payload.track.id)]);
-          log('QUEUE', `Queued Next → "${payload.track.song}"`);
+          log('QUEUE', `Play Next → "${payload.track.song}"`);
         }
       })
       .on('broadcast', { event: 'PCO_ADD_QUEUE' }, ({ payload }) => {
@@ -188,6 +210,22 @@ export const PcoAdminDashboard: React.FC = () => {
         if (Array.isArray(payload?.queue)) {
           setQueue(payload.queue);
           log('QUEUE', `Mirror Sync (${payload.queue.length} tracks)`);
+        }
+      })
+      .on('broadcast', { event: 'PCO_STATE_UPDATED' }, ({ payload }) => {
+        if (payload?.mode === 'auto') {
+          setRadioMode('auto');
+          const nextSched = getPcoLiveSchedule();
+          setLiveTrack(nextSched.currentTrack);
+          setStartOffset(nextSched.offsetSec);
+          setStartedAt(Date.now());
+          log('RADIO', 'Switched to 24/7 Auto Schedule');
+        } else if (payload?.mode === 'manual' && payload?.current_track) {
+          setRadioMode('manual');
+          setLiveTrack(payload.current_track);
+          setStartOffset(0);
+          setStartedAt(Date.now());
+          log('RADIO', `Manual Override → "${payload.current_track.song}"`);
         }
       })
       .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
@@ -221,6 +259,7 @@ export const PcoAdminDashboard: React.FC = () => {
     const db = supabase.channel('pco_dash_db_sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pco_song_requests' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_users' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pco_radio_state' }, () => reload())
       .subscribe();
 
     return () => {
@@ -230,7 +269,7 @@ export const PcoAdminDashboard: React.FC = () => {
     };
   }, [isAdmin]);
 
-  /* 4. Transport Actions */
+  /* 4. Transport Actions with Authoritative DB Persistence */
   const send = (event: string, payload: any) => {
     if (channelRef.current) {
       channelRef.current.send({ type: 'broadcast', event, payload });
@@ -242,32 +281,50 @@ export const PcoAdminDashboard: React.FC = () => {
     ? Math.min(radioPlaying ? startOffset + (now - startedAt) / 1000 : startOffset, dur)
     : 0;
 
-  const actPlayNow = (track: PcoTrack, requestId?: string) => {
+  const actPlayNow = async (track: PcoTrack, requestId?: string) => {
     if (requestId) updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
     send('PCO_PLAY_IMMEDIATELY', { track, requester: 'Admin DJ' });
     setLiveTrack(track);
     setStartOffset(0);
     setStartedAt(Date.now());
     setRadioPlaying(true);
+    setRadioMode('manual');
     setLastAction('force');
-    log('DJ', `Play Now → "${track.song}"`);
+    await setManualRadioOverride(track, queue);
+    log('DJ', `Play Now → "${track.song}" (Saved to DB)`);
     flash(`🔥 Playing "${track.song}"`);
   };
 
-  const actPlayNext = (track: PcoTrack, requestId?: string) => {
+  const actPlayNext = async (track: PcoTrack, requestId?: string) => {
     if (requestId) updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
     send('PCO_PLAY_NEXT', { track, requester: 'Admin DJ' });
-    setQueue(q => [track, ...q.filter(t => t.id !== track.id)]);
+    const nextQueue = [track, ...queue.filter(t => t.id !== track.id)];
+    setQueue(nextQueue);
+    await updateRadioQueue(nextQueue);
     log('DJ', `Queue Next → "${track.song}"`);
     flash(`⏭️ Queued Next: "${track.song}"`);
   };
 
-  const actQueueEnd = (track: PcoTrack, requestId?: string) => {
+  const actQueueEnd = async (track: PcoTrack, requestId?: string) => {
     if (requestId) updatePcoSongRequestStatus(requestId, 'approved', currentUser?.id);
     send('PCO_ADD_QUEUE', { track, requester: 'Admin DJ' });
-    setQueue(q => [...q, track]);
+    const nextQueue = [...queue.filter(t => t.id !== track.id), track];
+    setQueue(nextQueue);
+    await updateRadioQueue(nextQueue);
     log('DJ', `Added to Queue → "${track.song}"`);
     flash(`➕ Queued: "${track.song}"`);
+  };
+
+  const actReturnToAuto = async () => {
+    const sched = getPcoLiveSchedule();
+    setRadioMode('auto');
+    setLiveTrack(sched.currentTrack);
+    setStartOffset(sched.offsetSec);
+    setStartedAt(Date.now());
+    await returnToAutoRadioSchedule();
+    send('PCO_STATE_UPDATED', { mode: 'auto' });
+    log('DJ', 'Returned to 24/7 Auto Schedule');
+    flash('📻 Switched to 24/7 Auto Schedule');
   };
 
   const actDecline = (id: string) => {
@@ -277,7 +334,18 @@ export const PcoAdminDashboard: React.FC = () => {
     flash('✕ Request declined');
   };
 
-  const actSkip = () => {
+  const actSkip = async () => {
+    if (queue.length > 0) {
+      const [nextTrack, ...remQueue] = queue;
+      setLiveTrack(nextTrack);
+      setStartOffset(0);
+      setStartedAt(Date.now());
+      setQueue(remQueue);
+      await setManualRadioOverride(nextTrack, remQueue);
+      send('PCO_PLAY_IMMEDIATELY', { track: nextTrack, requester: 'Admin DJ' });
+    } else {
+      await actReturnToAuto();
+    }
     broadcastPcoAction('PCO_ADMIN_SKIP', { user: 'Admin DJ' });
     setLastAction('skip');
     log('DJ', 'Skipped track broadcast');
@@ -303,9 +371,10 @@ export const PcoAdminDashboard: React.FC = () => {
   };
 
   /* 5. Authoritative Queue Operations */
-  const syncQueue = (next: PcoTrack[]) => {
+  const syncQueue = async (next: PcoTrack[]) => {
     setQueue(next);
     send('PCO_QUEUE_SYNC', { queue: next });
+    await updateRadioQueue(next);
   };
 
   const qMove = (i: number, dir: -1 | 1) => {
@@ -531,9 +600,13 @@ export const PcoAdminDashboard: React.FC = () => {
           <div className="flex-1 min-w-0">
             <div className="text-white font-bold text-sm truncate flex items-center gap-2">
               <span>{liveTrack?.song || 'Station Offline'}</span>
-              {lastAction === 'force' && (
-                <span className="text-[10px] bg-pink-950/80 border border-pink-500 text-pink-300 px-1.5 py-0.5 rounded font-normal">
-                  FORCED
+              {radioMode === 'manual' ? (
+                <span className="text-[10px] bg-pink-950/80 border border-pink-500 text-pink-300 px-1.5 py-0.5 rounded font-bold">
+                  LIVE DJ OVERRIDE
+                </span>
+              ) : (
+                <span className="text-[10px] bg-emerald-950/80 border border-emerald-500 text-emerald-300 px-1.5 py-0.5 rounded font-bold">
+                  24/7 AUTO SCHEDULE
                 </span>
               )}
             </div>
@@ -556,6 +629,11 @@ export const PcoAdminDashboard: React.FC = () => {
 
         {/* Transport Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {radioMode === 'manual' && (
+            <button onClick={actReturnToAuto} className="border border-emerald-600 bg-emerald-950/90 text-emerald-300 px-2.5 py-1 text-xs font-mono hover:bg-emerald-900 hover:text-white active:scale-95 transition-all font-bold">
+              📻 RETURN TO AUTO
+            </button>
+          )}
           <button onClick={actPauseToggle} className={B}>
             {radioPlaying ? '⏸ PAUSE ALL [P]' : '▶ RESUME ALL [P]'}
           </button>

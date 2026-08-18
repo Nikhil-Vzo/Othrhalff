@@ -12,6 +12,8 @@ interface PcoAdminQuickPanelProps {
   onRemoveFromQueue: (trackId: string) => void;
   onSkipCurrent: () => void;
   onBroadcastBanner: (text: string) => void;
+  onReturnToAuto?: () => void;
+  mode?: 'auto' | 'manual';
   currentTrack: PcoTrack | null;
   adminUserId?: string;
   isOpen?: boolean;
@@ -26,6 +28,8 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
   onRemoveFromQueue,
   onSkipCurrent,
   onBroadcastBanner,
+  onReturnToAuto,
+  mode = 'auto',
   currentTrack,
   adminUserId,
   isOpen: propsIsOpen,
@@ -333,6 +337,24 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
             {activeTab === 'tools' && (
               <div className="space-y-4 py-1">
+                {/* Station Mode Indicator & Auto Schedule Switcher */}
+                {mode === 'manual' && onReturnToAuto && (
+                  <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="text-[9px] uppercase font-mono text-emerald-400 font-bold tracking-wider flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Live DJ Override
+                      </span>
+                      <p className="text-[10px] text-gray-300">Station is in manual override mode.</p>
+                    </div>
+                    <button
+                      onClick={onReturnToAuto}
+                      className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95"
+                    >
+                      Return to Auto
+                    </button>
+                  </div>
+                )}
+
                 {/* Now Playing Banner */}
                 {currentTrack && (
                   <div className="p-3 bg-purple-950/40 border border-purple-500/30 rounded-2xl">

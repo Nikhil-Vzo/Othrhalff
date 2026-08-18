@@ -257,3 +257,49 @@ BEGIN
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
+
+-- ==============================================================================
+-- 8. AUTHORITATIVE LIVE RADIO STATE TABLE (pco_radio_state)
+-- Stores official manual overrides, active track, started timestamp, and queue
+-- so late joiners and reconnected listeners are always 100% synchronized.
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.pco_radio_state (
+  room_id TEXT PRIMARY KEY DEFAULT 'Campus_PCO_247',
+  mode TEXT NOT NULL DEFAULT 'auto' CHECK (mode IN ('auto', 'manual')),
+  current_track JSONB,
+  started_at_ms BIGINT NOT NULL DEFAULT 0,
+  paused BOOLEAN NOT NULL DEFAULT FALSE,
+  queue JSONB NOT NULL DEFAULT '[]'::JSONB,
+  version BIGINT NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Seed default initial state if not present
+INSERT INTO public.pco_radio_state (room_id, mode, current_track, started_at_ms, paused, queue, version)
+VALUES ('Campus_PCO_247', 'auto', NULL, 0, FALSE, '[]'::JSONB, 1)
+ON CONFLICT (room_id) DO NOTHING;
+
+-- Enable RLS
+ALTER TABLE public.pco_radio_state ENABLE ROW LEVEL SECURITY;
+
+-- RLS: Anyone (authenticated or anon) can read radio state
+DROP POLICY IF EXISTS "Allow public read on pco_radio_state" ON public.pco_radio_state;
+CREATE POLICY "Allow public read on pco_radio_state"
+  ON public.pco_radio_state FOR SELECT
+  USING (true);
+
+-- RLS: Only admins can insert or update radio state
+DROP POLICY IF EXISTS "Allow admins to update pco_radio_state" ON public.pco_radio_state;
+CREATE POLICY "Allow admins to update pco_radio_state"
+  ON public.pco_radio_state FOR ALL
+  USING (public.is_pco_admin())
+  WITH CHECK (public.is_pco_admin());
+
+-- Add to Realtime Publication
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.pco_radio_state;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+

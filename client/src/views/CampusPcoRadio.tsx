@@ -33,12 +33,14 @@ export const CampusPcoRadio: React.FC = () => {
     currentTime,
     duration,
     isPlaying,
+    mode,
     queue,
     audioRef,
     playTrackImmediately,
     playTrackNext,
     addTrackToQueue,
     removeFromQueue,
+    returnToAuto,
     skipCurrentTrack,
     togglePlayPause,
     seek,
@@ -415,6 +417,8 @@ export const CampusPcoRadio: React.FC = () => {
           onBroadcastBanner={(text) => {
             triggerPinnedBanner(text);
           }}
+          onReturnToAuto={returnToAuto}
+          mode={mode}
           currentTrack={currentTrack}
           adminUserId={currentUser?.id}
           isOpen={isAdminPanelOpen}

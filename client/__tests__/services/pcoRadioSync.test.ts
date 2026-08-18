@@ -14,7 +14,15 @@ jest.mock('../../src/lib/supabase', () => ({
   }
 }));
 
-import { getPcoLiveSchedule, checkIsPcoAdmin } from '../../src/services/pcoAdmin';
+import {
+  getPcoLiveSchedule,
+  checkIsPcoAdmin,
+  fetchPcoRadioState,
+  updatePcoRadioState,
+  setManualRadioOverride,
+  returnToAutoRadioSchedule,
+  updateRadioQueue
+} from '../../src/services/pcoAdmin';
 import { curatedRomanticTracks } from '../../src/data/pcoRomanticTracks';
 
 describe('Campus PCO Radio Deterministic Scheduler & Admin Service', () => {
@@ -84,5 +92,51 @@ describe('Campus PCO Radio Deterministic Scheduler & Admin Service', () => {
     mockMaybeSingle.mockResolvedValue({ data: { id: 'admin-1', role: 'admin' }, error: null });
     const isAdmin = await checkIsPcoAdmin(null, 'campus.dj@campus.edu');
     expect(isAdmin).toBe(true);
+  });
+
+  describe('Authoritative Radio State Management', () => {
+    test('fetchPcoRadioState parses manual override state correctly for late joiners', async () => {
+      const mockTrack = {
+        id: 'track-kesariya',
+        song: 'Kesariya',
+        singers: 'Arijit Singh',
+        image: 'https://image.com/art.jpg',
+        media_url: 'https://cdn.com/song.mp3',
+        duration: '268'
+      };
+      const startedAt = Date.now() - 30000; // Started 30 seconds ago
+
+      mockMaybeSingle.mockResolvedValue({
+        data: {
+          room_id: 'Campus_PCO_247',
+          mode: 'manual',
+          current_track: mockTrack,
+          started_at_ms: startedAt,
+          paused: false,
+          queue: [],
+          version: 5,
+          updated_at: new Date().toISOString()
+        },
+        error: null
+      });
+
+      const state = await fetchPcoRadioState('Campus_PCO_247');
+      expect(state).not.toBeNull();
+      expect(state?.mode).toBe('manual');
+      expect(state?.current_track?.song).toBe('Kesariya');
+      expect(state?.started_at_ms).toBe(startedAt);
+      expect(state?.version).toBe(5);
+
+      // Verify late joiner offset math
+      const elapsedSec = (Date.now() - (state?.started_at_ms || 0)) / 1000;
+      expect(elapsedSec).toBeGreaterThanOrEqual(30);
+      expect(elapsedSec).toBeLessThan(268);
+    });
+
+    test('fetchPcoRadioState returns null gracefully if table is missing or errors', async () => {
+      mockMaybeSingle.mockResolvedValue({ data: null, error: { code: '42P01', message: 'relation does not exist' } });
+      const state = await fetchPcoRadioState('Campus_PCO_247');
+      expect(state).toBeNull();
+    });
   });
 });
