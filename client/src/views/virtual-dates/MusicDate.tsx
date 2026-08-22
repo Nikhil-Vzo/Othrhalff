@@ -2623,38 +2623,42 @@ export const MusicDate = () => {
             ? pcoPlaylist[(pcoPlaylist.findIndex(t => t.id === currentTrack.id) + 1) % pcoPlaylist.length]
             : null;
         const canControl = roomCode.includes('Campus_PCO') ? isAdminUser : isHost;
+        const isPco = roomCode.includes('Campus_PCO');
 
         return (
-            <div className={`bg-[#0c0915]/95 backdrop-blur-2xl border border-white/15 rounded-2xl px-5 ${isHalfWay ? 'py-3.5' : 'py-3'} shadow-[0_10px_40px_rgba(0,0,0,0.8)] hidden md:flex flex-col gap-2 max-w-sm sm:max-w-md w-full transition-all duration-500 pointer-events-auto`}>
-                <div className="flex items-center gap-4">
-                    {/* Album Art */}
-                    <img src={currentTrack.image} alt={currentTrack.song} className="w-10 h-10 rounded-xl object-cover shadow-md shrink-0 border border-white/10" />
-
-                    {/* Song info & tracer bar */}
-                    <div className="flex-1 min-w-[160px] sm:min-w-[200px]">
-                        <div className="flex justify-between items-center gap-3">
-                            <h4 className="text-white text-xs font-black truncate max-w-[140px] sm:max-w-[180px]">{currentTrack.song}</h4>
-                            <span className="text-[10px] font-mono text-gray-400 shrink-0">{formatTime(currentTime)} / {formatTime(totalDur)}</span>
-                        </div>
-                        {/* Tracer line */}
-                        <div className="w-full bg-gray-800/80 h-1.5 rounded-full overflow-hidden mt-1.5 border border-white/5">
-                            <div 
-                                className="bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(236,72,153,0.8)]" 
-                                style={{ width: `${(currentTime / totalDur) * 100}%` }}
+            <div className="bg-[#120b18]/90 backdrop-blur-2xl border border-white/15 hover:border-pink-500/30 rounded-2xl p-3.5 shadow-[0_15px_45px_rgba(0,0,0,0.85)] flex flex-col gap-2.5 w-80 sm:w-96 transition-all duration-300 pointer-events-auto">
+                {/* Top Info & Controls Row */}
+                <div className="flex items-center justify-between gap-3">
+                    {/* Left: Album Thumbnail + Song Info */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-white/15 shadow-sm">
+                            <img
+                                src={currentTrack.image}
+                                alt={currentTrack.song}
+                                className="w-full h-full object-cover"
                             />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h4 className="text-white text-xs font-bold truncate leading-tight">
+                                {currentTrack.song}
+                            </h4>
+                            <p className="text-[10px] text-white/60 truncate leading-tight mt-0.5">
+                                {isPco ? (currentTrack.singers || '24/7 Campus Radio') : currentTrack.singers}
+                            </p>
                         </div>
                     </div>
 
-                    {/* Play/Pause & Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
-                        {roomCode.includes('Campus_PCO') ? (
+                    {/* Right: Badges & Action Buttons */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {isPco ? (
                             <>
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 shadow-[0_0_12px_rgba(236,72,153,0.3)] select-none">
-                                    <span className="relative flex h-2 w-2">
+                                {/* 📻 LIVE ON AIR Indicator */}
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-500/15 border border-pink-500/35 text-pink-300 shadow-[0_0_10px_rgba(236,72,153,0.25)] select-none">
+                                    <span className="relative flex h-1.5 w-1.5">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-pink-500"></span>
                                     </span>
-                                    <span className="font-mono text-[9px] font-black tracking-widest uppercase">LIVE</span>
+                                    <span className="font-mono text-[9px] font-black tracking-wider uppercase">LIVE</span>
                                 </div>
                                 {isAdminUser && (
                                     <button
@@ -2663,7 +2667,7 @@ export const MusicDate = () => {
                                         title="Skip Track (Admin DJ)"
                                         aria-label="Skip"
                                     >
-                                        <SkipForward className="w-4 h-4" />
+                                        <SkipForward className="w-3.5 h-3.5" />
                                     </button>
                                 )}
                             </>
@@ -2671,33 +2675,44 @@ export const MusicDate = () => {
                             <button
                                 onClick={handlePlayPause}
                                 disabled={!canControl}
-                                className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all shadow-md"
+                                className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all shadow-md cursor-pointer"
                                 title={isPlaying ? 'Pause' : 'Play'}
                             >
-                                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                                {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
                             </button>
                         )}
                         <button
                             onClick={toggleLyrics}
-                            className="px-3 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 transition-colors text-xs font-bold flex items-center gap-1.5 border border-pink-500/30 cursor-pointer"
+                            className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                             title="Close Lyrics View"
+                            aria-label="Close"
                         >
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Close</span>
+                            <X className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
 
-                {/* Smooth Up Next Transition Badge (Revealed at 50% song completion) */}
+                {/* Bottom: Progress Bar & Timers */}
+                <div className="space-y-1">
+                    <div className="w-full bg-white/15 h-1 rounded-full overflow-hidden">
+                        <div
+                            className="bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, (currentTime / totalDur) * 100)}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between items-center text-[9px] font-mono text-white/50">
+                        <span>{formatTime(currentTime)}</span>
+                        <span>{formatTime(totalDur)}</span>
+                    </div>
+                </div>
+
+                {/* Smooth Up Next Transition (At >= 50% song completion) */}
                 {isHalfWay && nextTrack && (
-                    <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <span className="text-[10px] font-black text-pink-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
-                            <Music className="w-3 h-3 text-purple-400 animate-bounce" /> Up Next:
+                    <div className="pt-1.5 border-t border-white/10 flex items-center justify-between gap-2 text-[10px] text-pink-300/90 animate-in fade-in duration-300">
+                        <span className="font-bold flex items-center gap-1 text-pink-400 shrink-0">
+                            <Music className="w-3 h-3 text-pink-400" /> Up Next:
                         </span>
-                        <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-                            <img src={nextTrack.image} alt={nextTrack.song} className="w-5 h-5 rounded-md object-cover border border-white/10 shrink-0" />
-                            <span className="text-[11px] font-bold text-gray-200 truncate max-w-[160px]">{nextTrack.song}</span>
-                        </div>
+                        <span className="font-medium text-white/80 truncate text-right">{nextTrack.song}</span>
                     </div>
                 )}
             </div>
