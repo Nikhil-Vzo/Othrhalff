@@ -6,6 +6,21 @@ const router = express.Router();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// SCALING FIX: module-level singleton instead of per-request createClient()
+// (per-request construction + service-key parsing burned ~0.5-2ms CPU/request).
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!supabaseAdmin) {
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase credentials missing in server env (Check SUPABASE_SERVICE_ROLE_KEY)');
+    }
+    supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+  }
+  return supabaseAdmin;
+}
+
 // Accept Match API (uses Service Role Key to bypass RLS)
 router.post('/accept-match', verifySupabaseToken, async (req, res) => {
   try {
@@ -28,14 +43,7 @@ router.post('/accept-match', verifySupabaseToken, async (req, res) => {
     // SECURITY FIX: a user can only "accept" a match that actually exists in
     // the matches table with them as a participant. Previously this endpoint
     // fabricated 'like' swipes against ANY target with zero consent flow.
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase credentials missing in server env (Check SUPABASE_SERVICE_ROLE_KEY)');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdmin();
 
     // 0. SECURITY FIX: the caller may only "accept" when a real mutual basis
     // exists — either (a) a match row already exists (trigger-created after
