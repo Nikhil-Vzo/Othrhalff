@@ -66,12 +66,13 @@ export async function verifySupabaseToken(req, res, next) {
 
       return next();
     } catch (jwtErr) {
-      console.warn('[Local JWT Verification Failed - Token expired or invalid]:', jwtErr.message);
-      return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+      // If local verification fails (e.g. token is ECC P-256 or key rotated),
+      // gracefully fall through to Supabase GoTrue Auth API instead of blocking the request
+      console.log('[Auth] Local JWT check bypassed, falling back to Supabase GoTrue Auth:', jwtErr.message);
     }
   }
 
-  // 4. Fallback Path: Supabase GoTrue Auth API (Used if SUPABASE_JWT_SECRET is not configured)
+  // 4. Fallback Path: Supabase GoTrue Auth API (Handles ECC/ES256 & rotated keys)
   try {
     const client = getSupabaseAuthClient();
     const { data: { user }, error } = await client.auth.getUser(token);
