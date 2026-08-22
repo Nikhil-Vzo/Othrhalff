@@ -2647,17 +2647,39 @@ export const MusicDate = () => {
 
                     {/* Play/Pause & Actions */}
                     <div className="flex items-center gap-2 shrink-0">
-                        <button
-                            onClick={handlePlayPause}
-                            disabled={!canControl}
-                            className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all shadow-md"
-                            title={isPlaying ? 'Pause' : 'Play'}
-                        >
-                            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                        </button>
+                        {roomCode.includes('Campus_PCO') ? (
+                            <>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 shadow-[0_0_12px_rgba(236,72,153,0.3)] select-none">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                                    </span>
+                                    <span className="font-mono text-[9px] font-black tracking-widest uppercase">LIVE</span>
+                                </div>
+                                {isAdminUser && (
+                                    <button
+                                        onClick={handleSkip}
+                                        className="p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+                                        title="Skip Track (Admin DJ)"
+                                        aria-label="Skip"
+                                    >
+                                        <SkipForward className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <button
+                                onClick={handlePlayPause}
+                                disabled={!canControl}
+                                className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all shadow-md"
+                                title={isPlaying ? 'Pause' : 'Play'}
+                            >
+                                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                            </button>
+                        )}
                         <button
                             onClick={toggleLyrics}
-                            className="px-3 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 transition-colors text-xs font-bold flex items-center gap-1.5 border border-pink-500/30"
+                            className="px-3 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 transition-colors text-xs font-bold flex items-center gap-1.5 border border-pink-500/30 cursor-pointer"
                             title="Close Lyrics View"
                         >
                             <ImageIcon className="w-3.5 h-3.5" />
@@ -3101,24 +3123,47 @@ export const MusicDate = () => {
                                             </div>
 
                                             <div className="flex items-center justify-center gap-5 mt-3">
-                                                <button
-                                                    onClick={handlePlayPause}
-                                                    disabled={!canControlPlayback}
-                                                    className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_35px_rgba(255,255,255,0.4)]"
-                                                >
-                                                    {isPlaying ? <Pause className="w-7 h-7 md:w-8 md:h-8 fill-current" /> : <Play className="w-7 h-7 md:w-8 md:h-8 fill-current ml-1" />}
-                                                </button>
-                                                <button
-                                                    onClick={handleSkip}
-                                                    disabled={!canControlPlayback}
-                                                    className="w-11 h-11 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 backdrop-blur-sm"
-                                                    title="Skip to next in queue"
-                                                >
-                                                    <SkipForward className="w-5 h-5 fill-current" />
-                                                </button>
+                                                {roomCode.includes('Campus_PCO') ? (
+                                                    <>
+                                                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.3)] select-none">
+                                                            <span className="relative flex h-2.5 w-2.5">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-pink-500"></span>
+                                                            </span>
+                                                            <span className="font-mono text-xs font-black tracking-widest uppercase">LIVE ON AIR</span>
+                                                        </div>
+                                                        {isAdminUser && (
+                                                            <button
+                                                                onClick={handleSkip}
+                                                                className="w-11 h-11 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/20 active:scale-95 transition-all border border-white/10 backdrop-blur-sm cursor-pointer"
+                                                                title="Skip Track (Admin DJ)"
+                                                            >
+                                                                <SkipForward className="w-5 h-5 fill-current" />
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={handlePlayPause}
+                                                            disabled={!canControlPlayback}
+                                                            className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_35px_rgba(255,255,255,0.4)]"
+                                                        >
+                                                            {isPlaying ? <Pause className="w-7 h-7 md:w-8 md:h-8 fill-current" /> : <Play className="w-7 h-7 md:w-8 md:h-8 fill-current ml-1" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={handleSkip}
+                                                            disabled={!canControlPlayback}
+                                                            className="w-11 h-11 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 backdrop-blur-sm"
+                                                            title="Skip to next in queue"
+                                                        >
+                                                            <SkipForward className="w-5 h-5 fill-current" />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                             {roomCode.includes('Campus_PCO') ? (
-                                                !isAdminUser && <p className="mt-2 text-[10px] text-pink-400/90 font-medium text-center">📻 Live 24/7 Radio • Controls managed by Admin DJ</p>
+                                                !isAdminUser && <p className="mt-2 text-[10px] text-pink-400/90 font-medium text-center">📻 Live 24/7 Radio • Non-stop synchronized broadcast</p>
                                             ) : (
                                                 !isHost && <p className="mt-2 text-[10px] text-gray-500 text-center">Only host can skip tracks or control progress.</p>
                                             )}
