@@ -739,20 +739,6 @@ export const MusicDate = () => {
                     setQueue(payload.queue);
                 }
             })
-            .on('broadcast', { event: 'PCO_PLAY_STATE' }, ({ payload }) => {
-                if (payload && typeof payload.playing === 'boolean') {
-                    setIsPlaying(payload.playing);
-                }
-            })
-            .on('broadcast', { event: 'PCO_SEEK' }, ({ payload }) => {
-                if (audioRef.current && payload && typeof payload.time === 'number') {
-                    audioRef.current.currentTime = payload.time;
-                    setCurrentTime(payload.time);
-                }
-            })
-            .on('broadcast', { event: 'PCO_QUEUE_QUERY' }, () => {
-                pcoChannel.send({ type: 'broadcast', event: 'PCO_QUEUE_SYNC', payload: { queue: queueRef.current } });
-            })
             .on('broadcast', { event: 'PCO_ADMIN_SKIP' }, () => {
                 triggerPinnedBanner(`⏭️ Song skipped by Admin DJ`);
                 addFloatingNotification('System', `Admin skipped the song`);
@@ -767,9 +753,9 @@ export const MusicDate = () => {
                 }
             });
 
-        // 3. Periodic 30-Second Drift Correction for PCO Radio
-        const driftInterval = setInterval(() => {
-            if (!audioRef.current || audioRef.current.paused || queueRef.current.length > 0) return;
+        // 3. Ultra-Accurate Global Master Clock Synchronization & Drift Correction (Every 4s)
+        const syncToGlobalRadioClock = () => {
+            if (!roomCode.includes('Campus_PCO') || queueRef.current.length > 0) return;
             const totalDuration = baseList.reduce((acc, t) => acc + (parseInt(t.duration, 10) || 240), 0);
             if (totalDuration === 0) return;
             const nowSec = Math.floor(Date.now() / 1000);
@@ -778,22 +764,48 @@ export const MusicDate = () => {
             for (const t of baseList) {
                 const dur = parseInt(t.duration, 10) || 240;
                 if (cycleTime < dur) {
-                    if (currentTrackRef.current?.id === t.id && audioRef.current) {
+                    if (currentTrackRef.current?.id !== t.id) {
+                        console.log(`[PCO Radio] Global clock sync: Switching to "${t.song}" at ${cycleTime}s`);
+                        setCurrentTrack(t);
+                        setIsPlaying(true);
+                        if (audioRef.current) {
+                            audioRef.current.src = t.media_url;
+                            audioRef.current.currentTime = cycleTime;
+                            setCurrentTime(cycleTime);
+                            audioRef.current.play().catch(() => {});
+                        }
+                    } else if (audioRef.current) {
                         const drift = Math.abs(audioRef.current.currentTime - cycleTime);
-                        if (drift > 1.5) {
+                        if (drift > 1.2) {
                             console.log(`[PCO Radio] Correcting clock drift: ${drift.toFixed(2)}s`);
                             audioRef.current.currentTime = cycleTime;
                             setCurrentTime(cycleTime);
+                        }
+                        if (audioRef.current.paused) {
+                            audioRef.current.play().catch(() => {});
                         }
                     }
                     break;
                 }
                 cycleTime -= dur;
             }
-        }, 30000);
+        };
+
+        const driftInterval = setInterval(syncToGlobalRadioClock, 4000);
+
+        // Instant re-sync when tab becomes visible or receives window focus
+        const handleVisibilityOrFocus = () => {
+            if (document.visibilityState === 'visible') {
+                syncToGlobalRadioClock();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+        window.addEventListener('focus', handleVisibilityOrFocus);
 
         return () => {
             clearInterval(driftInterval);
+            document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+            window.removeEventListener('focus', handleVisibilityOrFocus);
             supabase.removeChannel(pcoChannel);
         };
     }, [roomCode]);
@@ -1970,21 +1982,16 @@ export const MusicDate = () => {
             broadcastSync('queue_sync', { payload: newQueue });
             playSelectedTrack(nextTrack);
         } else if (roomCode.includes('Campus_PCO') && pcoPlaylist.length > 0) {
-            // Automatically play the exact NEXT real song in the Campus PCO playlist!
-            const currentIndex = pcoPlaylist.findIndex(t => t.id === currentTrackRef.current?.id);
-            const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % pcoPlaylist.length : 0;
-            const nextTrack = pcoPlaylist[nextIndex];
+            // Re-sync immediately to current exact global clock position
+            const { track: nextTrack, offsetSec } = getPcoSyncedTrack(pcoPlaylist);
             setCurrentTrack(nextTrack);
             setIsPlaying(true);
-            triggerPinnedBanner(`🎵 Playing Next: "${nextTrack.song}"`);
-            // Only admin broadcasts to prevent N duplicate broadcasts (Bug B16)
-            if (isAdminUserRef.current && supabase) {
-                supabase.channel('campus_pco_live_chat').send({
-                    type: 'broadcast',
-                    event: 'PCO_PLAY_IMMEDIATELY',
-                    payload: { track: nextTrack }
-                });
+            if (audioRef.current) {
+                audioRef.current.currentTime = offsetSec;
+                setCurrentTime(offsetSec);
+                audioRef.current.play().catch(() => {});
             }
+            triggerPinnedBanner(`🎵 On Air: "${nextTrack.song}"`);
         } else if (isHost) {
             setIsPlaying(false);
             broadcastSync('pause');
@@ -2976,7 +2983,11 @@ export const MusicDate = () => {
                         <PcoRadioPlayer
                             currentTrack={currentTrack}
                             currentTime={currentTime}
-                            isPlaying={isPlaying}
+                            isPlaying={true}
+                            isMuted={musicVolume === 0}
+                            onToggleMute={() => {
+                                setMusicVolume(prev => prev > 0 ? 0 : 0.85);
+                            }}
                             listenerCount={listenerCount}
                             isAdmin={isAdminUser}
                             requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
@@ -2984,24 +2995,7 @@ export const MusicDate = () => {
                             floatingChatMessages={floatingNotifications}
                             isSidebarOpen={!isSidebarHidden}
                             onToggleLyrics={toggleLyrics}
-                            onPlayPause={handlePlayPause}
                             onSkip={handleSkip}
-                            onSeek={(t: number) => {
-                                if (audioRef.current) {
-                                    audioRef.current.currentTime = t;
-                                    setCurrentTime(t);
-                                    if (supabase) {
-                                        clearTimeout(pcoSeekTimer.current);
-                                        pcoSeekTimer.current = setTimeout(() => {
-                                            supabase.channel('campus_pco_live_chat').send({
-                                                type: 'broadcast',
-                                                event: 'PCO_SEEK',
-                                                payload: { time: t }
-                                            });
-                                        }, 250);
-                                    }
-                                }
-                            }}
                             onToggleSidebar={() => {
                                 if (isMobile) {
                                     setIsMobilePcoPanel(prev => !prev);
