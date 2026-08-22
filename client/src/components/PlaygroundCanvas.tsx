@@ -221,6 +221,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     }
 
     let lastBroadcastTime = 0;
+    const lastBroadcastPos = { x: 0, y: 0 };
 
     const updateLoop = (timestamp: number) => {
       let dx = 0;
@@ -299,9 +300,17 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       }
 
       const movementStateChanged = movingRef.current !== isCurrentlyMoving;
-      if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 100))) {
+      // SCALING FIX: 100ms -> 200ms (5 Hz) + dead-zone: skip broadcasts when
+      // the player moved < 2px since the last send. Cuts channel traffic
+      // ~4x (channel-wide fan-out is O(N^2), so this matters quadratically).
+      const bdx = posRef.current.x - lastBroadcastPos.x;
+      const bdy = posRef.current.y - lastBroadcastPos.y;
+      const movedEnough = Math.abs(bdx) > 1 || Math.abs(bdy) > 1;
+      if ((movementStateChanged && movedEnough) || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 200) && movedEnough)) {
         onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving);
         lastBroadcastTime = timestamp;
+        lastBroadcastPos.x = posRef.current.x;
+        lastBroadcastPos.y = posRef.current.y;
       }
 
       animationFrameId = requestAnimationFrame(updateLoop);
