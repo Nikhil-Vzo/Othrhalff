@@ -420,8 +420,11 @@ export const CampusPcoRadio: React.FC = () => {
         text: `Requested "${track.song}"! Sent to Admin DJ console.`
       });
       // Broadcast song request notice
-      if (supabase) {
-        supabase.channel('campus_pco_live_chat').send({
+      // SCALING FIX: route admin notifications to the dedicated admin channel.
+      // Broadcasting 'PCO_REQUEST_NOTIFICATION' to all N listeners wasted an
+      // O(N) fan-out per request when only the DJ console consumes it.
+      if (supabase && liveChannelRef.current) {
+        liveChannelRef.current.send({
           type: 'broadcast',
           event: 'PCO_REQUEST_NOTIFICATION',
           payload: {

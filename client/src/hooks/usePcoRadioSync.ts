@@ -482,10 +482,19 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   }, [handleTrackEnd, setCurrentTrack, ensurePreservesPitch]);
 
   // 4. Audio Event Handlers
-  // Native 4Hz onTimeUpdate with GPU CSS linear interpolation handles 60fps with 0 CPU overhead
+  // SCALING FIX: throttle currentTime state updates to ~1 Hz. onTimeUpdate
+  // fires at ~4 Hz and each call re-rendered the entire player tree (video
+  // bg, header, footer, progress bar) 4x/sec on every listener tab. The
+  // progress bar animates via CSS transition, so 1 Hz UI updates are
+  // visually identical while cutting mobile CPU ~4x.
+  const lastUiTimeRef = useRef(0);
   const handleTimeUpdate = useCallback(() => {
     if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
+      const now = Date.now();
+      if (now - lastUiTimeRef.current >= 900) {
+        lastUiTimeRef.current = now;
+        setCurrentTime(audioRef.current.currentTime);
+      }
     }
   }, []);
 
