@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus } from '../services/pcoAdmin';
+import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus, getServerTimeMs } from '../services/pcoAdmin';
 import { usePcoRadioSync } from '../hooks/usePcoRadioSync';
 import { PcoRadioPlayer } from '../components/PcoRadioPlayer';
 import { PcoLyricsScroller } from '../components/PcoLyricsScroller';
@@ -224,7 +224,9 @@ export const CampusPcoRadio: React.FC = () => {
       })
       .on('broadcast', { event: 'PCO_PLAY_IMMEDIATELY' }, ({ payload }) => {
         if (payload?.track) {
-          handlersRef.current.playTrackImmediately(payload.track);
+          // Pass the DJ's authoritative start time so the listener starts AT
+          // the DJ's position (minus a tiny lead), not at their receive time.
+          handlersRef.current.playTrackImmediately(payload.track, payload.startedAtMs);
           handlersRef.current.triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
         }
       })
@@ -484,14 +486,18 @@ export const CampusPcoRadio: React.FC = () => {
       {isAdmin && (
         <PcoAdminQuickPanel
           queue={queue}
-          onPlayNow={(t, id) => {
-            playTrackImmediately(t);
+          onPlayNow={async (t, id) => {
+            // ZERO-DELAY BROADCAST: capture the DJ's authoritative start time
+            // (server clock, not the listener's local receive time) and send
+            // it in the payload so every device starts at the same instant.
+            const startAtMs = await getServerTimeMs();
+            playTrackImmediately(t, startAtMs);
             triggerPinnedBanner(`🔥 Now Playing: "${t.song}"`);
             if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
             liveChannelRef.current?.send({
               type: 'broadcast',
               event: 'PCO_PLAY_IMMEDIATELY',
-              payload: { track: t, senderId: currentUser?.id }
+              payload: { track: t, startedAtMs: startAtMs, senderId: currentUser?.id }
             });
           }}
           onPlayNext={(t, id) => {

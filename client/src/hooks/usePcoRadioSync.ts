@@ -28,7 +28,7 @@ export interface UsePcoRadioSyncReturn {
   mode: PcoRadioMode;
   queue: PcoTrack[];
   audioRef: React.RefObject<HTMLAudioElement>;
-  playTrackImmediately: (track: PcoTrack) => Promise<void>;
+  playTrackImmediately: (track: PcoTrack, authoritativeStartedAtMs?: number) => Promise<void>;
   playTrackNext: (track: PcoTrack) => Promise<void>;
   addTrackToQueue: (track: PcoTrack) => Promise<void>;
   removeFromQueue: (trackId: string) => Promise<void>;
@@ -185,9 +185,32 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
           setIsPlaying(!dbState.paused);
 
           if (audioRef.current) {
-            audioRef.current.currentTime = elapsedSec;
-            if (!dbState.paused) {
-              audioRef.current.play().catch(() => setIsPlaying(false));
+            const audio = audioRef.current;
+            ensurePreservesPitch(audio);
+            const startAtMs = dbState.started_at_ms;
+
+            if (audio.src !== dbState.current_track.media_url && !audio.src.endsWith(dbState.current_track.media_url)) {
+              audio.src = dbState.current_track.media_url;
+              audio.load();
+            }
+
+            const onReady = () => {
+              // Recompute at play-time so late-joiners land exactly where
+              // everyone else is, even after slow buffering.
+              const liveOffset = Math.max(0, (Date.now() - startAtMs) / 1000);
+              try { audio.currentTime = Math.max(0, liveOffset - 0.25); } catch (_) {}
+              setCurrentTime(Math.max(0, liveOffset - 0.25));
+              audio.playbackRate = 1.0;
+              if (!dbState.paused) {
+                audio.play().catch(() => setIsPlaying(false));
+              }
+              audio.removeEventListener('canplay', onReady);
+            };
+
+            if (audio.readyState >= 3) {
+              onReady();
+            } else {
+              audio.addEventListener('canplay', onReady);
             }
           }
           return;
@@ -359,15 +382,17 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         }
 
         const drift = expectedTime - actualTime;
-        if (Math.abs(drift) < 0.35) {
+        if (Math.abs(drift) < 0.3) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
-        } else if (drift > 0.35 && drift <= 2.5) {
+        } else if (drift > 0.3 && drift <= 1.2) {
           ensurePreservesPitch(audio);
-          audio.playbackRate = 1.03;
-        } else if (drift < -0.35 && drift >= -2.5) {
+          audio.playbackRate = 1.05;
+        } else if (drift < -0.3 && drift >= -1.2) {
           ensurePreservesPitch(audio);
-          audio.playbackRate = 0.97;
-        } else if (Math.abs(drift) > 2.5) {
+          audio.playbackRate = 0.95;
+        } else {
+          // >1.2s off: snap hard to the authoritative position immediately.
+          // A brief audible jump beats a permanent multi-second lag.
           audio.currentTime = expectedTime;
           audio.playbackRate = 1.0;
           setCurrentTime(audio.currentTime);
@@ -390,21 +415,23 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         const expectedTime = sched.offsetSec;
         const drift = expectedTime - actualTime;
 
-        if (Math.abs(drift) < 0.35) {
+        if (Math.abs(drift) < 0.3) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
-        } else if (drift > 0.35 && drift <= 2.5) {
+        } else if (drift > 0.3 && drift <= 1.2) {
           ensurePreservesPitch(audio);
-          audio.playbackRate = 1.03;
-        } else if (drift < -0.35 && drift >= -2.5) {
+          audio.playbackRate = 1.05;
+        } else if (drift < -0.3 && drift >= -1.2) {
           ensurePreservesPitch(audio);
-          audio.playbackRate = 0.97;
-        } else if (Math.abs(drift) > 2.5) {
+          audio.playbackRate = 0.95;
+        } else {
+          // >1.2s off: snap hard to the authoritative position immediately.
+          // A brief audible jump beats a permanent multi-second lag.
           audio.currentTime = expectedTime;
           audio.playbackRate = 1.0;
           setCurrentTime(audio.currentTime);
         }
       }
-    }, 5000);
+    }, 3000);
 
     return () => {
       if (driftIntervalRef.current) {
@@ -434,14 +461,23 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   // 5. User & Admin Actions with Authoritative DB Persistence
   // SECURITY: only admins mutate pco_radio_state. Non-admin callers get a
   // local-only effect so a stray client can never hijack the station.
-  const playTrackImmediately = useCallback(async (track: PcoTrack) => {
+  //
+  // ZERO-DELAY SYNC: callers may pass an authoritative startedAtMs (from the
+  // DJ / DB). Listeners then begin playback AT THE CORRECT TIMESTAMP instead
+  // of anchoring to their own receive time (which caused the 3-4s lag).
+  const playTrackImmediately = useCallback(async (track: PcoTrack, authoritativeStartedAtMs?: number) => {
     setMode('manual');
     modeRef.current = 'manual';
-    // Temporary local placeholder to prevent Ghost Drift race conditions during network latency
-    startedAtMsRef.current = Date.now();
+
+    const startMs = typeof authoritativeStartedAtMs === 'number' && authoritativeStartedAtMs > 0
+      ? authoritativeStartedAtMs
+      : Date.now();
+    const startOffsetSec = Math.max(0, (Date.now() - startMs) / 1000);
+
+    startedAtMsRef.current = startMs;
     setCurrentTrack(track);
     setIsPlaying(true);
-    setCurrentTime(0);
+    setCurrentTime(startOffsetSec);
 
     if (audioRef.current) {
       const audio = audioRef.current;
@@ -458,13 +494,32 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         audio.src = track.media_url;
         audio.load();
       }
-      audio.currentTime = 0;
-      audio.playbackRate = 1.0;
-      audio.play().catch(() => {});
+
+      const onReady = () => {
+        // Jump straight to where the DJ is RIGHT NOW, minus a small negative
+        // lead so the listener is never BEHIND the DJ (buffering headroom).
+        const liveOffset = Math.max(0, (Date.now() - startMs) / 1000);
+        const target = Math.max(0, liveOffset - 0.25);
+        try { audio.currentTime = target; } catch (_) {}
+        audio.playbackRate = 1.0;
+        setCurrentTime(target);
+        audio.play().catch(() => setIsPlaying(false));
+        audio.removeEventListener('canplay', onReady);
+        audioReadyListenerRef.current = null;
+      };
+
+      if (audio.readyState >= 3) {
+        onReady();
+      } else {
+        audioReadyListenerRef.current = onReady;
+        audio.addEventListener('canplay', onReady);
+      }
     }
 
     if (isAdminRef.current) {
-      await setManualRadioOverride(track, queueRef.current, roomId);
+      // Persist the SAME authoritative start timestamp to the DB so late
+      // joiners hydrate at the exact position everyone else is at.
+      await setManualRadioOverride(track, queueRef.current, roomId, startMs);
     }
   }, [roomId, setCurrentTrack, ensurePreservesPitch]);
 
