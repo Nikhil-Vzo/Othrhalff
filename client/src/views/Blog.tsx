@@ -453,10 +453,10 @@ export const Blog: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16 px-4 sm:px-0">
                   {[
-                    { img: '/blog/home-screen.png', title: 'Discover', desc: 'The starting point.' },
-                    { img: '/blog/confessions.png', title: 'Confessions', desc: 'Whispers made loud.' },
-                    { img: '/blog/notifications.png', title: 'Connections', desc: 'Real-time sparks.' },
-                    { img: '/blog/virtual-dates.jpeg', title: 'Virtual Dates', desc: 'Movie nights synced.' }
+                    { img: '/blog/home-screen.webp', title: 'Discover', desc: 'The starting point.' },
+                    { img: '/blog/confessions.webp', title: 'Confessions', desc: 'Whispers made loud.' },
+                    { img: '/blog/notifications.webp', title: 'Connections', desc: 'Real-time sparks.' },
+                    { img: '/blog/virtual-dates.webp', title: 'Virtual Dates', desc: 'Movie nights synced.' }
                   ].map((card, idx) => (
                     <div key={idx} className="launch-card group relative overflow-visible aspect-auto bg-transparent flex flex-col items-center">
                       <div className="w-full aspect-[4/5] sm:aspect-[3/4] relative pointer-events-none drop-shadow-2xl">

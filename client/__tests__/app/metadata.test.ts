@@ -138,7 +138,7 @@ describe('Root page metadata (client/app/page.tsx)', () => {
   it('openGraph image references the blog home-screen', () => {
     const og = rootMetadata.openGraph as OGMeta;
     const images = og.images as string[];
-    expect(images[0]).toContain('home-screen.png');
+    expect(images[0]).toContain('home-screen.webp');
   });
 
   it('openGraph image path starts with /', () => {

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
       'Omegle is gone. Othrhalff is the campus-verified Omegle alternative—1-on-1 speed video chat with real college students in India.',
     url: 'https://www.othrhalff.in/vs-omegle',
     type: 'website',
-    images: [{ url: 'https://www.othrhalff.in/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: 'https://www.othrhalff.in/og-image.webp', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',

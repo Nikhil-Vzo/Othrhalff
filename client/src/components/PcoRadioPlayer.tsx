@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import {
-  ArrowLeft, Play, Pause, SkipForward, FileText, Menu, X, Shield, Maximize, Minimize
+  ArrowLeft, SkipForward, FileText, Menu, X, Shield, Maximize, Minimize, Volume2, VolumeX, Radio
 } from 'lucide-react';
 
 export interface PcoTrackLike {
@@ -17,7 +17,9 @@ export interface PcoTrackLike {
 interface PcoRadioPlayerProps {
   currentTrack: PcoTrackLike | null;
   currentTime: number;
-  isPlaying: boolean;
+  isPlaying?: boolean;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
   listenerCount: number;
   isAdmin: boolean;
   requestsLeft: number;
@@ -25,15 +27,15 @@ interface PcoRadioPlayerProps {
   floatingChatMessages?: { id: string; user: string; text: string }[];
   isSidebarOpen?: boolean;
   onToggleLyrics: () => void;
-  onPlayPause: () => void;
-  onSkip: () => void;
+  onPlayPause?: () => void;
+  onSkip?: () => void;
   onSeek?: (t: number) => void;
   onToggleSidebar: () => void;
   onToggleAdminPanel?: () => void;
   onBack: () => void;
 }
 
-const DEFAULT_BG = '/fm_pc_2.png';
+const DEFAULT_BG = '/fm_pc_2.webp';
 
 const formatTime = (s: number) => {
   const m = Math.floor(Math.max(0, s) / 60);
@@ -44,7 +46,9 @@ const formatTime = (s: number) => {
 export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   currentTrack,
   currentTime,
-  isPlaying,
+  isPlaying = true,
+  isMuted = false,
+  onToggleMute,
   listenerCount,
   isAdmin,
   requestsLeft,
@@ -52,15 +56,13 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
   floatingChatMessages,
   isSidebarOpen = false,
   onToggleLyrics,
-  onPlayPause,
   onSkip,
-  onSeek,
   onToggleSidebar,
   onToggleAdminPanel,
   onBack
 }) => {
   const t = currentTrack;
-  const art = t?.image || '/sparxfm-wall.jpg';
+  const art = t?.image || '/sparxfm-wall.webp';
   const dur = Number(t?.duration) || 240;
   
   // Production-grade gesture tracking
@@ -331,7 +333,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
               <img
                 src={art}
                 alt={t?.song || 'Campus PCO'}
-                className={`w-full h-full object-cover ${isPlaying ? 'animate-spin' : ''}`}
+                className="w-full h-full object-cover animate-spin"
                 style={{ animationDuration: '8s' }}
               />
               <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
@@ -349,25 +351,14 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
                 {t?.singers || '24/7 Campus Radio'}
               </p>
 
-              {/* Sleek Progress Line */}
+              {/* Sleek Synchronized Live Progress Line */}
               <div className="mt-1 flex items-center gap-2">
-                {isAdmin && onSeek ? (
-                  <input
-                    type="range"
-                    min={0}
-                    max={dur}
-                    value={Math.min(currentTime, dur)}
-                    onChange={e => onSeek(Number(e.target.value))}
-                    className="w-full h-1 bg-white/20 accent-pink-500 cursor-pointer rounded-full"
+                <div className="w-full h-1 rounded-full bg-white/20 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full transition-[width] duration-250 ease-linear"
+                    style={{ width: `${Math.min(100, (currentTime / dur) * 100)}%` }}
                   />
-                ) : (
-                  <div className="w-full h-1 rounded-full bg-white/20 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-pink-400 to-purple-400 rounded-full transition-[width] duration-250 ease-linear"
-                      style={{ width: `${Math.min(100, (currentTime / dur) * 100)}%` }}
-                    />
-                  </div>
-                )}
+                </div>
                 <span className="text-[9px] font-mono text-white/50 shrink-0">
                   {formatTime(currentTime)} / {formatTime(dur)}
                 </span>
@@ -375,38 +366,53 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = React.memo(({
             </div>
           </div>
 
-          {/* Right: Clean Minimal Controls (Lyrics, Play/Pause, Skip) */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Right: Live Radio Status & Minimal Controls (Live Badge, Mute, Lyrics, Skip) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+
+            {/* 📻 LIVE ON AIR Indicator (Replaces Pause Button for Everyone) */}
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-pink-500/15 border border-pink-500/40 text-pink-200 shadow-[0_0_12px_rgba(236,72,153,0.3)] select-none">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+              </span>
+              <span className="font-mono text-[9px] font-black tracking-widest uppercase text-pink-300">LIVE</span>
+            </div>
+
+            {/* 🔊 / 🔇 Local Mute / Unmute Button */}
+            {onToggleMute && (
+              <button
+                onClick={onToggleMute}
+                className={`p-2 sm:p-2.5 rounded-full transition-all active:scale-90 cursor-pointer ${
+                  isMuted
+                    ? 'text-red-300 bg-red-500/20 border border-red-500/40 hover:bg-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+                title={isMuted ? "Unmute Station (Local)" : "Mute Station (Local)"}
+                aria-label={isMuted ? "Unmute Audio" : "Mute Audio"}
+              >
+                {isMuted ? (
+                  <VolumeX className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                ) : (
+                  <Volume2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                )}
+              </button>
+            )}
 
             {/* 📝 Lyrics Button with glowing touch state */}
             <button
               onClick={onToggleLyrics}
-              className="p-2 sm:p-2.5 rounded-full text-pink-300 hover:text-pink-100 hover:bg-pink-500/20 active:scale-90 hover:shadow-[0_0_15px_rgba(236,72,153,0.4)] transition-all"
+              className="p-2 sm:p-2.5 rounded-full text-pink-300 hover:text-pink-100 hover:bg-pink-500/20 active:scale-90 hover:shadow-[0_0_15px_rgba(236,72,153,0.4)] transition-all cursor-pointer"
               title="Toggle Live Synced Lyrics"
               aria-label="Lyrics"
             >
               <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
 
-            {/* ⏸️ / ▶️ Main White Circular Play / Pause Button with Ambient Halo */}
-            <button
-              onClick={onPlayPause}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.45)] hover:shadow-[0_0_35px_rgba(255,255,255,0.7)] hover:scale-105 active:scale-90 cursor-pointer transition-all"
-              title={isAdmin ? (isPlaying ? 'Pause Station (Admin)' : 'Resume Station (Admin)') : (isPlaying ? 'Pause Local Audio' : 'Tune In / Unmute Live Radio')}
-              aria-label="Play / Pause"
-            >
-              {isPlaying ? (
-                <Pause className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-black text-black" />
-              ) : (
-                <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-black text-black ml-0.5" />
-              )}
-            </button>
-
             {/* ⏭️ Skip Button (For Admin DJ) */}
-            {isAdmin && (
+            {isAdmin && onSkip && (
               <button
                 onClick={onSkip}
-                className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+                className="p-2 sm:p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 title="Skip Track (Admin DJ)"
                 aria-label="Skip"
               >

@@ -35,13 +35,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: `https://www.othrhalff.in/campus/${campus.slug}`,
       type: 'website',
-      images: [{ url: 'https://www.othrhalff.in/og-image.png', width: 1200, height: 630, alt: `${campus.name} Dating & Confessions` }],
+      images: [{ url: 'https://www.othrhalff.in/og-image.webp', width: 1200, height: 630, alt: `${campus.name} Dating & Confessions` }],
     },
     twitter: {
       card: 'summary_large_image',
-      title,
-      description,
-      images: ['https://www.othrhalff.in/og-image.png'],
+      title: `${campus.name} Dating, Confessions & Campus Chat | Othrhalff`,
+      description: `Join verified ${campus.name} students on Othrhalff. Anonymous confessions, campus-only matching, and student chat.`,
+      images: ['https://www.othrhalff.in/og-image.webp'],
     },
   };
 }

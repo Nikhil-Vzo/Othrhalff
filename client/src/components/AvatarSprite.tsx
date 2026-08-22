@@ -113,7 +113,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
   // 32 Characters setup (16x17 px per tile, 4 cols x 3 rows)
   if (is32Char) {
     const isMale = avatarId.startsWith('M_');
-    const imgPath = isMale ? `/assets/characters/Males/${avatarId}.png` : `/assets/characters/Females/${avatarId}.png`;
+    const imgPath = isMale ? `/assets/characters/Males/${avatarId}.webp` : `/assets/characters/Females/${avatarId}.webp`;
     const col = char32DirectionToCol[effectiveDirection];
     const row = effectiveFrame; // 0 = idle, 1 = walk1, 2 = walk2
     const bgX = -(col * 16);
@@ -188,7 +188,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       <div 
         className="w-full h-full bg-no-repeat relative"
         style={{
-          backgroundImage: `url('/assets/character-spritesheet.png')`,
+          backgroundImage: `url('/assets/character-spritesheet.webp')`,
           backgroundPosition: `${bgX}px ${bgY}px`,
           imageRendering: 'pixelated',
         }}

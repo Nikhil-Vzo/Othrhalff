@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'OthrHalff - Where anonymous meets destiny',
     description: 'The anonymous dating app built for university students.',
-    images: ['/blog/home-screen.png'],
+    images: ['/blog/home-screen.webp'],
   }
 };
 

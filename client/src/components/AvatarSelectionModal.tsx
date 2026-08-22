@@ -14,28 +14,28 @@ export const ALL_AVATARS: AvatarOption[] = [
     id: 'M_01',
     name: 'Boy 1',
     category: 'male',
-    imagePath: '/assets/characters/Males/M_01.png',
+    imagePath: '/assets/characters/Males/M_01.webp',
     is32Char: true
   },
   {
     id: 'M_02',
     name: 'Boy 2',
     category: 'male',
-    imagePath: '/assets/characters/Males/M_02.png',
+    imagePath: '/assets/characters/Males/M_02.webp',
     is32Char: true
   },
   {
     id: 'F_01',
     name: 'Girl 1',
     category: 'female',
-    imagePath: '/assets/characters/Females/F_01.png',
+    imagePath: '/assets/characters/Females/F_01.webp',
     is32Char: true
   },
   {
     id: 'F_02',
     name: 'Girl 2',
     category: 'female',
-    imagePath: '/assets/characters/Females/F_02.png',
+    imagePath: '/assets/characters/Females/F_02.webp',
     is32Char: true
   }
 ];
