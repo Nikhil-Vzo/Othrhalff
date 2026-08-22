@@ -413,6 +413,14 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
            avatarId={avatarId}
         />
 
+        {/* 🏛️ Campus Map Foreground Overlay Layer (Overlays avatar when in the red mask area) */}
+        <img
+          src="/assets/campus-overlay.webp"
+          alt="Campus Map Foreground Overlay"
+          className="absolute inset-0 w-full h-full pointer-events-none select-none z-30"
+          style={{ imageRendering: 'pixelated', width: `${WORLD_WIDTH}px`, height: `${WORLD_HEIGHT}px` }}
+        />
+
       </div>
 
       {/* Sleek Minimalist Virtual Floating Touch Joystick */}

@@ -154,7 +154,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
 
         {/* Speech Bubble */}
         {speechBubble && (
-          <div className="absolute -top-9 flex flex-col items-center pointer-events-none z-30 animate-bounce">
+          <div className="absolute -top-9 flex flex-col items-center pointer-events-none z-40 animate-bounce">
             <div className="bg-white text-black px-3 py-1.5 rounded-2xl text-xs font-bold max-w-[150px] text-center shadow-lg break-words border-2 border-gray-200">
               {speechBubble}
             </div>
@@ -209,7 +209,7 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
 
       {/* Speech Bubble */}
       {speechBubble && (
-        <div className="absolute -top-10 flex flex-col items-center pointer-events-none z-30 animate-bounce">
+        <div className="absolute -top-10 flex flex-col items-center pointer-events-none z-40 animate-bounce">
           <div className="bg-white text-black px-3 py-1.5 rounded-2xl text-xs font-bold max-w-[150px] text-center shadow-lg break-words border-2 border-gray-200">
             {speechBubble}
           </div>
