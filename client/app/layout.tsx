@@ -75,7 +75,7 @@ export const metadata: Metadata = {
     description: "Go beyond dating. Random text & video partner chat, post awesome campus confessions & tea, and play on interactive maps with verified college students. Find your vibe or your other half.",
     images: [
       {
-        url: 'https://www.othrhalff.in/og-image.png',
+        url: 'https://www.othrhalff.in/og-image.webp',
         width: 1200,
         height: 630,
         alt: 'Othrhalff Campus Connections & Beyond',
@@ -87,7 +87,7 @@ export const metadata: Metadata = {
     title: 'Othrhalff – Campus Connections, Dating & Beyond',
     description: 'Go beyond dating. Random text & video partner chat, post awesome campus confessions & tea, and play on interactive maps with verified college students. Find your vibe.',
     creator: '@othrhalff',
-    images: ['https://www.othrhalff.in/og-image.png'],
+    images: ['https://www.othrhalff.in/og-image.webp'],
   },
   alternates: {
     canonical: 'https://www.othrhalff.in',

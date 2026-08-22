@@ -180,7 +180,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(`Missed ${callTypeLabel} call`, {
               body: `${callerName} tried to call you`,
-              icon: callerProfile?.avatar || '/favicon.png',
+              icon: callerProfile?.avatar || '/favicon.webp',
               tag: `missed-call-${callSession.id}`
             });
           }

@@ -33,7 +33,7 @@ interface PcoRadioPlayerProps {
   onBack: () => void;
 }
 
-const DEFAULT_BG = '/fm_pc_2.png';
+const DEFAULT_BG = '/fm_pc_2.webp';
 
 const formatTime = (s: number) => {
   const m = Math.floor(Math.max(0, s) / 60);
@@ -60,7 +60,7 @@ export const PcoRadioPlayer: React.FC<PcoRadioPlayerProps> = ({
   onBack
 }) => {
   const t = currentTrack;
-  const art = t?.image || '/sparxfm-wall.jpg';
+  const art = t?.image || '/sparxfm-wall.webp';
   const dur = Number(t?.duration) || 240;
   const touchStartY = useRef<number | null>(null);
 

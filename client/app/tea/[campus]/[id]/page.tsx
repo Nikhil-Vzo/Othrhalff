@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: `https://www.othrhalff.in/tea/${params.campus}/${params.id}`,
       type: 'article',
-      images: [{ url: 'https://www.othrhalff.in/og-image.png', width: 1200, height: 630 }],
+      images: [{ url: 'https://www.othrhalff.in/og-image.webp', width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',

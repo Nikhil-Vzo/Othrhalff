@@ -32,13 +32,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: comp.summary,
       url: `https://www.othrhalff.in/vs/${comp.slug}`,
       type: 'website',
-      images: [{ url: 'https://www.othrhalff.in/og-image.png', width: 1200, height: 630, alt: comp.title }],
+      images: [{ url: 'https://www.othrhalff.in/og-image.webp', width: 1200, height: 630, alt: comp.title }],
     },
     twitter: {
       card: 'summary_large_image',
       title: comp.title,
       description: comp.summary,
-      images: ['https://www.othrhalff.in/og-image.png'],
+      images: ['https://www.othrhalff.in/og-image.webp'],
     },
   };
 }
