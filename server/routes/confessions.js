@@ -102,7 +102,7 @@ router.post('/post-guest-confession', async (req, res) => {
       try {
         const parsed = new URL(String(rawMedia));
         if (
-          parsed.hostname.endsWith('supabase.co') &&
+          parsed.hostname.endsWith('.supabase.co') &&
           parsed.pathname.includes('/storage/v1/object/public/confession-media/')
         ) {
           validatedMediaUrl = parsed.toString();

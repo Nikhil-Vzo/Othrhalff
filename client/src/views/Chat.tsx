@@ -521,8 +521,16 @@ export const Chat: React.FC = () => {
 
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(`deleted_messages_${matchId}`);
-      return new Set(stored ? JSON.parse(stored) : []);
+      try {
+        const stored = localStorage.getItem(`deleted_messages_${matchId}`);
+        return new Set(stored ? JSON.parse(stored) : []);
+      } catch (err) {
+        // CORRUPTION GUARD: unguarded parse here previously threw during the
+        // useState initializer, permanently crashing this chat route.
+        console.warn('[Chat] Corrupted deleted_messages cache — resetting:', err);
+        try { localStorage.removeItem(`deleted_messages_${matchId}`); } catch (_) {}
+        return new Set();
+      }
     }
     return new Set();
   });
@@ -630,6 +638,10 @@ export const Chat: React.FC = () => {
   const [isStartingCall, setIsStartingCall] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedByThem, setIsBlockedByThem] = useState(false);
+  // STALE CLOSURE FIX: the realtime channel effect captures isBlocked state
+  // at subscribe time. Refs keep the handler reading LIVE block status.
+  const isBlockedRef = useRef(false);
+  const isBlockedByThemRef = useRef(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [oldestLoaded, setOldestLoaded] = useState<number | null>(null);
@@ -819,6 +831,8 @@ export const Chat: React.FC = () => {
           ]);
 
           setIsBlocked(blockStatus.isBlocked); setIsBlockedByThem(blockStatus.isBlockedBy);
+          isBlockedRef.current = blockStatus.isBlocked;
+          isBlockedByThemRef.current = blockStatus.isBlockedBy;
 
           if (messagesRes.data && messagesRes.data.length > 0) {
             const localMsgs: LocalMessage[] = messagesRes.data.map((m: any) =>
@@ -1059,7 +1073,7 @@ export const Chat: React.FC = () => {
 
           // Block enforcement: ignore messages from blocked users
           if (newMsg.sender_id !== currentUser?.id) {
-            if (isBlocked || isBlockedByThem) return; // Don't show messages if blocked
+            if (isBlockedRef.current || isBlockedByThemRef.current) return; // Don't show messages if blocked
             setPartnerIsTyping(false);
             if (partnerTypingTimeoutRef.current) clearTimeout(partnerTypingTimeoutRef.current);
             localMsg.is_read = true;
@@ -1547,7 +1561,7 @@ export const Chat: React.FC = () => {
     } catch { showToast('Call failed', 'error'); setOutgoingCall(null); setOutgoingCallSessionId(''); setIsStartingCall(false); }
   };
   const insertSystemMessage = async (text: string) => { if (!currentUser || !matchId) return; try { await supabase.from('messages').insert({ match_id: matchId, sender_id: currentUser.id, text: text.startsWith('📞') ? text : `[SYSTEM] ${text}` }); } catch { } };
-  const handleBlockUser = () => { if (!partner) return; showConfirm(isBlocked ? 'Unblock User' : 'Block User', isBlocked ? `Are you sure you want to unblock ${partner.realName || partner.anonymousId}? They will be able to message and call you again.` : `Are you sure you want to block ${partner.realName || partner.anonymousId}? They won't be able to send you messages or call you. You can unblock them anytime.`, async () => { if (isBlocked ? await unblockUser(partner.id) : await blockUser(partner.id)) { setIsBlocked(!isBlocked); setShowMenu(false); showToast(isBlocked ? 'User unblocked' : 'User blocked', 'success'); } }, !isBlocked, isBlocked ? 'Unblock' : 'Block'); };
+  const handleBlockUser = () => { if (!partner) return; showConfirm(isBlocked ? 'Unblock User' : 'Block User', isBlocked ? `Are you sure you want to unblock ${partner.realName || partner.anonymousId}? They will be able to message and call you again.` : `Are you sure you want to block ${partner.realName || partner.anonymousId}? They won't be able to send you messages or call you. You can unblock them anytime.`, async () => { if (isBlocked ? await unblockUser(partner.id) : await blockUser(partner.id)) { setIsBlocked(!isBlocked); isBlockedRef.current = !isBlocked; setShowMenu(false); showToast(isBlocked ? 'User unblocked' : 'User blocked', 'success'); } }, !isBlocked, isBlocked ? 'Unblock' : 'Block'); };
 
   if (loading) return <ChatSkeleton />;
   if (!partner) return null;

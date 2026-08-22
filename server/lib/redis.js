@@ -12,7 +12,10 @@ if (REDIS_URL) {
       maxRetriesPerRequest: 3,
       enableOfflineQueue: false,
       connectTimeout: 5000,
-      tls: REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+      // SECURITY FIX: removed rejectUnauthorized:false — certificate
+      // verification is now enforced on the credential-bearing Redis link.
+      // (ioredis enables TLS automatically for rediss:// URLs.)
+      tls: REDIS_URL.startsWith('rediss://') ? {} : undefined,
     });
 
     redis.on('connect', () => {

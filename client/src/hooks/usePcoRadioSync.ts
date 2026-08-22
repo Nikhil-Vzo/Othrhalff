@@ -225,9 +225,30 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
           setQueue(remainingQueue);
           setIsPlaying(true);
 
+          // FIX: this branch previously never assigned audio.src — joiners
+          // heard the previous/auto track (or silence) while the UI showed
+          // nextTrack. Load it and seek on canplay like the other branches.
           if (audioRef.current) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => setIsPlaying(false));
+            const audio = audioRef.current;
+            ensurePreservesPitch(audio);
+
+            if (audio.src !== nextTrack.media_url && !audio.src.endsWith(nextTrack.media_url)) {
+              audio.src = nextTrack.media_url;
+              audio.load();
+            }
+
+            const onReady = () => {
+              try { audio.currentTime = 0; } catch (_) {}
+              audio.playbackRate = 1.0;
+              audio.play().catch(() => setIsPlaying(false));
+              audio.removeEventListener('canplay', onReady);
+            };
+
+            if (audio.readyState >= 3) {
+              onReady();
+            } else {
+              audio.addEventListener('canplay', onReady);
+            }
           }
           return;
         }
@@ -269,11 +290,23 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
             audio.src = nextState.current_track.media_url;
             audio.load();
           }
-          audio.currentTime = elapsedSec;
-          if (!nextState.paused) {
-            audio.play().catch(() => {});
+          // FIX: seeking before metadata loads (readyState 0) silently fails,
+          // leaving joiners at 0 until the drift corrector hard-snaps (audible
+          // jump). Seek on canplay instead.
+          const seekToManual = () => {
+            const liveOffset = Math.max(0, (Date.now() - Number(nextState.started_at_ms)) / 1000);
+            try { audio.currentTime = Math.max(0, liveOffset - 0.25); } catch (_) {}
+            if (!nextState.paused) {
+              audio.play().catch(() => {});
+            } else {
+              audio.pause();
+            }
+            audio.removeEventListener('canplay', seekToManual);
+          };
+          if (audio.readyState >= 1) {
+            seekToManual();
           } else {
-            audio.pause();
+            audio.addEventListener('canplay', seekToManual);
           }
         }
       }
@@ -288,7 +321,14 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   useEffect(() => {
     if (!supabase) return;
 
-    const channel = supabase.channel(`pco_state_${roomId}`)
+    // FIX: this listener previously subscribed to `pco_state_<roomId>` while
+    // ALL senders (updatePcoRadioState / admin actions) broadcast on
+    // 'campus_pco_live_chat' — so instant state broadcasts never arrived and
+    // listeners relied only on slower postgres_changes. Listen on the SAME
+    // channel name the senders publish to. (The live-chat/presence channel
+    // in CampusPcoRadio uses a different Supabase channel instance, which is
+    // fine: supabase-js multiplexes one socket across channel names.)
+    const channel = supabase.channel('campus_pco_live_chat')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -449,14 +489,35 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
     }
   }, []);
 
+  // FIX: a dead CDN URL previously triggered error → handleTrackEnd → reload
+  // of the SAME failing src → error again, forever (network hammering every
+  // ~3s). Track consecutive failures and back off exponentially; after 3
+  // failures, fall back to the deterministic auto schedule.
+  // (Ref declared before the callbacks that use it.)
+  const audioErrorCountRef = useRef<number>(0);
+
   const handleSongEnded = useCallback(() => {
+    audioErrorCountRef.current = 0; // clean end resets the failure streak
     handleTrackEnd();
   }, [handleTrackEnd]);
 
   const handleAudioError = useCallback((e: any) => {
     console.warn('[PCO Radio] Audio playback error:', e);
-    handleTrackEnd();
-  }, [handleTrackEnd]);
+    audioErrorCountRef.current += 1;
+    const failures = audioErrorCountRef.current;
+
+    if (failures >= 3) {
+      console.warn('[PCO Radio] 3 consecutive audio failures — returning to auto schedule.');
+      audioErrorCountRef.current = 0;
+      loadAutoScheduleTrack();
+      return;
+    }
+
+    const backoffMs = Math.min(8000, 1000 * Math.pow(2, failures));
+    setTimeout(() => {
+      handleTrackEnd();
+    }, backoffMs);
+  }, [handleTrackEnd, loadAutoScheduleTrack]);
 
   // 5. User & Admin Actions with Authoritative DB Persistence
   // SECURITY: only admins mutate pco_radio_state. Non-admin callers get a

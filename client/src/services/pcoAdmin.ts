@@ -369,14 +369,17 @@ export async function getPcoAnalytics(): Promise<{
   }
 
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    // SCALING FIX (IST): toISOString() is UTC — for Indian users the "day"
+    // boundary was off by 5.5 hours. Compute the IST calendar day explicitly.
+    const istNow = new Date(Date.now() + 5.5 * 3600 * 1000);
+    const todayStr = istNow.toISOString().split('T')[0];
 
     // Count queries run entirely in Postgres (no full-table client scan)
     const [totalRes, pendingRes, todayRes] = await Promise.all([
       supabase.from('pco_song_requests').select('id', { count: 'exact', head: true }),
       supabase.from('pco_song_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('pco_song_requests').select('id', { count: 'exact', head: true })
-        .gte('requested_at', `${todayStr}T00:00:00`)
+        .gte('requested_at', `${todayStr}T00:00:00+05:30`)
     ]);
 
     // Top tracks: only fetch a bounded recent window instead of every row
