@@ -230,7 +230,7 @@ export const Login: React.FC = () => {
         <div className="pointer-events-none absolute inset-y-0 right-[32%] hidden w-[22%] bg-[linear-gradient(90deg,rgba(255,182,197,0.08)_0%,rgba(255,121,176,0.06)_38%,rgba(14,10,16,0)_100%)] blur-2xl lg:block" />
         <section className="relative hidden h-[100dvh] overflow-hidden lg:block">
           <img
-            src="/signup.png"
+            src="/signup.webp"
             alt="Two OthrHalff mascots floating through a bright campus-inspired valley"
             className="h-full w-full object-cover object-[42%_50%]"
           />
@@ -242,7 +242,7 @@ export const Login: React.FC = () => {
             <div className="mb-4 flex items-center gap-4">
               <div className="flex h-[98px] w-[98px] shrink-0 items-center justify-center sm:h-[108px] sm:w-[108px]">
                 <img
-                  src="/auth-mascot.png"
+                  src="/auth-mascot.webp"
                   alt="OthrHalff mascot"
                   className="h-full w-full scale-[1.38] object-contain"
                 />

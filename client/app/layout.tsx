@@ -47,12 +47,13 @@ export const metadata: Metadata = {
   applicationName: 'Othrhalff',
   icons: {
     icon: [
-      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-192x192.webp', sizes: '192x192', type: 'image/webp' },
+      { url: '/favicon.webp', type: 'image/webp' },
       { url: '/favicon.png', type: 'image/png' },
       { url: '/favicon.ico' },
     ],
     shortcut: '/favicon.ico',
-    apple: '/icons/icon-192x192.png',
+    apple: '/icons/icon-192x192.webp',
   },
   robots: {
     index: true,

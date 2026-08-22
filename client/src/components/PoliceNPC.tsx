@@ -11,14 +11,14 @@ interface PoliceNPCProps {
 }
 
 const POLICE_FRAMES = [
-  '/assets/police/1_police_Idle_000.png',
-  '/assets/police/1_police_Idle_001.png',
-  '/assets/police/1_police_Idle_002.png',
-  '/assets/police/1_police_Idle_003.png',
-  '/assets/police/1_police_Idle_004.png',
-  '/assets/police/1_police_Idle_005.png',
-  '/assets/police/1_police_Idle_006.png',
-  '/assets/police/1_police_Idle_007.png',
+  '/assets/police/1_police_Idle_000.webp',
+  '/assets/police/1_police_Idle_001.webp',
+  '/assets/police/1_police_Idle_002.webp',
+  '/assets/police/1_police_Idle_003.webp',
+  '/assets/police/1_police_Idle_004.webp',
+  '/assets/police/1_police_Idle_005.webp',
+  '/assets/police/1_police_Idle_006.webp',
+  '/assets/police/1_police_Idle_007.webp',
 ];
 
 export const PoliceNPC: React.FC<PoliceNPCProps> = ({

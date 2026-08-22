@@ -1443,7 +1443,7 @@ export const MusicDate = () => {
                         artist: currentTrack.singers || 'Sparx FM Radio',
                         album: 'Campus PCO Radio',
                         artwork: [
-                            { src: currentTrack.image || '/fm.png', sizes: '512x512', type: 'image/png' }
+                            { src: currentTrack.image || '/fm.webp', sizes: '512x512', type: 'image/webp' }
                         ]
                     });
                 } catch (msErr) {

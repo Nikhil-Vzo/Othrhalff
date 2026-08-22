@@ -33,7 +33,7 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
   const [facingRight, setFacingRight] = useState(true);
   const [isHopping, setIsHopping] = useState(false);
   const [bubbleText, setBubbleText] = useState<string | null>(null);
-  const [imageSrc, setImageSrc] = useState('/assets/hop.gif');
+  const [imageSrc, setImageSrc] = useState('/assets/hop.webp');
   const [imageError, setImageError] = useState(false);
 
   const targetPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -151,14 +151,14 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
     return () => cancelAnimationFrame(animationFrameId);
   }, [checkCollision, pickRandomWhiteAreaTarget]);
 
-  // Handle image error fallback sequence (/assets/hop.png -> /hop.png -> /assets/hop.gif -> fallback icon)
+  // Handle image error fallback sequence (/assets/hop.webp -> /assets/hop.gif -> /hop.png -> fallback icon)
   const handleImageError = () => {
-    if (imageSrc === '/assets/hop.png') {
-      setImageSrc('/hop.png');
-    } else if (imageSrc === '/hop.png') {
+    if (imageSrc === '/assets/hop.webp') {
       setImageSrc('/assets/hop.gif');
     } else if (imageSrc === '/assets/hop.gif') {
-      setImageSrc('/assets/hop.jpeg');
+      setImageSrc('/hop.webp');
+    } else if (imageSrc === '/hop.webp') {
+      setImageSrc('/hop.png');
     } else {
       setImageError(true);
     }

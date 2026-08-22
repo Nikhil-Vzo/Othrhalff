@@ -116,7 +116,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   useEffect(() => {
     // Load the hidden collision mask image
     const maskImg = new Image();
-    maskImg.src = '/assets/collision-mask.png';
+    maskImg.src = '/assets/collision-mask.webp';
     maskImg.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = WORLD_WIDTH;
@@ -332,7 +332,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         style={{
           width: `${WORLD_WIDTH}px`,
           height: `${WORLD_HEIGHT}px`,
-          backgroundImage: `url('/assets/campus-map.png')`,
+          backgroundImage: `url('/assets/campus-map.webp')`,
           backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
           imageRendering: 'pixelated',
@@ -341,16 +341,14 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       >
         {/* Crisp Campus Map Background Layer */}
         <img
-          src="/assets/campus-map.png"
+          src="/assets/campus-map.webp"
           alt="Campus Map"
           className="absolute inset-0 w-full h-full pointer-events-none select-none z-0"
           style={{ imageRendering: 'pixelated', width: `${WORLD_WIDTH}px`, height: `${WORLD_HEIGHT}px` }}
           onError={(e) => {
             const target = e.currentTarget as HTMLImageElement;
-            if (target.src.includes('campus-map.png')) {
-              target.src = '/assets/campus map.png';
-            } else if (target.src.includes('campus map.png')) {
-              target.src = '/assets/campus map.jpeg';
+            if (target.src.includes('campus-map.webp')) {
+              target.src = '/assets/campus-map.png';
             }
           }}
         />
