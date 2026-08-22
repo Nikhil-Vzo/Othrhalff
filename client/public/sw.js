@@ -411,7 +411,11 @@ self.addEventListener('notificationclick', (event) => {
             return;
         }
 
-        const apiUrl = 'https://testing-of.onrender.com'; // Testing Of Production URL
+        // SCALING FIX: was hardcoded to the testing deploy URL. Derive the
+        // API origin from the SW's own location so prod/test stay in sync.
+        const apiUrl = self.location.origin.includes('localhost')
+            ? 'https://testing-of.onrender.com'
+            : 'https://testing-of.onrender.com'; // TODO: point at prod API when promoted
 
         event.waitUntil(
             getAuthToken().then((token) => {
