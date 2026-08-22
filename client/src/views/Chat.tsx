@@ -812,11 +812,16 @@ export const Chat: React.FC = () => {
           
           let messagesQuery;
           if (latestLocalMsg) {
+            // SCALING FIX: delta query previously had NO limit — a user
+            // returning after weeks offline pulled their ENTIRE backlog in a
+            // single unbounded response. Cap it (older history still loads
+            // page-by-page via the scroll-up pagination path).
             messagesQuery = supabase.from('messages')
               .select('id, sender_id, text, created_at, is_read')
               .eq('match_id', matchId)
               .gt('created_at', new Date(latestLocalMsg.created_at).toISOString())
-              .order('created_at', { ascending: false });
+              .order('created_at', { ascending: false })
+              .limit(200);
           } else {
             messagesQuery = supabase.from('messages')
               .select('id, sender_id, text, created_at, is_read')

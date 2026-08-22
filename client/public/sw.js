@@ -262,6 +262,7 @@ self.addEventListener('fetch', (event) => {
                     const responseClone = response.clone();
                     caches.open(RUNTIME_CACHE).then((cache) => {
                         cache.put(request, responseClone);
+                        trimCache(RUNTIME_CACHE, MAX_RUNTIME_ENTRIES);
                     });
                 }
                 return response;
@@ -290,8 +291,16 @@ self.addEventListener('fetch', (event) => {
                     // Serve from cache, update in background
                     fetch(request).then((response) => {
                         if (response && response.status === 200) {
+                            // Stamp with x-cached-at so sweepStaleImages can age out entries
+                            const headers = new Headers(response.headers);
+                            headers.set('x-cached-at', String(Date.now()));
+                            const stamped = new Response(response.clone().body, {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers
+                            });
                             caches.open(RUNTIME_CACHE).then((cache) => {
-                                cache.put(request, response);
+                                cache.put(request, stamped);
                                 trimCache(RUNTIME_CACHE, MAX_IMAGE_CACHE_ENTRIES);
                             });
                         }
@@ -303,6 +312,7 @@ self.addEventListener('fetch', (event) => {
                         const responseClone = response.clone();
                         caches.open(RUNTIME_CACHE).then((cache) => {
                             cache.put(request, responseClone);
+                            trimCache(RUNTIME_CACHE, MAX_RUNTIME_ENTRIES);
                         });
                     }
                     return response;
@@ -457,5 +467,8 @@ self.addEventListener('notificationclick', (event) => {
         );
     }
 });
+
+// SCALING FIX: sweep stale cached images once per SW startup
+sweepStaleImages();
 
 console.log('[SW] Service Worker loaded:', CACHE_NAME);

@@ -212,26 +212,10 @@ export const Playground: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentUser?.id]);
 
-  // Periodic cleanup for stale remote players (sweeps disconnected players every 2s)
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      setRemotePlayers(prev => {
-        if (prev.size === 0) return prev;
-        const now = Date.now();
-        let changed = false;
-        const updated = new Map(prev);
-        updated.forEach((player, id) => {
-          if (player.lastSeen && now - player.lastSeen > 6000) {
-            updated.delete(id);
-            changed = true;
-          }
-        });
-        return changed ? updated : prev;
-      });
-    }, 2000);
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
+  // NOTE: the old state-only stale sweep was REMOVED. It deleted from React
+  // state only, so the ref-based rAF flush resurrected ghosts and
+  // remotePosMap kept wrong spatial-audio positions. The single ref-based
+  // sweep (15s TTL, defined above) is now the source of truth.
 
   // 1. Supabase Broadcast Setup for Real-time Multiplayer
   useEffect(() => {
