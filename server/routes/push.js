@@ -21,7 +21,7 @@ if (!vapidPublicKey || !vapidPrivateKey) {
 
 try {
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:support@othrhalff.in',
+    process.env.VAPID_SUBJECT || 'mailto:othrhalff@gmail.com',
     vapidPublicKey,
     vapidPrivateKey
   );
@@ -144,16 +144,21 @@ router.post('/push/broadcast', verifySupabaseToken, async (req, res) => {
     // Collect subscriptions from Redis if connected
     if (redis && isConnected) {
       try {
-        // SCALING FIX: redis.keys() is O(N) and blocks the single-threaded
-        // Redis instance (stalls rate limiting for ALL requests). Use SCAN.
+        // SCALING FIX 1: redis.keys() is O(N) and blocks the single-threaded
+        // Redis instance — use SCAN.
+        // SCALING FIX 2: GETs are pipelined per SCAN page (was sequential:
+        // one RTT per subscriber = tens of seconds at 10k subscribers).
         let cursor = '0';
         do {
-          const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'push_sub:*', 'COUNT', 100);
+          const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'push_sub:*', 'COUNT', 200);
           cursor = nextCursor;
-          for (const key of keys) {
-            const raw = await redis.get(key);
-            if (raw) {
-              try { subscriptions.push(JSON.parse(raw)); } catch (e) {}
+          if (keys.length > 0) {
+            const pipeline = redis.pipeline(keys.map(k => ['get', k]));
+            const results = await pipeline.exec();
+            for (const [err, raw] of results) {
+              if (!err && raw) {
+                try { subscriptions.push(JSON.parse(raw)); } catch (e) {}
+              }
             }
           }
         } while (cursor !== '0');
@@ -178,18 +183,28 @@ router.post('/push/broadcast', verifySupabaseToken, async (req, res) => {
       body: body,
       icon: icon || '/favicon.png',
       metadata: {
-        url: url || 'https://www.othrhalff.in',
-        ...metadata
+        ...metadata,
+        url: url || 'https://www.othrhalff.in'
       }
     });
 
-    // Send push notification to ALL subscribers in parallel
-    const results = await Promise.allSettled(
-      subscriptions.map(sub => webpush.sendNotification(sub, payload))
-    );
-
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    // SCALING FIX 3: capped-concurrency fan-out. Promise.allSettled over ALL
+    // subscribers at 10k scale = 10k simultaneous encrypt+send operations →
+    // memory spike + event-loop saturation beyond free-tier headroom.
+    // A pool of 50 keeps memory flat while finishing quickly.
+    const CONCURRENCY = 50;
+    let successful = 0;
+    let failed = 0;
+    for (let i = 0; i < subscriptions.length; i += CONCURRENCY) {
+      const batch = subscriptions.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(sub => webpush.sendNotification(sub, payload))
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successful++;
+        else failed++;
+      }
+    }
 
     res.json({
       success: true,
