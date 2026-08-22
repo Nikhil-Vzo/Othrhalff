@@ -75,14 +75,14 @@ DROP POLICY IF EXISTS "Users can insert their own notifications" ON public.notif
 --   Database > Extensions > pg_cron
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
-DO $$
+DO $outer$
 BEGIN
   -- Delete glimpses older than 24 hours, every hour
   IF NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'cleanup_old_glimpses') THEN
     PERFORM cron.schedule(
       'cleanup_old_glimpses',
       '0 * * * *',
-      $$DELETE FROM public.glimpses WHERE created_at < NOW() - INTERVAL '24 hours'$$
+      $cmd$DELETE FROM public.glimpses WHERE created_at < NOW() - INTERVAL '24 hours'$cmd$
     );
   END IF;
 
@@ -91,12 +91,12 @@ BEGIN
     PERFORM cron.schedule(
       'cleanup_old_pco_requests',
       '30 3 * * *',
-      $$DELETE FROM public.pco_song_requests
+      $cmd$DELETE FROM public.pco_song_requests
         WHERE status IN ('played','declined')
-          AND requested_at < NOW() - INTERVAL '7 days'$$
+          AND requested_at < NOW() - INTERVAL '7 days'$cmd$
     );
   END IF;
-END $$;
+END $outer$;
 
 -- 8. HOT-PATH INDEXES (SCALING)
 -- Supports the matches existence check in /accept-match and message queries.
