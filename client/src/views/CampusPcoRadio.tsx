@@ -80,6 +80,13 @@ export const CampusPcoRadio: React.FC = () => {
 
   const displayName = currentUser?.realName || currentUser?.anonymousId || 'Campus Listener';
 
+  // Stable ref so the realtime channel is NOT rebuilt when displayName changes
+  // (rebuilding causes presence flicker + missed messages mid-reconnect)
+  const displayNameRef = useRef(displayName);
+  useEffect(() => {
+    displayNameRef.current = displayName;
+  }, [displayName]);
+
   // Verify Admin Permissions
   useEffect(() => {
     let isMounted = true;
@@ -120,12 +127,24 @@ export const CampusPcoRadio: React.FC = () => {
   }, []);
 
   // Floating notifications dismiss timer
+  const notificationTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const addFloatingNotification = useCallback((user: string, text: string) => {
     const id = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     setFloatingChatMessages(prev => [...prev.slice(-2), { id, user, text }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      notificationTimersRef.current.delete(id);
       setFloatingChatMessages(prev => prev.filter(item => item.id !== id));
     }, 4500);
+    notificationTimersRef.current.set(id, timer);
+  }, []);
+
+  // Clean up any pending notification timers on unmount
+  useEffect(() => {
+    const timers = notificationTimersRef.current;
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
+    };
   }, []);
 
   // Trigger Pinned Banner
@@ -241,7 +260,7 @@ export const CampusPcoRadio: React.FC = () => {
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
-            user: displayName,
+            user: displayNameRef.current,
             online_at: new Date().toISOString()
           });
         }
@@ -251,7 +270,7 @@ export const CampusPcoRadio: React.FC = () => {
       supabase.removeChannel(channel);
       liveChannelRef.current = null;
     };
-  }, [presenceKey, displayName]);
+  }, [presenceKey]);
 
   // 7. Chat Send with Anti-Spam Rate Limit
   const handleSendMessage = (e: React.FormEvent) => {
@@ -321,6 +340,7 @@ export const CampusPcoRadio: React.FC = () => {
   }, [messages, mobilePcoTab]);
 
   // 8. Search & Song Request Submission (Local curated fast-match + live API fallback)
+  const searchAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults(curatedRomanticTracks.slice(0, 10));
@@ -335,11 +355,17 @@ export const CampusPcoRadio: React.FC = () => {
       setSearchResults(localFiltered);
     }
 
-    // Debounced online search
+    // Debounced online search with abort + stale-guard so a slow earlier
+    // request can never overwrite results from a newer query
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(searchQuery)}`);
+        const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(searchQuery)}`, {
+          signal: controller.signal
+        });
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (Array.isArray(data) && data.length > 0) {
           const apiTracks: PcoTrack[] = data
             .slice(0, 10)
@@ -353,16 +379,22 @@ export const CampusPcoRadio: React.FC = () => {
             }))
             .filter((x: PcoTrack) => x.media_url);
 
-          if (apiTracks.length > 0) {
+          if (apiTracks.length > 0 && !controller.signal.aborted) {
             setSearchResults(apiTracks);
           }
         }
-      } catch (err) {
-        console.warn('[PCO Request] Search API fallback error:', err);
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('[PCO Request] Search API fallback error:', err);
+        }
       }
     }, 400);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      searchAbortRef.current = null;
+    };
   }, [searchQuery]);
 
   const handleRequestSong = async (track: PcoTrack) => {

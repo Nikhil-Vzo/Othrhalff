@@ -53,9 +53,15 @@ export interface UsePcoRadioSyncReturn {
  * 3. iOS Safari / Mobile Background Watchdog: Recovers playback even if mobile power management suspends onended.
  * 4. Micro-Drift Slew Rate: 5-second interval imperceptible speed adjustment (1.03x / 0.97x) with pitch correction.
  */
-export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRadioSyncReturn {
+export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   const roomId = options.roomId || 'Campus_PCO_247';
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // STABLE OPTIONS REF: keeps callbacks/effects from churning every render
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const [currentTrack, setCurrentTrackState] = useState<PcoTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -99,8 +105,8 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   const setCurrentTrack = useCallback((track: PcoTrack) => {
     setCurrentTrackState(track);
     currentTrackRef.current = track;
-    options.onTrackChange?.(track);
-  }, [options]);
+    optionsRef.current.onTrackChange?.(track);
+  }, []);
 
   const ensurePreservesPitch = useCallback((audio: HTMLAudioElement | null) => {
     if (!audio) return;
@@ -132,7 +138,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         audioReadyListenerRef.current = null;
       }
 
-      if (audio.src !== sched.currentTrack.media_url) {
+      if (audio.src !== sched.currentTrack.media_url && !audio.src.endsWith(sched.currentTrack.media_url)) {
         audio.src = sched.currentTrack.media_url;
         audio.load();
       }
@@ -212,6 +218,50 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   }, [roomId, setCurrentTrack, loadAutoScheduleTrack]);
 
   // 2. Realtime Subscriptions (Postgres Changes & Broadcast Events)
+  // Single shared applier so postgres_changes + broadcast stay in lockstep (DRY)
+  const applyRadioState = useCallback((nextState: PcoRadioState | null) => {
+    if (!nextState) return;
+
+    if (nextState.mode === 'manual' && nextState.current_track) {
+      const dur = parseInt(nextState.current_track.duration, 10) || 240;
+      const elapsedSec = Math.max(0, (Date.now() - Number(nextState.started_at_ms)) / 1000);
+
+      if (elapsedSec < dur) {
+        setMode('manual');
+        modeRef.current = 'manual';
+        startedAtMsRef.current = Number(nextState.started_at_ms);
+        setCurrentTrack(nextState.current_track);
+        setCurrentTime(elapsedSec);
+        setQueue(Array.isArray(nextState.queue) ? nextState.queue : []);
+        setIsPlaying(!nextState.paused);
+
+        if (audioRef.current) {
+          const audio = audioRef.current;
+          ensurePreservesPitch(audio);
+          if (audioReadyListenerRef.current) {
+            audio.removeEventListener('canplay', audioReadyListenerRef.current);
+            audioReadyListenerRef.current = null;
+          }
+          if (audio.src !== nextState.current_track.media_url && !audio.src.endsWith(nextState.current_track.media_url)) {
+            audio.src = nextState.current_track.media_url;
+            audio.load();
+          }
+          audio.currentTime = elapsedSec;
+          if (!nextState.paused) {
+            audio.play().catch(() => {});
+          } else {
+            audio.pause();
+          }
+        }
+      }
+    } else if (nextState.mode === 'auto') {
+      setMode('auto');
+      modeRef.current = 'auto';
+      setQueue(Array.isArray(nextState.queue) ? nextState.queue : []);
+      loadAutoScheduleTrack();
+    }
+  }, [setCurrentTrack, loadAutoScheduleTrack, ensurePreservesPitch]);
+
   useEffect(() => {
     if (!supabase) return;
 
@@ -222,95 +272,17 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         table: 'pco_radio_state',
         filter: `room_id=eq.${roomId}`
       }, (payload: any) => {
-        const nextState = payload.new as PcoRadioState;
-        if (!nextState) return;
-
-        if (nextState.mode === 'manual' && nextState.current_track) {
-          const dur = parseInt(nextState.current_track.duration, 10) || 240;
-          const elapsedSec = Math.max(0, (Date.now() - Number(nextState.started_at_ms)) / 1000);
-
-          if (elapsedSec < dur) {
-            setMode('manual');
-            modeRef.current = 'manual';
-            startedAtMsRef.current = Number(nextState.started_at_ms);
-            setCurrentTrack(nextState.current_track);
-            setCurrentTime(elapsedSec);
-            setQueue(nextState.queue || []);
-            setIsPlaying(!nextState.paused);
-
-            if (audioRef.current) {
-              const audio = audioRef.current;
-              ensurePreservesPitch(audio);
-              if (audioReadyListenerRef.current) {
-                audio.removeEventListener('canplay', audioReadyListenerRef.current);
-                audioReadyListenerRef.current = null;
-              }
-              if (audio.src !== nextState.current_track.media_url) {
-                audio.src = nextState.current_track.media_url;
-                audio.load();
-              }
-              audio.currentTime = elapsedSec;
-              if (!nextState.paused) {
-                audio.play().catch(() => {});
-              } else {
-                audio.pause();
-              }
-            }
-          }
-        } else if (nextState.mode === 'auto') {
-          setMode('auto');
-          modeRef.current = 'auto';
-          setQueue(nextState.queue || []);
-          loadAutoScheduleTrack();
-        }
+        applyRadioState(payload.new as PcoRadioState);
       })
       .on('broadcast', { event: 'PCO_STATE_UPDATED' }, ({ payload }) => {
-        if (!payload) return;
-        if (payload.mode === 'manual' && payload.current_track) {
-          const dur = parseInt(payload.current_track.duration, 10) || 240;
-          const elapsedSec = Math.max(0, (Date.now() - Number(payload.started_at_ms)) / 1000);
-
-          if (elapsedSec < dur) {
-            setMode('manual');
-            modeRef.current = 'manual';
-            startedAtMsRef.current = Number(payload.started_at_ms);
-            setCurrentTrack(payload.current_track);
-            setCurrentTime(elapsedSec);
-            setQueue(payload.queue || []);
-            setIsPlaying(!payload.paused);
-
-            if (audioRef.current) {
-              const audio = audioRef.current;
-              ensurePreservesPitch(audio);
-              if (audioReadyListenerRef.current) {
-                audio.removeEventListener('canplay', audioReadyListenerRef.current);
-                audioReadyListenerRef.current = null;
-              }
-              if (audio.src !== payload.current_track.media_url) {
-                audio.src = payload.current_track.media_url;
-                audio.load();
-              }
-              audio.currentTime = elapsedSec;
-              if (!payload.paused) {
-                audio.play().catch(() => {});
-              } else {
-                audio.pause();
-              }
-            }
-          }
-        } else if (payload.mode === 'auto') {
-          setMode('auto');
-          modeRef.current = 'auto';
-          setQueue(payload.queue || []);
-          loadAutoScheduleTrack();
-        }
+        applyRadioState(payload as PcoRadioState);
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomId, setCurrentTrack, loadAutoScheduleTrack]);
+  }, [roomId, applyRadioState]);
 
   // Centralized Track Advancement (Admin mutates DB, Student passively syncs)
   const handleTrackEnd = useCallback(async () => {
@@ -353,12 +325,12 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         loadAutoScheduleTrack();
       }
     } finally {
-      options.onTrackEnded?.();
+      optionsRef.current.onTrackEnded?.();
       setTimeout(() => {
         isAdvancingRef.current = false;
       }, 2500);
     }
-  }, [roomId, options, setCurrentTrack, loadAutoScheduleTrack]);
+  }, [roomId, setCurrentTrack, loadAutoScheduleTrack]);
 
   // 3. High-Frequency Micro-Drift Correction & Mobile Background Tab Watchdog
   // Checks every 5 seconds for smooth, click-free pitch-corrected sync
@@ -440,7 +412,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         driftIntervalRef.current = null;
       }
     };
-  }, [roomId, handleTrackEnd, setCurrentTrack, ensurePreservesPitch]);
+  }, [handleTrackEnd, setCurrentTrack, ensurePreservesPitch]);
 
   // 4. Audio Event Handlers
   // Native 4Hz onTimeUpdate with GPU CSS linear interpolation handles 60fps with 0 CPU overhead
@@ -460,6 +432,8 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
   }, [handleTrackEnd]);
 
   // 5. User & Admin Actions with Authoritative DB Persistence
+  // SECURITY: only admins mutate pco_radio_state. Non-admin callers get a
+  // local-only effect so a stray client can never hijack the station.
   const playTrackImmediately = useCallback(async (track: PcoTrack) => {
     setMode('manual');
     modeRef.current = 'manual';
@@ -479,7 +453,8 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
         audioReadyListenerRef.current = null;
       }
 
-      if (audio.src !== track.media_url) {
+      const srcChanged = audio.src !== track.media_url && !audio.src.endsWith(track.media_url);
+      if (srcChanged) {
         audio.src = track.media_url;
         audio.load();
       }
@@ -488,35 +463,70 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
       audio.play().catch(() => {});
     }
 
-    await setManualRadioOverride(track, queueRef.current, roomId);
+    if (isAdminRef.current) {
+      await setManualRadioOverride(track, queueRef.current, roomId);
+    }
   }, [roomId, setCurrentTrack, ensurePreservesPitch]);
 
   const playTrackNext = useCallback(async (track: PcoTrack) => {
     const updatedQueue = [track, ...queueRef.current.filter(t => t.id !== track.id)];
     setQueue(updatedQueue);
-    await updateRadioQueue(updatedQueue, roomId);
+    if (isAdminRef.current) {
+      await updateRadioQueue(updatedQueue, roomId);
+    }
   }, [roomId]);
 
   const addTrackToQueue = useCallback(async (track: PcoTrack) => {
     const updatedQueue = [...queueRef.current.filter(t => t.id !== track.id), track];
     setQueue(updatedQueue);
-    await updateRadioQueue(updatedQueue, roomId);
+    if (isAdminRef.current) {
+      await updateRadioQueue(updatedQueue, roomId);
+    }
   }, [roomId]);
 
   const removeFromQueue = useCallback(async (trackId: string) => {
     const updatedQueue = queueRef.current.filter(t => t.id !== trackId);
     setQueue(updatedQueue);
-    await updateRadioQueue(updatedQueue, roomId);
+    if (isAdminRef.current) {
+      await updateRadioQueue(updatedQueue, roomId);
+    }
   }, [roomId]);
 
   const returnToAuto = useCallback(async () => {
     setMode('auto');
     modeRef.current = 'auto';
     loadAutoScheduleTrack();
-    await returnToAutoRadioSchedule(roomId);
+    if (isAdminRef.current) {
+      await returnToAutoRadioSchedule(roomId);
+    }
   }, [roomId, loadAutoScheduleTrack]);
 
   const skipCurrentTrack = useCallback(async () => {
+    // Non-admins: local skip only. The authoritative DB stays untouched; the
+    // realtime channel + drift corrector re-sync them to the official track.
+    if (!isAdminRef.current) {
+      if (queueRef.current.length > 0) {
+        const [nextTrack, ...remainingQueue] = queueRef.current;
+        setQueue(remainingQueue);
+        startedAtMsRef.current = Date.now();
+        setCurrentTrack(nextTrack);
+        setCurrentTime(0);
+        if (audioRef.current) {
+          const audio = audioRef.current;
+          ensurePreservesPitch(audio);
+          if (audio.src !== nextTrack.media_url && !audio.src.endsWith(nextTrack.media_url)) {
+            audio.src = nextTrack.media_url;
+            audio.load();
+          }
+          audio.playbackRate = 1.0;
+          audio.play().catch(() => {});
+        }
+      } else {
+        await returnToAuto();
+      }
+      return;
+    }
+
     if (queueRef.current.length > 0) {
       const [nextTrack, ...remainingQueue] = queueRef.current;
       setQueue(remainingQueue);
@@ -525,7 +535,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}): UsePcoRad
       // Empty queue: cleanly return to / continue 24/7 Radio stream
       await returnToAuto();
     }
-  }, [returnToAuto, playTrackImmediately]);
+  }, [returnToAuto, playTrackImmediately, setCurrentTrack, ensurePreservesPitch]);
 
   const togglePlayPause = useCallback(() => {
     const audio = audioRef.current;

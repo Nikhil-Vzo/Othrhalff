@@ -311,3 +311,62 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.get_server_time_ms() TO anon, authenticated;
 
+-- ==============================================================================
+-- 10. ATOMIC RADIO STATE UPDATE RPC
+-- Server-side version bump so two admins acting simultaneously can never
+-- clobber each other via a read-increment-write race. NULL params mean
+-- "keep the existing value". Returns TRUE on success.
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.bump_pco_radio_state(
+  p_room_id TEXT,
+  p_mode TEXT DEFAULT NULL,
+  p_current_track JSONB DEFAULT NULL,
+  p_started_at_ms BIGINT DEFAULT NULL,
+  p_paused BOOLEAN DEFAULT NULL,
+  p_queue JSONB DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_version BIGINT;
+BEGIN
+  -- Only admins may mutate radio state (same rule as the RLS policy)
+  IF NOT public.is_pco_admin() THEN
+    RAISE EXCEPTION 'Only PCO admins can update radio state.';
+  END IF;
+
+  UPDATE public.pco_radio_state
+  SET
+    mode = coalesce(p_mode, mode),
+    current_track = coalesce(p_current_track, current_track),
+    started_at_ms = coalesce(p_started_at_ms, started_at_ms),
+    paused = coalesce(p_paused, paused),
+    queue = coalesce(p_queue, queue),
+    version = version + 1,
+    updated_at = NOW()
+  WHERE room_id = p_room_id;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.pco_radio_state (
+      room_id, mode, current_track, started_at_ms, paused, queue, version
+    ) VALUES (
+      p_room_id,
+      coalesce(p_mode, 'auto'),
+      p_current_track,
+      coalesce(p_started_at_ms, 0),
+      coalesce(p_paused, FALSE),
+      coalesce(p_queue, '[]'::JSONB),
+      1
+    ) ON CONFLICT (room_id) DO NOTHING;
+  END IF;
+
+  RETURN TRUE;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.bump_pco_radio_state(TEXT, TEXT, JSONB, BIGINT, BOOLEAN, JSONB)
+  TO authenticated;
+

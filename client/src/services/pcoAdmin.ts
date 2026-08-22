@@ -58,6 +58,11 @@ const KNOWN_ADMIN_EMAILS = [
   'lachavzo11@gmail.com'
 ];
 
+// NOTE (security): this allowlist is ONLY ever compared against the verified
+// Supabase auth email — never against user-editable profile fields like
+// profiles.university_email. Prefer the is_pco_admin RPC / admin_users RLS
+// checks below; the allowlist exists purely as a lockout safety net.
+
 // Seeded PRNG identical to MusicDate.tsx
 function seededShuffleList<T>(array: T[], seed: number = 789456): T[] {
   const arr = [...array];
@@ -153,20 +158,31 @@ export async function checkIsPcoAdmin(
   currentUser: UserProfile | null,
   authEmail?: string | null
 ): Promise<boolean> {
-  const email = (authEmail || currentUser?.universityEmail || '').toLowerCase().trim();
+  // SECURITY: only the VERIFIED Supabase auth email may match the allowlist.
+  // Never trust user-editable profile fields (e.g. universityEmail) for authz.
+  const verifiedEmail = (authEmail || '').toLowerCase().trim();
+
+  if (supabase && !authEmail) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.email) {
+        return checkIsPcoAdmin(currentUser, data.user.email);
+      }
+    } catch (_) {}
+  }
 
   // 1. Instant fallback for primary developer/admin emails
-  if (email && KNOWN_ADMIN_EMAILS.includes(email)) return true;
+  if (verifiedEmail && KNOWN_ADMIN_EMAILS.includes(verifiedEmail)) return true;
 
   if (!supabase) return false;
 
   try {
-    // 2. Check admin_users table in Supabase
-    if (email) {
+    // 2. Check admin_users table in Supabase (verified email only)
+    if (verifiedEmail) {
       const { data: adminUser, error: adminErr } = await supabase
         .from('admin_users')
         .select('id, role')
-        .eq('email', email)
+        .eq('email', verifiedEmail)
         .maybeSingle();
 
       if (!adminErr && adminUser) {
@@ -174,11 +190,21 @@ export async function checkIsPcoAdmin(
       }
     }
 
-    // 3. Check profiles table for is_admin flag if user id is available
+    // 3. Server-side RPC is the authoritative check when available.
     if (currentUser?.id) {
+      try {
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('is_pco_admin');
+        if (!rpcErr && rpcResult === true) {
+          return true;
+        }
+      } catch (_) {
+        // RPC not deployed yet — fall through to profiles check below.
+      }
+
+      // 4. Check server-protected is_admin flag on profiles (RLS should gate writes)
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
-        .select('is_admin')
+        .select('is_admin, university_email')
         .eq('id', currentUser.id)
         .maybeSingle();
 
@@ -245,9 +271,11 @@ export async function submitPcoSongRequest(
     return { success: false, error: err.message || 'Failed to submit song request.' };
   }
 
-  // Fallback only if supabase is not initialized
+  // Fallback only if supabase is not initialized — be honest with the caller
+  // that this request was NOT persisted to the DJ console.
   return {
-    success: true,
+    success: false,
+    error: 'Could not reach the request service. Please try again.',
     data: {
       id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ...payload
@@ -341,23 +369,26 @@ export async function getPcoAnalytics(): Promise<{
   }
 
   try {
-    const { data, error } = await supabase
-      .from('pco_song_requests')
-      .select('*')
-      .order('requested_at', { ascending: false });
-
-    if (error || !data) {
-      return { totalRequests: 0, pendingRequests: 0, todayRequests: 0, topTracks: [] };
-    }
-
     const todayStr = new Date().toISOString().split('T')[0];
-    const totalRequests = data.length;
-    const pendingRequests = data.filter(r => r.status === 'pending').length;
-    const todayRequests = data.filter(r => r.requested_at && r.requested_at.startsWith(todayStr)).length;
 
-    // Aggregate top tracks
+    // Count queries run entirely in Postgres (no full-table client scan)
+    const [totalRes, pendingRes, todayRes] = await Promise.all([
+      supabase.from('pco_song_requests').select('id', { count: 'exact', head: true }),
+      supabase.from('pco_song_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('pco_song_requests').select('id', { count: 'exact', head: true })
+        .gte('requested_at', `${todayStr}T00:00:00`)
+    ]);
+
+    // Top tracks: only fetch a bounded recent window instead of every row
+    const { data } = await supabase
+      .from('pco_song_requests')
+      .select('track_name, track_artist, track_image')
+      .order('requested_at', { ascending: false })
+      .limit(500);
+
     const trackMap = new Map<string, { name: string; artist: string; count: number; image?: string }>();
-    data.forEach(r => {
+    (data || []).forEach((r: any) => {
+      if (!r.track_name) return;
       const key = `${r.track_name}_${r.track_artist || ''}`;
       const existing = trackMap.get(key);
       if (existing) {
@@ -372,15 +403,11 @@ export async function getPcoAnalytics(): Promise<{
       }
     });
 
-    const topTracks = Array.from(trackMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
     return {
-      totalRequests,
-      pendingRequests,
-      todayRequests,
-      topTracks
+      totalRequests: totalRes.count || 0,
+      pendingRequests: pendingRes.count || 0,
+      todayRequests: todayRes.count || 0,
+      topTracks: Array.from(trackMap.values()).sort((a, b) => b.count - a.count).slice(0, 10)
     };
   } catch (err) {
     console.warn('[PCO Admin] Failed to fetch analytics:', err);
@@ -547,6 +574,35 @@ export async function updatePcoRadioState(
   if (!supabase) return false;
 
   try {
+    // ATOMIC: let Postgres bump the version server-side so concurrent admin
+    // actions can't clobber each other via a read-increment-write race.
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('bump_pco_radio_state', {
+      p_room_id: roomId,
+      p_mode: patch.mode !== undefined ? patch.mode : null,
+      p_current_track: patch.current_track !== undefined ? patch.current_track : null,
+      p_started_at_ms: patch.started_at_ms !== undefined ? patch.started_at_ms : null,
+      p_paused: patch.paused !== undefined ? patch.paused : null,
+      p_queue: patch.queue !== undefined ? patch.queue : null
+    });
+
+    if (!rpcErr && rpcData === true) {
+      // Broadcast state update immediately for sub-millisecond sync
+      try {
+        const broadcastPayload = {
+          room_id: roomId,
+          ...patch,
+          mode: patch.mode !== undefined ? patch.mode : 'auto'
+        };
+        supabase.channel('campus_pco_live_chat').send({
+          type: 'broadcast',
+          event: 'PCO_STATE_UPDATED',
+          payload: broadcastPayload
+        });
+      } catch (_) {}
+      return true;
+    }
+
+    // Fallback path when the RPC isn't deployed yet: last-writer-wins upsert.
     const currentState = await fetchPcoRadioState(roomId);
     const nextVersion = (currentState?.version || 1) + 1;
 

@@ -158,7 +158,8 @@ export const Sparx: React.FC = () => {
       )
       .subscribe();
 
-    const interval = setInterval(fetchActiveRooms, 10000);
+    // Realtime handles updates; keep only a slow 60s safety poll for missed events
+    const interval = setInterval(fetchActiveRooms, 60000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
