@@ -79,6 +79,36 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
   const audioReadyListenerRef = useRef<(() => void) | null>(null);
+  // Clock-skew correction: started_at_ms comes from the DJ's clock; without
+  // correcting for the difference between THIS device's clock and the server's,
+  // every listener computes a different expected position (out-of-sync) and the
+  // drift corrector hard-snaps constantly (audible glitch every interval).
+  const clockSkewMsRef = useRef<number>(0);
+  // Hard-snap cooldown: prevents rapid repeated currentTime jumps that render
+  // as audio glitches. At most one corrective snap per SNAP_COOLDOWN_MS.
+  const lastSnapAtRef = useRef<number>(0);
+  const SNAP_COOLDOWN_MS = 12000;
+  // Last applied radio-state version: dedupes the double delivery
+  // (postgres_changes + realtime broadcast) of the SAME admin update, which
+  // otherwise re-seeks the audio twice per action.
+  const lastAppliedVersionRef = useRef<number>(0);
+
+  // Measure skew once at mount (and refresh every 10 min)
+  useEffect(() => {
+    let cancelled = false;
+    const measure = async () => {
+      try {
+        const serverNow = await getServerTimeMs();
+        if (!cancelled && typeof serverNow === 'number' && serverNow > 0) {
+          // Round-trip compensation: assume symmetric network delay
+          clockSkewMsRef.current = Date.now() - serverNow;
+        }
+      } catch (_) {}
+    };
+    measure();
+    const iv = setInterval(measure, 10 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
 
   // Synchronize refs with state
   useEffect(() => {
@@ -266,6 +296,13 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   const applyRadioState = useCallback((nextState: PcoRadioState | null) => {
     if (!nextState) return;
 
+    // DEDUPE: the same admin action arrives TWICE (postgres_changes event +
+    // realtime broadcast). Re-applying re-seeks the audio twice per action —
+    // an audible glitch. Skip if this exact state version was already applied.
+    const v = Number(nextState.version || 0);
+    if (v > 0 && v === lastAppliedVersionRef.current) return;
+    if (v > 0) lastAppliedVersionRef.current = v;
+
     if (nextState.mode === 'manual' && nextState.current_track) {
       const dur = parseInt(nextState.current_track.duration, 10) || 240;
       const elapsedSec = Math.max(0, (Date.now() - Number(nextState.started_at_ms)) / 1000);
@@ -392,16 +429,19 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   }, [roomId, setCurrentTrack, loadAutoScheduleTrack]);
 
   // 3. High-Frequency Micro-Drift Correction & Mobile Background Tab Watchdog
-  // Checks every 5 seconds for smooth, click-free pitch-corrected sync
   useEffect(() => {
     driftIntervalRef.current = setInterval(() => {
       const audio = audioRef.current;
       if (!audio || audio.paused) return;
 
+      // Expected position uses SKEW-CORRECTED local time so every listener,
+      // regardless of device clock error, computes the same timeline.
+      const nowSyncedMs = Date.now() - clockSkewMsRef.current;
+
       if (modeRef.current === 'manual' && currentTrackRef.current) {
         // --- MANUAL OVERRIDE DRIFT CORRECTION & MOBILE BACKGROUND WATCHDOG ---
         const dur = parseInt(currentTrackRef.current.duration, 10) || 240;
-        const expectedTime = Math.max(0, (Date.now() - startedAtMsRef.current) / 1000);
+        const expectedTime = Math.max(0, (nowSyncedMs - startedAtMsRef.current) / 1000);
 
         if (expectedTime >= dur) {
           // Track time expired in real world!
@@ -418,17 +458,20 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         }
 
         const drift = expectedTime - actualTime;
-        if (Math.abs(drift) < 0.3) {
+
+        // Dead zone widened to 0.6s: within it, playback is perceptually in
+        // sync; chasing sub-600ms deltas is what caused the audible warble.
+        if (Math.abs(drift) < 0.6) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
-        } else if (drift > 0.3 && drift <= 1.2) {
+        } else if (Math.abs(drift) <= 2.5) {
+          // Gentle slew with a NARROWER band so we don't overshoot and
+          // oscillate between 1.05 and 0.95 on consecutive ticks.
           ensurePreservesPitch(audio);
-          audio.playbackRate = 1.05;
-        } else if (drift < -0.3 && drift >= -1.2) {
-          ensurePreservesPitch(audio);
-          audio.playbackRate = 0.95;
-        } else {
-          // >1.2s off: snap hard to the authoritative position immediately.
-          // A brief audible jump beats a permanent multi-second lag.
+          audio.playbackRate = drift > 0 ? 1.03 : 0.97;
+        } else if (Date.now() - lastSnapAtRef.current >= SNAP_COOLDOWN_MS) {
+          // >2.5s off: hard snap, but at most once per cooldown window.
+          // Repeated rapid currentTime jumps are the "glitch/breaks" symptom.
+          lastSnapAtRef.current = Date.now();
           audio.currentTime = expectedTime;
           audio.playbackRate = 1.0;
           setCurrentTime(audio.currentTime);
@@ -451,17 +494,13 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         const expectedTime = sched.offsetSec;
         const drift = expectedTime - actualTime;
 
-        if (Math.abs(drift) < 0.3) {
+        if (Math.abs(drift) < 0.6) {
           if (audio.playbackRate !== 1.0) audio.playbackRate = 1.0;
-        } else if (drift > 0.3 && drift <= 1.2) {
+        } else if (Math.abs(drift) <= 2.5) {
           ensurePreservesPitch(audio);
-          audio.playbackRate = 1.05;
-        } else if (drift < -0.3 && drift >= -1.2) {
-          ensurePreservesPitch(audio);
-          audio.playbackRate = 0.95;
-        } else {
-          // >1.2s off: snap hard to the authoritative position immediately.
-          // A brief audible jump beats a permanent multi-second lag.
+          audio.playbackRate = drift > 0 ? 1.03 : 0.97;
+        } else if (Date.now() - lastSnapAtRef.current >= SNAP_COOLDOWN_MS) {
+          lastSnapAtRef.current = Date.now();
           audio.currentTime = expectedTime;
           audio.playbackRate = 1.0;
           setCurrentTime(audio.currentTime);
