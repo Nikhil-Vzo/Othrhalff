@@ -450,6 +450,17 @@ export const Home: React.FC = () => {
         preloadImages(upcomingProfiles);
     }, [currentIndex, filteredQueue, preloadImages]);
 
+    // Auto-refill next batch of unswiped profiles in background when stack runs low
+    const isFetchingNextBatchRef = useRef(false);
+    useEffect(() => {
+        if (!isLoading && !isRecycleMode && queue.length > 0 && queue.length <= 4 && !isFetchingNextBatchRef.current) {
+            isFetchingNextBatchRef.current = true;
+            fetchFreshData(false).finally(() => {
+                isFetchingNextBatchRef.current = false;
+            });
+        }
+    }, [queue.length, isLoading, isRecycleMode, fetchFreshData]);
+
     // Reset DOM transforms, stamps, and state when active profile changes
     useEffect(() => {
         dragXRef.current = 0;
