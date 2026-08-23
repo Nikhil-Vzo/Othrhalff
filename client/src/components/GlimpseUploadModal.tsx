@@ -355,7 +355,32 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
         throw uploadError;
       }
 
-      // 3. Insert metadata into public.glimpses table
+      // 3. Ensure profile row exists in public.profiles to satisfy foreign key constraint
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        await supabase.from('profiles').upsert({
+          id: currentUser.id,
+          anonymous_id: currentUser.anonymousId || `User#${currentUser.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+          real_name: currentUser.realName || 'Campus User',
+          gender: currentUser.gender || 'Other',
+          university: currentUser.university || 'Global',
+          university_email: currentUser.universityEmail || '',
+          branch: currentUser.branch || 'General',
+          year: currentUser.year || '1st Year',
+          interests: currentUser.interests || [],
+          bio: currentUser.bio || '',
+          dob: currentUser.dob || '2002-01-01',
+          avatar: currentUser.avatar || '/auth-mascot.webp',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      }
+
+      // 4. Insert metadata into public.glimpses table
       const { error: dbError } = await supabase
         .from('glimpses')
         .insert({
