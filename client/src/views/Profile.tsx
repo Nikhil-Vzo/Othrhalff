@@ -221,18 +221,23 @@ export const Profile: React.FC = () => {
 
         try {
             // 1. Prepare DB Payload (snake_case)
-            const updates = {
-                real_name: editForm.realName,
-                branch: editForm.branch,
-                year: editForm.year,
-                bio: editForm.bio,
-                dob: editForm.dob,
-                avatar: editForm.avatar,
-
-                interests: editForm.interests,
-                looking_for: editForm.lookingFor,
+            const updates: any = {
+                real_name: editForm.realName?.trim() || currentUser.realName,
+                gender: editForm.gender || currentUser.gender,
+                university: editForm.university?.trim() || currentUser.university,
+                branch: editForm.branch?.trim() || currentUser.branch,
+                year: editForm.year || currentUser.year,
+                bio: editForm.bio || '',
+                dob: editForm.dob || currentUser.dob,
+                avatar: editForm.avatar || currentUser.avatar,
+                interests: editForm.interests || [],
+                looking_for: editForm.lookingFor || [],
                 updated_at: new Date().toISOString()
             };
+
+            if (editForm.username && editForm.username.trim()) {
+                updates.username = editForm.username.trim();
+            }
 
             // 2. Update Supabase
             const { error } = await supabase
@@ -243,12 +248,12 @@ export const Profile: React.FC = () => {
             if (error) throw error;
 
             // 3. Update Local Context
-            updateProfile(editForm);
+            updateProfile({ ...editForm, ...updates, realName: updates.real_name, lookingFor: updates.looking_for });
             setIsEditing(false);
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to update profile:', err);
-            alert('Failed to save changes.');
+            alert(err.message || 'Failed to save changes.');
         } finally {
             setSaving(false);
         }

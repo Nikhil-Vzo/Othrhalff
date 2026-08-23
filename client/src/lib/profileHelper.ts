@@ -76,7 +76,6 @@ export function isProfileComplete(profile: any): boolean {
   if (realName === 'Campus Student' || realName === 'Campus User') return false;
   if (university === 'Global') return false;
   if (branch === 'General') return false;
-  if (dob === '2000-01-01' || dob === '2002-01-01') return false;
 
   return true;
 }

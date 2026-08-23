@@ -253,7 +253,7 @@ export const Onboarding: React.FC = () => {
       // Compose DOB
       const monthIndex = MONTHS.indexOf(dobMonth) + 1;
       const formattedDob = (dobYear && monthIndex && dobDay)
-        ? `${dobYear}-${monthIndex.toString().padStart(2, '0')}-${dobDay}`
+        ? `${dobYear}-${monthIndex.toString().padStart(2, '0')}-${dobDay.toString().padStart(2, '0')}`
         : (tempProfile.dob || '2000-01-01');
 
       const userToSave: UserProfile = {

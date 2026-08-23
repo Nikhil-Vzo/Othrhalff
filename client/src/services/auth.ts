@@ -38,17 +38,28 @@ export const authService = {
             profileData.username = user.username.trim();
           }
 
-          const { error } = await supabase
+          // Try updating the existing profile record first
+          const { data: updatedRows, error: updateError } = await supabase
             .from('profiles')
-            .upsert(profileData, { onConflict: 'id' });
+            .update(profileData)
+            .eq('id', authUserId)
+            .select('id');
 
-          if (error) {
-            console.error('Supabase profile sync error:', error);
-            throw error;
+          if (updateError || !updatedRows || updatedRows.length === 0) {
+            // Fallback to upsert if the row does not exist yet
+            const { error: upsertError } = await supabase
+              .from('profiles')
+              .upsert(profileData, { onConflict: 'id' });
+
+            if (upsertError) {
+              console.error('Supabase profile sync error (upsert):', upsertError);
+              throw upsertError;
+            }
           }
         }
       } catch (err) {
         console.error('Unexpected error during profile sync:', err);
+        throw err;
       }
     }
   },

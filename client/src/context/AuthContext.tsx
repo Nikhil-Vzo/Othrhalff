@@ -333,11 +333,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (user: UserProfile) => {
     setCurrentUser(user);
     safeSetSessionStorage(JSON.stringify(user));
-    setNeedsOnboarding(false);
+    setNeedsOnboarding(!isProfileComplete(user));
     try {
       await authService.login(user);
     } catch (err) {
       console.error("Profile sync error on login:", err);
+      throw err;
     }
     // Sync token to SW for background push notification handling
     syncTokenToSW();
