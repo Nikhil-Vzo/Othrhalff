@@ -56,7 +56,7 @@ export const About: React.FC = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
       <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700">
         <h3 className="text-neon font-bold mb-2">Authenticity</h3>
-        <p className="text-sm">Real students, verified via .edu emails. No bots.</p>
+        <p className="text-sm">Real students, signed in with their Google accounts. No bots.</p>
       </div>
       <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700">
         <h3 className="text-neon font-bold mb-2">Privacy</h3>
@@ -64,7 +64,7 @@ export const About: React.FC = () => (
       </div>
       <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700">
         <h3 className="text-neon font-bold mb-2">Safety</h3>
-        <p className="text-sm">End-to-end encrypted chats and calls.</p>
+        <p className="text-sm">Encrypted-in-transit chats, block &amp; report, 24h auto-deleting stories.</p>
       </div>
     </div>
   </PageLayout>
@@ -95,34 +95,91 @@ export const Privacy: React.FC = () => (
     <div className="space-y-8 text-sm">
       <div className="p-4 bg-neon/5 border border-neon/20 rounded-xl mb-6">
         <p className="font-bold text-neon mb-1">TL;DR</p>
-        <p className="text-gray-400">We verify your student status but keep you anonymous. We don't sell your data. We only use your info to connect you.</p>
+        <p className="text-gray-400">We collect the minimum needed to run the app. Your real name is hidden from other users until you match or reveal it. We never sell your data — not to anyone, including universities.</p>
       </div>
 
-      <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">1. Data Collection</h3>
-        <p>We collect the minimum data necessary to operate:</p>
-        <ul className="list-disc pl-5 space-y-2 mt-2 text-gray-400">
-          <li><strong>Verification Data:</strong> University email address (strictly for verifying student status). This is encrypted and stored separately from your profile.</li>
-          <li><strong>Profile Data:</strong> Gender, interests, major, year, and bio. This is public to matches.</li>
-          <li><strong>Usage Data:</strong> Swipe history and match interactions to improve the algorithm.</li>
-        </ul>
-      </section>
+      <p className="text-gray-500">Last updated: August 2026. This policy is published under India's Digital Personal Data Protection Act, 2023 ("DPDP Act") and applies to the Othrhalff platform at othrhalff.in.</p>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">2. Student Verification</h3>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">1. Who We Are</h3>
         <p>
-          We use third-party systems or direct email verification to confirm enrollment. We <strong>do not</strong> access your university's internal systems or student records.
+          Othrhalff ("we", "us") is an independent student platform. We are NOT affiliated with, endorsed by, or acting on behalf of any university, college, or educational institution. University names appearing on the platform are provided by users themselves or used solely to help students find peers from the same campus.
         </p>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">3. Data Sharing</h3>
-        <p>Your "Real Name" and "Avatar" are hidden until a mutual match occurs or you voluntarily reveal them. We do not sell, rent, or trade user data to third parties, including universities.</p>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">2. What Data We Collect</h3>
+        <ul className="list-disc pl-5 space-y-2 mt-2 text-gray-400">
+          <li><strong>Account Data (from Google Sign-In):</strong> your name, email address, and profile photo as provided by Google. Used to create and identify your account.</li>
+          <li><strong>Profile Data:</strong> display name, gender, college/university, branch, year, interests, bio, date of birth, and avatar you provide. Your display name and photo are hidden from other users until a mutual match occurs or you choose to reveal them.</li>
+          <li><strong>Content You Post:</strong> chat messages with matches, glimpses (photo stories auto-deleted after 24 hours), anonymous confessions, and reactions.</li>
+          <li><strong>Interaction Data:</strong> swipes, matches, blocks, reports, and song requests — used to operate matching and safety features.</li>
+          <li><strong>Technical Data:</strong> device/browser information, IP address, and crash logs — used for security, abuse prevention, and fixing bugs.</li>
+          <li><strong>Analytics:</strong> anonymized usage events (e.g., "swipe right", "message sent") via Google Analytics to improve the product.</li>
+        </ul>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">4. Data Deletion</h3>
-        <p>You may request full deletion of your account and data at any time by contacting support.</p>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">3. What We Do NOT Collect</h3>
+        <ul className="list-disc pl-5 space-y-2 mt-2 text-gray-400">
+          <li>We do not access your university's internal systems, student records, or academic data.</li>
+          <li>We do not read your personal Google account data beyond what Google shows you during sign-in consent.</li>
+          <li>We do not track your location via GPS.</li>
+          <li>We do not sell, rent, or trade your personal data to third parties — including universities, advertisers, or data brokers.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">4. How Your Data Is Stored & Secured</h3>
+        <ul className="list-disc pl-5 space-y-2 mt-2 text-gray-400">
+          <li>Data is hosted on Supabase (PostgreSQL) and cloud infrastructure with encryption in transit (TLS) and at rest.</li>
+          <li>Row Level Security restricts database access so users can only read/write data they are permitted to.</li>
+          <li>Glimpses are automatically deleted after 24 hours by scheduled jobs.</li>
+          <li>Chat messages are stored server-side to deliver them reliably and sync across your devices. They are encrypted in transit but are <strong>not end-to-end encrypted</strong>; we can technically access message content, and will only do so to investigate verified reports of abuse, harassment, or illegal activity, or when legally required.</li>
+          <li>Video/audio calls run on Agora. Call media streams are peer-to-peer/relay through Agora's network per their security terms and are not recorded by us.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">5. What Other Users Can See</h3>
+        <p>Your display name, avatar, university, branch/year, interests, and bio are visible to matched users. Anonymous features (confessions, anonymous glimpses) hide your identity by design. We show an online-presence indicator to your matches.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">6. Third-Party Processors</h3>
+        <p>We rely on these providers strictly to operate the service: Supabase (database/auth/storage), Agora (video/audio), Vercel &amp; Render (hosting), Google (sign-in, analytics, push). Each processes data under its own privacy terms. We never share your data with universities or colleges.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">7. Your Rights (DPDP Act, 2023)</h3>
+        <ul className="list-disc pl-5 space-y-2 mt-2 text-gray-400">
+          <li><strong>Access & Correction:</strong> view and correct your profile anytime from the Profile page.</li>
+          <li><strong>Erasure:</strong> request deletion of your account and personal data via in-app support or the Grievance Officer below. We will erase within 30 days, except data we must retain for legal compliance or active safety investigations.</li>
+          <li><strong>Withdrawal of Consent:</strong> you may stop using the service and request erasure at any time; withdrawal does not affect prior processing done lawfully.</li>
+          <li><strong>Grievance Redressal:</strong> if you believe your data was mishandled, contact our Grievance Officer (below). We respond within 30 days. You may also escalate to the Data Protection Board of India.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">8. Data Retention</h3>
+        <p>Profile and account data are retained while your account is active. Glimpses auto-expire after 24 hours. On account deletion, profile data, messages, matches, and content are erased within 30 days. Anonymized, aggregated analytics are retained indefinitely.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">9. Children's Data</h3>
+        <p>Othrhalff is strictly for users aged 18 and above who are enrolled university students. We do not knowingly collect data from anyone under 18. If we learn a user is under 18, the account and data are deleted immediately.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">10. Grievance Officer</h3>
+        <p>
+          Per the DPDP Act and IT Rules, our Grievance Officer can be reached at <a href="mailto:othrhalff@gmail.com" className="text-neon hover:underline">othrhalff@gmail.com</a> — or raise an in-app ticket from Profile → Contact Support. Include "Privacy Grievance" in your message.
+        </p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">11. Policy Changes</h3>
+        <p>If we make material changes, we will notify you in-app before they take effect. Continued use after notification constitutes acceptance.</p>
       </section>
     </div>
   </PageLayout>
@@ -134,47 +191,81 @@ export const Terms: React.FC = () => (
       <div className="p-4 border-l-4 border-red-500 bg-red-500/10 mb-6">
         <p className="font-bold text-white">Critical Disclaimer</p>
         <p className="text-gray-400 mt-1">
-          Othrhalff is NOT affiliated with any university. By using this app, you acknowledge this is a private, independent service.
+          Othrhalff is NOT affiliated with, authorized by, or endorsed by any university or college. All institution names are trademarks of their respective owners, used nominatively for identification only. By using this app, you acknowledge this is a private, independent service.
         </p>
       </div>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">1. Acceptance of Terms</h3>
-        <p>By accessing Othrhalff, you agree to these Terms. You must be at least 18 years old and a currently enrolled university student to use this service.</p>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">1. Acceptance & Eligibility</h3>
+        <p>By accessing Othrhalff you agree to these Terms. You must be at least 18 years old and a currently enrolled university student. One account per person. We may suspend accounts that violate eligibility.</p>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">2. Non-Affiliation</h3>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">2. Non-Affiliation With Institutions</h3>
         <p>
-          Othrhalff is an independent entity. References to specific universities, colleges, or mascots are strictly for identification purposes to facilitate student connections. We claim no ownership of university trademarks.
+          Othrhalff is an independent entity with no connection to any university or college. Institution names appear only because users self-report their campus, or as descriptive references to help students find peers. We do not claim any ownership, sponsorship, partnership, or endorsement by any educational institution. If you are an institution representative and want your name handled differently, contact us and we will work with you.
         </p>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">3. User Conduct</h3>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">3. Your Account & Conduct</h3>
         <p>You agree NOT to:</p>
         <ul className="list-disc pl-5 space-y-1 mt-2 text-gray-400">
-          <li>Impersonate university officials or staff.</li>
-          <li>Use the service for academic dishonesty or cheating.</li>
-          <li>Harass, bully, or intimidate other users.</li>
-          <li>Post illegal content or hate speech.</li>
+          <li>Misrepresent your identity, enrollment status, or impersonate university officials/staff or other people.</li>
+          <li>Harass, bully, stalk, threaten, or intimidate other users.</li>
+          <li>Post illegal content, hate speech, nudity, sexual content involving minors, or violent/extremist material.</li>
+          <li>Use the service for academic dishonesty, scams, spam, commercial solicitation, or prostitution.</li>
+          <li>Scrape, reverse-engineer, overload, or attempt to breach the platform or other users' accounts.</li>
+          <li>Share another person's private information (doxxing) without consent.</li>
         </ul>
-        <p className="mt-2 text-red-400">Violation results in an immediate, permanent IP ban.</p>
+        <p className="mt-2 text-red-400">Violation results in immediate suspension or permanent ban, and we may report illegal activity to relevant authorities.</p>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">4. Limitation of Liability</h3>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">4. User Content & License</h3>
+        <p>You own what you post. By posting content (messages, glimpses, confessions, avatars), you grant Othrhalff a limited, non-exclusive, worldwide license to host, store, and display it solely to operate the service. Confessions and anonymous glimpses are posted anonymously by design; you remain responsible for their content. Do not post anything defamatory, infringing, or that violates another person's privacy or dignity.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">5. Safety & Interactions</h3>
+        <p>
+          Othrhalff connects you with other students. We verify nothing about offline behavior and cannot vouch for any user. You are solely responsible for your interactions. Follow our Safety Tips: keep conversations on-platform until comfortable, meet in public places, and never share financial details, addresses, or dorm specifics. Use Block &amp; Report for anything unsafe.
+        </p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">6. Moderation & Reporting</h3>
+        <p>We moderate reported content and accounts. We may remove content, warn, suspend, or ban users at our discretion for violations of these Terms or community guidelines. We cooperate with law enforcement where legally required.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">7. Availability & Changes</h3>
+        <p>The service is provided "as is" and "as available." We may modify, pause, or discontinue any feature at any time. We are not liable for downtime, data loss from unauthorized access beyond our reasonable controls, or losses caused by other users.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">8. Limitation of Liability</h3>
         <p className="uppercase text-xs font-bold text-gray-500 mb-2">Read Carefully</p>
         <p>
-          TO THE MAXIMUM EXTENT PERMITTED BY LAW, OTHRHALFF SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES, RESULTING FROM (A) YOUR ACCESS TO OR USE OF OR INABILITY TO ACCESS OR USE THE SERVICE; (B) ANY CONDUCT OR CONTENT OF ANY THIRD PARTY ON THE SERVICE; OR (C) UNAUTHORIZED ACCESS, USE, OR ALTERATION OF YOUR TRANSMISSIONS OR CONTENT.
+          TO THE MAXIMUM EXTENT PERMITTED BY LAW, OTHRHALFF, ITS FOUNDERS, AND CONTRIBUTORS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES — INCLUDING LOSS OF PROFITS, DATA, GOODWILL, OR REPUTATION — ARISING FROM YOUR USE OF OR INABILITY TO USE THE SERVICE, THE CONDUCT OR CONTENT OF ANY USER, UNAUTHORIZED ACCESS TO OR ALTERATION OF YOUR DATA, OR ANY OTHER MATTER RELATING TO THE SERVICE. OUR TOTAL LIABILITY FOR ANY CLAIM SHALL NOT EXCEED INR 500 OR THE AMOUNT YOU PAID US IN THE PRIOR 12 MONTHS, WHICHEVER IS LOWER.
         </p>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">5. Indemnification</h3>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">9. Indemnification</h3>
         <p>
-          You agree to indemnify and hold Othrhalff harmless from any claims, disputes, demands, liabilities, damages, losses, and costs and expenses, including, without limitation, reasonable legal and accounting fees arising out of or in any way connected with your access to or use of the Service or your violation of these Terms.
+          You agree to indemnify and hold Othrhalff harmless from any claims, disputes, demands, liabilities, damages, losses, and costs (including reasonable legal fees) arising out of your use of the Service, your content, or your violation of these Terms or any third party's rights — including any claim brought by a university related to your use of its name on the platform.
         </p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">10. Governing Law & Disputes</h3>
+        <p>These Terms are governed by the laws of India. Courts in Chhattisgarh shall have exclusive jurisdiction over disputes, subject to mandatory consumer-protection rights available to you under Indian law.</p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">11. Contact</h3>
+        <p>Questions about these Terms? Email <a href="mailto:othrhalff@gmail.com" className="text-neon hover:underline">othrhalff@gmail.com</a> or raise an in-app ticket from Profile → Contact Support.</p>
       </section>
     </div>
   </PageLayout>

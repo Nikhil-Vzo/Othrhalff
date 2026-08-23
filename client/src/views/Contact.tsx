@@ -188,9 +188,16 @@ export const Contact: React.FC = () => {
                     </form>
 
                     {/* Info */}
-                    <div className="mt-8 p-4 bg-gray-900/40 border border-gray-800/50 rounded-xl">
+                    <div className="mt-8 p-4 bg-gray-900/40 border border-gray-800/50 rounded-xl space-y-3">
                         <p className="text-xs text-gray-500 text-center">
                             We typically respond within 24-48 hours. For urgent matters, please include "URGENT" in the subject line.
+                        </p>
+                        <p className="text-xs text-gray-500 text-center">
+                            Prefer email? Reach us directly at{' '}
+                            <a href="mailto:othrhalff@gmail.com" className="text-neon hover:underline">
+                                othrhalff@gmail.com
+                            </a>
+                            {' '}— this is also our official Grievance Officer contact for privacy requests.
                         </p>
                     </div>
                 </div>
