@@ -1276,18 +1276,18 @@ export const Home: React.FC = () => {
                     </div>
                 )}
 
-                {/* Music GIF Floating Button (Bottom Left above Navbar) */}
-                <div className="fixed bottom-[84px] md:bottom-6 left-4 md:left-6 z-40 select-none pointer-events-auto">
+                {/* Music GIF Floating Button (Bottom Right above Navbar — clean transparent graphic) */}
+                <div className="fixed bottom-[84px] md:bottom-6 right-4 md:right-6 z-40 select-none pointer-events-auto">
                     <button
                         onClick={() => navigate.push('/sparx/music?room=Campus_PCO_247')}
-                        className="group relative flex items-center justify-center p-1.5 rounded-2xl bg-black/60 border border-white/15 backdrop-blur-2xl hover:border-pink-500/60 shadow-[0_0_24px_rgba(0,0,0,0.8),0_0_16px_rgba(255,0,127,0.25)] hover:shadow-[0_0_28px_rgba(255,0,127,0.55)] transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
+                        className="group relative flex items-center justify-center p-0 bg-transparent border-0 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
                         title="Tune in to Sparx FM 24/7 Campus Radio"
                         aria-label="Sparx FM Campus Radio"
                     >
                         <img 
                             src="/assets/music.gif" 
                             alt="Sparx FM Music" 
-                            className="w-11 h-11 md:w-13 md:h-13 object-contain rounded-xl"
+                            className="w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]"
                         />
                         {/* Live ping beacon indicator */}
                         <span className="absolute -top-1 -right-1 flex h-3 w-3">
