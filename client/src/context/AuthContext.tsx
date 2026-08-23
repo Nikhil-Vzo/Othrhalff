@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import ForceLogoutCountdown from '../components/ForceLogoutCountdown';
 import { db } from '../lib/db';
 import { subscribeToPushNotifications } from '../services/pushNotifications';
-import { ensureProfileExists } from '../lib/profileHelper';
+import { ensureProfileExists, isProfileComplete } from '../lib/profileHelper';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (typeof window !== 'undefined') {
       const cached = authService.getCurrentUser();
       if (cached) {
-        return !cached.realName || !cached.dob;
+        return !isProfileComplete(cached);
       }
     }
     return false;
@@ -168,11 +168,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
             safeSetSessionStorage(JSON.stringify(appUser));
 
-            const needsOnboard = !profile.real_name || !profile.dob;
+            const needsOnboard = !isProfileComplete(profile);
             setNeedsOnboarding(needsOnboard);
           } else {
             const cachedUser = authService.getCurrentUser();
-            if (cachedUser && cachedUser.realName && cachedUser.dob) {
+            if (cachedUser && isProfileComplete(cachedUser)) {
               // Retain valid existing local session if network or DB lookup had a temporary hiccup
               const verifiedUser = { ...cachedUser, id: session.user.id };
               setCurrentUser(prev => prev || verifiedUser);
@@ -251,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const appUser = mapProfileToAppUser(profile, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
               safeSetSessionStorage(JSON.stringify(appUser));
-              const needsOnboard = !profile.real_name || !profile.dob;
+              const needsOnboard = !isProfileComplete(profile);
               setNeedsOnboarding(needsOnboard);
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
@@ -265,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               const verifiedUser = { ...localUser, id: activeSession.user.id };
               setCurrentUser(prev => prev || verifiedUser);
-              setNeedsOnboarding(!verifiedUser.realName || !verifiedUser.dob);
+              setNeedsOnboarding(!isProfileComplete(verifiedUser));
 
               ensureProfileExists(activeSession.user.id, verifiedUser).catch(err => {
                 console.error('[AuthContext] Background profile bootstrap error:', err);

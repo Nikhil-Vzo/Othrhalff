@@ -57,3 +57,23 @@ export async function ensureProfileExists(
     return userId;
   }
 }
+
+/**
+ * Determines whether a profile has truly completed the onboarding process,
+ * as opposed to just having the automated database trigger defaults.
+ */
+export function isProfileComplete(profile: any): boolean {
+  if (!profile) return false;
+  const realName = (profile.real_name || profile.realName || '').trim();
+  const dob = (profile.dob || '').trim();
+  const university = (profile.university || '').trim();
+  const branch = (profile.branch || '').trim();
+
+  if (!realName || !dob) return false;
+  // Ignore trigger/placeholder defaults
+  if (realName === 'Campus Student' || realName === 'Campus User') return false;
+  if (!university || university === 'Global') return false;
+  if (!branch || branch === 'General') return false;
+
+  return true;
+}

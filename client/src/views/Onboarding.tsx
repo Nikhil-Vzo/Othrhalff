@@ -15,6 +15,7 @@ import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
 import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabase';
+import { isProfileComplete } from '../lib/profileHelper';
 
 // Generate arrays for DOB dropdowns
 const DAYS = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
@@ -85,39 +86,8 @@ export const Onboarding: React.FC = () => {
             .maybeSingle();
 
           if (existingProfile && !profileErr) {
-            // Pre-fill DOB if present
-            if (existingProfile.dob) {
-              const parts = existingProfile.dob.split('-');
-              if (parts.length === 3) {
-                setDobYear(parts[0]);
-                const monthIdx = parseInt(parts[1], 10) - 1;
-                if (monthIdx >= 0 && monthIdx < 12) setDobMonth(MONTHS[monthIdx]);
-                setDobDay(parts[2].padStart(2, '0'));
-              }
-            }
-
-            // Pre-fill tempProfile with existing DB values
-            setTempProfile({
-              username: existingProfile.username || '',
-              realName: existingProfile.real_name || '',
-              gender: existingProfile.gender || 'Male',
-              university: existingProfile.university || CHHATTISGARH_COLLEGES[0],
-              branch: existingProfile.branch || '',
-              year: existingProfile.year || '1st Year',
-              interests: existingProfile.interests || [],
-              lookingFor: existingProfile.looking_for || [],
-              bio: existingProfile.bio || '',
-              avatar: existingProfile.avatar || AVATAR_PRESETS[0],
-              dob: existingProfile.dob || '',
-              anonymousId: existingProfile.anonymous_id
-            });
-
-            if (existingProfile.branch) {
-              setBranchCategory(BRANCH_CATEGORIES.includes(existingProfile.branch) ? existingProfile.branch : 'Other');
-            }
-
-            // If profile is already complete (has real_name, dob), go straight to home!
-            if (existingProfile.real_name && existingProfile.dob) {
+            // If profile is already complete in DB, go straight to home!
+            if (isProfileComplete(existingProfile)) {
               const appUser: UserProfile = {
                 id: existingProfile.id,
                 username: existingProfile.username,
@@ -140,6 +110,40 @@ export const Onboarding: React.FC = () => {
               await login(appUser);
               navigate.replace('/home');
               return;
+            }
+
+            // Otherwise, pre-fill tempProfile with existing non-default DB values
+            const isPlaceholderName = existingProfile.real_name === 'Campus Student' || existingProfile.real_name === 'Campus User';
+            const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+            const effectiveRealName = (!isPlaceholderName && existingProfile.real_name) ? existingProfile.real_name : (googleName || '');
+
+            if (existingProfile.dob && existingProfile.dob !== '2000-01-01' && existingProfile.dob !== '2002-01-01') {
+              const parts = existingProfile.dob.split('-');
+              if (parts.length === 3) {
+                setDobYear(parts[0]);
+                const monthIdx = parseInt(parts[1], 10) - 1;
+                if (monthIdx >= 0 && monthIdx < 12) setDobMonth(MONTHS[monthIdx]);
+                setDobDay(parts[2].padStart(2, '0'));
+              }
+            }
+
+            setTempProfile({
+              username: existingProfile.username || '',
+              realName: effectiveRealName,
+              gender: existingProfile.gender && existingProfile.gender !== 'Other' ? existingProfile.gender : 'Male',
+              university: existingProfile.university && existingProfile.university !== 'Global' ? existingProfile.university : CHHATTISGARH_COLLEGES[0],
+              branch: existingProfile.branch && existingProfile.branch !== 'General' ? existingProfile.branch : '',
+              year: existingProfile.year || '1st Year',
+              interests: existingProfile.interests || [],
+              lookingFor: existingProfile.looking_for || [],
+              bio: existingProfile.bio || '',
+              avatar: existingProfile.avatar || AVATAR_PRESETS[0],
+              dob: existingProfile.dob || '',
+              anonymousId: existingProfile.anonymous_id
+            });
+
+            if (existingProfile.branch && existingProfile.branch !== 'General') {
+              setBranchCategory(BRANCH_CATEGORIES.includes(existingProfile.branch) ? existingProfile.branch : 'Other');
             }
           } else {
             // Auto-fill from Google Metadata for new user
