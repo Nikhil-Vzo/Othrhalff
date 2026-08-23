@@ -501,8 +501,9 @@ MessageRow.displayName = 'MessageRow';
 
 export const Chat: React.FC = () => {
   const params = useParams();
-  const id = params?.id as string;
-  const matchId = id!; // Guaranteed by route
+  const id = (params?.id as string) || '';
+  const [resolvedMatchId, setResolvedMatchId] = useState<string>(id);
+  const matchId = resolvedMatchId || id;
   const cacheKey = `otherhalf_chat_${matchId}_cupid`;
 
   const [partner, setPartner] = useState<MatchProfile | null>(null);
@@ -738,14 +739,63 @@ export const Chat: React.FC = () => {
 
     const loadInitialData = async () => {
       try {
-        // Fetch match data to perform authorization guard and find partner ID if missing
-        const { data: matchData, error: matchError } = await supabase.from('matches').select('user_a, user_b').eq('id', matchId).single();
-        if (matchError || !matchData) { navigate.push('/matches'); return; }
-        
-        // Client-side authorization guard: check if user is actually in this match
-        if (matchData.user_a !== currentUser.id && matchData.user_b !== currentUser.id) {
+        let matchData: any = null;
+
+        // 1. Check if id is a match UUID
+        const { data: directMatch } = await supabase
+          .from('matches')
+          .select('id, user_a, user_b')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (directMatch) {
+          matchData = directMatch;
+        } else {
+          // 2. If not found by match ID, check if id is the partner's user ID
+          const { data: userMatch } = await supabase
+            .from('matches')
+            .select('id, user_a, user_b')
+            .or(`and(user_a.eq.${id},user_b.eq.${currentUser.id}),and(user_a.eq.${currentUser.id},user_b.eq.${id})`)
+            .maybeSingle();
+
+          if (userMatch) {
+            matchData = userMatch;
+          } else {
+            // 3. If no match exists yet, check if partner profile exists and auto-create baseline match
+            const partnerProfile = await getCachedProfile(id);
+            if (partnerProfile) {
+              const { data: createdMatch } = await supabase
+                .from('matches')
+                .upsert({
+                  user_a: currentUser.id < id ? currentUser.id : id,
+                  user_b: currentUser.id < id ? id : currentUser.id,
+                  created_at: new Date().toISOString()
+                }, { onConflict: 'user_a,user_b' })
+                .select('id, user_a, user_b')
+                .maybeSingle();
+
+              if (createdMatch) {
+                matchData = createdMatch;
+              }
+            }
+          }
+        }
+
+        if (!matchData) {
+          console.warn('[Chat] No valid match found for id:', id);
           navigate.push('/matches');
           return;
+        }
+
+        // Client-side authorization guard: check if user is actually in this match
+        if (matchData.user_a !== currentUser.id && matchData.user_b !== currentUser.id) {
+          console.warn('[Chat] Unauthorized access to match:', id);
+          navigate.push('/matches');
+          return;
+        }
+
+        if (matchData.id !== resolvedMatchId) {
+          setResolvedMatchId(matchData.id);
         }
 
         let partnerId = initialPartner?.id;

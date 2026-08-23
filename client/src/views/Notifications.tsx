@@ -77,10 +77,11 @@ export const Notifications: React.FC = () => {
       if (match) {
         navigate.push(`/chat/${match.id}`);
       } else {
-        console.error('Match not found for message notification');
+        navigate.push(`/chat/${notif.fromUserId}`);
       }
     } catch (err) {
       console.error('Error finding match:', err);
+      navigate.push(`/chat/${notif.fromUserId}`);
     }
   };
 
