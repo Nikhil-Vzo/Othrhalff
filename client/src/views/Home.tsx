@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MatchProfile } from '../types';
 import { useRouter as useNavigate } from 'next/navigation';
-import { Heart, X, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
+import { Heart, X, Check, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
@@ -547,7 +547,7 @@ export const Home: React.FC = () => {
 
         // Cinematic exit animation
         const offScreenX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
-        const offScreenY = direction === 'right' ? -100 : 100;
+        const offScreenY = direction === 'right' ? -80 : 80;
         
         dragXRef.current = offScreenX;
         dragYRef.current = offScreenY;
@@ -556,8 +556,8 @@ export const Home: React.FC = () => {
         if (cardRef.current) {
             const rotateY = (offScreenX / window.innerWidth) * 25;
             const rotateZ = (offScreenX / window.innerWidth) * 15;
-            cardRef.current.style.transition = 'transform 0.3s ease-in';
-            cardRef.current.style.transform = `translateX(${offScreenX}px) translateY(${offScreenY}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(1)`;
+            cardRef.current.style.transition = 'transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            cardRef.current.style.transform = `translateX(${offScreenX}px) translateY(${offScreenY}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(1.02)`;
         }
         
         if (bgBlob1Ref.current) {
@@ -566,9 +566,31 @@ export const Home: React.FC = () => {
         if (bgBlob2Ref.current) {
             bgBlob2Ref.current.style.transform = 'translate(0px, 0px)';
         }
-        if (likeStampRef.current) likeStampRef.current.style.opacity = '0';
-        if (nopeStampRef.current) nopeStampRef.current.style.opacity = '0';
-        if (cardGlowRef.current) cardGlowRef.current.style.boxShadow = 'none';
+
+        // Keep stamps visible and styled during the entire card exit flight
+        if (direction === 'right') {
+            if (likeStampRef.current) {
+                likeStampRef.current.style.opacity = '1';
+                likeStampRef.current.style.transform = 'scale(1.25) rotate(-12deg)';
+            }
+            if (nopeStampRef.current) {
+                nopeStampRef.current.style.opacity = '0';
+            }
+            if (cardGlowRef.current) {
+                cardGlowRef.current.style.boxShadow = 'inset 0 0 80px rgba(34,197,94,0.45), 0 0 60px rgba(34,197,94,0.35)';
+            }
+        } else {
+            if (nopeStampRef.current) {
+                nopeStampRef.current.style.opacity = '1';
+                nopeStampRef.current.style.transform = 'scale(1.25) rotate(12deg)';
+            }
+            if (likeStampRef.current) {
+                likeStampRef.current.style.opacity = '0';
+            }
+            if (cardGlowRef.current) {
+                cardGlowRef.current.style.boxShadow = 'inset 0 0 80px rgba(239,68,68,0.45), 0 0 60px rgba(239,68,68,0.35)';
+            }
+        }
 
         // Show success burst for likes
         if (direction === 'right') {
@@ -586,6 +608,17 @@ export const Home: React.FC = () => {
             if (cardRef.current) {
                 cardRef.current.style.transition = 'none';
                 cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
+            }
+            if (likeStampRef.current) {
+                likeStampRef.current.style.opacity = '0';
+                likeStampRef.current.style.transform = 'scale(0.8) rotate(-12deg)';
+            }
+            if (nopeStampRef.current) {
+                nopeStampRef.current.style.opacity = '0';
+                nopeStampRef.current.style.transform = 'scale(0.8) rotate(12deg)';
+            }
+            if (cardGlowRef.current) {
+                cardGlowRef.current.style.boxShadow = 'none';
             }
 
             const optimisticQueue = queue.filter(p => p.id !== targetId);
@@ -968,7 +1001,34 @@ export const Home: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* === ACTION BUTTONS REMOVED === */}
+                            {/* === ACTION BUTTONS (X & TICK) === */}
+                            <div className="absolute bottom-1 inset-x-0 h-20 flex items-center justify-center gap-8 z-20 pointer-events-auto">
+                                {/* Dislike / Pass (X) */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSwipe('left');
+                                    }}
+                                    disabled={swipeInFlightRef.current}
+                                    aria-label="Pass profile (X)"
+                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-red-500/50 hover:border-red-400 hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center text-red-500 shadow-[0_4px_25px_rgba(239,68,68,0.3)] backdrop-blur-md group disabled:opacity-50 cursor-pointer"
+                                >
+                                    <X className="w-7 h-7 stroke-[3] group-hover:scale-110 transition-transform" />
+                                </button>
+
+                                {/* Like / Match (Tick / Check) */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSwipe('right');
+                                    }}
+                                    disabled={swipeInFlightRef.current}
+                                    aria-label="Like profile (Tick)"
+                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-green-500/50 hover:border-green-400 hover:bg-green-500/20 active:scale-90 transition-all flex items-center justify-center text-green-400 shadow-[0_4px_25px_rgba(34,197,94,0.3)] backdrop-blur-md group disabled:opacity-50 cursor-pointer"
+                                >
+                                    <Check className="w-7 h-7 stroke-[3] group-hover:scale-110 transition-transform" />
+                                </button>
+                            </div>
                             
                             {/* SWIPE TUTORIAL OVERLAY */}
                             {showTutorial && currentProfile && (
