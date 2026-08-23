@@ -288,20 +288,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
-        {currentUser && !currentUser.username && (
-          <div className="bg-gradient-to-r from-purple-950/80 via-gray-900 to-pink-950/80 border-b border-neon/30 px-4 py-2 flex items-center justify-between text-xs text-gray-200 z-50">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-neon animate-pulse" />
-              <span>Add a <strong className="text-white">@username</strong> to enable direct login!</span>
-            </div>
-            <button 
-              onClick={() => router.push('/profile')}
-              className="bg-neon/20 hover:bg-neon/30 border border-neon/50 text-neon px-3 py-1 rounded-full text-[11px] font-bold transition-all active:scale-95"
-            >
-              Set Up Now
-            </button>
-          </div>
-        )}
         {showStars && <StarField />}
         
         {/* Mobile Top-Left Profile Picture */}
