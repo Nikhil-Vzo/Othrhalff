@@ -42,6 +42,7 @@ interface GlimpseCardProps {
     profiles: {
       id: string;
       real_name: string | null;
+      username?: string | null;
       anonymous_id: string;
       avatar: string | null;
       is_verified: boolean;
@@ -355,7 +356,9 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold text-white truncate">
-                {glimpse.is_anonymous ? 'Anonymous' : (glimpse.profiles?.real_name || 'Anonymous')}
+                {glimpse.is_anonymous
+                  ? (glimpse.profiles?.anonymous_id || 'Anonymous')
+                  : (glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous')}
               </span>
               {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
                 <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />

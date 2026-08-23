@@ -15,6 +15,7 @@ import { checkIsPcoAdmin } from '../services/pcoAdmin';
 interface GlimpseProfile {
   id: string;
   real_name: string | null;
+  username?: string | null;
   anonymous_id: string;
   avatar: string | null;
   is_verified: boolean;
@@ -359,6 +360,7 @@ export const Sparx: React.FC = () => {
           profiles:user_id (
             id,
             real_name,
+            username,
             anonymous_id,
             avatar,
             is_verified,
@@ -422,6 +424,7 @@ export const Sparx: React.FC = () => {
           profiles:user_id (
             id,
             real_name,
+            username,
             anonymous_id,
             avatar,
             is_verified,
@@ -884,7 +887,7 @@ export const Sparx: React.FC = () => {
                         {/* Details */}
                         <div className="min-w-0 flex-1">
                           <h4 className={`text-sm font-bold flex items-center gap-1.5 min-w-0 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
-                            <span className="truncate">{user.profile.real_name || 'Anonymous'}</span>
+                            <span className="truncate">{user.profile.username || user.profile.anonymous_id || 'Anonymous'}</span>
                             {isCurrentUser && (
                               <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)] flex-shrink-0">You</span>
                             )}
@@ -965,7 +968,9 @@ export const Sparx: React.FC = () => {
           <div className="max-w-xl mx-auto bg-black">
             {glimpses.map((glimpse, index) => {
               const isViewed = viewedIds.includes(glimpse.id);
-              const displayName = glimpse.is_anonymous ? 'Anonymous' : (glimpse.profiles?.real_name || 'Anonymous');
+              const displayName = glimpse.is_anonymous
+                ? (glimpse.profiles?.anonymous_id || 'Anonymous')
+                : (glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous');
               const timeText = (() => {
                 const diff = Date.now() - new Date(glimpse.created_at).getTime();
                 const hrs = Math.floor(diff / (1000 * 60 * 60));
