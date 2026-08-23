@@ -69,13 +69,14 @@ export function isProfileComplete(profile: any): boolean {
   const university = (profile.university || '').trim();
   const branch = (profile.branch || '').trim();
 
-  // Basic required fields
+  // Basic required fields must exist
   if (!realName || !dob || !university || !branch) return false;
 
-  // Placeholder values from trigger / baseline bootstrap
+  // Placeholder names from automated DB trigger / client bootstrap
   if (realName === 'Campus Student' || realName === 'Campus User') return false;
-  if (university === 'Global') return false;
-  if (branch === 'General') return false;
+
+  // Placeholder college or branch indicates incomplete onboarding
+  if (university === 'Global' || branch === 'General') return false;
 
   return true;
 }

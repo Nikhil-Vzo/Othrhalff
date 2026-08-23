@@ -165,11 +165,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (profile && !error) {
             const appUser = mapProfileToAppUser(profile, session.user);
-            setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
-            safeSetSessionStorage(JSON.stringify(appUser));
+            const dbComplete = isProfileComplete(profile);
+            const cachedUser = authService.getCurrentUser();
 
-            const needsOnboard = !isProfileComplete(profile);
-            setNeedsOnboarding(needsOnboard);
+            // If local cached user is already complete and DB has not synced yet or had placeholder:
+            if (!dbComplete && cachedUser && isProfileComplete(cachedUser) && (cachedUser.id === session.user.id || !cachedUser.id)) {
+              const verifiedUser = { ...cachedUser, id: session.user.id };
+              setCurrentUser(verifiedUser);
+              safeSetSessionStorage(JSON.stringify(verifiedUser));
+              setNeedsOnboarding(false);
+              authService.login(verifiedUser).catch(err => console.error('[AuthContext] Background resync error:', err));
+            } else {
+              setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
+              safeSetSessionStorage(JSON.stringify(appUser));
+              setNeedsOnboarding(!dbComplete);
+            }
           } else {
             const cachedUser = authService.getCurrentUser();
             if (cachedUser && isProfileComplete(cachedUser)) {
@@ -252,10 +262,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (profile && !error) {
               const appUser = mapProfileToAppUser(profile, activeSession.user);
-              setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
-              safeSetSessionStorage(JSON.stringify(appUser));
-              const needsOnboard = !isProfileComplete(profile);
-              setNeedsOnboarding(needsOnboard);
+              const dbComplete = isProfileComplete(profile);
+
+              if (!dbComplete && localUser && isProfileComplete(localUser) && (localUser.id === activeSession.user.id || !localUser.id)) {
+                const verifiedUser = { ...localUser, id: activeSession.user.id };
+                setCurrentUser(verifiedUser);
+                safeSetSessionStorage(JSON.stringify(verifiedUser));
+                setNeedsOnboarding(false);
+                authService.login(verifiedUser).catch(err => console.error('[AuthContext] Background resync error:', err));
+              } else {
+                setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
+                safeSetSessionStorage(JSON.stringify(appUser));
+                setNeedsOnboarding(!dbComplete);
+              }
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
@@ -334,16 +353,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback(async (user: UserProfile) => {
+    // 1. Sync to backend database and ensure successful persistence
+    await authService.login(user);
+
+    // 2. Once persisted, update context state & cache
     setCurrentUser(user);
     safeSetSessionStorage(JSON.stringify(user));
     setNeedsOnboarding(!isProfileComplete(user));
-    try {
-      await authService.login(user);
-    } catch (err) {
-      console.error("Profile sync error on login:", err);
-      throw err;
-    }
-    // Sync token to SW for background push notification handling
+
+    // 3. Sync token to SW for background push notification handling
     syncTokenToSW();
   }, [syncTokenToSW]);
 

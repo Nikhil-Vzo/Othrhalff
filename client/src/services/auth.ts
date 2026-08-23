@@ -10,56 +10,52 @@ export const authService = {
 
     // 2. Sync to Supabase (Backend persistence)
     if (supabase) {
-      try {
-        // Get the authenticated user ID (fallback to user.id)
-        const authUserId = (await supabase.auth.getUser())?.data?.user?.id || user.id;
+      // Get the authenticated user ID (fallback to user.id)
+      const authUserResult = await supabase.auth.getUser().catch(() => null);
+      const authUserId = authUserResult?.data?.user?.id || user.id;
 
-        if (authUserId) {
-          // Prepare data for Supabase (mapping camelCase to snake_case DB columns)
-          // Exclude server-managed columns (is_verified) to comply with column-level permissions
-          const profileData: any = {
-            id: authUserId,
-            anonymous_id: user.anonymousId || `User#${authUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
-            real_name: user.realName?.trim() || 'Campus Student',
-            gender: user.gender || 'Other',
-            university: user.university || 'Global',
-            university_email: user.universityEmail?.trim() || '',
-            branch: user.branch || 'General',
-            year: user.year || '1st Year',
-            interests: user.interests || [],
-            bio: user.bio || '',
-            dob: user.dob || '2000-01-01',
-            looking_for: user.lookingFor || [],
-            avatar: user.avatar || '/auth-mascot.webp',
-            updated_at: new Date().toISOString(),
-          };
+      if (authUserId) {
+        // Prepare data for Supabase (mapping camelCase to snake_case DB columns)
+        // Exclude server-managed columns (is_verified, is_premium, is_admin) to comply with column-level permissions
+        const profileData: any = {
+          id: authUserId,
+          anonymous_id: user.anonymousId || `User#${authUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+          real_name: user.realName?.trim() || 'Campus Student',
+          gender: user.gender || 'Other',
+          university: user.university || 'Global',
+          university_email: user.universityEmail?.trim() || '',
+          branch: user.branch || 'General',
+          year: user.year || '1st Year',
+          interests: user.interests || [],
+          bio: user.bio || '',
+          dob: user.dob || '2000-01-01',
+          looking_for: user.lookingFor || [],
+          avatar: user.avatar || '/auth-mascot.webp',
+          updated_at: new Date().toISOString(),
+        };
 
-          if (user.username && user.username.trim()) {
-            profileData.username = user.username.trim();
-          }
+        if (user.username && user.username.trim()) {
+          profileData.username = user.username.trim();
+        }
 
-          // Try updating the existing profile record first
-          const { data: updatedRows, error: updateError } = await supabase
+        // Try updating the existing profile record first
+        const { data: updatedRows, error: updateError } = await supabase
+          .from('profiles')
+          .update(profileData)
+          .eq('id', authUserId)
+          .select('id');
+
+        if (updateError || !updatedRows || updatedRows.length === 0) {
+          // Fallback to upsert if the row does not exist yet
+          const { error: upsertError } = await supabase
             .from('profiles')
-            .update(profileData)
-            .eq('id', authUserId)
-            .select('id');
+            .upsert(profileData, { onConflict: 'id' });
 
-          if (updateError || !updatedRows || updatedRows.length === 0) {
-            // Fallback to upsert if the row does not exist yet
-            const { error: upsertError } = await supabase
-              .from('profiles')
-              .upsert(profileData, { onConflict: 'id' });
-
-            if (upsertError) {
-              console.error('Supabase profile sync error (upsert):', upsertError);
-              throw upsertError;
-            }
+          if (upsertError) {
+            console.error('[authService.login] Supabase profile sync error (upsert):', upsertError);
+            throw upsertError;
           }
         }
-      } catch (err) {
-        console.error('Unexpected error during profile sync:', err);
-        throw err;
       }
     }
   },
