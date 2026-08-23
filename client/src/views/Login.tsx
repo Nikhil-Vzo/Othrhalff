@@ -86,7 +86,12 @@ export const Login: React.FC = () => {
       setSuccess(`Magic Link sent to ${cleanEmail}! Check your inbox (or spam) to sign in instantly.`);
     } catch (err: any) {
       console.error('Magic link error:', err);
-      setError(err.message || 'Failed to send magic link. Please try again.');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('over_email_send_rate_limit')) {
+        setError('Email rate limit exceeded for magic links. Please sign in using "Continue with Google" or wait a few minutes before trying again.');
+      } else {
+        setError(msg || 'Failed to send magic link. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
