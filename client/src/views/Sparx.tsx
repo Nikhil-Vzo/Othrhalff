@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { GlimpseCard } from '../components/GlimpseCard';
 import { GlimpseUploadModal } from '../components/GlimpseUploadModal';
-import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lock, Users, Shield, Globe, Gamepad2, Radio } from 'lucide-react';
+import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lock, Users, Shield, Globe, Gamepad2, Radio, ArrowRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
@@ -560,138 +560,132 @@ export const Sparx: React.FC = () => {
   const renderLiveRoomsTray = () => {
     if (feedMode === 'leaderboard') return null;
 
+    const userRooms = activeRooms.filter(r => !r.room_id.includes('Campus_PCO'));
+
     return (
-      <div className="w-full bg-black/40 border-b border-gray-900/40 backdrop-blur-md px-4 py-3 select-none animate-fade-in">
-        <div className="max-w-xl mx-auto flex flex-col gap-2">
-          {/* Section Header */}
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-500">
-            <span>Active Vibe Rooms</span>
-            {activeRooms.length > 0 && (
-              <span className="flex items-center gap-1 text-cyan-400 font-mono text-[9px] lowercase">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
-                </span>
-                {activeRooms.length} active
-              </span>
-            )}
-          </div>
-
-          {/* Horizontal scroll container */}
-          <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1">
-            {/* Create Room Card */}
-            <button
-              onClick={() => setIsLobbyOpen(true)}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/30 hover:border-pink-500/60 hover:from-pink-500/20 hover:to-purple-600/20 transition-all duration-300 shadow-[0_0_15px_rgba(255,0,127,0.05)] active:scale-95 text-left"
-            >
-              <div className="w-7 h-7 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-400">
-                <Plus className="w-4 h-4 stroke-[3px]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-200">Start Vibe</span>
-                <span className="text-[9px] text-pink-400 font-medium">Create room</span>
-              </div>
-            </button>
-
-            {/* Permanent Featured Campus PCO Room (Sparx FM 24/7) */}
+      <div className="w-full bg-black/60 border-b border-white/10 backdrop-blur-xl px-4 py-3 select-none animate-fade-in">
+        <div className="max-w-2xl mx-auto flex flex-col gap-3">
+          {/* Eye-catching Featured Experiences (Sparx FM & Playground) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            {/* Card 1: Sparx FM 24/7 Campus Radio */}
             <button
               onClick={() => router.push('/sparx/music?room=Campus_PCO_247')}
-              className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-pink-950/60 to-purple-950/80 border-2 border-purple-500/70 hover:border-pink-500 hover:bg-purple-900/70 transition-all duration-300 shadow-[0_0_25px_rgba(168,85,247,0.4)] active:scale-95 text-left group"
+              className="group relative flex items-center justify-between gap-3 p-3.5 px-4 rounded-2xl overflow-hidden bg-[#110f17]/95 border border-pink-500/30 hover:border-pink-400/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_4px_20px_rgba(255,0,127,0.15)] hover:shadow-[0_4px_30px_rgba(255,0,127,0.35)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600/40 to-pink-600/40 border border-purple-400/50 flex items-center justify-center text-pink-300 group-hover:scale-105 transition-transform shadow-[0_0_10px_rgba(255,0,127,0.4)] relative overflow-hidden">
-                <Radio className="w-4 h-4 text-white animate-pulse" />
-                {/* Live EQ mini-bars */}
-                <div className="absolute bottom-1 right-1 flex items-end gap-0.5 h-2">
-                  <span className="w-0.5 bg-pink-400 rounded-full animate-pulse h-full" />
-                  <span className="w-0.5 bg-pink-400 rounded-full animate-pulse h-2/3" />
+              {/* Internal Radiant Corner Bloom */}
+              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(255,0,127,0.4)_0%,_rgba(168,85,247,0.3)_40%,_rgba(147,51,234,0.15)_65%,_transparent_80%)] animate-bloom-drift" />
+
+              <div className="relative z-10 flex items-center gap-3 min-w-0">
+                {/* Visual Icon with Live Equalizer */}
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-600/30 to-purple-600/30 border border-pink-500/40 flex items-center justify-center text-pink-300 shrink-0 group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(255,0,127,0.3)] relative overflow-hidden">
+                  <Radio className="w-5 h-5 text-white animate-pulse" />
+                  <div className="absolute bottom-1 right-1 flex items-end gap-[1.5px] h-2.5">
+                    <span className="w-0.5 bg-pink-400 rounded-full animate-eq-1" />
+                    <span className="w-0.5 bg-pink-300 rounded-full animate-eq-2" />
+                    <span className="w-0.5 bg-pink-400 rounded-full animate-eq-3" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-white tracking-tight uppercase group-hover:text-pink-200 transition-colors">
+                      SPARX FM
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[7.5px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_8px_rgba(255,0,127,0.8)]">
+                      24/7 LIVE
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-pink-200/80 font-medium truncate mt-0.5 flex items-center gap-1">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    Campus Radio & Jukebox
+                  </span>
                 </div>
               </div>
 
-              <div className="flex flex-col min-w-0 max-w-[150px]">
-                <span className="text-xs font-black text-white truncate flex items-center gap-1.5">
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-pink-200 to-white">SPARX FM</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_8px_rgba(255,0,127,0.8)]">24/7</span>
-                </span>
-                <span className="text-[9px] text-pink-300/90 font-semibold flex items-center gap-1 mt-0.5">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                  </span>
-                  Campus Radio & Requests
-                </span>
-              </div>
+              {/* Trailing Arrow */}
+              <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto" />
             </button>
 
-            {/* Mobile-Exclusive Playground Arcade Card */}
+            {/* Card 2: Playground Arcade & Virtual Campus */}
             <button
               onClick={() => router.push('/playground')}
-              className="md:hidden flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/40 hover:border-amber-400 hover:bg-amber-500/25 transition-all duration-300 shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 text-left group"
+              className="group relative flex items-center justify-between gap-3 p-3.5 px-4 rounded-2xl overflow-hidden bg-[#110f17]/95 border border-amber-500/30 hover:border-amber-400/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_4px_20px_rgba(245,158,11,0.15)] hover:shadow-[0_4px_30px_rgba(245,158,11,0.35)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
             >
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 group-hover:scale-105 transition-transform">
-                <Gamepad2 className="w-4 h-4 animate-pulse" />
+              {/* Internal Radiant Corner Bloom */}
+              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.25)_40%,_rgba(147,51,234,0.15)_65%,_transparent_80%)] animate-bloom-drift" />
+
+              <div className="relative z-10 flex items-center gap-3 min-w-0">
+                {/* Visual Icon with Glowing Gamepad */}
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600/30 to-orange-600/30 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0 group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                  <Gamepad2 className="w-5 h-5 text-amber-300 animate-pulse" />
+                </div>
+
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-white tracking-tight uppercase group-hover:text-amber-200 transition-colors">
+                      PLAYGROUND
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[7.5px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)]">
+                      ARCADE
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-200/80 font-medium truncate mt-0.5">
+                    2D Virtual Campus & Games
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col min-w-0 max-w-[130px]">
-                <span className="text-xs font-black text-white truncate flex items-center gap-1">
-                  Playground
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[8px] font-black text-black uppercase tracking-wider">GAMES</span>
-                </span>
-                <span className="text-[9px] text-amber-300 font-semibold truncate mt-0.5">
-                  Mini-Games & Arcade
-                </span>
-              </div>
+
+              {/* Trailing Arrow */}
+              <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto" />
             </button>
-
-            {/* Other Active User Rooms */}
-            {activeRooms
-              .filter(r => !r.room_id.includes('Campus_PCO'))
-              .map((room) => {
-                const details = parseRoomDetails(room.room_id);
-                const isCinema = details.type === 'cinema';
-                
-                return (
-                  <button
-                    key={room.room_id}
-                    onClick={() => {
-                      if (room.is_private) {
-                        setPendingJoinRoom(room);
-                        setShowPasscodePrompt(true);
-                      } else {
-                        router.push(`/sparx/${details.type}?room=${encodeURIComponent(room.room_id)}`);
-                      }
-                    }}
-                    className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 hover:border-cyan-500/40 hover:bg-zinc-900/60 transition-all duration-300 active:scale-95 text-left group"
-                  >
-                    {/* Room Type Icon */}
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors
-                      ${isCinema 
-                        ? 'bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20' 
-                        : 'bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20'
-                      }`}
-                    >
-                      {isCinema ? (
-                        <Tv className="w-4 h-4" />
-                      ) : (
-                        <Music className="w-4 h-4" />
-                      )}
-                    </div>
-
-                    <div className="flex flex-col min-w-0 max-w-[110px]">
-                      <span className="text-xs font-bold text-gray-200 truncate flex items-center gap-1">
-                        {details.name}
-                        {room.is_private && <Lock className="w-2.5 h-2.5 text-gray-500" />}
-                      </span>
-                      <span className="text-[9px] text-gray-500 font-semibold flex items-center gap-1 mt-0.5">
-                        <span className="relative flex h-1 w-1">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-1 w-1 bg-emerald-500"></span>
-                        </span>
-                        {room.participant_count || 1} online
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
           </div>
+
+          {/* User Active Vibe Rooms (if any) */}
+          {userRooms.length > 0 && (
+            <div className="flex flex-col gap-1.5 pt-1">
+              <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                <span>Active User Rooms</span>
+                <span className="text-cyan-400 font-mono text-[9px]">{userRooms.length} active</span>
+              </div>
+              <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-none py-1">
+                {userRooms.map((room) => {
+                  const details = parseRoomDetails(room.room_id);
+                  const isCinema = details.type === 'cinema';
+
+                  return (
+                    <button
+                      key={room.room_id}
+                      onClick={() => {
+                        if (room.is_private) {
+                          setPendingJoinRoom(room);
+                          setShowPasscodePrompt(true);
+                        } else {
+                          router.push(`/sparx/${details.type}?room=${encodeURIComponent(room.room_id)}`);
+                        }
+                      }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-cyan-500/40 hover:bg-zinc-900/60 transition-all duration-300 active:scale-95 text-left group"
+                    >
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${isCinema ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                        {isCinema ? <Tv className="w-3.5 h-3.5" /> : <Music className="w-3.5 h-3.5" />}
+                      </div>
+                      <div className="flex flex-col min-w-0 max-w-[100px]">
+                        <span className="text-[11px] font-bold text-gray-200 truncate flex items-center gap-1">
+                          {details.name}
+                          {room.is_private && <Lock className="w-2.5 h-2.5 text-gray-500" />}
+                        </span>
+                        <span className="text-[8.5px] text-gray-400 font-medium">
+                          {room.participant_count || 1} online
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
