@@ -196,6 +196,12 @@ export const CampusPcoRadio: React.FC = () => {
   useEffect(() => {
     if (!supabase) return;
 
+    // Clean up any stale or existing channel with the same topic before subscribing
+    const existing = supabase.getChannels().find((c: any) => c.topic === 'realtime:campus_pco_live_chat' || c.topic === 'campus_pco_live_chat');
+    if (existing) {
+      supabase.removeChannel(existing);
+    }
+
     const channel = supabase.channel('campus_pco_live_chat', {
       config: { presence: { key: presenceKey } }
     });
@@ -261,10 +267,12 @@ export const CampusPcoRadio: React.FC = () => {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user: displayNameRef.current,
-            online_at: new Date().toISOString()
-          });
+          try {
+            await channel.track({
+              user: displayNameRef.current,
+              online_at: new Date().toISOString()
+            });
+          } catch (_) {}
         }
       });
 

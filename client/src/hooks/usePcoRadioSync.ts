@@ -321,14 +321,10 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   useEffect(() => {
     if (!supabase) return;
 
-    // FIX: this listener previously subscribed to `pco_state_<roomId>` while
-    // ALL senders (updatePcoRadioState / admin actions) broadcast on
-    // 'campus_pco_live_chat' — so instant state broadcasts never arrived and
-    // listeners relied only on slower postgres_changes. Listen on the SAME
-    // channel name the senders publish to. (The live-chat/presence channel
-    // in CampusPcoRadio uses a different Supabase channel instance, which is
-    // fine: supabase-js multiplexes one socket across channel names.)
-    const channel = supabase.channel('campus_pco_live_chat')
+    // Use a dedicated room-state sync channel so it never collides with
+    // or mutates the presence/chat channel ('campus_pco_live_chat').
+    const channelTopic = `pco_radio_state_sync_${roomId}`;
+    const channel = supabase.channel(channelTopic)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',

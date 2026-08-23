@@ -255,6 +255,11 @@ export async function submitPcoSongRequest(
       if (data) {
         // Broadcast to live DJ console in real-time
         try {
+          supabase.channel('pco_quick_panel_requests').send({
+            type: 'broadcast',
+            event: 'PCO_SONG_REQUEST',
+            payload: data
+          });
           supabase.channel('campus_pco_live_chat').send({
             type: 'broadcast',
             event: 'PCO_SONG_REQUEST',
@@ -596,6 +601,11 @@ export async function updatePcoRadioState(
           ...patch,
           mode: patch.mode !== undefined ? patch.mode : 'auto'
         };
+        supabase.channel(`pco_radio_state_sync_${roomId}`).send({
+          type: 'broadcast',
+          event: 'PCO_STATE_UPDATED',
+          payload: broadcastPayload
+        });
         supabase.channel('campus_pco_live_chat').send({
           type: 'broadcast',
           event: 'PCO_STATE_UPDATED',
@@ -631,6 +641,11 @@ export async function updatePcoRadioState(
 
     // Broadcast state update immediately for sub-millisecond sync
     try {
+      supabase.channel(`pco_radio_state_sync_${roomId}`).send({
+        type: 'broadcast',
+        event: 'PCO_STATE_UPDATED',
+        payload
+      });
       supabase.channel('campus_pco_live_chat').send({
         type: 'broadcast',
         event: 'PCO_STATE_UPDATED',

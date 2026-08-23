@@ -67,7 +67,7 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
     if (!supabase) return;
 
-    // Listen for postgres changes on pco_song_requests table
+    // Listen for postgres changes and broadcast notifications on dedicated admin channel
     const dbChannel = supabase
       .channel('pco_quick_panel_requests')
       .on(
@@ -77,10 +77,6 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
           loadRequests();
         }
       )
-      .subscribe();
-
-    // Listen on campus_pco_live_chat for instant song request notifications
-    const liveChannel = supabase.channel('campus_pco_live_chat')
       .on('broadcast', { event: 'PCO_REQUEST_NOTIFICATION' }, (payload: any) => {
         loadRequests();
         if (payload?.payload?.track) {
@@ -94,7 +90,6 @@ export const PcoAdminQuickPanel: React.FC<PcoAdminQuickPanelProps> = ({
 
     return () => {
       supabase.removeChannel(dbChannel);
-      supabase.removeChannel(liveChannel);
     };
   }, []);
 

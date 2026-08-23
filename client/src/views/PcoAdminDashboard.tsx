@@ -169,6 +169,11 @@ export const PcoAdminDashboard: React.FC = () => {
     setStartedAt(Date.now());
     reload();
 
+    const existing = supabase.getChannels().find((c: any) => c.topic === 'realtime:campus_pco_live_chat' || c.topic === 'campus_pco_live_chat');
+    if (existing) {
+      supabase.removeChannel(existing);
+    }
+
     const ch = supabase.channel('campus_pco_live_chat', {
       config: { presence: { key: currentUser?.id || `console_${Math.random().toString(36).substring(2, 7)}` } }
     });

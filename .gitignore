@@ -19,3 +19,4 @@ db_backup/
 
 PUSH_NOTIFICATIONS_MANUAL.txt
 posters/
+*.tsbuildinfo
