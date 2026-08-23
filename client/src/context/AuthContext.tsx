@@ -129,13 +129,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If this is a background token refresh and we already have a user, DO NOT query DB or re-render!
       if (event === 'TOKEN_REFRESHED' && authService.getCurrentUser()) {
         if (session?.access_token) {
-          subscribeToPushNotifications(session.access_token).catch(() => {});
+          subscribeToPushNotifications(session.access_token).catch(() => { });
           syncTokenToSW();
         }
         return;
       }
 
-      const isOAuthRedirect = typeof window !== 'undefined' && 
+      const isOAuthRedirect = typeof window !== 'undefined' &&
         (window.location.hash.includes('access_token=') || window.location.search.includes('code='));
 
       // Only show loading for first-time / blocking auth transitions (INITIAL_SESSION or SIGNED_IN without a cached user, or active OAuth redirect)
@@ -148,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           if (session.access_token) {
-            subscribeToPushNotifications(session.access_token).catch(() => {});
+            subscribeToPushNotifications(session.access_token).catch(() => { });
             syncTokenToSW();
           }
 
@@ -166,8 +166,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const appUser = mapProfileToAppUser(profile, session.user);
             setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
             safeSetSessionStorage(JSON.stringify(appUser));
-            
-            const needsOnboard = !profile.username || !profile.real_name;
+
+            const needsOnboard = !profile.real_name || !profile.dob;
             setNeedsOnboarding(needsOnboard);
           } else {
             const cachedUser = authService.getCurrentUser();
@@ -202,10 +202,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const initializeAuth = async () => {
         const localUser = authService.getCurrentUser();
-        const isOAuthCallback = typeof window !== 'undefined' && 
-          (window.location.hash.includes('access_token=') || 
-           window.location.hash.includes('error=') || 
-           window.location.search.includes('code='));
+        const isOAuthCallback = typeof window !== 'undefined' &&
+          (window.location.hash.includes('access_token=') ||
+            window.location.hash.includes('error=') ||
+            window.location.search.includes('code='));
 
         try {
           let isAborted = false;
@@ -244,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const appUser = mapProfileToAppUser(profile, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
               safeSetSessionStorage(JSON.stringify(appUser));
-              const needsOnboard = !profile.username || !profile.real_name;
+              const needsOnboard = !profile.real_name || !profile.dob;
               setNeedsOnboarding(needsOnboard);
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
@@ -277,7 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.ready.then(reg => {
       if (reg.active) reg.active.postMessage({ type: 'CLEAR_AUTH_TOKEN' });
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const clearAllCaches = useCallback(() => {
@@ -293,7 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const key = localStorage.key(i);
         if (key) {
           const shouldRemove = prefixesToRemove.some(prefix => key.startsWith(prefix)) ||
-                              specificKeysToRemove.includes(key);
+            specificKeysToRemove.includes(key);
           if (shouldRemove) {
             localStorage.removeItem(key);
           }
@@ -302,11 +302,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 3. Clear IndexedDB tables
       try {
-        db.messages.clear().catch(() => {});
-        db.profiles.clear().catch(() => {});
-        db.matches.clear().catch(() => {});
-        db.outbox.clear().catch(() => {});
-        db.playground_settings.clear().catch(() => {});
+        db.messages.clear().catch(() => { });
+        db.profiles.clear().catch(() => { });
+        db.matches.clear().catch(() => { });
+        db.outbox.clear().catch(() => { });
+        db.playground_settings.clear().catch(() => { });
       } catch (e) {
         console.error('Failed to clear IndexedDB:', e);
       }

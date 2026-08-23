@@ -73,7 +73,12 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         updated_at: new Date().toISOString()
                     });
 
-                if (error) console.error('Error updating presence DB:', error);
+                if (error) {
+                    // Suppress harmless FK error (23503) if the user's profile is still being created/onboarding
+                    if (error.code !== '23503') {
+                        console.error('Error updating presence DB:', error);
+                    }
+                }
             } catch (err) {
                 console.error('Failed to update presence DB:', err);
             }
