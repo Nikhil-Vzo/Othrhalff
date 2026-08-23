@@ -225,97 +225,18 @@ body.story-active .layout-content-wrapper {
 .animate-eq-3 { animation: eq-bar-3 0.65s ease-in-out infinite alternate; }
 .animate-eq-4 { animation: eq-bar-4 0.85s ease-in-out infinite alternate; }
 
-@keyframes sparx-internal-glow {
+/* Premium Internal Light Bloom (Corner Glow Drift) */
+@keyframes bloom-drift {
   0%, 100% {
-    box-shadow: inset 0 0 10px rgba(255, 0, 127, 0.4), inset 0 0 4px rgba(168, 85, 247, 0.5);
-    border-color: rgba(255, 0, 127, 0.35);
-  }
-  50% {
-    box-shadow: inset 0 0 22px rgba(255, 0, 127, 0.75), inset 0 0 8px rgba(217, 70, 239, 0.8);
-    border-color: rgba(255, 0, 127, 0.65);
-  }
-}
-
-@keyframes particle-flow-1 {
-  0% {
-    transform: translate(-30px, 4px) scale(0.6);
-    opacity: 0;
-  }
-  25% {
-    opacity: 0.9;
-  }
-  75% {
+    transform: translate(0px, 0px) scale(1);
     opacity: 0.75;
   }
-  100% {
-    transform: translate(90px, -4px) scale(1.1);
-    opacity: 0;
-  }
-}
-
-@keyframes particle-flow-2 {
-  0% {
-    transform: translate(80px, -5px) scale(0.5);
-    opacity: 0;
-  }
-  30% {
-    opacity: 0.85;
-  }
-  70% {
-    opacity: 0.6;
-  }
-  100% {
-    transform: translate(-25px, 5px) scale(1);
-    opacity: 0;
-  }
-}
-
-@keyframes particle-flow-3 {
-  0% {
-    transform: translate(0px, 6px) scale(0.4);
-    opacity: 0;
-  }
   50% {
-    transform: translate(45px, -3px) scale(1.1);
+    transform: translate(-6px, -3px) scale(1.12);
     opacity: 0.95;
   }
-  100% {
-    transform: translate(85px, 4px) scale(0.4);
-    opacity: 0;
-  }
 }
 
-@keyframes internal-aurora-sweep {
-  0% {
-    transform: translateX(-100%) rotate(0deg);
-    opacity: 0.3;
-  }
-  50% {
-    transform: translateX(100%) rotate(180deg);
-    opacity: 0.6;
-  }
-  100% {
-    transform: translateX(-100%) rotate(360deg);
-    opacity: 0.3;
-  }
-}
-
-.animate-sparx-internal-glow {
-  animation: sparx-internal-glow 2.8s ease-in-out infinite;
-}
-
-.animate-particle-1 {
-  animation: particle-flow-1 4s ease-in-out infinite;
-}
-
-.animate-particle-2 {
-  animation: particle-flow-2 5s ease-in-out infinite;
-}
-
-.animate-particle-3 {
-  animation: particle-flow-3 3.5s ease-in-out infinite 1s;
-}
-
-.animate-internal-aurora {
-  animation: internal-aurora-sweep 8s linear infinite;
+.animate-bloom-drift {
+  animation: bloom-drift 4.5s ease-in-out infinite;
 }

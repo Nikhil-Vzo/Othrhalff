@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home, ArrowRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
@@ -317,42 +317,28 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto select-none">
             <button
               onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
-              className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full overflow-hidden border border-pink-500/40 hover:border-pink-400 bg-black/90 backdrop-blur-2xl animate-sparx-internal-glow transition-all duration-300 active:scale-95 cursor-pointer"
+              className="group relative flex items-center justify-between gap-3 px-4 py-2 rounded-2xl overflow-hidden bg-[#110f17]/95 backdrop-blur-2xl border border-white/15 hover:border-white/35 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),inset_0_-1px_0_0_rgba(0,0,0,0.5)] transition-all duration-300 active:scale-95 cursor-pointer min-w-[145px]"
               aria-label="Listen to Sparx FM 24/7 Campus Radio"
               title="Listen to Sparx FM 24/7 Live Campus Radio"
             >
-              {/* Internal Aurora Ambient Backlight */}
-              <div className="absolute -inset-2 pointer-events-none opacity-40 blur-[3px] bg-[radial-gradient(ellipse_at_center,_rgba(255,0,127,0.35)_0%,_rgba(168,85,247,0.3)_45%,_transparent_70%)] animate-internal-aurora" />
-
-              {/* Internal Animated Drifting Particles */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <span className="absolute left-1 top-1 w-1.5 h-1.5 rounded-full bg-pink-400 blur-[0.5px] shadow-[0_0_6px_#ff007f] animate-particle-1" />
-                <span className="absolute right-2 bottom-1 w-1 h-1 rounded-full bg-purple-300 blur-[0.5px] shadow-[0_0_4px_#c084fc] animate-particle-2" />
-                <span className="absolute left-1/3 top-2 w-1.5 h-1.5 rounded-full bg-cyan-300 blur-[0.5px] shadow-[0_0_6px_#67e8f9] animate-particle-3" />
-                <span className="absolute right-1/4 top-1 w-1 h-1 rounded-full bg-yellow-300 blur-[0.5px] shadow-[0_0_4px_#fde047] animate-particle-1" style={{ animationDelay: '2s' }} />
-              </div>
+              {/* Internal Radiant Corner Bloom (Warm Amber & Rose Light Leak Effect from Bottom-Right) */}
+              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.5)_0%,_rgba(217,70,239,0.32)_40%,_rgba(147,51,234,0.18)_65%,_transparent_80%)] animate-bloom-drift" />
 
               {/* Dynamic Live Equalizer Soundwaves */}
-              <div className="relative z-10 flex items-end gap-[2px] h-3.5 w-4 overflow-hidden">
-                <span className="w-0.5 bg-gradient-to-t from-purple-400 to-pink-400 rounded-full animate-eq-1" />
-                <span className="w-0.5 bg-gradient-to-t from-pink-400 to-purple-300 rounded-full animate-eq-2" />
-                <span className="w-0.5 bg-gradient-to-t from-purple-400 to-pink-500 rounded-full animate-eq-3" />
-                <span className="w-0.5 bg-gradient-to-t from-pink-500 to-neon rounded-full animate-eq-4" />
+              <div className="relative z-10 flex items-end gap-[2px] h-3.5 w-3.5 overflow-hidden shrink-0">
+                <span className="w-0.5 bg-white/90 rounded-full animate-eq-1" />
+                <span className="w-0.5 bg-amber-300/90 rounded-full animate-eq-2" />
+                <span className="w-0.5 bg-pink-300/90 rounded-full animate-eq-3" />
+                <span className="w-0.5 bg-white/90 rounded-full animate-eq-4" />
               </div>
 
-              {/* Dynamic Content */}
-              <div className="relative z-10 flex items-center gap-1.5">
-                <span className="text-[10px] font-black tracking-wider text-white group-hover:text-pink-300 transition-colors uppercase flex items-center gap-1">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                  </span>
-                  SPARX FM
-                </span>
-                <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_6px_rgba(255,0,127,0.7)]">
-                  24/7
-                </span>
-              </div>
+              {/* Text Label */}
+              <span className="relative z-10 text-[13px] font-bold text-white tracking-tight leading-none group-hover:text-amber-100 transition-colors whitespace-nowrap">
+                Sparx FM
+              </span>
+
+              {/* Trailing Arrow */}
+              <ArrowRight className="relative z-10 w-3.5 h-3.5 text-white/80 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
             </button>
           </div>
         )}
