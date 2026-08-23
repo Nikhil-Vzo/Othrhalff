@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Image as ImageIcon, Loader2, Sparkles, Camera, Zap, ZapOff, RefreshCcw, Grid, Send, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { ensureProfileExists } from '../lib/profileHelper';
 
 const FILTERS = [
   { name: 'Normal', css: 'none' },
@@ -344,38 +345,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
       }
 
       // 2. Ensure profile row exists in public.profiles to satisfy glimpses_user_id_fkey
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id, university')
-        .eq('id', activeUserId)
-        .maybeSingle();
-
-      if (!existingProfile) {
-        const fallbackProfile = {
-          id: activeUserId,
-          anonymous_id: currentUser.anonymousId || `User#${activeUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
-          real_name: currentUser.realName || authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || 'Campus User',
-          gender: currentUser.gender || 'Male',
-          university: currentUser.university || 'Global',
-          university_email: currentUser.universityEmail || authUser?.email || '',
-          branch: currentUser.branch || 'General',
-          year: currentUser.year || '1st Year',
-          interests: currentUser.interests || [],
-          bio: currentUser.bio || '',
-          dob: currentUser.dob || '2000-01-01',
-          avatar: currentUser.avatar || authUser?.user_metadata?.avatar_url || '/auth-mascot.webp',
-          updated_at: new Date().toISOString()
-        };
-
-        const { error: profileUpsertError } = await supabase
-          .from('profiles')
-          .upsert(fallbackProfile, { onConflict: 'id' });
-
-        if (profileUpsertError) {
-          console.error('Failed to initialize profile for glimpse author:', profileUpsertError);
-          throw new Error(`Profile sync required before posting glimpse: ${profileUpsertError.message}`);
-        }
-      }
+      await ensureProfileExists(activeUserId, currentUser);
 
       // 3. Compress Image
       const compressedBlob = await compressImage(file);
@@ -404,7 +374,7 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           user_id: activeUserId,
           image_path: filePath,
           caption: caption.trim() || null,
-          university: currentUser.university || existingProfile?.university || 'Global',
+          university: currentUser.university || 'Global',
           is_anonymous: isAnonymous,
         });
 

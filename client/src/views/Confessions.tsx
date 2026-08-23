@@ -11,6 +11,7 @@ import { getRandomQuote } from '../data/loadingQuotes';
 import { LoadingState } from '../components/LoadingState';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { CHHATTISGARH_COLLEGES, BRANCH_CATEGORIES } from '../constants';
+import { ensureProfileExists } from '../lib/profileHelper';
 
 type SortOption = 'newest' | 'oldest' | 'popular' | 'discussed';
 
@@ -457,7 +458,12 @@ export const Confessions: React.FC = () => {
         setNewText(''); setNewImage(null); setUploadedVideoUrl(null); setIsPollMode(false); setPollOptions(['', '']);
 
         try {
-            const userId = currentUser ? currentUser.id : 'a3e96230-6a78-4215-bcd0-882e1af61127';
+            let userId = 'a3e96230-6a78-4215-bcd0-882e1af61127';
+            if (currentUser) {
+                const { data: authData } = await supabase.auth.getUser();
+                userId = authData?.user?.id || currentUser.id;
+                await ensureProfileExists(userId, currentUser);
+            }
 
             // Check daily limits...
             const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
@@ -633,7 +639,12 @@ export const Confessions: React.FC = () => {
             writeCache(feedMode, updated);
             return updated;
         });
-        try { await supabase.from('poll_votes').insert({ confession_id: confessionId, option_id: optionId, user_id: currentUser.id }); } catch (err) { console.error(err); fetchConfessions(0, true); }
+        try {
+            const { data: authData } = await supabase.auth.getUser();
+            const activeUserId = authData?.user?.id || currentUser.id;
+            await ensureProfileExists(activeUserId, currentUser);
+            await supabase.from('poll_votes').insert({ confession_id: confessionId, option_id: optionId, user_id: activeUserId });
+        } catch (err) { console.error(err); fetchConfessions(0, true); }
     };
 
     const handleReaction = async (id: string, emoji: string) => {
@@ -805,7 +816,10 @@ export const Confessions: React.FC = () => {
         setExpandedComments(prev => ({ ...prev, [confessionId]: true }));
 
         try {
-            const { data: inserted } = await supabase!.from('confession_comments').insert({ confession_id: confessionId, user_id: currentUser.id, text: text.trim() }).select('id').single();
+            const { data: authData } = await supabase.auth.getUser();
+            const activeUserId = authData?.user?.id || currentUser.id;
+            await ensureProfileExists(activeUserId, currentUser);
+            const { data: inserted } = await supabase!.from('confession_comments').insert({ confession_id: confessionId, user_id: activeUserId, text: text.trim() }).select('id').single();
             // Replace the optimistic temp ID with the real DB ID to prevent future dedup issues
             if (inserted?.id) {
                 setConfessions(prev => prev.map(c => {

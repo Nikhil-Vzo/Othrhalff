@@ -19,25 +19,25 @@ export const authService = {
           // Exclude server-managed columns (is_verified) to comply with column-level permissions
           const profileData = {
             id: authUserId,
-            username: user.username || undefined,
-            anonymous_id: user.anonymousId,
-            real_name: user.realName,
-            gender: user.gender,
-            university: user.university,
-            university_email: user.universityEmail,
-            branch: user.branch,
-            year: user.year,
-            interests: user.interests,
-            bio: user.bio,
-            dob: user.dob,
-            looking_for: user.lookingFor,
-            avatar: user.avatar, // Storing base64/URL string
+            username: user.username?.trim() || null,
+            anonymous_id: user.anonymousId || `User#${authUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+            real_name: user.realName?.trim() || 'Campus User',
+            gender: user.gender || 'Male',
+            university: user.university || 'Global',
+            university_email: user.universityEmail?.trim() || null,
+            branch: user.branch || 'General',
+            year: user.year || '1st Year',
+            interests: user.interests || [],
+            bio: user.bio || '',
+            dob: user.dob || '2000-01-01',
+            looking_for: user.lookingFor || [],
+            avatar: user.avatar || '/auth-mascot.webp',
             updated_at: new Date().toISOString(),
           };
 
           const { error } = await supabase
             .from('profiles')
-            .upsert(profileData);
+            .upsert(profileData, { onConflict: 'id' });
 
           if (error) {
             console.error('Supabase profile sync error:', error);

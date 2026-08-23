@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import ForceLogoutCountdown from '../components/ForceLogoutCountdown';
 import { db } from '../lib/db';
 import { subscribeToPushNotifications } from '../services/pushNotifications';
+import { ensureProfileExists } from '../lib/profileHelper';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -182,6 +183,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
               safeSetSessionStorage(JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
+
+              // Auto-bootstrap baseline record in public.profiles to satisfy all foreign key constraints immediately
+              ensureProfileExists(session.user.id, newAppUser).catch(err => {
+                console.error('[AuthContext] Background profile bootstrap error:', err);
+              });
             }
           }
         } else if (event === 'SIGNED_OUT') {
@@ -252,10 +258,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
               safeSetSessionStorage(JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
+
+              ensureProfileExists(activeSession.user.id, newAppUser).catch(err => {
+                console.error('[AuthContext] Background profile bootstrap error:', err);
+              });
             } else {
               const verifiedUser = { ...localUser, id: activeSession.user.id };
               setCurrentUser(prev => prev || verifiedUser);
               setNeedsOnboarding(!verifiedUser.realName || !verifiedUser.dob);
+
+              ensureProfileExists(activeSession.user.id, verifiedUser).catch(err => {
+                console.error('[AuthContext] Background profile bootstrap error:', err);
+              });
             }
           } else if (localUser && !isOAuthCallback) {
             console.warn('Session expired and refresh failed, showing logout countdown...');
