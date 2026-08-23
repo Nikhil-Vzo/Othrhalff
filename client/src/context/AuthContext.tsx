@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return !isProfileComplete(cached);
       }
     }
-    return false;
+    return true;
   });
 
   const initRef = useRef(false);
