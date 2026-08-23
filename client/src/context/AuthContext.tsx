@@ -345,6 +345,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(prev => {
       if (!prev) return null;
       const updatedUser = { ...prev, ...updates };
+      safeSetSessionStorage(JSON.stringify(updatedUser));
       // Non-blocking update
       authService.login(updatedUser).catch(err => console.error("Profile update sync error:", err));
       return updatedUser;
