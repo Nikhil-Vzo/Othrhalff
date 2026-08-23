@@ -256,6 +256,41 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             })}
           </nav>
 
+          {/* Sparx FM Luxury Station Widget (Integrated natively in Sidebar — no floating overlap) */}
+          <div className="px-4 pb-2">
+            <button
+              onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
+              className="w-full group relative flex items-center justify-between gap-3 p-3 px-4 rounded-2xl overflow-hidden bg-[#110f17]/95 border border-white/15 hover:border-white/35 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)] transition-all duration-300 active:scale-95 cursor-pointer text-left"
+              title="Tune in to Sparx FM 24/7 Campus Radio"
+            >
+              {/* Internal Radiant Corner Bloom */}
+              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.3)_40%,_rgba(147,51,234,0.16)_65%,_transparent_80%)] animate-bloom-drift" />
+
+              <div className="relative z-10 flex items-center gap-3 min-w-0">
+                {/* Dynamic Live Equalizer Soundwaves */}
+                <div className="flex items-end gap-[2px] h-4 w-4 overflow-hidden shrink-0 bg-black/40 p-0.5 rounded-lg border border-white/10">
+                  <span className="w-0.5 bg-white/90 rounded-full animate-eq-1" />
+                  <span className="w-0.5 bg-amber-300/90 rounded-full animate-eq-2" />
+                  <span className="w-0.5 bg-pink-300/90 rounded-full animate-eq-3" />
+                  <span className="w-0.5 bg-white/90 rounded-full animate-eq-4" />
+                </div>
+
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black text-white tracking-tight leading-tight group-hover:text-amber-100 transition-colors flex items-center gap-1.5">
+                    Sparx FM
+                    <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[7px] font-black text-white uppercase tracking-widest animate-pulse">24/7</span>
+                  </span>
+                  <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">
+                    Campus Radio & Tunes
+                  </span>
+                </div>
+              </div>
+
+              {/* Trailing Arrow */}
+              <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+            </button>
+          </div>
+
           {/* User Profile Card */}
           <div className="p-4 border-t border-gray-900/50 bg-black/50">
             <div
@@ -311,37 +346,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
         {showStars && <StarField />}
-
-        {/* Floating Sparx FM Live On-Air Dynamic Pill (Centered directly below Campus Toggle) */}
-        {!isFullscreen && currentUser && !pathname.startsWith('/sparx/music') && (
-          <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto select-none">
-            <button
-              onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
-              className="group relative flex items-center justify-between gap-3 px-4 py-2 rounded-2xl overflow-hidden bg-[#110f17]/95 backdrop-blur-2xl border border-white/15 hover:border-white/35 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),inset_0_-1px_0_0_rgba(0,0,0,0.5)] transition-all duration-300 active:scale-95 cursor-pointer min-w-[145px]"
-              aria-label="Listen to Sparx FM 24/7 Campus Radio"
-              title="Listen to Sparx FM 24/7 Live Campus Radio"
-            >
-              {/* Internal Radiant Corner Bloom (Warm Amber & Rose Light Leak Effect from Bottom-Right) */}
-              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.5)_0%,_rgba(217,70,239,0.32)_40%,_rgba(147,51,234,0.18)_65%,_transparent_80%)] animate-bloom-drift" />
-
-              {/* Dynamic Live Equalizer Soundwaves */}
-              <div className="relative z-10 flex items-end gap-[2px] h-3.5 w-3.5 overflow-hidden shrink-0">
-                <span className="w-0.5 bg-white/90 rounded-full animate-eq-1" />
-                <span className="w-0.5 bg-amber-300/90 rounded-full animate-eq-2" />
-                <span className="w-0.5 bg-pink-300/90 rounded-full animate-eq-3" />
-                <span className="w-0.5 bg-white/90 rounded-full animate-eq-4" />
-              </div>
-
-              {/* Text Label */}
-              <span className="relative z-10 text-[13px] font-bold text-white tracking-tight leading-none group-hover:text-amber-100 transition-colors whitespace-nowrap">
-                Sparx FM
-              </span>
-
-              {/* Trailing Arrow */}
-              <ArrowRight className="relative z-10 w-3.5 h-3.5 text-white/80 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
-            </button>
-          </div>
-        )}
         
         {/* Mobile Top-Left Profile Picture */}
         {isHome && currentUser && (
