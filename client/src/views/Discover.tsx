@@ -280,7 +280,10 @@ export const Discover: React.FC = () => {
 
     let isPolling = true;
     let pollTimeout: NodeJS.Timeout;
-    let delay = 400; // Start fast at 400ms
+    // TEXT pairs faster: quicker first probe and tighter cap (text chats are
+    // expected to be instant). VIDEO keeps the original gentle curve.
+    let delay = modeRef.current === 'TEXT' ? 150 : 400;
+    const delayCap = modeRef.current === 'TEXT' ? 800 : 2000;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
     const pollQueue = async () => {
@@ -303,6 +306,14 @@ export const Discover: React.FC = () => {
             recentPartners: Array.from(recentSkippedPartnersRef.current.keys())
           })
         });
+
+        // Auth expired — stop the radar instead of spinning forever.
+        if (res.status === 401 || res.status === 403) {
+          console.warn('[Matchmaking] Auth rejected, stopping search.');
+          isPolling = false;
+          setState('IDLE');
+          return;
+        }
 
         if (res.ok) {
           const data = await res.json();
@@ -343,7 +354,7 @@ export const Discover: React.FC = () => {
       }
 
       if (isPolling && stateRef.current === 'SEARCHING') {
-        delay = Math.min(delay * 1.3, 2000); // Exponential backoff up to 2s
+        delay = Math.min(delay * 1.3, delayCap); // Exponential backoff, mode-specific cap
         pollTimeout = setTimeout(pollQueue, delay);
       }
     };

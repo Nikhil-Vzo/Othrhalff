@@ -40,6 +40,43 @@ const matches = new Map();
 let supabaseClient = null;
 let realtimeChannel = null;
 
+// Normalize university strings so 'IIIT NRR' / 'iiit nrr, chhattisgarh' compare equal.
+function normalizeUniversity(univ) {
+  return String(univ || '').trim().toLowerCase().split(',')[0].trim();
+}
+
+// Blocked-user cache (60s TTL) so we don't hammer Supabase on every pairing check.
+let blockedCache = null;
+
+async function getBlockedPairs() {
+  if (blockedCache && Date.now() - blockedCache.fetchedAt < 60000) {
+    return blockedCache.data;
+  }
+  const map = new Map();
+  try {
+    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key) {
+      const client = supabaseClient || createClient(url, key);
+      // Fetch all blocks (small table); build blocker -> set(blocked) adjacency both ways.
+      const { data, error } = await client.from('blocked_users').select('blocker_id, blocked_id');
+      if (!error && Array.isArray(data)) {
+        for (const row of data) {
+          if (!map.has(row.blocker_id)) map.set(row.blocker_id, new Set());
+          if (!map.has(row.blocked_id)) map.set(row.blocked_id, new Set());
+          map.get(row.blocker_id).add(row.blocked_id);
+          map.get(row.blocked_id).add(row.blocker_id);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Matchmaking] blocked_users fetch failed (pairing without block filter):', err?.message || err);
+  }
+  blockedCache = { data: map, fetchedAt: Date.now() };
+  return map;
+}
+
+
 function getRealtimeChannel() {
   if (realtimeChannel) return realtimeChannel;
 
@@ -105,6 +142,11 @@ router.post('/matchmaking/queue', verifySupabaseToken, async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
+    // Normalize once — used for both storing and comparing (fixes exact-string campus bug)
+    const myUnivNorm = normalizeUniversity(university);
+    const blockedPairs = await getBlockedPairs();
+    const myBlocks = blockedPairs.get(userId) || new Set();
+
     // 1. Check if user already has a pending matched result
     if (matches.has(userId)) {
       const match = matches.get(userId);
@@ -120,22 +162,27 @@ router.post('/matchmaking/queue', verifySupabaseToken, async (req, res) => {
     for (const [otherId, other] of queue.entries()) {
       if (otherId === userId) continue;
       if (other.mode !== mode) continue;
+      if (myBlocks.has(otherId)) continue;                       // never pair blocked users
+      const otherBlocks = blockedPairs.get(otherId);
+      if (otherBlocks && otherBlocks.has(userId)) continue;
 
-      // Scope validation
-      if (scope === 'CAMPUS' && university && other.university !== university) continue;
-      if (other.scope === 'CAMPUS' && other.university && other.university !== university) continue;
+      // Scope validation on NORMALIZED universities
+      if (scope === 'CAMPUS' && myUnivNorm && other.univNorm !== myUnivNorm) continue;
+      if (other.scope === 'CAMPUS' && other.univNorm && other.univNorm !== myUnivNorm) continue;
 
       // Recent partner avoid list
       if (recentPartners.includes(otherId)) continue;
       if (other.recentPartners && other.recentPartners.includes(userId)) continue;
 
-      // Match found!
-      matchedPartner = other;
-      queue.delete(otherId);
-      break;
+      // TEXT PRIORITY: prefer partners already waiting longest so text chats pair fast,
+      // and within same mode prefer earlier joinedAt (FIFO). Video keeps same FIFO.
+      if (!matchedPartner || other.joinedAt < matchedPartner.joinedAt) {
+        matchedPartner = other;
+      }
     }
 
     if (matchedPartner) {
+      queue.delete(matchedPartner.userId);
       const channelName = `discover_${mode.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       let appId = '';
       let token = '';
@@ -194,12 +241,13 @@ router.post('/matchmaking/queue', verifySupabaseToken, async (req, res) => {
       });
     }
 
-    // 3. No immediate match; register into queue
+    // 3. No immediate match; register into queue (store normalized university too)
     queue.set(userId, {
       userId,
       name,
       avatar,
       university,
+      univNorm: myUnivNorm,
       mode,
       scope,
       recentPartners,
