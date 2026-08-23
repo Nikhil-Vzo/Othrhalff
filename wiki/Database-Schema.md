@@ -791,11 +791,12 @@ begin
     select p.*
     from public.profiles p
     where p.id != user_id
-<<<<<<< HEAD
-      and p.university = user_university
-=======
       and lower(trim(split_part(p.university, ',', 1))) = lower(trim(split_part(user_university, ',', 1)))
->>>>>>> 67df4eb7294ddeb5175a126bfebbfcc04cc83e87
+      -- Only show profiles with a photo and DOB set (quality gate: prevents newly-onboarded
+      -- or incomplete profiles from appearing in the feed until they are fully set up)
+      and p.avatar is not null
+      and p.avatar != ''
+      and p.dob is not null
       -- Exclude people they've already swiped on
       and not exists (
         select 1 from public.swipes s 
@@ -814,11 +815,11 @@ begin
     select p.*
     from public.profiles p
     where p.id != user_id
-<<<<<<< HEAD
-      and p.university != user_university
-=======
       and lower(trim(split_part(p.university, ',', 1))) != lower(trim(split_part(user_university, ',', 1)))
->>>>>>> 67df4eb7294ddeb5175a126bfebbfcc04cc83e87
+      -- Only show profiles with a photo and DOB set (quality gate)
+      and p.avatar is not null
+      and p.avatar != ''
+      and p.dob is not null
       -- Exclude people they've already swiped on
       and not exists (
         select 1 from public.swipes s 
@@ -867,11 +868,7 @@ begin
     join public.swipes s on s.target_id = p.id
     where s.liker_id = current_user_id
       and s.action = 'pass'
-<<<<<<< HEAD
-      and p.university = user_university
-=======
       and lower(trim(split_part(p.university, ',', 1))) = lower(trim(split_part(user_university, ',', 1)))
->>>>>>> 67df4eb7294ddeb5175a126bfebbfcc04cc83e87
     order by s.created_at desc;
   else -- Global mode
     return query
@@ -880,8 +877,7 @@ begin
     join public.swipes s on s.target_id = p.id
     where s.liker_id = current_user_id
       and s.action = 'pass'
-<<<<<<< HEAD
-      and p.university != user_university
+      and lower(trim(split_part(p.university, ',', 1))) != lower(trim(split_part(user_university, ',', 1)))
     order by s.created_at desc;
   end if;
 end;
