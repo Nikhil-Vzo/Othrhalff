@@ -563,7 +563,7 @@ export const Sparx: React.FC = () => {
     const userRooms = activeRooms.filter(r => !r.room_id.includes('Campus_PCO'));
 
     return (
-      <div className="w-full bg-black/60 border-b border-white/10 backdrop-blur-xl px-4 py-3 select-none animate-fade-in">
+      <div className="w-full bg-[#0c0a12]/95 border-b border-white/10 backdrop-blur-2xl px-4 pt-16 pb-3 select-none shadow-[0_8px_30px_rgba(0,0,0,0.85)] animate-fade-in">
         <div className="max-w-2xl mx-auto flex flex-col gap-3">
           {/* Eye-catching Featured Experiences (Sparx FM & Playground) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
@@ -937,174 +937,221 @@ export const Sparx: React.FC = () => {
             )}
           </div>
         </div>
-      ) : glimpses.length === 0 ? (
-        <div className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none flex flex-col">
-          {renderLiveRoomsTray()}
-          <div className="flex-1 flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in mt-12">
-            {/* Mascot Circle */}
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700 mx-auto shadow-2xl">
-              <Ghost className="w-10 h-10 text-gray-600" />
-            </div>
-
-            <h2 className="text-xl font-black text-white mb-3 uppercase tracking-tight">
-              No Glimpses Yet
-            </h2>
-            
-            <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
-              {feedMode === 'campus'
-                ? 'Be the first to share a highlight of your day on campus!'
-                : 'Nobody has shared global glimpses in the last 24 hours.'}
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mx-auto">
-              <button
-                onClick={handleOpenUpload}
-                className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Share a Glimpse</span>
-              </button>
-
-              {feedMode === 'campus' && (
-                <button
-                  onClick={() => setFeedMode('global')}
-                  className="px-6 py-3 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Globe className="w-4 h-4 text-cyan-400" />
-                  <span>Explore Global Glimpses</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
       ) : (
-        /* Glimpse Thread List View */
-        <div 
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="w-full h-full overflow-y-auto pt-20 pb-32 scrollbar-none divide-y divide-gray-900/50"
-        >
-          {renderLiveRoomsTray()}
-          <div className="max-w-xl mx-auto bg-black">
-            {glimpses.map((glimpse, index) => {
-              const isViewed = viewedIds.includes(glimpse.id);
-              const displayName = glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous';
-              const timeText = (() => {
-                const diff = Date.now() - new Date(glimpse.created_at).getTime();
-                const hrs = Math.floor(diff / (1000 * 60 * 60));
-                if (hrs < 1) {
-                  const mins = Math.floor(diff / (1000 * 60));
-                  return `${Math.max(1, mins)}m`;
-                }
-                return `${hrs}h`;
-              })();
-              const reactionCount = glimpse.glimpse_reactions?.length || 0;
-              
-              return (
-                <div key={glimpse.id} className="flex flex-col p-4 bg-black select-none border-b border-gray-900/50">
-                  {/* Main row: Avatar + Glimpse Status */}
-                  <div 
-                    onClick={() => {
-                      markAsViewed(glimpse.id);
-                      setActiveStoryIndex(index);
-                    }}
-                    className="flex items-center justify-between hover:bg-gray-950/40 p-2 rounded-2xl transition-colors cursor-pointer"
+        /* Glimpse Feed View with Pinned Sparx FM & Playground */
+        <div className="w-full h-full flex flex-col overflow-hidden">
+          {/* Pinned Top Showcase (Sparx FM & Playground) */}
+          <div className="flex-shrink-0 z-20">
+            {renderLiveRoomsTray()}
+          </div>
+
+          {/* Scrollable Glimpse Feed Area */}
+          {glimpses.length === 0 ? (
+            <div className="flex-1 overflow-y-auto pb-32 scrollbar-none flex flex-col">
+              <div className="flex-1 flex flex-col items-center justify-center bg-black p-8 text-center relative z-10 animate-fade-in my-auto">
+                {/* Mascot Circle */}
+                <div className="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700 mx-auto shadow-2xl">
+                  <Ghost className="w-10 h-10 text-gray-600" />
+                </div>
+
+                <h2 className="text-xl font-black text-white mb-3 uppercase tracking-tight">
+                  No Glimpses Yet
+                </h2>
+                
+                <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
+                  {feedMode === 'campus'
+                    ? 'Be the first to share a highlight of your day on campus!'
+                    : 'Nobody has shared global glimpses in the last 24 hours.'}
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mx-auto">
+                  <button
+                    onClick={handleOpenUpload}
+                    className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                   >
-                    <div className="flex items-center gap-4 min-w-0 flex-1">
-                      {/* User Avatar */}
-                      <div className="relative flex-shrink-0">
-                        <div className="w-12 h-12 rounded-full border border-gray-800 overflow-hidden bg-gray-950 flex items-center justify-center">
-                          {glimpse.profiles?.avatar ? (
-                            <img 
-                              src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
-                              alt="Avatar" 
-                              className="w-full h-full object-cover" 
-                              referrerPolicy="no-referrer"
-                              onError={handleImageError}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
-                              {(displayName || '??').slice(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        {!isViewed && (
-                          <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_#f43f5e]" />
-                        )}
-                      </div>
+                    <Camera className="w-4 h-4" />
+                    <span>Share a Glimpse</span>
+                  </button>
 
-                      {/* Metadata & tap to load status */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-bold text-gray-100 truncate">
-                            {displayName}
-                          </h3>
-                          {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
-                            <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
-                          )}
-                          <span className="text-xs text-gray-500 font-mono">
-                            · {timeText}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-xs mt-1 font-medium">
-                          {!isViewed ? (
-                            <>
-                              <div className="w-2.5 h-2.5 bg-rose-500 rounded-sm animate-pulse" />
-                              <span className="text-rose-500 font-semibold">Tap to load</span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-2.5 h-2.5 border border-rose-500/60 rounded-sm bg-transparent" />
-                              <span className="text-gray-500">Opened</span>
-                            </>
-                          )}
-                           {reactionCount > 0 && (
-                            <>
-                              <span className="text-gray-700">•</span>
-                              <span className="flex items-center gap-0.5 text-orange-500 font-bold">
-                                {reactionCount} reactions
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Thread line and Caption sub-box */}
-                  {glimpse.caption && (
-                    <div 
-                      onClick={() => {
-                        markAsViewed(glimpse.id);
-                        setActiveStoryIndex(index);
-                      }}
-                      className="flex items-start pr-4 cursor-pointer select-none group mt-1"
+                  {feedMode === 'campus' && (
+                    <button
+                      onClick={() => setFeedMode('global')}
+                      className="px-6 py-3 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                     >
-                      {/* Thread line container */}
-                      <div className="w-16 flex-shrink-0 self-stretch relative min-h-[40px]">
-                        {/* Vertical line: starts at the top of the container, aligns with avatar center (around 48px from left edge) */}
-                        <div className="absolute top-0 bottom-1/2 left-[32px] w-0.5 bg-gray-800/80 group-hover:bg-neon/30 transition-colors" />
-                        {/* Horizontal line: turns right to connect to the caption card */}
-                        <div className="absolute top-1/2 left-[32px] right-0 h-0.5 bg-gray-800/80 group-hover:bg-neon/30 transition-colors" />
-                      </div>
-
-                      {/* Caption sub-box */}
-                      <div className="flex-1 p-3 ml-2 rounded-2xl bg-gray-950/40 border border-neon/30 group-hover:border-neon group-hover:bg-gray-950/60 group-hover:shadow-[0_0_15px_rgba(255,0,127,0.15)] transition-all duration-300 shadow-sm">
-                        <p className="text-xs text-gray-300 leading-relaxed font-medium italic">
-                          "{glimpse.caption}"
-                        </p>
-                      </div>
-                    </div>
+                      <Globe className="w-4 h-4 text-cyan-400" />
+                      <span>Explore Global Glimpses</span>
+                    </button>
                   )}
                 </div>
-              );
-            })}
-          </div>
-          {isLoadingMore && (
-            <div className="w-full py-8 flex flex-col items-center justify-center gap-2 text-gray-500">
-              <Loader2 className="w-6 h-6 text-neon animate-spin" />
-              <span className="text-[9px] font-bold uppercase tracking-wider font-mono">Loading more glimpses...</span>
+              </div>
+            </div>
+          ) : (
+            /* Glimpse Thread List View */
+            <div 
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto pb-32 scrollbar-none divide-y divide-gray-900/50"
+            >
+              <div className="max-w-xl mx-auto bg-black">
+                {glimpses.map((glimpse, index) => {
+                  const isViewed = viewedIds.includes(glimpse.id);
+                  const displayName = glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous';
+                  const timeText = (() => {
+                    const diff = Date.now() - new Date(glimpse.created_at).getTime();
+                    const hrs = Math.floor(diff / (1000 * 60 * 60));
+                    if (hrs < 1) {
+                      const mins = Math.floor(diff / (1000 * 60));
+                      return `${Math.max(1, mins)}m`;
+                    }
+                    return `${hrs}h`;
+                  })();
+                  const reactionCount = glimpse.glimpse_reactions?.length || 0;
+                  
+                  return (
+                    <div key={glimpse.id} className="flex flex-col p-4 bg-black select-none border-b border-gray-900/50">
+                      {/* Main row: Avatar + Glimpse Status */}
+                      <div 
+                        onClick={() => {
+                          markAsViewed(glimpse.id);
+                          setActiveStoryIndex(index);
+                        }}
+                        className="flex items-center justify-between hover:bg-gray-950/40 p-2 rounded-2xl transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          {/* User Avatar */}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-12 h-12 rounded-full border border-gray-800 overflow-hidden bg-gray-950 flex items-center justify-center">
+                              {glimpse.profiles?.avatar ? (
+                                <img 
+                                  src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
+                                  alt="Avatar" 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer"
+                                  onError={handleImageError}
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
+                                  {(displayName || '??').slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            {!isViewed && (
+                              <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_#f43f5e]" />
+                            )}
+                          </div>
+
+                          {/* Metadata & tap to load status */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="text-sm font-bold text-gray-100 truncate">
+                                {displayName}
+                              </h3>
+                              {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
+                                <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
+                              )}
+                              <span className="text-xs text-gray-500 font-mono">
+                                · {timeText}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 text-xs mt-1 font-medium">
+                              {!isViewed ? (
+                                <>
+                                  <div className="w-2.5 h-2.5 bg-rose-500 rounded-sm animate-pulse" />
+                                  <span className="text-rose-500 font-semibold">Tap to load</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-2.5 h-2.5 border border-rose-500/60 rounded-sm bg-transparent" />
+                                  <span className="text-gray-500">Opened</span>
+                                </>
+                              )}
+                              {reactionCount > 0 && (
+                                <>
+                                  <span className="text-gray-700">•</span>
+                                  <span className="flex items-center gap-0.5 text-orange-500 font-bold">
+                                    {reactionCount} reactions
+                                  </span>
+                                </>
+                              )}
+                              {glimpse.location_tag && (
+                                <span className="text-gray-500 text-[11px] truncate flex items-center gap-0.5">
+                                  <MapPin className="w-2.5 h-2.5" />
+                                  {glimpse.location_tag}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Glimpse thumbnail preview or reaction count */}
+                        <div className="flex items-center gap-3">
+                          {reactionCount > 0 && (
+                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-900 border border-gray-800 text-[11px] font-bold text-gray-300">
+                              <Heart className="w-3 h-3 text-rose-500 fill-current" />
+                              <span>{reactionCount}</span>
+                            </div>
+                          )}
+                          <div className="w-9 h-9 rounded-xl bg-gray-900 border border-gray-800 overflow-hidden flex items-center justify-center relative">
+                            {glimpse.media_url ? (
+                              glimpse.media_type === 'video' ? (
+                                <div className="w-full h-full bg-gray-950 flex items-center justify-center">
+                                  <Camera className="w-4 h-4 text-neon" />
+                                </div>
+                              ) : (
+                                <img
+                                  src={getOptimizedUrl(glimpse.media_url, 48)}
+                                  alt="Preview"
+                                  className="w-full h-full object-cover blur-[2px] opacity-70"
+                                  referrerPolicy="no-referrer"
+                                  onError={handleImageError}
+                                />
+                              )
+                            ) : (
+                              <Camera className="w-4 h-4 text-gray-600" />
+                            )}
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                              <span className="text-[9px] font-bold text-white font-mono">▶</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Thread line and Caption sub-box */}
+                      {glimpse.caption && (
+                        <div 
+                          onClick={() => {
+                            markAsViewed(glimpse.id);
+                            setActiveStoryIndex(index);
+                          }}
+                          className="flex items-start pr-4 cursor-pointer select-none group mt-1"
+                        >
+                          {/* Thread line container */}
+                          <div className="w-16 flex-shrink-0 self-stretch relative min-h-[40px]">
+                            {/* Vertical line: starts at the top of the container, aligns with avatar center (around 48px from left edge) */}
+                            <div className="absolute top-0 bottom-1/2 left-[32px] w-0.5 bg-gray-800/80 group-hover:bg-neon/30 transition-colors" />
+                            {/* Horizontal line: turns right to connect to the caption card */}
+                            <div className="absolute top-1/2 left-[32px] right-0 h-0.5 bg-gray-800/80 group-hover:bg-neon/30 transition-colors" />
+                          </div>
+
+                          {/* Caption sub-box */}
+                          <div className="flex-1 p-3 ml-2 rounded-2xl bg-gray-950/40 border border-neon/30 group-hover:border-neon group-hover:bg-gray-950/60 group-hover:shadow-[0_0_15px_rgba(255,0,127,0.15)] transition-all duration-300 shadow-sm">
+                            <p className="text-xs text-gray-300 leading-relaxed font-medium italic">
+                              "{glimpse.caption}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {isLoadingMore && (
+                <div className="w-full py-8 flex flex-col items-center justify-center gap-2 text-gray-500">
+                  <Loader2 className="w-6 h-6 text-neon animate-spin" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider font-mono">Loading more glimpses...</span>
+                </div>
+              )}
             </div>
           )}
         </div>
