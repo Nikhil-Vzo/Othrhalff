@@ -5,7 +5,7 @@ import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
 import { AvatarSelectionModal } from '../components/AvatarSelectionModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MapPin, MapPinOff, Users, Smile, Send, Mic, MicOff, UserCheck } from 'lucide-react';
+import { Users, Smile, Send, Mic, MicOff, UserCheck } from 'lucide-react';
 import { db } from '../lib/db';
 import { useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
@@ -59,11 +59,6 @@ export const Playground: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // GPS Geolocation States
-  const [gpsEnabled, setGpsEnabled] = useState(false);
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-  const [gpsStatus, setGpsStatus] = useState<'DISABLED' | 'ACQUIRING' | 'LOCKED' | 'ERROR'>('DISABLED');
-  const gpsAnchorRef = useRef<{ lat: number; lng: number; x: number; y: number } | null>(null);
   const collisionCheckerRef = useRef<((x: number, y: number) => { x: number; y: number; isBlocked: boolean }) | null>(null);
   const dexieSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -200,9 +195,6 @@ export const Playground: React.FC = () => {
         if (savedSettings && isMounted) {
           if (typeof savedSettings.last_x === 'number' && typeof savedSettings.last_y === 'number') {
             setMyPos({ x: savedSettings.last_x, y: savedSettings.last_y });
-          }
-          if (typeof savedSettings.gps_enabled === 'boolean') {
-            setGpsEnabled(savedSettings.gps_enabled);
           }
         }
       } catch (err) {
@@ -373,7 +365,7 @@ export const Playground: React.FC = () => {
     [currentUser, sessionId, activeChannel]
   );
 
-  // Callback from the Canvas when the local player moves using WASD
+  // Callback from the Canvas when the local player moves using WASD / Touch
   const handlePositionChange = useCallback((x: number, y: number, dir: string, moving: boolean) => {
     setMyPos({ x, y });
     broadcastPosition(x, y, dir, moving);
@@ -386,12 +378,11 @@ export const Playground: React.FC = () => {
           id: currentUser.id,
           last_x: Math.round(x),
           last_y: Math.round(y),
-          gps_enabled: gpsEnabled,
           updated_at: Date.now()
         }).catch(() => {});
       }, 2000);
     }
-  }, [broadcastPosition, currentUser?.id, gpsEnabled]);
+  }, [broadcastPosition, currentUser?.id]);
 
   const handleSendSpeechBubble = (e: React.FormEvent) => {
     e.preventDefault();
@@ -421,108 +412,6 @@ export const Playground: React.FC = () => {
     setChatInput(prev => prev + emoji);
   };
 
-  // 2. Geolocation Sync Engine
-  const myPosRef = useRef(myPos);
-  const handlePositionChangeRef = useRef(handlePositionChange);
-
-  useEffect(() => { myPosRef.current = myPos; }, [myPos]);
-  useEffect(() => { handlePositionChangeRef.current = handlePositionChange; }, [handlePositionChange]);
-
-  const toggleGpsMode = useCallback(() => {
-    setGpsEnabled(prev => {
-      const nextState = !prev;
-      gpsAnchorRef.current = null;
-      if (currentUser?.id) {
-        db.playground_settings.put({
-          id: currentUser.id,
-          last_x: Math.round(myPosRef.current.x),
-          last_y: Math.round(myPosRef.current.y),
-          gps_enabled: nextState,
-          updated_at: Date.now()
-        }).catch(() => {});
-      }
-      return nextState;
-    });
-  }, [currentUser?.id]);
-
-  useEffect(() => {
-    if (!gpsEnabled) {
-      setGpsStatus('DISABLED');
-      setGpsAccuracy(null);
-      gpsAnchorRef.current = null;
-      return;
-    }
-
-    if (!('geolocation' in navigator)) {
-      setGpsStatus('ERROR');
-      setErrorMsg('Geolocation is not supported by your browser.');
-      setGpsEnabled(false);
-      return;
-    }
-
-    setGpsStatus('ACQUIRING');
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        setGpsAccuracy(Math.round(accuracy));
-        setGpsStatus('LOCKED');
-
-        if (!gpsAnchorRef.current) {
-          gpsAnchorRef.current = { lat: latitude, lng: longitude, x: myPosRef.current.x, y: myPosRef.current.y };
-          return;
-        }
-
-        const anchor = gpsAnchorRef.current;
-        // Metres displacement using Equirectangular approximation
-        const dLatMeters = (latitude - anchor.lat) * 111139;
-        const dLngMeters = (longitude - anchor.lng) * 111139 * Math.cos(anchor.lat * (Math.PI / 180));
-
-        // Scale factor: 8 pixels per real-world meter
-        const PIXELS_PER_METER = 8;
-        const rawTargetX = Math.max(50, Math.min(2510, anchor.x + dLngMeters * PIXELS_PER_METER));
-        const rawTargetY = Math.max(50, Math.min(1390, anchor.y - dLatMeters * PIXELS_PER_METER));
-
-        // Enforce Wall Avoidance & Walkable Path Sanitization
-        let finalX = rawTargetX;
-        let finalY = rawTargetY;
-        if (collisionCheckerRef.current) {
-          const validated = collisionCheckerRef.current(rawTargetX, rawTargetY);
-          finalX = validated.x;
-          finalY = validated.y;
-        }
-
-        const dx = finalX - myPosRef.current.x;
-        const dy = finalY - myPosRef.current.y;
-
-        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-          let dir: 'up' | 'down' | 'left' | 'right' = 'down';
-          if (Math.abs(dy) > Math.abs(dx)) {
-            dir = dy < 0 ? 'up' : 'down';
-          } else {
-            dir = dx < 0 ? 'left' : 'right';
-          }
-
-          handlePositionChangeRef.current(finalX, finalY, dir, true);
-        }
-      },
-      (err) => {
-        console.warn('[GPS Error]', err);
-        setGpsStatus('ERROR');
-        setErrorMsg(`GPS Error: ${err.message}`);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 2000,
-        timeout: 15000
-      }
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, [gpsEnabled]);
-
   if (!mounted || !currentUser) {
     return <div className="flex h-full items-center justify-center text-white">Loading Playground...</div>;
   }
@@ -532,7 +421,7 @@ export const Playground: React.FC = () => {
       {/* Instructions Overlay — elevated safely above the chat bar and mobile nav */}
       <div className="absolute bottom-[156px] md:bottom-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center px-4 w-full max-w-sm">
         <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase bg-black/50 px-3.5 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg inline-block">
-          {gpsEnabled ? '📍 GPS Active • Walk outside to move' : 'Tap screen to walk • Or use WASD / Arrows'}
+          Tap & drag joystick to move • Or use WASD / Arrows
         </p>
       </div>
 
@@ -548,7 +437,7 @@ export const Playground: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: GPS & Spatial Mic Toggles */}
+        {/* Right: Avatar & Spatial Mic Toggles */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
           {/* Avatar / Character Selector Toggle */}
           <button
@@ -558,26 +447,6 @@ export const Playground: React.FC = () => {
           >
             <UserCheck size={14} className="text-pink-400" />
             <span className="text-[11px] font-bold">Avatar</span>
-          </button>
-
-          {/* GPS Toggle */}
-          <button
-            onClick={toggleGpsMode}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border transition-all shadow-md active:scale-95 cursor-pointer ${
-              gpsEnabled
-                ? 'bg-cyan-950/80 border-cyan-400/80 text-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.25)]'
-                : 'bg-black/60 backdrop-blur-md border-white/15 text-gray-400 hover:text-white'
-            }`}
-            title="Toggle Real-world GPS Position Sync"
-          >
-            {gpsEnabled ? (
-              <MapPin size={14} className="text-cyan-400 animate-bounce" />
-            ) : (
-              <MapPinOff size={14} className="text-gray-400" />
-            )}
-            <span className="text-[11px] font-bold">
-              {gpsEnabled ? (gpsStatus === 'LOCKED' ? `GPS ±${gpsAccuracy ?? '?'}m` : 'GPS...') : 'GPS'}
-            </span>
           </button>
 
           {/* Spatial Voice Mic Toggle */}
@@ -645,7 +514,6 @@ export const Playground: React.FC = () => {
           remotePlayers={Array.from(remotePlayers.values())}
           localPosition={myPos}
           speechBubbles={speechBubbles}
-          gpsEnabled={gpsEnabled}
           avatarId={selectedAvatar}
           onCollisionCheckerReady={handleCollisionCheckerReady}
         />

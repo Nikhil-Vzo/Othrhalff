@@ -12,7 +12,6 @@ interface AvatarSpriteProps {
   isLocal?: boolean;
   speechBubble?: string;
   isSitting?: boolean;
-  isGpsActive?: boolean;
   avatarId?: string;
 }
 
@@ -34,7 +33,7 @@ const char32DirectionToCol = {
 
 export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(({
   x: targetX, y: targetY, direction, isMoving, color = '#3b82f6', username = 'Player', isLocal = false,
-  speechBubble, isSitting = false, isGpsActive = false, avatarId = 'default'
+  speechBubble, isSitting = false, avatarId = 'default'
 }, ref) => {
   const [frame, setFrame] = useState(0);
   const spriteRef = useRef<HTMLDivElement>(null);
@@ -147,11 +146,6 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
         {/* Drop Shadow */}
         <div className="absolute bottom-0 w-5 h-1.5 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
 
-        {/* GPS Active Ping */}
-        {isGpsActive && (
-          <div className="absolute bottom-1 w-8 h-4 border-2 border-cyan-400/80 rounded-[100%] animate-ping pointer-events-none -z-10 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
-        )}
-
         {/* Speech Bubble */}
         {speechBubble && (
           <div className="absolute -top-9 flex flex-col items-center pointer-events-none z-40 animate-bounce">
@@ -201,11 +195,6 @@ export const AvatarSprite = React.forwardRef<HTMLDivElement, AvatarSpriteProps>(
       
       {/* Drop Shadow */}
       <div className="absolute bottom-2 w-8 h-2.5 bg-black/40 rounded-[100%] blur-[2px] -z-10"></div>
-
-      {/* GPS Active Ping */}
-      {isGpsActive && (
-        <div className="absolute bottom-1 w-12 h-6 border-2 border-cyan-400/80 rounded-[100%] animate-ping pointer-events-none -z-10 shadow-[0_0_12px_rgba(34,211,238,0.8)]"></div>
-      )}
 
       {/* Speech Bubble */}
       {speechBubble && (

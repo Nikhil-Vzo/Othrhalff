@@ -23,7 +23,6 @@ interface PlaygroundCanvasProps {
   remotePlayers: Player[];
   localPosition: { x: number; y: number };
   speechBubbles: Map<string, {text: string, timestamp: number}>;
-  gpsEnabled?: boolean;
   avatarId?: string;
   onCollisionCheckerReady?: (checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => void;
 }
@@ -46,7 +45,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   remotePlayers,
   localPosition,
   speechBubbles,
-  gpsEnabled = false,
   avatarId = 'default',
   onCollisionCheckerReady
 }) => {
@@ -154,7 +152,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
     let animationFrameId: number;
     const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
-    const speed = isMobile ? 1.5 : 1.3;
+    const speed = isMobile ? 4.2 : 3.2;
     const playerCollisionSize = 32;
 
     const handleKeyDown = (e: KeyboardEvent) => { 

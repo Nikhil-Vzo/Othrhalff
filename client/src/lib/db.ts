@@ -45,7 +45,7 @@ export interface LocalPlaygroundSettings {
   id: string; // e.g. 'user_settings' or userId
   last_x: number;
   last_y: number;
-  gps_enabled: boolean;
+  gps_enabled?: boolean;
   updated_at: number;
 }
 
