@@ -181,8 +181,9 @@ export const Home: React.FC = () => {
                     distance: 'Recycled'
                 }));
                 
-                const activeSwipedIds = swipedIdsRef.current;
-                const filteredProfiles = mappedProfiles.filter(p => !activeSwipedIds.has(p.id));
+                // Read swipedIdsRef INSIDE the filter callback so any swipes that occurred
+                // during the async network request are always excluded (Bug #4 fix)
+                const filteredProfiles = mappedProfiles.filter(p => !swipedIdsRef.current.has(p.id));
                 
                 setQueue(filteredProfiles);
                 setIsRecycleMode(true);
@@ -298,8 +299,9 @@ export const Home: React.FC = () => {
                     distance: filterMode === 'campus' ? 'On Campus' : 'Global'
                 }));
 
-                const activeSwipedIds = swipedIdsRef.current;
-                const filteredProfiles = mappedProfiles.filter(p => !activeSwipedIds.has(p.id));
+                // Read swipedIdsRef INSIDE the filter callback so any swipes that occurred
+                // during the async network request are always excluded (Bug #4 fix)
+                const filteredProfiles = mappedProfiles.filter(p => !swipedIdsRef.current.has(p.id));
 
                 // Update state
                 setQueue(filteredProfiles);
@@ -652,6 +654,8 @@ export const Home: React.FC = () => {
         }
 
         setTimeout(() => {
+            // Bug #3 fix: Reset DOM state BEFORE setQueue so the card div never shows
+            // stale stamp/glow/transform when it re-renders for the next profile.
             dragXRef.current = 0;
             dragYRef.current = 0;
             
@@ -671,9 +675,14 @@ export const Home: React.FC = () => {
                 cardGlowRef.current.style.boxShadow = 'none';
             }
 
-            const optimisticQueue = queue.filter(p => p.id !== targetId);
-            setQueue(optimisticQueue);
-            deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(optimisticQueue));
+            // Bug #1 fix: Use functional setQueue form so we always filter the LATEST
+            // queue state, not the stale closure value captured when handleSwipe was called.
+            // This prevents background fetch setQueue() races from re-introducing swiped cards.
+            setQueue(prev => {
+                const next = prev.filter(p => p.id !== targetId);
+                deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(next));
+                return next;
+            });
 
             // Instant unblock for next swipe - zero delay!
             swipeInFlightRef.current = false;
