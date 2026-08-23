@@ -60,20 +60,27 @@ export async function ensureProfileExists(
 
 /**
  * Determines whether a profile has truly completed the onboarding process,
- * as opposed to just having the automated database trigger defaults.
+ * as opposed to just having the initial automated database trigger defaults.
  */
 export function isProfileComplete(profile: any): boolean {
   if (!profile) return false;
   const realName = (profile.real_name || profile.realName || '').trim();
   const dob = (profile.dob || '').trim();
   const university = (profile.university || '').trim();
-  const branch = (profile.branch || '').trim();
 
+  // Basic requirements for a completed profile: real name and birth date
   if (!realName || !dob) return false;
-  // Ignore trigger/placeholder defaults
-  if (realName === 'Campus Student' || realName === 'Campus User') return false;
-  if (!university || university === 'Global') return false;
-  if (!branch || branch === 'General') return false;
+
+  // Un-onboarded trigger accounts have ALL placeholder defaults:
+  // (real_name === 'Campus Student'/'Campus User', dob === '2000-01-01'/'2002-01-01', university === 'Global'/'')
+  const isDefaultName = realName === 'Campus Student' || realName === 'Campus User';
+  const isDefaultDob = dob === '2000-01-01' || dob === '2002-01-01';
+  const isDefaultUniv = !university || university === 'Global';
+
+  // Only reject if it matches the automated trigger placeholder state
+  if (isDefaultName && isDefaultDob && isDefaultUniv) {
+    return false;
+  }
 
   return true;
 }
