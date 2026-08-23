@@ -71,7 +71,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
     // If unauthenticated and accessing a protected view, send to login
     if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && !isPublicSEOPath && pathname !== '/onboarding') {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
@@ -82,9 +82,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       return;
     }
 
+    // If authenticated and visiting onboarding page when already completed onboarding, redirect to home
+    if (currentUser && !needsOnboarding && pathname === '/onboarding') {
+      router.replace('/home');
+      return;
+    }
+
     // If needs onboarding and attempting to access a protected route, redirect to onboarding
     if (currentUser && needsOnboarding && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
-      router.push('/onboarding');
+      router.replace('/onboarding');
     }
   }, [mounted, isLoading, currentUser, needsOnboarding, pathname, router]);
 

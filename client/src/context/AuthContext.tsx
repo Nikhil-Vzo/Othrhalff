@@ -92,7 +92,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   });
   const [showLogoutCountdown, setShowLogoutCountdown] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = authService.getCurrentUser();
+      if (cached) {
+        return !cached.username || !cached.realName;
+      }
+    }
+    return false;
+  });
 
   const initRef = useRef(false);
 
@@ -159,14 +167,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
             safeSetSessionStorage(JSON.stringify(appUser));
             
-            const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
+            const needsOnboard = !profile.username || !profile.real_name;
             setNeedsOnboarding(needsOnboard);
           } else {
-            // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
-            const newAppUser = mapProfileToAppUser({}, session.user);
-            setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
-            safeSetSessionStorage(JSON.stringify(newAppUser));
-            setNeedsOnboarding(true);
+            const cachedUser = authService.getCurrentUser();
+            if (cachedUser && cachedUser.username && cachedUser.realName) {
+              // Retain valid existing local session if network or DB lookup had a temporary hiccup
+              setCurrentUser(prev => prev || cachedUser);
+              setNeedsOnboarding(false);
+            } else {
+              // Profile does not exist yet in DB for brand new user -> create temporary session & flag for onboarding
+              const newAppUser = mapProfileToAppUser({}, session.user);
+              setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
+              safeSetSessionStorage(JSON.stringify(newAppUser));
+              setNeedsOnboarding(true);
+            }
           }
         } else if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
@@ -229,13 +244,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const appUser = mapProfileToAppUser(profile, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
               safeSetSessionStorage(JSON.stringify(appUser));
-              const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
+              const needsOnboard = !profile.username || !profile.real_name;
               setNeedsOnboarding(needsOnboard);
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
               safeSetSessionStorage(JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
+            } else {
+              setNeedsOnboarding(!localUser.username || !localUser.realName);
             }
           } else if (localUser && !isOAuthCallback) {
             console.warn('Session expired and refresh failed, showing logout countdown...');

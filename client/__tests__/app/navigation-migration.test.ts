@@ -412,8 +412,8 @@ describe('Onboarding.tsx migration (src/views/Onboarding.tsx)', () => {
     expect(source).toContain("from 'next/navigation'");
   });
 
-  it('uses navigate.push() to navigate to home after onboarding', () => {
-    expect(source).toContain("navigate.push('/home')");
+  it('uses navigate to navigate to home after onboarding', () => {
+    expect(source.includes("navigate.replace('/home')") || source.includes("navigate.push('/home')")).toBe(true);
   });
 });
 

@@ -461,7 +461,7 @@ const Footer: React.FC = () => (
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, needsOnboarding, isLoading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [textRevealed, setTextRevealed] = useState(false);
   const [pageLoaded, setPageLoaded] = useState(false);
@@ -475,7 +475,11 @@ export const Landing: React.FC = () => {
     window.location.search.includes('code=')
   );
 
-  useEffect(() => { if (!isLoading && isAuthenticated) navigate.push('/home'); }, [isAuthenticated, isLoading, navigate]);
+  useEffect(() => { 
+    if (!isLoading && isAuthenticated) {
+      navigate.replace(needsOnboarding ? '/onboarding' : '/home'); 
+    }
+  }, [isAuthenticated, needsOnboarding, isLoading, navigate]);
   useEffect(() => { const textTimer = window.setTimeout(() => setTextRevealed(true), 120); const loadTimer = window.setTimeout(() => setPageLoaded(true), 1050); return () => { window.clearTimeout(textTimer); window.clearTimeout(loadTimer); }; }, []);
   useEffect(() => { const html = document.documentElement.style.overflow; const body = document.body.style.overflow; document.documentElement.style.overflow = 'unset'; document.body.style.overflow = 'unset'; return () => { document.documentElement.style.overflow = html; document.body.style.overflow = body; }; }, []);
   useEffect(() => { const move = (event: MouseEvent) => setMousePos({ x: event.clientX / window.innerWidth - .5, y: event.clientY / window.innerHeight - .5 }); window.addEventListener('mousemove', move, { passive: true }); return () => window.removeEventListener('mousemove', move); }, []);

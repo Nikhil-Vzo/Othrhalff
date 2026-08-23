@@ -23,9 +23,16 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const YEARS = Array.from({ length: 30 }, (_, i) => (new Date().getFullYear() - 18 - i).toString());
 
 export const Onboarding: React.FC = () => {
-  const { login } = useAuth();
+  const { currentUser, needsOnboarding, login } = useAuth();
   const navigate = useNavigate();
   const searchParams = useSearchParams();
+
+  // If user is already authenticated and does not need onboarding, immediately redirect to /home
+  useEffect(() => {
+    if (currentUser && !needsOnboarding) {
+      navigate.replace('/home');
+    }
+  }, [currentUser, needsOnboarding, navigate]);
 
   // Loading & submission state
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
@@ -126,8 +133,8 @@ export const Onboarding: React.FC = () => {
               setBranchCategory(BRANCH_CATEGORIES.includes(existingProfile.branch) ? existingProfile.branch : 'Other');
             }
 
-            // If profile is 100% complete (has username, real_name, dob), go straight to home!
-            if (existingProfile.username && existingProfile.real_name && existingProfile.dob) {
+            // If profile is complete (has username & real_name), go straight to home!
+            if (existingProfile.username && existingProfile.real_name) {
               const appUser: UserProfile = {
                 id: existingProfile.id,
                 username: existingProfile.username,
@@ -148,12 +155,12 @@ export const Onboarding: React.FC = () => {
               };
 
               await login(appUser);
-              navigate.push('/home');
+              navigate.replace('/home');
               return;
             }
 
             // If user already filled personal details before but is ONLY missing a username
-            if (existingProfile.real_name && existingProfile.dob) {
+            if (existingProfile.real_name) {
               setIsExistingPartialUser(true);
             }
           } else {
@@ -377,7 +384,7 @@ export const Onboarding: React.FC = () => {
       setSuccess("Profile saved! Redirecting...");
 
       setTimeout(() => {
-        navigate.push('/home');
+        navigate.replace('/home');
       }, 500);
     } catch (err: any) {
       setError(err.message || "Failed to save profile. Please try again.");

@@ -26,7 +26,7 @@ export const Login: React.FC = () => {
   useEffect(() => {
     if (currentUser && !isAuthLoading) {
       const target = needsOnboarding ? '/onboarding' : '/home';
-      navigate.push(target);
+      navigate.replace(target);
     }
   }, [currentUser, needsOnboarding, isAuthLoading, navigate]);
 
@@ -121,23 +121,23 @@ export const Login: React.FC = () => {
         if (authData?.user?.id) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('username, real_name, dob')
+            .select('username, real_name')
             .eq('id', authData.user.id)
             .maybeSingle();
 
-          if (!profile || !profile.username || !profile.real_name || !profile.dob) {
+          if (!profile || !profile.username || !profile.real_name) {
             target = '/onboarding';
           }
         }
 
-        navigate.push(target);
+        navigate.replace(target);
       } else {
         const signUpData = await authService.signUp(finalEmail, password, '');
         analytics.login('Signup');
 
         if (signUpData.session) {
           setSuccess('Account created! Redirecting to setup...');
-          navigate.push('/onboarding');
+          navigate.replace('/onboarding');
         } else {
           setSuccess('Account created! Check your email to confirm your account, then log in.');
           setPassword('');
