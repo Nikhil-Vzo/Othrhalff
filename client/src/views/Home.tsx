@@ -1276,6 +1276,22 @@ export const Home: React.FC = () => {
                     </div>
                 )}
 
+                {/* Playground Hop Floating Button (Bottom Left above Navbar — clean transparent graphic) */}
+                <div className="fixed bottom-[70px] md:bottom-3.5 left-3.5 md:left-5 z-40 select-none pointer-events-auto">
+                    <button
+                        onClick={() => navigate.push('/playground')}
+                        className="group relative flex items-center justify-center p-0 bg-transparent border-0 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
+                        title="Enter Campus Playground"
+                        aria-label="Campus Playground"
+                    >
+                        <img 
+                            src="/assets/hop.webp" 
+                            alt="Campus Playground" 
+                            className="w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]"
+                        />
+                    </button>
+                </div>
+
                 {/* Music GIF Floating Button (Bottom Right above Navbar — clean transparent graphic) */}
                 <div className="fixed bottom-[70px] md:bottom-3.5 right-3.5 md:right-5 z-40 select-none pointer-events-auto">
                     <button
