@@ -158,7 +158,8 @@ export const Sparx: React.FC = () => {
       )
       .subscribe();
 
-    const interval = setInterval(fetchActiveRooms, 10000);
+    // Realtime handles updates; keep only a slow 60s safety poll for missed events
+    const interval = setInterval(fetchActiveRooms, 60000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
@@ -243,8 +244,13 @@ export const Sparx: React.FC = () => {
   const markAsViewed = (id: string) => {
     setViewedIds(prev => {
       if (prev.includes(id)) return prev;
-      const updated = [...prev, id];
-      localStorage.setItem('viewed_glimpse_ids', JSON.stringify(updated));
+      // SCALING FIX: cap the list — this array was rewritten to localStorage
+      // IN FULL on every glimpse view and grew forever.
+      const MAX_VIEWED_IDS = 500;
+      const updated = [...prev, id].slice(-MAX_VIEWED_IDS);
+      try {
+        localStorage.setItem('viewed_glimpse_ids', JSON.stringify(updated));
+      } catch (_) {}
       return updated;
     });
   };

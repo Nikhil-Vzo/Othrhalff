@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus } from '../services/pcoAdmin';
+import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus, getServerTimeMs } from '../services/pcoAdmin';
 import { usePcoRadioSync } from '../hooks/usePcoRadioSync';
 import { PcoRadioPlayer } from '../components/PcoRadioPlayer';
 import { PcoLyricsScroller } from '../components/PcoLyricsScroller';
@@ -80,6 +80,13 @@ export const CampusPcoRadio: React.FC = () => {
 
   const displayName = currentUser?.realName || currentUser?.anonymousId || 'Campus Listener';
 
+  // Stable ref so the realtime channel is NOT rebuilt when displayName changes
+  // (rebuilding causes presence flicker + missed messages mid-reconnect)
+  const displayNameRef = useRef(displayName);
+  useEffect(() => {
+    displayNameRef.current = displayName;
+  }, [displayName]);
+
   // Verify Admin Permissions
   useEffect(() => {
     let isMounted = true;
@@ -120,12 +127,24 @@ export const CampusPcoRadio: React.FC = () => {
   }, []);
 
   // Floating notifications dismiss timer
+  const notificationTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const addFloatingNotification = useCallback((user: string, text: string) => {
     const id = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     setFloatingChatMessages(prev => [...prev.slice(-2), { id, user, text }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      notificationTimersRef.current.delete(id);
       setFloatingChatMessages(prev => prev.filter(item => item.id !== id));
     }, 4500);
+    notificationTimersRef.current.set(id, timer);
+  }, []);
+
+  // Clean up any pending notification timers on unmount
+  useEffect(() => {
+    const timers = notificationTimersRef.current;
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
+    };
   }, []);
 
   // Trigger Pinned Banner
@@ -177,6 +196,12 @@ export const CampusPcoRadio: React.FC = () => {
   useEffect(() => {
     if (!supabase) return;
 
+    // Clean up any stale or existing channel with the same topic before subscribing
+    const existing = supabase.getChannels().find((c: any) => c.topic === 'realtime:campus_pco_live_chat' || c.topic === 'campus_pco_live_chat');
+    if (existing) {
+      supabase.removeChannel(existing);
+    }
+
     const channel = supabase.channel('campus_pco_live_chat', {
       config: { presence: { key: presenceKey } }
     });
@@ -205,7 +230,9 @@ export const CampusPcoRadio: React.FC = () => {
       })
       .on('broadcast', { event: 'PCO_PLAY_IMMEDIATELY' }, ({ payload }) => {
         if (payload?.track) {
-          handlersRef.current.playTrackImmediately(payload.track);
+          // Pass the DJ's authoritative start time so the listener starts AT
+          // the DJ's position (minus a tiny lead), not at their receive time.
+          handlersRef.current.playTrackImmediately(payload.track, payload.startedAtMs);
           handlersRef.current.triggerPinnedBanner(`🔥 Now Playing: "${payload.track.song}"`);
         }
       })
@@ -240,10 +267,12 @@ export const CampusPcoRadio: React.FC = () => {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user: displayName,
-            online_at: new Date().toISOString()
-          });
+          try {
+            await channel.track({
+              user: displayNameRef.current,
+              online_at: new Date().toISOString()
+            });
+          } catch (_) {}
         }
       });
 
@@ -251,7 +280,7 @@ export const CampusPcoRadio: React.FC = () => {
       supabase.removeChannel(channel);
       liveChannelRef.current = null;
     };
-  }, [presenceKey, displayName]);
+  }, [presenceKey]);
 
   // 7. Chat Send with Anti-Spam Rate Limit
   const handleSendMessage = (e: React.FormEvent) => {
@@ -321,6 +350,7 @@ export const CampusPcoRadio: React.FC = () => {
   }, [messages, mobilePcoTab]);
 
   // 8. Search & Song Request Submission (Local curated fast-match + live API fallback)
+  const searchAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults(curatedRomanticTracks.slice(0, 10));
@@ -335,11 +365,17 @@ export const CampusPcoRadio: React.FC = () => {
       setSearchResults(localFiltered);
     }
 
-    // Debounced online search
+    // Debounced online search with abort + stale-guard so a slow earlier
+    // request can never overwrite results from a newer query
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(searchQuery)}`);
+        const res = await fetch(`https://saavnapi-nine.vercel.app/result/?query=${encodeURIComponent(searchQuery)}`, {
+          signal: controller.signal
+        });
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (Array.isArray(data) && data.length > 0) {
           const apiTracks: PcoTrack[] = data
             .slice(0, 10)
@@ -353,16 +389,22 @@ export const CampusPcoRadio: React.FC = () => {
             }))
             .filter((x: PcoTrack) => x.media_url);
 
-          if (apiTracks.length > 0) {
+          if (apiTracks.length > 0 && !controller.signal.aborted) {
             setSearchResults(apiTracks);
           }
         }
-      } catch (err) {
-        console.warn('[PCO Request] Search API fallback error:', err);
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('[PCO Request] Search API fallback error:', err);
+        }
       }
     }, 400);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      searchAbortRef.current = null;
+    };
   }, [searchQuery]);
 
   const handleRequestSong = async (track: PcoTrack) => {
@@ -386,8 +428,11 @@ export const CampusPcoRadio: React.FC = () => {
         text: `Requested "${track.song}"! Sent to Admin DJ console.`
       });
       // Broadcast song request notice
-      if (supabase) {
-        supabase.channel('campus_pco_live_chat').send({
+      // SCALING FIX: route admin notifications to the dedicated admin channel.
+      // Broadcasting 'PCO_REQUEST_NOTIFICATION' to all N listeners wasted an
+      // O(N) fan-out per request when only the DJ console consumes it.
+      if (supabase && liveChannelRef.current) {
+        liveChannelRef.current.send({
           type: 'broadcast',
           event: 'PCO_REQUEST_NOTIFICATION',
           payload: {
@@ -452,14 +497,18 @@ export const CampusPcoRadio: React.FC = () => {
       {isAdmin && (
         <PcoAdminQuickPanel
           queue={queue}
-          onPlayNow={(t, id) => {
-            playTrackImmediately(t);
+          onPlayNow={async (t, id) => {
+            // ZERO-DELAY BROADCAST: capture the DJ's authoritative start time
+            // (server clock, not the listener's local receive time) and send
+            // it in the payload so every device starts at the same instant.
+            const startAtMs = await getServerTimeMs();
+            playTrackImmediately(t, startAtMs);
             triggerPinnedBanner(`🔥 Now Playing: "${t.song}"`);
             if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
             liveChannelRef.current?.send({
               type: 'broadcast',
               event: 'PCO_PLAY_IMMEDIATELY',
-              payload: { track: t, senderId: currentUser?.id }
+              payload: { track: t, startedAtMs: startAtMs, senderId: currentUser?.id }
             });
           }}
           onPlayNext={(t, id) => {

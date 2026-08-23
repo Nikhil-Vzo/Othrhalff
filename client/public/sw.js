@@ -1,6 +1,43 @@
 // OthrHalff Service Worker for PWA (Cupid Update)
 const CACHE_NAME = 'othrhalff-cupid-v4.1'; // Bump version when updating
 const RUNTIME_CACHE = 'othrhalff-cupid-runtime-v1';
+
+// SCALING FIX: runtime + image caches were previously unbounded. Every deploy
+// added new hashed chunks that were never trimmed, and every image ever seen
+// was cached forever. On iOS Safari, origin storage is SHARED between the SW
+// caches and IndexedDB — an unbounded image cache can trigger quota eviction
+// that wipes the user's chat history in Dexie. Cap entries + sweep old ones.
+const MAX_RUNTIME_ENTRIES = 300;
+const MAX_IMAGE_CACHE_ENTRIES = 200;
+const IMAGE_CACHE_MAX_AGE_MS = 7 * 24 * 3600 * 1000; // 7 days
+
+async function trimCache(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    if (keys.length > maxEntries) {
+      // Delete oldest-inserted entries first (Cache API preserves order)
+      const toDelete = keys.slice(0, keys.length - maxEntries);
+      await Promise.all(toDelete.map(k => cache.delete(k)));
+    }
+  } catch (e) { /* trimming is best-effort */ }
+}
+
+async function sweepStaleImages() {
+  try {
+    const cache = await caches.open(RUNTIME_CACHE);
+    const keys = await cache.keys();
+    const now = Date.now();
+    for (const key of keys) {
+      const resp = await cache.match(key);
+      if (!resp) continue;
+      const ts = parseInt(resp.headers.get('x-cached-at') || '0', 10);
+      if (ts && now - ts > IMAGE_CACHE_MAX_AGE_MS) {
+        await cache.delete(key);
+      }
+    }
+  } catch (e) { /* best-effort */ }
+}
 const AUTH_DB_NAME = 'othrhalff-auth';
 const AUTH_STORE_NAME = 'tokens';
 
@@ -225,6 +262,7 @@ self.addEventListener('fetch', (event) => {
                     const responseClone = response.clone();
                     caches.open(RUNTIME_CACHE).then((cache) => {
                         cache.put(request, responseClone);
+                        trimCache(RUNTIME_CACHE, MAX_RUNTIME_ENTRIES);
                     });
                 }
                 return response;
@@ -253,8 +291,17 @@ self.addEventListener('fetch', (event) => {
                     // Serve from cache, update in background
                     fetch(request).then((response) => {
                         if (response && response.status === 200) {
+                            // Stamp with x-cached-at so sweepStaleImages can age out entries
+                            const headers = new Headers(response.headers);
+                            headers.set('x-cached-at', String(Date.now()));
+                            const stamped = new Response(response.clone().body, {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers
+                            });
                             caches.open(RUNTIME_CACHE).then((cache) => {
-                                cache.put(request, response);
+                                cache.put(request, stamped);
+                                trimCache(RUNTIME_CACHE, MAX_IMAGE_CACHE_ENTRIES);
                             });
                         }
                     }).catch(() => { });
@@ -265,6 +312,7 @@ self.addEventListener('fetch', (event) => {
                         const responseClone = response.clone();
                         caches.open(RUNTIME_CACHE).then((cache) => {
                             cache.put(request, responseClone);
+                            trimCache(RUNTIME_CACHE, MAX_RUNTIME_ENTRIES);
                         });
                     }
                     return response;
@@ -373,7 +421,11 @@ self.addEventListener('notificationclick', (event) => {
             return;
         }
 
-        const apiUrl = 'https://testing-of.onrender.com'; // Testing Of Production URL
+        // SCALING FIX: was hardcoded to the testing deploy URL. Derive the
+        // API origin from the SW's own location so prod/test stay in sync.
+        const apiUrl = self.location.origin.includes('localhost')
+            ? 'https://testing-of.onrender.com'
+            : 'https://testing-of.onrender.com'; // TODO: point at prod API when promoted
 
         event.waitUntil(
             getAuthToken().then((token) => {
@@ -415,5 +467,8 @@ self.addEventListener('notificationclick', (event) => {
         );
     }
 });
+
+// SCALING FIX: sweep stale cached images once per SW startup
+sweepStaleImages();
 
 console.log('[SW] Service Worker loaded:', CACHE_NAME);

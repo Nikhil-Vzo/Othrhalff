@@ -10,15 +10,18 @@ let vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 let vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
 if (!vapidPublicKey || !vapidPrivateKey) {
+  // SCALING FIX: keys generated per-boot invalidate every previously stored
+  // push subscription on each restart/deploy. Log loudly so ops sets the
+  // persistent VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY env vars in Render.
   const generatedKeys = webpush.generateVAPIDKeys();
   vapidPublicKey = generatedKeys.publicKey;
   vapidPrivateKey = generatedKeys.privateKey;
-  console.log('[Web Push] VAPID keys generated automatically for server session.');
+  console.warn('[Web Push] WARNING: VAPID keys generated per-session. All push subscriptions will be INVALID after restart. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in the environment for persistent subscriptions.');
 }
 
 try {
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:support@othrhalff.in',
+    process.env.VAPID_SUBJECT || 'mailto:othrhalff@gmail.com',
     vapidPublicKey,
     vapidPrivateKey
   );
@@ -60,6 +63,11 @@ router.post('/push/subscribe', verifySupabaseToken, async (req, res) => {
 });
 
 // 3. Send Web Push Notification to a target user
+// SECURITY FIX: previously ANY authenticated user could send arbitrary
+// title/body/url pushes to ANY user (phishing primitive). Now the sender must
+// be the target themself (self-reminder flows) or present the admin secret.
+// Server-generated notifications (matches/messages) are delivered by trusted
+// server code, never through this client-facing endpoint.
 router.post('/push/send', verifySupabaseToken, async (req, res) => {
   try {
     const { targetUserId, title, body, icon, url, metadata } = req.body;
@@ -67,6 +75,21 @@ router.post('/push/send', verifySupabaseToken, async (req, res) => {
     if (!targetUserId || !title) {
       return res.status(400).json({ error: 'Missing targetUserId or title' });
     }
+
+    const adminSecret = req.headers['x-admin-secret'];
+    const isAdminCaller = !!(
+      process.env.ADMIN_SECRET_KEY &&
+      adminSecret &&
+      adminSecret === process.env.ADMIN_SECRET_KEY
+    );
+
+    if (!isAdminCaller && req.userId !== targetUserId) {
+      return res.status(403).json({ error: 'Forbidden: You may only send push notifications to yourself' });
+    }
+
+    // Never allow client-supplied redirect URLs — pin to the official origin.
+    const SAFE_URL = 'https://www.othrhalff.in';
+    const safeUrl = typeof url === 'string' && url.startsWith(SAFE_URL) ? url : SAFE_URL;
 
     // Retrieve subscription from Redis or memory
     const key = `push_sub:${targetUserId}`;
@@ -85,8 +108,9 @@ router.post('/push/send', verifySupabaseToken, async (req, res) => {
       body: body || 'You have a new notification!',
       icon: icon || '/favicon.png',
       metadata: {
-        url: url || 'https://www.othrhalff.in',
-        ...metadata
+        ...metadata,
+        // FIX: pin AFTER the spread so metadata can never override the URL
+        url: safeUrl
       }
     });
 
@@ -120,13 +144,24 @@ router.post('/push/broadcast', verifySupabaseToken, async (req, res) => {
     // Collect subscriptions from Redis if connected
     if (redis && isConnected) {
       try {
-        const keys = await redis.keys('push_sub:*');
-        for (const key of keys) {
-          const raw = await redis.get(key);
-          if (raw) {
-            try { subscriptions.push(JSON.parse(raw)); } catch (e) {}
+        // SCALING FIX 1: redis.keys() is O(N) and blocks the single-threaded
+        // Redis instance — use SCAN.
+        // SCALING FIX 2: GETs are pipelined per SCAN page (was sequential:
+        // one RTT per subscriber = tens of seconds at 10k subscribers).
+        let cursor = '0';
+        do {
+          const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'push_sub:*', 'COUNT', 200);
+          cursor = nextCursor;
+          if (keys.length > 0) {
+            const pipeline = redis.pipeline(keys.map(k => ['get', k]));
+            const results = await pipeline.exec();
+            for (const [err, raw] of results) {
+              if (!err && raw) {
+                try { subscriptions.push(JSON.parse(raw)); } catch (e) {}
+              }
+            }
           }
-        }
+        } while (cursor !== '0');
       } catch (e) {
         console.warn('[Broadcast] Error reading Redis push keys:', e);
       }
@@ -148,18 +183,28 @@ router.post('/push/broadcast', verifySupabaseToken, async (req, res) => {
       body: body,
       icon: icon || '/favicon.png',
       metadata: {
-        url: url || 'https://www.othrhalff.in',
-        ...metadata
+        ...metadata,
+        url: url || 'https://www.othrhalff.in'
       }
     });
 
-    // Send push notification to ALL subscribers in parallel
-    const results = await Promise.allSettled(
-      subscriptions.map(sub => webpush.sendNotification(sub, payload))
-    );
-
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    // SCALING FIX 3: capped-concurrency fan-out. Promise.allSettled over ALL
+    // subscribers at 10k scale = 10k simultaneous encrypt+send operations →
+    // memory spike + event-loop saturation beyond free-tier headroom.
+    // A pool of 50 keeps memory flat while finishing quickly.
+    const CONCURRENCY = 50;
+    let successful = 0;
+    let failed = 0;
+    for (let i = 0; i < subscriptions.length; i += CONCURRENCY) {
+      const batch = subscriptions.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(sub => webpush.sendNotification(sub, payload))
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successful++;
+        else failed++;
+      }
+    }
 
     res.json({
       success: true,

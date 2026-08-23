@@ -107,11 +107,47 @@ export const Playground: React.FC = () => {
   // Ref map of remote player coordinates for spatial audio calculation
   const remotePosMap = useRef(new Map<string, { x: number; y: number }>());
 
+  // SCALING FIX (rAF batching): previously every incoming 'move' broadcast
+  // called setRemotePlayers -> full React re-render PER MESSAGE. At 30 moving
+  // players x 10 Hz = 300 re-renders/sec = dropped frames on phones.
+  // Now: writes go to a ref; ONE flush per animation frame merges into state.
+  const remotePlayersRef = useRef<Map<string, Player>>(new Map());
+  const remotePlayersDirtyRef = useRef(false);
+
   useEffect(() => {
-    remotePlayers.forEach((player, id) => {
-      remotePosMap.current.set(id, { x: player.x, y: player.y });
-    });
-  }, [remotePlayers]);
+    let rafId: number;
+    const flush = () => {
+      if (remotePlayersDirtyRef.current) {
+        remotePlayersDirtyRef.current = false;
+        setRemotePlayers(new Map(remotePlayersRef.current));
+        // Keep the spatial-audio position map in sync here too
+        remotePosMap.current.clear();
+        remotePlayersRef.current.forEach((player, id) => {
+          remotePosMap.current.set(id, { x: player.x, y: player.y });
+        });
+      }
+      rafId = requestAnimationFrame(flush);
+    };
+    rafId = requestAnimationFrame(flush);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  // SCALING FIX (stale sweep): players who disconnect without a clean
+  // 'player_leave' (killed tab) previously lingered forever.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      remotePlayersRef.current.forEach((p, id) => {
+        if (p.lastSeen && now - p.lastSeen > 15000) {
+          remotePlayersRef.current.delete(id);
+          changed = true;
+        }
+      });
+      if (changed) remotePlayersDirtyRef.current = true;
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Hook dynamically attenuates volume based on distance in the 2D world
   useSpatialAudio(myPos, remotePosMap.current, tracks, 500);
@@ -176,26 +212,10 @@ export const Playground: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentUser?.id]);
 
-  // Periodic cleanup for stale remote players (sweeps disconnected players every 2s)
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      setRemotePlayers(prev => {
-        if (prev.size === 0) return prev;
-        const now = Date.now();
-        let changed = false;
-        const updated = new Map(prev);
-        updated.forEach((player, id) => {
-          if (player.lastSeen && now - player.lastSeen > 6000) {
-            updated.delete(id);
-            changed = true;
-          }
-        });
-        return changed ? updated : prev;
-      });
-    }, 2000);
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
+  // NOTE: the old state-only stale sweep was REMOVED. It deleted from React
+  // state only, so the ref-based rAF flush resurrected ghosts and
+  // remotePosMap kept wrong spatial-audio positions. The single ref-based
+  // sweep (15s TTL, defined above) is now the source of truth.
 
   // 1. Supabase Broadcast Setup for Real-time Multiplayer
   useEffect(() => {
@@ -212,48 +232,43 @@ export const Playground: React.FC = () => {
         return;
       }
 
-      setRemotePlayers(prev => {
-        const newMap = new Map(prev);
-
-        // Remove any existing stale session from the same user
-        if (payload.userId) {
-          newMap.forEach((p, existingId) => {
-            if (p.userId === payload.userId && existingId !== payload.id) {
-              newMap.delete(existingId);
-            }
-          });
-        }
-
-        newMap.set(payload.id, {
-          id: payload.id,
-          userId: payload.userId,
-          x: payload.x,
-          y: payload.y,
-          direction: payload.direction || 'down',
-          isMoving: payload.isMoving || false,
-          color: payload.color || '#3b82f6',
-          sittingOn: payload.sittingOn || null,
-          avatarId: payload.avatarId || 'default',
-          lastSeen: Date.now()
-        });
-        return newMap;
+      // SCALING FIX: write into ref + mark dirty (single rAF flush renders).
+      const existing = remotePlayersRef.current.get(payload.id);
+      if (existing) existing.lastSeen = Date.now();
+      remotePlayersRef.current.set(payload.id, {
+        id: payload.id,
+        userId: payload.userId,
+        x: payload.x,
+        y: payload.y,
+        direction: payload.direction || 'down',
+        isMoving: payload.isMoving || false,
+        color: payload.color || '#3b82f6',
+        sittingOn: payload.sittingOn || null,
+        avatarId: payload.avatarId || 'default',
+        lastSeen: Date.now()
       });
+      // Remove any stale session from the same user
+      if (payload.userId) {
+        remotePlayersRef.current.forEach((p, existingId) => {
+          if (p.userId === payload.userId && existingId !== payload.id) {
+            remotePlayersRef.current.delete(existingId);
+          }
+        });
+      }
+      remotePlayersDirtyRef.current = true;
     });
 
     // Handle Explicit Player Leave Broadcast
     channel.on('broadcast', { event: 'player_leave' }, ({ payload }) => {
-      setRemotePlayers(prev => {
-        const newMap = new Map(prev);
-        if (payload?.id) newMap.delete(payload.id);
-        if (payload?.userId) {
-          newMap.forEach((p, existingId) => {
-            if (p.userId === payload.userId) {
-              newMap.delete(existingId);
-            }
-          });
-        }
-        return newMap;
-      });
+      if (payload?.id) remotePlayersRef.current.delete(payload.id);
+      if (payload?.userId) {
+        remotePlayersRef.current.forEach((p, existingId) => {
+          if (p.userId === payload.userId) {
+            remotePlayersRef.current.delete(existingId);
+          }
+        });
+      }
+      remotePlayersDirtyRef.current = true;
     });
 
     channel.on('presence', { event: 'sync' }, () => {
@@ -273,23 +288,20 @@ export const Playground: React.FC = () => {
 
     channel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
       if (!isSubscribed) return;
-      setRemotePlayers(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(key);
-        if (leftPresences && Array.isArray(leftPresences)) {
-          leftPresences.forEach((presence: any) => {
-            if (presence?.id) newMap.delete(presence.id);
-            if (presence?.user_id) {
-              newMap.forEach((p, existingId) => {
-                if (p.userId === presence.user_id) {
-                  newMap.delete(existingId);
-                }
-              });
-            }
-          });
-        }
-        return newMap;
-      });
+      remotePlayersRef.current.delete(key);
+      if (leftPresences && Array.isArray(leftPresences)) {
+        leftPresences.forEach((presence: any) => {
+          if (presence?.id) remotePlayersRef.current.delete(presence.id);
+          if (presence?.user_id) {
+            remotePlayersRef.current.forEach((p, existingId) => {
+              if (p.userId === presence.user_id) {
+                remotePlayersRef.current.delete(existingId);
+              }
+            });
+          }
+        });
+      }
+      remotePlayersDirtyRef.current = true;
     });
 
     // Subscribe

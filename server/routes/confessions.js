@@ -6,6 +6,20 @@ import { cacheDelete, cacheGet, cacheSet, cacheSetOnce } from '../lib/redis.js';
 
 const router = express.Router();
 
+// SCALING FIX: lazy module-level singleton (was createClient per request)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!supabaseAdmin) {
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase admin credentials missing on server');
+    }
+    supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+  }
+  return supabaseAdmin;
+}
+
 /**
  * Guest proxy profile ID (representing a placeholder "Guest" user profile)
  * This static UUID is used to satisfy the database foreign key constraint
@@ -102,7 +116,7 @@ router.post('/post-guest-confession', async (req, res) => {
       try {
         const parsed = new URL(String(rawMedia));
         if (
-          parsed.hostname.endsWith('supabase.co') &&
+          parsed.hostname.endsWith('.supabase.co') &&
           parsed.pathname.includes('/storage/v1/object/public/confession-media/')
         ) {
           validatedMediaUrl = parsed.toString();
@@ -115,14 +129,7 @@ router.post('/post-guest-confession', async (req, res) => {
       }
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase credentials missing in server env (Check SUPABASE_SERVICE_ROLE_KEY)');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdmin();
 
     // 3. Explicitly construct Database record (immune to object injection)
     const dbPayload = {
@@ -208,14 +215,7 @@ router.post('/sign-media-upload', async (req, res) => {
       return res.status(400).json({ error: `Unsupported file extension .${ext}` });
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase admin credentials missing on server');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdmin();
     const folder = ['mp4', 'webm', 'mov'].includes(ext) ? 'videos' : 'images';
     const filePath = `${folder}/${Date.now()}_${crypto.randomBytes(8).toString('hex')}.${ext}`;
 

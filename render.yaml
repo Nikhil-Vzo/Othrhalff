@@ -5,6 +5,7 @@ services:
     rootDirectory: server      # <--- CRITICAL: Tells Render to look in the server folder
     buildCommand: npm install  # <--- CRITICAL: Installs dependencies instead of failing on "build"
     startCommand: node index.js
+    healthCheckPath: /api/health   # SCALING FIX: zero-downtime deploys verify readiness
     envVars:
       - key: NODE_ENV
         value: production
@@ -17,9 +18,32 @@ services:
           type: redis
           name: other-half-redis
           property: connectionString
+      # SCALING FIX: these were previously undeclared, so a fresh blueprint
+      # deploy booted a broken server (500s on every Supabase-backed route,
+      # per-restart VAPID keys killing all push subscriptions). Declared as
+      # sync:false so they MUST be set in the Render dashboard.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false   # optional but strongly recommended (fast-path auth)
+      - key: ADMIN_SECRET_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false   # REQUIRED for persistent web-push subscriptions
+      - key: VAPID_PRIVATE_KEY
+        sync: false   # REQUIRED for persistent web-push subscriptions
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
 
   - type: redis
     name: other-half-redis
     ipAllowList: [] # internal networking only
+    # SCALING NOTE: free tier evicts/restarts and matchmaking queue state is
+    # lost mid-session. Upgrade to 'starter' when scaling up.
     plan: free
-

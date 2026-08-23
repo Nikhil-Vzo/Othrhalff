@@ -18,3 +18,5 @@ db_backup/
 .superpowers/
 
 PUSH_NOTIFICATIONS_MANUAL.txt
+posters/
+*.tsbuildinfo

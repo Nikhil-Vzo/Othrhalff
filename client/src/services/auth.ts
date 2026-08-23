@@ -51,8 +51,18 @@ export const authService = {
   },
 
   getCurrentUser: (): UserProfile | null => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!stored) return null;
+      return JSON.parse(stored);
+    } catch (err) {
+      // CORRUPTION GUARD: a truncated/tampered value previously threw inside
+      // the AuthProvider useState initializer, white-screening the whole app
+      // until the user manually cleared storage. Purge and degrade instead.
+      console.warn('[Auth] Corrupted session in localStorage — clearing it:', err);
+      try { localStorage.removeItem(LOCAL_STORAGE_KEY); } catch (_) {}
+      return null;
+    }
   },
 
   logout: async () => {

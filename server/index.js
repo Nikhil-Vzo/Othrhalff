@@ -24,6 +24,11 @@ dotenv.config({ path: path.resolve(__dirname, './.env') });
 const app = express();
 const port = parseInt(process.env.PORT || '5000', 10);
 
+// SCALING: Render terminates TLS at a reverse proxy. Trust the first proxy hop
+// so req.ip is the REAL client IP — without this, every request shares one
+// rate-limit bucket (platform-wide 429s) and per-IP abuse controls are useless.
+app.set('trust proxy', 1);
+
 // CORS Configuration - Allow both production and development origins
 const corsOptions = {
   origin: [
@@ -41,6 +46,17 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Process-level guards: an unhandled rejection must log loudly, not silently
+// kill the single-process server between health checks.
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+  // Let Render restart the service on a truly broken state.
+  process.exit(1);
+});
 
 // Global API Rate Limiting (Redis powered with in-memory fallback)
 app.use('/api', rateLimiter({ limit: 60, windowSeconds: 60 }));

@@ -19,6 +19,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// STORAGE GUARD: localStorage.setItem throws in Safari private mode / when
+// quota is full. Previously that exception aborted the auth-state handler
+// mid-flight (user state set but needsOnboarding never updated). Degrade
+// gracefully instead — the session cache is a performance hint, not source of truth.
+const safeSetSessionStorage = (serialized: string) => {
+  try {
+    localStorage.setItem('otherhalf_session', serialized);
+  } catch (err) {
+    console.warn('[AuthContext] Unable to persist session to localStorage:', err);
+  }
+};
+
 const mapProfileToAppUser = (profile: any, sessionUser?: any): UserProfile => ({
   id: profile?.id || sessionUser?.id || '',
   username: profile?.username || undefined,
@@ -145,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profile && !error) {
             const appUser = mapProfileToAppUser(profile, session.user);
             setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
-            localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
+            safeSetSessionStorage(JSON.stringify(appUser));
             
             const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
             setNeedsOnboarding(needsOnboard);
@@ -153,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
             const newAppUser = mapProfileToAppUser({}, session.user);
             setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
-            localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
+            safeSetSessionStorage(JSON.stringify(newAppUser));
             setNeedsOnboarding(true);
           }
         } else if (event === 'SIGNED_OUT') {
@@ -216,13 +228,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (profile && !error) {
               const appUser = mapProfileToAppUser(profile, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
-              localStorage.setItem('otherhalf_session', JSON.stringify(appUser));
+              safeSetSessionStorage(JSON.stringify(appUser));
               const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
               setNeedsOnboarding(needsOnboard);
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, newAppUser) ? prev : newAppUser);
-              localStorage.setItem('otherhalf_session', JSON.stringify(newAppUser));
+              safeSetSessionStorage(JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
             }
           } else if (localUser && !isOAuthCallback) {

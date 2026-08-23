@@ -221,6 +221,8 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     }
 
     let lastBroadcastTime = 0;
+    const lastBroadcastPos = { x: 0, y: 0 };
+    let prevMoving = false;
 
     const updateLoop = (timestamp: number) => {
       let dx = 0;
@@ -265,6 +267,13 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         setLocalIsMoving(isCurrentlyMoving);
       }
 
+      // FIX (dead code): movementStateChanged must be captured BEFORE
+      // movingRef is mutated above, otherwise it is always false and stop
+      // transitions are never broadcast. Also: a state change broadcasts
+      // regardless of the dead-zone so peers see start/stop immediately.
+      const movementStateChanged = prevMoving !== isCurrentlyMoving;
+      prevMoving = isCurrentlyMoving;
+
       if (isCurrentlyMoving) {
         let proposedX = posRef.current.x + dx;
         let proposedY = posRef.current.y + dy;
@@ -298,10 +307,19 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         localAvatarRef.current.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
       }
 
-      const movementStateChanged = movingRef.current !== isCurrentlyMoving;
-      if (movementStateChanged || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 100))) {
+      // SCALING FIX: 100ms -> 200ms (5 Hz) + dead-zone: skip broadcasts when
+      // the player moved < 2px since the last send. Cuts channel traffic
+      // ~4x (channel-wide fan-out is O(N^2), so this matters quadratically).
+      // movementStateChanged broadcasts bypass the dead-zone so peers see
+      // start/stop instantly even when collision pins the player in place.
+      const bdx = posRef.current.x - lastBroadcastPos.x;
+      const bdy = posRef.current.y - lastBroadcastPos.y;
+      const movedEnough = Math.abs(bdx) > 1 || Math.abs(bdy) > 1;
+      if ((movementStateChanged && !isCurrentlyMoving) || (isCurrentlyMoving && (timestamp - lastBroadcastTime > 200) && movedEnough)) {
         onPositionChange(posRef.current.x, posRef.current.y, dirRef.current, isCurrentlyMoving);
         lastBroadcastTime = timestamp;
+        lastBroadcastPos.x = posRef.current.x;
+        lastBroadcastPos.y = posRef.current.y;
       }
 
       animationFrameId = requestAnimationFrame(updateLoop);
