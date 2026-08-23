@@ -401,7 +401,9 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
           user_id: userId,
           image_path: filePath,
           caption: caption.trim() || null,
-          university: currentUser.university || 'Global',
+          // Tag with real university only — a 'Global' fallback would poison
+          // campus-feed matching for this glimpse forever.
+          university: currentUser.university || null,
           is_anonymous: isAnonymous,
         });
 
