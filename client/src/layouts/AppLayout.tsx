@@ -203,7 +203,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     ${active
                       ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.15)]'
                       : isSpecialGlowing
-                        ? 'bg-[#110f17]/95 border-white/15 hover:border-white/35 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)] text-white hover:text-white'
+                        ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] border-pink-400/40 hover:border-pink-300 shadow-[0_0_18px_rgba(255,0,127,0.35)] hover:shadow-[0_0_28px_rgba(217,70,239,0.55)] text-white hover:text-white active:scale-98'
                         : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
                     }`}
                 >
@@ -212,13 +212,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
                   )}
 
-                  {/* Internal Radiant Corner Bloom (Warm Amber & Rose Light Bloom on Bottom-Right as shown in reference) */}
+                  {/* Shimmer Sheen Layer on Hover for Gradient Buttons */}
                   {isSpecialGlowing && !active && (
-                    <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.3)_40%,_rgba(147,51,234,0.16)_65%,_transparent_80%)] animate-bloom-drift" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                   )}
 
-                  {/* Hover Gradient Background */}
-                  <div className={`absolute inset-0 bg-gradient-to-r from-neon/10 to-transparent opacity-0 transition-opacity duration-300 ${active ? 'opacity-100' : 'group-hover:opacity-30'}`} />
+                  {/* Hover Gradient Background for standard buttons */}
+                  {!isSpecialGlowing && (
+                    <div className={`absolute inset-0 bg-gradient-to-r from-neon/10 to-transparent opacity-0 transition-opacity duration-300 ${active ? 'opacity-100' : 'group-hover:opacity-30'}`} />
+                  )}
 
                   {/* Left content: Icon + Label */}
                   <div className="relative z-10 flex items-center gap-3.5 min-w-0">
@@ -227,17 +229,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                         active
                           ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]'
                           : isSpecialGlowing
-                            ? 'text-white/90 group-hover:scale-110 group-hover:text-white'
+                            ? 'text-white drop-shadow-sm group-hover:scale-110'
                             : 'group-hover:scale-110 group-hover:text-gray-300'
                       }`}
-                      strokeWidth={active ? 2.5 : 2}
+                      strokeWidth={isSpecialGlowing ? 2.5 : active ? 2.5 : 2}
                     />
 
-                    <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap truncate transition-all duration-300 ${
+                    <span className={`text-sm font-black tracking-wide relative z-10 whitespace-nowrap truncate transition-all duration-300 ${
                       active
                         ? 'text-white'
                         : isSpecialGlowing
-                          ? 'text-white group-hover:text-amber-100'
+                          ? 'text-white drop-shadow-sm'
                           : 'text-gray-400 group-hover:text-white'
                     }`}>
                       {item.label}
@@ -246,7 +248,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
                   {/* Right Content: Arrow (for isSpecialGlowing) or Badges / Live Pulse */}
                   {isSpecialGlowing && !active ? (
-                    <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto" />
+                    <ArrowRight className="relative z-10 w-4 h-4 text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto drop-shadow-sm" />
                   ) : item.badge ? (
                     <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[60px] opacity-100">
                       <span className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.4)]">
