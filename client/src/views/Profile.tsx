@@ -10,7 +10,7 @@ import {
     LogOut, ChevronDown, Settings, Lock, ShieldBan,
     MessageCircle, Mail, Phone, Loader2, Heart, Search,
     Download, Smartphone, ExternalLink, Code, Scale, FileText,
-    Shield, Info, Briefcase, Users, Rocket, Sparkles, Fingerprint
+    Shield, Info, Briefcase, Users, Rocket, Sparkles
 } from 'lucide-react';
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS, MOCK_INTERESTS } from '../constants';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
@@ -46,13 +46,25 @@ export const Profile: React.FC = () => {
     const [showLegal, setShowLegal] = useState(false);
     const [showAccount, setShowAccount] = useState(false);
     const [showBehindScenes, setShowBehindScenes] = useState(false);
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(() => typeof window !== 'undefined' ? (window as any).__pwaInstallPrompt : null);
+
+    // PWA Install state
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isPWAInstallable, setIsPWAInstallable] = useState(false);
+
+    useEffect(() => {
+        const storedPrompt = (window as any).__pwaInstallPrompt;
+        if (storedPrompt) {
+            setDeferredPrompt(storedPrompt);
+            setIsPWAInstallable(true);
+        }
+    }, []);
 
     // Also listen in case it fires after mount (unlikely but safe)
     useEffect(() => {
         const handler = (e: any) => {
             e.preventDefault();
             setDeferredPrompt(e);
+            setIsPWAInstallable(true);
             (window as any).__pwaInstallPrompt = e;
         };
         window.addEventListener('beforeinstallprompt', handler);
@@ -65,75 +77,6 @@ export const Profile: React.FC = () => {
             navigate.push('/');
         }
     }, [currentUser?.id, isLoading, navigate]);
-
-    // Credentials Manager states
-    const [showCredentialsModal, setShowCredentialsModal] = useState(false);
-    const [isPasswordChangeOnly, setIsPasswordChangeOnly] = useState(false);
-    const [credForm, setCredForm] = useState({ username: '', password: '' });
-    const [credStatus, setCredStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
-    const [credSuggestions, setCredSuggestions] = useState<string[]>([]);
-    const [credError, setCredError] = useState<string | null>(null);
-    const [credSaving, setCredSaving] = useState(false);
-
-    useEffect(() => {
-        const username = credForm.username || '';
-        if (isPasswordChangeOnly || !username) {
-            setCredStatus('idle');
-            setCredSuggestions([]);
-            return;
-        }
-
-        const sanitized = username.toLowerCase().replace(/[^a-z0-9_.]/g, '');
-        if (sanitized !== username) {
-            setCredForm(prev => ({ ...prev, username: sanitized }));
-            return;
-        }
-
-        const isLengthValid = username.length >= 1 && username.length <= 30;
-        const isFormatValid = /^[a-z0-9_.]+$/.test(username);
-        const noConsecutiveDots = !/\.\./.test(username);
-        const validStartEnd = !/^\./.test(username) && !/\.$/.test(username);
-
-        if (!isLengthValid || !isFormatValid || !noConsecutiveDots || !validStartEnd) {
-            setCredStatus('invalid');
-            return;
-        }
-
-        if (currentUser && username === currentUser.username) {
-            setCredStatus('available');
-            return;
-        }
-
-        setCredStatus('checking');
-
-        const timeoutId = setTimeout(async () => {
-            try {
-                if (!supabase) return;
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('id, username')
-                    .ilike('username', username.trim())
-                    .maybeSingle();
-
-                if (data && data.id !== currentUser?.id) {
-                    setCredStatus('taken');
-                    const random1 = Math.floor(Math.random() * 100);
-                    const random2 = Math.floor(Math.random() * 999);
-                    setCredSuggestions([
-                        `${username}${random1}`,
-                        `${username}_${random2}`,
-                        `${username}123`
-                    ].slice(0, 3));
-                } else {
-                    setCredStatus('available');
-                }
-            } catch (err) {
-                console.error("Error checking username:", err);
-            }
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-    }, [credForm.username, isPasswordChangeOnly, currentUser]);
 
     const isIOS = typeof window !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) : false;
     const isStandalone = typeof window !== 'undefined' ? (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) : false;
@@ -308,73 +251,6 @@ export const Profile: React.FC = () => {
             alert('Failed to save changes.');
         } finally {
             setSaving(false);
-        }
-    };
-
-    const saveCredentials = async () => {
-        setCredError(null);
-
-        if (!isPasswordChangeOnly) {
-            if (!credForm.username.trim() || credStatus !== 'available') {
-                setCredError("Please choose a valid and available username.");
-                return;
-            }
-        }
-        if (!credForm.password || credForm.password.length < 6) {
-            setCredError("Password must be at least 6 characters.");
-            return;
-        }
-
-        setCredSaving(true);
-
-        try {
-            if (!supabase || !currentUser) {
-                throw new Error("Services not available.");
-            }
-
-            if (!isPasswordChangeOnly) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({ 
-                        username: credForm.username.trim(),
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', currentUser.id);
-
-                if (profileError) throw profileError;
-            }
-
-            const { error: pwdError } = await supabase.auth.updateUser({ password: credForm.password });
-            if (pwdError) throw pwdError;
-
-            if (!isPasswordChangeOnly) {
-                updateProfile({ username: credForm.username.trim() });
-            }
-
-            alert(isPasswordChangeOnly ? "Password updated successfully!" : "Username and password configured successfully!");
-            setShowCredentialsModal(false);
-            setCredForm({ username: '', password: '' });
-        } catch (err: any) {
-            console.error("Error saving credentials:", err);
-            setCredError(err.message || "Failed to update credentials. Please try again.");
-        } finally {
-            setCredSaving(false);
-        }
-    };
-
-    const handleRegisterPasskey = async () => {
-        try {
-            if (!supabase) throw new Error("Supabase is not initialized.");
-            const { data, error } = await supabase.auth.registerPasskey();
-            if (error) throw error;
-            alert("Passkey registered successfully! You can now use it to sign in next time.");
-        } catch (err: any) {
-            console.error('Passkey registration error:', err);
-            if (err.name === 'NotAllowedError') {
-                alert("Passkey registration canceled or timed out.");
-            } else {
-                alert(err.message || "Failed to register passkey. Ensure your browser/device supports WebAuthn.");
-            }
         }
     };
 
@@ -805,60 +681,7 @@ export const Profile: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                                            {/* Set Username or Change Password */}
-                                            {!currentUser?.username ? (
-                                                <button
-                                                    onClick={() => {
-                                                        setIsPasswordChangeOnly(false);
-                                                        setCredForm({ username: '', password: '' });
-                                                        setCredError(null);
-                                                        setShowCredentialsModal(true);
-                                                    }}
-                                                    className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
-                                                >
-                                                    <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
-                                                        <Lock className="w-4 h-4" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <span className="font-bold text-zinc-200 text-xs block">Set Username</span>
-                                                        <span className="text-[10px] text-zinc-500 block">Login credentials setup</span>
-                                                    </div>
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => {
-                                                        setIsPasswordChangeOnly(true);
-                                                        setCredForm({ username: currentUser.username || '', password: '' });
-                                                        setCredError(null);
-                                                        setShowCredentialsModal(true);
-                                                    }}
-                                                    className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
-                                                >
-                                                    <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
-                                                        <User className="w-4 h-4" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <span className="font-bold text-zinc-200 text-xs block truncate">Change Password</span>
-                                                        <span className="text-[10px] text-zinc-500 truncate block">@{currentUser.username}</span>
-                                                    </div>
-                                                </button>
-                                            )}
-
-                                            {/* Register Passkey */}
-                                            <button
-                                                onClick={handleRegisterPasskey}
-                                                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-left transition-all flex items-center gap-3"
-                                            >
-                                                <div className="p-2 bg-white/10 rounded-lg text-zinc-300 flex-shrink-0">
-                                                    <Fingerprint className="w-4 h-4" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <span className="font-bold text-zinc-200 text-xs block">Register Passkey</span>
-                                                    <span className="text-[10px] text-zinc-500">Secure biometric login</span>
-                                                </div>
-                                            </button>
-
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                             {/* Contact Support */}
                                             <button
                                                 onClick={() => navigate.push('/contact')}
@@ -886,6 +709,22 @@ export const Profile: React.FC = () => {
                                                     <span className="text-[10px] text-zinc-500 block truncate">Add to your home screen</span>
                                                 </div>
                                             </button>
+
+                                            {/* Student Verification */}
+                                            {!profileUser.isVerified && isSelf && (
+                                                <button
+                                                    onClick={() => setShowVerification(true)}
+                                                    className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-blue-500/30 hover:bg-blue-950/20 text-left transition-all flex items-center gap-3 group"
+                                                >
+                                                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 flex-shrink-0 group-hover:scale-105 transition-transform">
+                                                        <Shield className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <span className="font-bold text-blue-300 text-xs block">Verify Account</span>
+                                                        <span className="text-[10px] text-zinc-500 block truncate">Unlock verified badge</span>
+                                                    </div>
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -990,97 +829,6 @@ export const Profile: React.FC = () => {
                                     <NeonButton onClick={() => setShowVerification(false)} className="w-full py-4 text-base rounded-full">Done</NeonButton>
                                 </div>
                             )}
-                        </div>
-                    </div>
-                )}
-
-                {/* --- Credentials Setup Modal --- */}
-                {showCredentialsModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-                        <div className="bg-zinc-900 w-full max-w-md p-8 rounded-[2.5rem] border border-white/10 shadow-2xl relative">
-                            <button onClick={() => setShowCredentialsModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
-
-                            <div className="text-center mb-8">
-                                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-[0_0_20px_rgba(255,0,127,0.15)]">
-                                    <Lock className="w-10 h-10 text-neon" />
-                                </div>
-                                <h2 className="text-2xl font-black text-white">{isPasswordChangeOnly ? 'Change Password' : 'Account Setup'}</h2>
-                                <p className="text-sm text-zinc-400 mt-2 font-light">
-                                    {isPasswordChangeOnly ? 'Set a new secure password for your account.' : 'Set a username and password to log in directly.'}
-                                </p>
-                            </div>
-
-                            {credError && (
-                                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3 mb-6 animate-fade-in">
-                                    <p className="text-xs text-red-400">{credError}</p>
-                                </div>
-                            )}
-
-                            <div className="space-y-6">
-                                {!isPasswordChangeOnly && (
-                                    <div>
-                                        <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Choose Username</label>
-                                        <div className="relative">
-                                            <NeonInput
-                                                value={credForm.username}
-                                                onChange={e => setCredForm(prev => ({ ...prev, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '') }))}
-                                                placeholder="username"
-                                                className="pr-10"
-                                            />
-                                            {credStatus === 'available' && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400 animate-bounce-in" />}
-                                            {credStatus === 'taken' && <X className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />}
-                                            {credStatus === 'checking' && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 animate-spin" />}
-                                        </div>
-
-                                        <div className="mt-2.5 text-xs">
-                                            {credStatus === 'available' && <span className="text-green-400 font-medium">✓ Username available</span>}
-                                            {credStatus === 'taken' && (
-                                                <div className="text-red-400">
-                                                    <span>✗ Username already taken.</span>
-                                                    <div className="mt-1.5 text-zinc-500 flex flex-wrap gap-1.5 items-center">
-                                                        <span>Try:</span>
-                                                        {credSuggestions.map(u => (
-                                                            <span key={u} onClick={() => setCredForm(prev => ({ ...prev, username: u }))} className="text-neon cursor-pointer hover:underline font-semibold">{u}</span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="mt-2.5 space-y-1">
-                                                <p className="text-[10px] text-zinc-500 font-bold uppercase">Username Criteria:</p>
-                                                <ul className="text-[10px] space-y-0.5">
-                                                    <li className={!credForm.username ? 'text-zinc-500' : ((credForm.username.length >= 1 && credForm.username.length <= 30) ? 'text-green-400' : 'text-red-400')}>
-                                                        • 1-30 characters long
-                                                    </li>
-                                                    <li className={!credForm.username ? 'text-zinc-500' : (/^[a-z0-9_.]+$/.test(credForm.username) ? 'text-green-400' : 'text-red-400')}>
-                                                        • Only lowercase letters, numbers, underscores & dots
-                                                    </li>
-                                                    <li className={!credForm.username ? 'text-zinc-500' : (!/\.\./.test(credForm.username) ? 'text-green-400' : 'text-red-400')}>
-                                                        • No consecutive dots
-                                                    </li>
-                                                    <li className={!credForm.username ? 'text-zinc-500' : (!/^\./.test(credForm.username) && !/\.$/.test(credForm.username) ? 'text-green-400' : 'text-red-400')}>
-                                                        • Cannot start or end with a dot
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div>
-                                    <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">{isPasswordChangeOnly ? 'New Password' : 'Password'}</label>
-                                    <NeonInput
-                                        type="password"
-                                        value={credForm.password}
-                                        onChange={e => setCredForm(prev => ({ ...prev, password: e.target.value }))}
-                                        placeholder="Min. 6 characters"
-                                    />
-                                </div>
-
-                                <NeonButton onClick={saveCredentials} className="w-full py-4 text-base rounded-full" disabled={credSaving}>
-                                    {credSaving ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save Changes'}
-                                </NeonButton>
-                            </div>
                         </div>
                     </div>
                 )}

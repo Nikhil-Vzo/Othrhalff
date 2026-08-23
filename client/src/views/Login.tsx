@@ -1,20 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { RotateCcw, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { NeonInput, NeonButton } from '../components/Common';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '../services/auth';
 import { analytics } from '../utils/analytics';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
 export const Login: React.FC = () => {
   const { currentUser, needsOnboarding, isLoading: isAuthLoading } = useAuth();
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,10 +27,10 @@ export const Login: React.FC = () => {
     }
   }, [currentUser, needsOnboarding, isAuthLoading, navigate]);
 
-  // Auto-dismiss success messages after 5 seconds
+  // Auto-dismiss success messages after 8 seconds
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
+      const timer = setTimeout(() => setSuccess(null), 8000);
       return () => clearTimeout(timer);
     }
   }, [success]);
@@ -53,119 +50,43 @@ export const Login: React.FC = () => {
   // Clear error when user starts typing
   useEffect(() => {
     if (error) setError(null);
-  }, [identifier, password]);
+  }, [email]);
 
   // Email validation regex
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidEmail = (emailStr: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr);
   };
 
-  const handleEmailContinue = async (e: React.FormEvent) => {
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
+
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!isLogin && !agreedToTerms) {
       setError('You must agree to the Terms and Conditions to continue.');
       return;
     }
 
-    if (!identifier.trim()) {
-      setError('Please enter a username or email address.');
+    if (!cleanEmail) {
+      setError('Please enter your email address.');
       return;
     }
 
-    if (!password || password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!isValidEmail(cleanEmail)) {
+      setError('Please enter a valid email address.');
       return;
     }
 
     setIsLoading(true);
     try {
-      let finalEmail = identifier.trim().toLowerCase();
-
-      // If it doesn't look like an email, assume it's a username and look it up
-      if (!isValidEmail(finalEmail)) {
-        if (!isLogin) {
-           setError('Please enter a valid email address to sign up.');
-           setIsLoading(false);
-           return;
-        }
-
-        const cleanUsername = finalEmail.trim().replace(/^@/, '');
-        const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('university_email')
-          .ilike('username', safeUsername)
-          .maybeSingle();
-
-        if (profileError) {
-          if (profileError.message.includes('Failed to fetch') || profileError.message.includes('Network Error')) {
-            throw new Error('Database connection failed. Please ensure the Supabase project is active and not paused.');
-          }
-          console.error('Profile lookup error:', profileError);
-          throw new Error('Username not found. Please try logging in with your email or Google.');
-        }
-
-        if (!profile || !profile.university_email) {
-          throw new Error('Username not found. Please try logging in with your email or Google.');
-        }
-
-        finalEmail = profile.university_email;
-      }
-
-      if (isLogin) {
-        const authData = await authService.signInWithPassword(finalEmail, password);
-        analytics.login('Password');
-        setSuccess('Logged in successfully! Redirecting...');
-
-        let target = '/home';
-        if (authData?.user?.id) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('username, real_name, dob')
-            .eq('id', authData.user.id)
-            .maybeSingle();
-
-          if (!profile || !profile.username || !profile.real_name || !profile.dob) {
-            target = '/onboarding';
-          }
-        }
-
-        navigate.push(target);
-      } else {
-        const signUpData = await authService.signUp(finalEmail, password, '');
-        analytics.login('Signup');
-
-        if (signUpData.session) {
-          setSuccess('Account created! Redirecting to setup...');
-          navigate.push('/onboarding');
-        } else {
-          setSuccess('Account created! Check your email to confirm your account, then log in.');
-          setPassword('');
-          setIsLogin(true);
-        }
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'Failed to log in. Please check your credentials.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleMagicLinkFallback = async () => {
-    if (!isValidEmail(identifier.trim())) {
-      setError('Please enter your valid email address to use a magic link.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await authService.signInWithMagicLink(identifier.trim());
-      setSuccess('Magic Link sent! Check your email inbox.');
+      await authService.signInWithMagicLink(cleanEmail);
+      analytics.login('MagicLink');
+      setSuccess(`Magic Link sent to ${cleanEmail}! Check your inbox (or spam) to sign in instantly.`);
     } catch (err: any) {
-      setError(err.message || 'Failed to send magic link.');
+      console.error('Magic link error:', err);
+      setError(err.message || 'Failed to send magic link. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -183,38 +104,9 @@ export const Login: React.FC = () => {
     try {
       await authService.signInWithGoogle();
       analytics.login('Google');
-    } catch (error: any) {
-      console.error('Google login error:', error);
-      setError(error.message || 'Failed to initialize Google login. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  const handlePasskeyLogin = async () => {
-    setError(null);
-    setIsLoading(true);
-    
-    if (typeof window !== 'undefined' && !window.PublicKeyCredential) {
-      setError('Passkeys are not supported in this browser.');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      if (!supabase) throw new Error('Supabase client not initialized');
-      const { data, error } = await supabase.auth.signInWithPasskey();
-      if (error) throw error;
-      setSuccess('Logged in successfully with Passkey! Redirecting...');
-      analytics.login('Passkey');
-      setTimeout(() => navigate.push('/home'), 500);
     } catch (err: any) {
-      console.error('Passkey authentication error:', err);
-      if (err.name === 'NotAllowedError') {
-        setError('Passkey authentication canceled or timed out.');
-      } else {
-        setError(err.message || 'Failed to authenticate with Passkey. Make sure you have registered a passkey on this device.');
-      }
-    } finally {
+      console.error('Google login error:', err);
+      setError(err.message || 'Failed to initialize Google login. Please try again.');
       setIsLoading(false);
     }
   };
@@ -263,173 +155,128 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
-            {error && (
-              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 animate-fade-in">
-                <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
-                <p className="flex-1 text-sm text-red-300">{error}</p>
-                <button onClick={() => setError(null)} className="text-red-400 transition-colors hover:text-red-300">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 animate-fade-in">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
-                <p className="flex-1 text-sm text-green-300">{success}</p>
-                <button onClick={() => setSuccess(null)} className="text-green-400 transition-colors hover:text-green-300">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
-            <div className="mb-6 grid gap-3">
-              <button
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-white font-bold text-black transition-all hover:bg-gray-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <svg className="h-5 w-5" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                  </svg>
-                )}
-                Continue with Google
+          {error && (
+            <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 animate-fade-in">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+              <p className="flex-1 text-sm text-red-300">{error}</p>
+              <button onClick={() => setError(null)} className="text-red-400 transition-colors hover:text-red-300">
+                <X className="h-4 w-4" />
               </button>
-
-              {isLogin && (
-                <button
-                  type="button"
-                  onClick={handlePasskeyLogin}
-                  disabled={isLoading}
-                  className="group flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-gray-800 bg-[#111522] font-bold text-white/90 transition-all hover:border-neon/60 hover:bg-neon/10 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Fingerprint className="h-5 w-5 text-neon transition-transform group-hover:scale-110" />
-                  Sign in with Passkey
-                </button>
-              )}
             </div>
+          )}
 
-            <div className="mb-6 flex items-center gap-4">
-              <div className="h-px flex-1 bg-gray-800" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500">Or Email</span>
-              <div className="h-px flex-1 bg-gray-800" />
+          {success && (
+            <div className="mb-5 flex items-start gap-3 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 animate-fade-in">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
+              <p className="flex-1 text-sm text-green-300">{success}</p>
+              <button onClick={() => setSuccess(null)} className="text-green-400 transition-colors hover:text-green-300">
+                <X className="h-4 w-4" />
+              </button>
             </div>
+          )}
 
-            <form onSubmit={handleEmailContinue} className="space-y-5">
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
-                <NeonInput
-                  type="text"
-                  placeholder={isLogin ? "Username or Email" : "name@example.com"}
-                  value={identifier}
-                  onChange={e => setIdentifier(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="h-14 rounded-2xl border-gray-800 bg-[#111522] pl-12 placeholder:text-gray-500 focus:border-neon/80"
-                />
-              </div>
-
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
-                <NeonInput
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="h-14 rounded-2xl border-gray-800 bg-[#111522] pl-12 pr-12 placeholder:text-gray-500 focus:border-neon/80"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-gray-300"
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-
-              {!isLogin && (
-                <div className="flex items-start gap-3 px-1 animate-fade-in">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      id="terms"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                      disabled={isLoading}
-                      className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-600 bg-gray-900 transition-all checked:border-neon checked:bg-neon hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-neon/50"
-                    />
-                    <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 transition-opacity peer-checked:opacity-100" />
-                  </div>
-                  <label htmlFor="terms" className="cursor-pointer select-none text-xs leading-relaxed text-gray-400">
-                    I agree to the <Link href="/terms" target="_blank" className="text-neon hover:underline">Terms</Link>, <Link href="/privacy" target="_blank" className="text-neon hover:underline">Privacy Policy</Link>, and confirm I am a university student.
-                  </label>
-                </div>
+          {/* Google One-Click OAuth */}
+          <div className="mb-6 grid gap-3">
+            <button
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-white font-bold text-black transition-all hover:bg-gray-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 shadow-lg shadow-white/5"
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                </svg>
               )}
+              Continue with Google
+            </button>
+          </div>
 
-              <NeonButton
+          <div className="mb-6 flex items-center gap-4">
+            <div className="h-px flex-1 bg-gray-800" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500">Or Magic Link</span>
+            <div className="h-px flex-1 bg-gray-800" />
+          </div>
+
+          {/* Magic Link Form */}
+          <form onSubmit={handleMagicLink} className="space-y-5">
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
+              <NeonInput
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
                 disabled={isLoading}
-                className="h-14 w-full gap-2 rounded-2xl bg-neon text-base shadow-[0_0_28px_rgba(255,0,127,0.38)] hover:shadow-[0_0_36px_rgba(255,0,127,0.48)]"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <>
-                    {isLogin ? 'Continue' : 'Create Account'} <ArrowRight className="h-5 w-5" />
-                  </>
-                )}
-              </NeonButton>
-            </form>
+                className="h-14 rounded-2xl border-gray-800 bg-[#111522] pl-12 placeholder:text-gray-500 focus:border-neon/80"
+              />
+            </div>
 
-            {isLogin && (
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={handleMagicLinkFallback}
-                  className="text-xs text-gray-500 underline decoration-gray-700 underline-offset-4 transition-colors hover:text-white"
-                  disabled={isLoading}
-                >
-                  Use magic link instead
-                </button>
+            {!isLogin && (
+              <div className="flex items-start gap-3 px-1 animate-fade-in">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    disabled={isLoading}
+                    className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-600 bg-gray-900 transition-all checked:border-neon checked:bg-neon hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  />
+                  <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 transition-opacity peer-checked:opacity-100" />
+                </div>
+                <label htmlFor="terms" className="cursor-pointer select-none text-xs leading-relaxed text-gray-400">
+                  I agree to the <Link href="/terms" target="_blank" className="text-neon hover:underline">Terms</Link>, <Link href="/privacy" target="_blank" className="text-neon hover:underline">Privacy Policy</Link>, and confirm I am a university student.
+                </label>
               </div>
             )}
 
-            <div className="mt-7 space-y-3 text-center">
-              <div className="text-sm text-gray-500">
-                {isLogin ? (
-                  <>
-                    Don't have an account?{' '}
-                    <button
-                      onClick={() => { setIsLogin(false); setAgreedToTerms(false); }}
-                      className="font-bold text-neon hover:underline"
-                      disabled={isLoading}
-                    >
-                      Sign up
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{' '}
-                    <button
-                      onClick={() => setIsLogin(true)}
-                      className="font-bold text-neon hover:underline"
-                      disabled={isLoading}
-                    >
-                      Log in
-                    </button>
-                  </>
-                )}
-              </div>
+            <NeonButton
+              disabled={isLoading}
+              className="h-14 w-full gap-2 rounded-2xl bg-neon text-base shadow-[0_0_28px_rgba(255,0,127,0.38)] hover:shadow-[0_0_36px_rgba(255,0,127,0.48)]"
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  Send Magic Link <ArrowRight className="h-5 w-5" />
+                </>
+              )}
+            </NeonButton>
+          </form>
+
+          <div className="mt-7 space-y-3 text-center">
+            <div className="text-sm text-gray-500">
+              {isLogin ? (
+                <>
+                  Don't have an account?{' '}
+                  <button
+                    onClick={() => { setIsLogin(false); setAgreedToTerms(false); }}
+                    className="font-bold text-neon hover:underline"
+                    disabled={isLoading}
+                  >
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{' '}
+                  <button
+                    onClick={() => setIsLogin(true)}
+                    className="font-bold text-neon hover:underline"
+                    disabled={isLoading}
+                  >
+                    Log in
+                  </button>
+                </>
+              )}
             </div>
+          </div>
         </section>
       </main>
     </div>

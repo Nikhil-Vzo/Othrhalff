@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { NeonInput, NeonButton } from '../components/Common';
 import { 
-  Ghost, Upload, Lock, ChevronDown, Loader2, AlertCircle, 
-  CheckCircle2, X, Calendar, Eye, EyeOff, Sparkles, User, ShieldCheck
+  Upload, Lock, ChevronDown, Loader2, AlertCircle, 
+  CheckCircle2, X, Calendar
 } from 'lucide-react';
 import { 
   AVATAR_PRESETS, MOCK_INTERESTS, CHHATTISGARH_COLLEGES, 
@@ -15,7 +15,6 @@ import { authService } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
 import { useRouter as useNavigate, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabase';
-import { sanitizeUsername, validateUsernameRules } from '../utils/usernameValidation';
 
 // Generate arrays for DOB dropdowns
 const DAYS = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
@@ -32,16 +31,6 @@ export const Onboarding: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
-  // Existing profile state
-  const [isExistingPartialUser, setIsExistingPartialUser] = useState(false);
-
-  // Username validation state
-  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
-  const [suggestedUsernames, setSuggestedUsernames] = useState<string[]>([]);
-  const [requiresPasswordSetup, setRequiresPasswordSetup] = useState(false);
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   // Verified Email
   const [email, setEmail] = useState<string>(searchParams.get('email') || '');
@@ -80,12 +69,6 @@ export const Onboarding: React.FC = () => {
 
         if (user) {
           if (user.email) setEmail(user.email);
-
-          // Check if Google sign in (requires password setup)
-          const providers = user.app_metadata?.providers || [];
-          if (providers.includes('google') || user.app_metadata?.provider === 'google') {
-            setRequiresPasswordSetup(true);
-          }
 
           // Check for existing database profile
           const { data: existingProfile, error: profileErr } = await supabase
@@ -126,8 +109,8 @@ export const Onboarding: React.FC = () => {
               setBranchCategory(BRANCH_CATEGORIES.includes(existingProfile.branch) ? existingProfile.branch : 'Other');
             }
 
-            // If profile is 100% complete (has username, real_name, dob), go straight to home!
-            if (existingProfile.username && existingProfile.real_name && existingProfile.dob) {
+            // If profile is already complete (has real_name, dob), go straight to home!
+            if (existingProfile.real_name && existingProfile.dob) {
               const appUser: UserProfile = {
                 id: existingProfile.id,
                 username: existingProfile.username,
@@ -151,11 +134,6 @@ export const Onboarding: React.FC = () => {
               navigate.push('/home');
               return;
             }
-
-            // If user already filled personal details before but is ONLY missing a username
-            if (existingProfile.real_name && existingProfile.dob) {
-              setIsExistingPartialUser(true);
-            }
           } else {
             // Auto-fill from Google Metadata for new user
             const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
@@ -177,56 +155,6 @@ export const Onboarding: React.FC = () => {
 
     fetchUserAndCheckProfile();
   }, [login, navigate]);
-
-  // --- Live Username Checker ---
-  useEffect(() => {
-    const rawUsername = tempProfile.username || '';
-    
-    if (!rawUsername) {
-      setUsernameStatus('idle');
-      setSuggestedUsernames([]);
-      return;
-    }
-
-    const { isValid } = validateUsernameRules(rawUsername);
-
-    if (!isValid) {
-      setUsernameStatus('invalid');
-      return;
-    }
-
-    setUsernameStatus('checking');
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        const cleanUsername = rawUsername.trim();
-        const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
-        const { data } = await supabase
-          .from('profiles')
-          .select('id')
-          .ilike('username', safeUsername)
-          .maybeSingle();
-
-        if (data && data.id !== authUser?.id) {
-          setUsernameStatus('taken');
-          const random1 = Math.floor(Math.random() * 100);
-          const random2 = Math.floor(Math.random() * 999);
-          setSuggestedUsernames([
-            `${cleanUsername}${random1}`,
-            `${cleanUsername}_${random2}`,
-            `${cleanUsername}123`
-          ].slice(0, 3));
-        } else {
-          setUsernameStatus('available');
-        }
-      } catch (err) {
-        console.error("Error checking username:", err);
-      }
-    }, 400);
-
-    return () => clearTimeout(timeoutId);
-  }, [tempProfile.username]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -265,45 +193,33 @@ export const Onboarding: React.FC = () => {
     setError(null);
 
     // Validation
-    if (!tempProfile.username?.trim() || usernameStatus !== 'available') {
-      setError("Please choose a valid and available username.");
+    if (!email) {
+      setError("Email is required. Please login again.");
       return;
     }
-    if (requiresPasswordSetup && (!password || password.length < 6)) {
-      setError("Please create a password (minimum 6 characters) for your account.");
+    if (!tempProfile.realName?.trim()) {
+      setError("Please enter your display name.");
       return;
     }
-
-    // Only validate full details if user is not just completing an existing partial profile
-    if (!isExistingPartialUser) {
-      if (!email) {
-        setError("Email is required. Please login again.");
-        return;
-      }
-      if (!tempProfile.realName?.trim()) {
-        setError("Please enter your display name.");
-        return;
-      }
-      if (!tempProfile.branch?.trim()) {
-        setError("Please select your field of study.");
-        return;
-      }
-      if (tempProfile.university === 'Other' && !customUniversity.trim()) {
-        setError("Please enter your college name.");
-        return;
-      }
-      if (!dobDay || !dobMonth || !dobYear) {
-        setError("Please select your complete date of birth.");
-        return;
-      }
-      if ((tempProfile.interests || []).length === 0) {
-        setError("Please select at least one interest.");
-        return;
-      }
-      if ((tempProfile.lookingFor || []).length < 2) {
-        setError("Please select at least 2 'Looking For' options.");
-        return;
-      }
+    if (!tempProfile.branch?.trim()) {
+      setError("Please select your field of study.");
+      return;
+    }
+    if (tempProfile.university === 'Other' && !customUniversity.trim()) {
+      setError("Please enter your college name.");
+      return;
+    }
+    if (!dobDay || !dobMonth || !dobYear) {
+      setError("Please select your complete date of birth.");
+      return;
+    }
+    if ((tempProfile.interests || []).length === 0) {
+      setError("Please select at least one interest.");
+      return;
+    }
+    if ((tempProfile.lookingFor || []).length < 2) {
+      setError("Please select at least 2 'Looking For' options.");
+      return;
     }
 
     setIsSubmitting(true);
@@ -323,32 +239,6 @@ export const Onboarding: React.FC = () => {
         return;
       }
 
-      // Check username uniqueness (case-insensitive)
-      const cleanUsername = tempProfile.username.trim();
-      const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
-      const { data: existingUserWithUsername } = await supabase
-        .from('profiles')
-        .select('id')
-        .ilike('username', safeUsername)
-        .maybeSingle();
-
-      if (existingUserWithUsername && existingUserWithUsername.id !== authUser.id) {
-        setError(`The username '@${cleanUsername}' is already taken. Please pick another one.`);
-        setUsernameStatus('taken');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Update password if required
-      if (requiresPasswordSetup && password) {
-        const { error: pwdError } = await supabase.auth.updateUser({ password });
-        if (pwdError) {
-          setError("Failed to set password: " + pwdError.message);
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       // Compose DOB
       const monthIndex = MONTHS.indexOf(dobMonth) + 1;
       const formattedDob = (dobYear && monthIndex && dobDay) 
@@ -357,8 +247,8 @@ export const Onboarding: React.FC = () => {
 
       const userToSave: UserProfile = {
         id: authUser.id,
-        username: tempProfile.username?.trim(),
-        anonymousId: tempProfile.anonymousId || `User#${(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)).slice(0, 8).toUpperCase().replace(/-/g, '')}`,
+        username: tempProfile.username || undefined,
+        anonymousId: tempProfile.anonymousId || `User#${authUser.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
         realName: (tempProfile.realName || '').trim(),
         gender: tempProfile.gender || 'Male',
         university: tempProfile.university === 'Other' ? customUniversity.trim() : (tempProfile.university || CHHATTISGARH_COLLEGES[0]),
@@ -374,7 +264,7 @@ export const Onboarding: React.FC = () => {
       };
 
       await login(userToSave);
-      setSuccess("Profile saved! Redirecting...");
+      setSuccess("Profile created! Redirecting to campus...");
 
       setTimeout(() => {
         navigate.push('/home');
@@ -396,122 +286,6 @@ export const Onboarding: React.FC = () => {
     );
   }
 
-  // --- DEDICATED QUICK USERNAME SET UP FOR EXISTING USERS ---
-  if (isExistingPartialUser) {
-    return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Subtle Ambient Background Glows */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon/10 rounded-full blur-[140px] pointer-events-none" />
-        
-        <div className="w-full max-w-md bg-zinc-950/90 backdrop-blur-2xl p-8 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(255,0,127,0.12)] space-y-6 relative z-10 animate-fade-in">
-          
-          <div className="text-center space-y-1.5 pb-2">
-            <h2 className="text-2xl font-black text-white tracking-tight">Claim Your @Username</h2>
-            <p className="text-xs text-zinc-400">
-              Welcome back, <strong className="text-white">{tempProfile.realName}</strong>! Choose your unique handle to enable direct login.
-            </p>
-          </div>
-
-          {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-2.5 text-xs text-rose-300">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>{success}</span>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-zinc-300">Account Username</label>
-                {usernameStatus === 'available' && (
-                  <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Available
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <NeonInput
-                  value={tempProfile.username || ''}
-                  onChange={e => setTempProfile({ ...tempProfile, username: sanitizeUsername(e.target.value) })}
-                  placeholder="e.g. alex_rivera"
-                  className="pr-10"
-                />
-                {usernameStatus === 'checking' && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 animate-spin" />
-                )}
-                {usernameStatus === 'available' && (
-                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
-                )}
-                {usernameStatus === 'taken' && (
-                  <X className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-400" />
-                )}
-              </div>
-
-              {usernameStatus === 'invalid' && tempProfile.username && (
-                <p className="text-[11px] text-rose-400 mt-1">1-30 chars, lowercase, numbers, `_` and `.` only (no start/end dot).</p>
-              )}
-
-              {usernameStatus === 'taken' && (
-                <div className="mt-2 text-xs text-rose-400">
-                  <span>Username unavailable. Try: </span>
-                  <div className="inline-flex gap-1.5 flex-wrap mt-1">
-                    {suggestedUsernames.map(u => (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => setTempProfile({ ...tempProfile, username: u })}
-                        className="text-neon hover:underline font-mono text-[11px]"
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {requiresPasswordSetup && (
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">Create Password</label>
-                <div className="relative">
-                  <NeonInput
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Min. 6 characters"
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <NeonButton
-            onClick={handleSaveProfile}
-            disabled={isSubmitting || usernameStatus !== 'available'}
-            className="w-full py-3.5 rounded-xl font-bold text-sm"
-          >
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Complete Setup & Enter App'}
-          </NeonButton>
-        </div>
-      </div>
-    );
-  }
-
   // --- FULL ONBOARDING FORM FOR NEW USERS ---
   return (
     <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
@@ -524,7 +298,7 @@ export const Onboarding: React.FC = () => {
         <div className="text-center space-y-1.5 border-b border-zinc-800/80 pb-5">
           <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Create Your Campus Persona</h2>
           <p className="text-xs text-zinc-400">
-            Set your unique <span className="text-neon font-semibold">@username</span> for direct login, and customize your profile.
+            Customize your student profile to connect with peers across your college campus.
           </p>
         </div>
 
@@ -602,80 +376,6 @@ export const Onboarding: React.FC = () => {
         {/* Form Inputs Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* Account Username */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-zinc-300">Account Username</label>
-              {usernameStatus === 'available' && (
-                <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Available
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <NeonInput
-                value={tempProfile.username || ''}
-                onChange={e => setTempProfile({ ...tempProfile, username: sanitizeUsername(e.target.value) })}
-                placeholder="cool_student"
-                className="pr-9"
-              />
-              {usernameStatus === 'checking' && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 animate-spin" />
-              )}
-              {usernameStatus === 'available' && (
-                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
-              )}
-              {usernameStatus === 'taken' && (
-                <X className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-400" />
-              )}
-            </div>
-
-            {usernameStatus === 'invalid' && tempProfile.username && (
-              <p className="text-[11px] text-rose-400 mt-1">1-30 chars, lowercase, numbers, `_` and `.` only.</p>
-            )}
-
-            {usernameStatus === 'taken' && (
-              <div className="mt-1.5 text-xs text-rose-400">
-                <span>Taken. Try: </span>
-                <span className="inline-flex gap-1.5">
-                  {suggestedUsernames.map(u => (
-                    <button
-                      key={u}
-                      type="button"
-                      onClick={() => setTempProfile({ ...tempProfile, username: u })}
-                      className="text-neon hover:underline font-mono text-[11px]"
-                    >
-                      {u}
-                    </button>
-                  ))}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Password (if Google login) */}
-          {requiresPasswordSetup && (
-            <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1">Create Password</label>
-              <div className="relative">
-                <NeonInput
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Min. 6 characters"
-                  className="pr-9"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Display Name */}
           <div>
             <div className="flex items-center justify-between mb-1">

@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
             safeSetSessionStorage(JSON.stringify(appUser));
             
-            const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
+            const needsOnboard = !profile.real_name || !profile.dob;
             setNeedsOnboarding(needsOnboard);
           } else {
             // Profile does not exist yet in DB for new user -> create temporary session & flag for onboarding
@@ -229,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const appUser = mapProfileToAppUser(profile, activeSession.user);
               setCurrentUser(prev => isUserEqual(prev, appUser) ? prev : appUser);
               safeSetSessionStorage(JSON.stringify(appUser));
-              const needsOnboard = !profile.username || !profile.real_name || !profile.dob;
+              const needsOnboard = !profile.real_name || !profile.dob;
               setNeedsOnboarding(needsOnboard);
             } else if (!localUser) {
               const newAppUser = mapProfileToAppUser({}, activeSession.user);
