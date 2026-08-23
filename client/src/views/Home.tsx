@@ -1289,11 +1289,6 @@ export const Home: React.FC = () => {
                             alt="Sparx FM Music" 
                             className="w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]"
                         />
-                        {/* Live ping beacon indicator */}
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-neon border border-black shadow-[0_0_8px_#ff007f]"></span>
-                        </span>
                     </button>
                 </div>
             </div>
