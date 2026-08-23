@@ -48,19 +48,31 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const [mounted, setMounted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDiscoverMatchmaking, setIsDiscoverMatchmaking] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
+    const handleDiscoverMatchmaking = (e: any) => {
+      setIsDiscoverMatchmaking(!!e.detail?.active);
+    };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    window.addEventListener('discover-matchmaking', handleDiscoverMatchmaking);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      window.removeEventListener('discover-matchmaking', handleDiscoverMatchmaking);
     };
   }, []);
+
+  useEffect(() => {
+    if (pathname !== '/discover') {
+      setIsDiscoverMatchmaking(false);
+    }
+  }, [pathname]);
 
   // Enforce auth & onboarding routing
   useEffect(() => {
@@ -353,7 +365,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </div>
 
         {/* Mobile Bottom Nav */}
-        {!isFullscreen && !(pathname.startsWith('/chat') || pathname === '/discover' || pathname.startsWith('/sparx/cinema') || pathname.startsWith('/sparx/music')) && (
+        {!isFullscreen && !(
+          pathname.startsWith('/chat') ||
+          (pathname === '/discover' && isDiscoverMatchmaking) ||
+          pathname.startsWith('/sparx/cinema') ||
+          pathname.startsWith('/sparx/music')
+        ) && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe pointer-events-none">
             {/* The main bar background */}
             <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/95 backdrop-blur-md border-t-[1.5px] border-gray-800 pointer-events-auto" />

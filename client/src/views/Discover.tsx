@@ -104,6 +104,21 @@ export const Discover: React.FC = () => {
       setSearchTime(0);
     }
     return () => clearInterval(timer);
+  // Broadcast matchmaking state to layout so mobile navbar shows in lobby and hides when matchmaking starts
+  useEffect(() => {
+    const isMatchmakingActive = state !== 'IDLE';
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('discover-matchmaking', {
+        detail: { active: isMatchmakingActive }
+      }));
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('discover-matchmaking', {
+          detail: { active: false }
+        }));
+      }
+    };
   }, [state]);
 
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -536,7 +551,7 @@ export const Discover: React.FC = () => {
   // =========================================================================
   if (state === 'IDLE') {
     return (
-      <div className="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-between p-4 md:p-8 max-w-4xl mx-auto select-none">
+      <div className="w-full min-h-[100dvh] flex flex-col items-center justify-between p-4 md:p-8 pb-28 md:pb-8 max-w-4xl mx-auto select-none overflow-y-auto">
         {/* Top Floating Header with Active Count (Left) & Scope Toggle (Right) */}
         <div className="w-full flex items-center justify-between gap-3 pt-2">
           {/* Active Online Counter Pill (Left) */}
