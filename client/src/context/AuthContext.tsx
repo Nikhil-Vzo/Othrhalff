@@ -173,7 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const cachedUser = authService.getCurrentUser();
             if (cachedUser && cachedUser.realName && cachedUser.dob) {
               // Retain valid existing local session if network or DB lookup had a temporary hiccup
-              setCurrentUser(prev => prev || cachedUser);
+              const verifiedUser = { ...cachedUser, id: session.user.id };
+              setCurrentUser(prev => prev || verifiedUser);
               setNeedsOnboarding(false);
             } else {
               // Profile does not exist yet in DB for brand new user -> create temporary session & flag for onboarding
@@ -252,7 +253,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               safeSetSessionStorage(JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
             } else {
-              setNeedsOnboarding(!localUser.realName || !localUser.dob);
+              const verifiedUser = { ...localUser, id: activeSession.user.id };
+              setCurrentUser(prev => prev || verifiedUser);
+              setNeedsOnboarding(!verifiedUser.realName || !verifiedUser.dob);
             }
           } else if (localUser && !isOAuthCallback) {
             console.warn('Session expired and refresh failed, showing logout countdown...');

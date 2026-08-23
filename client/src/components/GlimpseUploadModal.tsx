@@ -335,13 +335,55 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
     setError(null);
 
     try {
-      // 1. Compress Image
+      // 1. Resolve authentic Auth User ID to guarantee foreign key integrity
+      const { data: { user: authUser }, error: authUserErr } = await supabase.auth.getUser();
+      const activeUserId = authUser?.id || currentUser.id;
+
+      if (!activeUserId) {
+        throw new Error('Authentication session missing. Please log in again.');
+      }
+
+      // 2. Ensure profile row exists in public.profiles to satisfy glimpses_user_id_fkey
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, university')
+        .eq('id', activeUserId)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        const fallbackProfile = {
+          id: activeUserId,
+          anonymous_id: currentUser.anonymousId || `User#${activeUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+          real_name: currentUser.realName || authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || 'Campus User',
+          gender: currentUser.gender || 'Male',
+          university: currentUser.university || 'Global',
+          university_email: currentUser.universityEmail || authUser?.email || '',
+          branch: currentUser.branch || 'General',
+          year: currentUser.year || '1st Year',
+          interests: currentUser.interests || [],
+          bio: currentUser.bio || '',
+          dob: currentUser.dob || '2000-01-01',
+          avatar: currentUser.avatar || authUser?.user_metadata?.avatar_url || '/auth-mascot.webp',
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: profileUpsertError } = await supabase
+          .from('profiles')
+          .upsert(fallbackProfile, { onConflict: 'id' });
+
+        if (profileUpsertError) {
+          console.error('Failed to initialize profile for glimpse author:', profileUpsertError);
+          throw new Error(`Profile sync required before posting glimpse: ${profileUpsertError.message}`);
+        }
+      }
+
+      // 3. Compress Image
       const compressedBlob = await compressImage(file);
 
-      // 2. Upload to Storage
+      // 4. Upload to Storage using the auth user's folder
       const fileExt = 'jpg';
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${currentUser.id}/${fileName}`;
+      const filePath = `${activeUserId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('glimpses')
@@ -355,39 +397,14 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
         throw uploadError;
       }
 
-      // 3. Ensure profile row exists in public.profiles to satisfy foreign key constraint
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (!existingProfile) {
-        await supabase.from('profiles').upsert({
-          id: currentUser.id,
-          anonymous_id: currentUser.anonymousId || `User#${currentUser.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
-          real_name: currentUser.realName || 'Campus User',
-          gender: currentUser.gender || 'Other',
-          university: currentUser.university || 'Global',
-          university_email: currentUser.universityEmail || '',
-          branch: currentUser.branch || 'General',
-          year: currentUser.year || '1st Year',
-          interests: currentUser.interests || [],
-          bio: currentUser.bio || '',
-          dob: currentUser.dob || '2002-01-01',
-          avatar: currentUser.avatar || '/auth-mascot.webp',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      }
-
-      // 4. Insert metadata into public.glimpses table
+      // 5. Insert metadata into public.glimpses table
       const { error: dbError } = await supabase
         .from('glimpses')
         .insert({
-          user_id: currentUser.id,
+          user_id: activeUserId,
           image_path: filePath,
           caption: caption.trim() || null,
-          university: currentUser.university || 'Global',
+          university: currentUser.university || existingProfile?.university || 'Global',
           is_anonymous: isAnonymous,
         });
 
