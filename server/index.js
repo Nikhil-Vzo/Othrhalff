@@ -59,7 +59,15 @@ process.on('uncaughtException', (err) => {
 });
 
 // Global API Rate Limiting (Redis powered with in-memory fallback)
-app.use('/api', rateLimiter({ limit: 60, windowSeconds: 60 }));
+// NOTE: matchmaking/queue is EXEMPT — it's a lightweight authenticated poll
+// that must run every few hundred ms while searching; counting it against the
+// same 60/min budget as real API calls throttled the radar into multi-second
+// stalls even when only 2 users were online.
+app.use('/api', (req, res, next) => {
+  if (req.path === '/matchmaking/queue' || req.path === '/matchmaking/leave') return next();
+  return rateLimiter({ limit: 60, windowSeconds: 60 })(req, res, next);
+});
+app.use('/api/matchmaking', rateLimiter({ limit: 240, windowSeconds: 60, keyPrefix: 'mm' }));
 
 // Health Check
 app.get('/api/health', (req, res) => {

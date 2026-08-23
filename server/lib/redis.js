@@ -100,19 +100,24 @@ export async function checkRateLimit(identifier, limit = 20, windowSeconds = 60)
   const windowStart = now - windowSeconds * 1000;
 
   try {
-    const pipeline = redis.pipeline();
-    pipeline.zremrangebyscore(key, 0, windowStart);
-    pipeline.zadd(key, now, `${now}-${Math.random()}`);
-    pipeline.zcard(key);
-    pipeline.expire(key, windowSeconds);
+    // COUNT-THEN-RECORD: read the current usage first and only record THIS
+    // request if it's allowed. Previously rejected requests were also added
+    // to the set, so once a caller crossed the limit every retry extended
+    // its own lockout — a polling client could stay throttled indefinitely.
+    // Prune expired entries first so the count reflects the true window.
+    await redis.zremrangebyscore(key, 0, windowStart);
+    const countResult = await redis.zcard(key);
+    const requestCount = Number(countResult) || 0;
 
-    const results = await pipeline.exec();
-    const requestCount = results[2][1];
+    if (requestCount >= limit) {
+      return { allowed: false, remaining: 0, resetInSeconds: windowSeconds };
+    }
 
-    const allowed = requestCount <= limit;
-    const remaining = Math.max(0, limit - requestCount);
+    await redis.zadd(key, now, `${now}-${Math.random()}`);
+    await redis.expire(key, windowSeconds);
 
-    return { allowed, remaining, resetInSeconds: windowSeconds };
+    const remaining = Math.max(0, limit - requestCount - 1);
+    return { allowed: true, remaining, resetInSeconds: windowSeconds };
   } catch (e) {
     console.warn('[Redis RateLimiter] Error:', e.message);
     return { allowed: true, remaining: limit, resetInSeconds: 0 };

@@ -153,6 +153,23 @@ export const Discover: React.FC = () => {
     }
   }, []);
 
+  // Realtime broadcast helper for MATCH_FOUND peer redundancy. Uses the
+  // realtime socket when joined; otherwise silently skips — the server-side
+  // matches-Map + polling path already guarantees delivery. (Using .send()
+  // on an unjoined channel triggers Supabase's deprecated REST fallback and
+  // spams the console with deprecation warnings on every poll cycle.)
+  const safePeerBroadcast = useCallback((payload: any) => {
+    const ch = channelRef.current;
+    if (!ch || !isSubscribedRef.current || ch.state !== 'joined') return;
+    try {
+      if (typeof (ch as any).httpSend === 'function') {
+        (ch as any).httpSend({ type: 'broadcast', event: 'MATCH_FOUND', payload }).catch(() => {});
+      } else {
+        ch.send({ type: 'broadcast', event: 'MATCH_FOUND', payload }).catch(() => {});
+      }
+    } catch (_) {}
+  }, []);
+
   // Cleanup helper (Idempotent)
   const cleanupAndResetState = useCallback((nextState: DiscoverState = 'SEARCHING') => {
     setHasLiked(false);
@@ -332,7 +349,11 @@ export const Discover: React.FC = () => {
           return;
         }
 
-        if (res.ok) {
+        // Rate limited — back off HARD for a full window slice instead of
+        // retrying into the void (each retry previously extended the lockout).
+        if (res.status === 429) {
+          delay = Math.min(Math.max(delay, 2000) * 2, 5000);
+        } else if (res.ok) {
           const data = await res.json();
           if (data.status === 'MATCHED' && stateRef.current === 'SEARCHING') {
             console.log('[Matchmaking] Server matched partner:', data.partnerName);
@@ -352,7 +373,7 @@ export const Discover: React.FC = () => {
             setState('CONNECTED');
 
             // Peer redundancy broadcast: instantly wake up matched partner if server push is delayed
-            safeBroadcast('MATCH_FOUND', {
+            safePeerBroadcast({
               targetId: data.partnerId,
               partnerId: currentUser.id,
               partnerName: currentUser.realName || currentUser.anonymousId || 'Anonymous Student',
