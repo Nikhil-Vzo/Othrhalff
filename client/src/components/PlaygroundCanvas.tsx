@@ -425,7 +425,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
            isMoving={localIsMoving}
            isLocal={true}
            speechBubble={speechBubbles.get(localSessionId)?.text}
-           isGpsActive={gpsEnabled}
            avatarId={avatarId}
         />
 
