@@ -338,7 +338,7 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
         {/* User Credentials */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full border border-white/20 overflow-hidden bg-gray-950 flex-shrink-0">
-            {glimpse.profiles?.avatar && !glimpse.is_anonymous ? (
+            {glimpse.profiles?.avatar ? (
               <img
                 src={getOptimizedUrl(glimpse.profiles.avatar, 64)}
                 alt="Avatar"
@@ -348,9 +348,7 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
               />
             ) : (
               <div className="w-full h-full bg-neon/10 flex items-center justify-center text-neon text-xs font-bold font-mono">
-                {glimpse.is_anonymous
-                  ? (glimpse.profiles?.anonymous_id?.slice(-2).toUpperCase() || '??')
-                  : ((glimpse.profiles?.real_name || glimpse.profiles?.username || '??').slice(0, 2).toUpperCase())}
+                {((glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || '??').slice(0, 2).toUpperCase())}
               </div>
             )}
           </div>
@@ -358,11 +356,9 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold text-white truncate">
-                {glimpse.is_anonymous
-                  ? (glimpse.profiles?.anonymous_id || 'Anonymous')
-                  : (glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous')}
+                {glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous'}
               </span>
-              {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
+              {glimpse.profiles?.is_verified && (
                 <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
               )}
             </div>

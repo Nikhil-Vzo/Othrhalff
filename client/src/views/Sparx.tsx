@@ -878,7 +878,7 @@ export const Sparx: React.FC = () => {
                               />
                             ) : (
                               <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
-                                {user.profile.anonymous_id?.slice(-2).toUpperCase() || '??'}
+                                {(user.profile.real_name || user.profile.username || user.profile.anonymous_id || '??').slice(0, 2).toUpperCase()}
                               </div>
                             )}
                           </div>
@@ -887,7 +887,7 @@ export const Sparx: React.FC = () => {
                         {/* Details */}
                         <div className="min-w-0 flex-1">
                           <h4 className={`text-sm font-bold flex items-center gap-1.5 min-w-0 ${isCurrentUser ? 'text-neon' : 'text-gray-100'}`}>
-                            <span className="truncate">{user.profile.username || user.profile.anonymous_id || 'Anonymous'}</span>
+                            <span className="truncate">{user.profile.real_name || user.profile.username || user.profile.anonymous_id || 'Anonymous'}</span>
                             {isCurrentUser && (
                               <span className="text-[9px] text-neon font-black uppercase tracking-wider bg-neon/10 px-1.5 py-0.5 rounded-md border border-neon/20 shadow-[0_0_8px_rgba(255,0,127,0.2)] flex-shrink-0">You</span>
                             )}
@@ -896,7 +896,7 @@ export const Sparx: React.FC = () => {
                             )}
                           </h4>
                           <span className="text-[10px] text-gray-500 block truncate mt-0.5 font-medium">
-                            @{user.profile.anonymous_id || 'anonymous'} • {user.profile.university}
+                            @{user.profile.username || user.profile.anonymous_id || 'anonymous'} • {user.profile.university}
                           </span>
                         </div>
                       </div>
@@ -968,9 +968,7 @@ export const Sparx: React.FC = () => {
           <div className="max-w-xl mx-auto bg-black">
             {glimpses.map((glimpse, index) => {
               const isViewed = viewedIds.includes(glimpse.id);
-              const displayName = glimpse.is_anonymous
-                ? (glimpse.profiles?.anonymous_id || 'Anonymous')
-                : (glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous');
+              const displayName = glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous';
               const timeText = (() => {
                 const diff = Date.now() - new Date(glimpse.created_at).getTime();
                 const hrs = Math.floor(diff / (1000 * 60 * 60));
@@ -996,7 +994,7 @@ export const Sparx: React.FC = () => {
                       {/* User Avatar */}
                       <div className="relative flex-shrink-0">
                         <div className="w-12 h-12 rounded-full border border-gray-800 overflow-hidden bg-gray-950 flex items-center justify-center">
-                          {glimpse.profiles?.avatar && !glimpse.is_anonymous ? (
+                          {glimpse.profiles?.avatar ? (
                             <img 
                               src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
                               alt="Avatar" 
@@ -1006,9 +1004,7 @@ export const Sparx: React.FC = () => {
                             />
                           ) : (
                             <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
-                              {glimpse.is_anonymous 
-                                ? (glimpse.profiles?.anonymous_id?.slice(-2).toUpperCase() || '??')
-                                : (displayName.slice(0, 2).toUpperCase() || '??')}
+                              {(displayName || '??').slice(0, 2).toUpperCase()}
                             </div>
                           )}
                         </div>
