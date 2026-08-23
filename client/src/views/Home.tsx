@@ -31,6 +31,16 @@ const getAge = (dob?: string): number | null => {
     return age;
 };
 
+// Strict deduplication helper to prevent repeat / duplicate cards
+const deduplicateProfiles = (profiles: MatchProfile[]): MatchProfile[] => {
+    const seen = new Set<string>();
+    return profiles.filter(p => {
+        if (!p || !p.id || seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+    });
+};
+
 export const Home: React.FC = () => {
     const { currentUser } = useAuth();
     const [queue, setQueue] = useState<MatchProfile[]>([]);
@@ -345,19 +355,35 @@ export const Home: React.FC = () => {
                 }));
 
                 const activeSwipedIds = swipedIdsRef.current;
-                const filteredProfiles = mappedProfiles.filter((p: any) => !activeSwipedIds.has(p.id));
+                const uniqueFreshProfiles = deduplicateProfiles(
+                    mappedProfiles.filter((p: any) => !activeSwipedIds.has(p.id))
+                );
 
-                setQueue(filteredProfiles);
+                setQueue(prevQueue => {
+                    if (prevQueue.length > 0) {
+                        const remaining = prevQueue.filter(p => !activeSwipedIds.has(p.id));
+                        const remainingIds = new Set(remaining.map(p => p.id));
+                        const incoming = uniqueFreshProfiles.filter(p => !remainingIds.has(p.id));
+                        const merged = deduplicateProfiles([...remaining, ...incoming]);
+                        try {
+                            sessionStorage.setItem(getCacheKey(currentMode), JSON.stringify(merged));
+                            sessionStorage.setItem(getCacheExpiryKey(currentMode), (Date.now() + CACHE_DURATION).toString());
+                        } catch (e) {
+                            console.warn('Failed to cache profiles:', e);
+                        }
+                        return merged;
+                    }
+                    try {
+                        sessionStorage.setItem(getCacheKey(currentMode), JSON.stringify(uniqueFreshProfiles));
+                        sessionStorage.setItem(getCacheExpiryKey(currentMode), (Date.now() + CACHE_DURATION).toString());
+                    } catch (e) {
+                        console.warn('Failed to cache profiles:', e);
+                    }
+                    return uniqueFreshProfiles;
+                });
                 setCurrentIndex(0);
                 setIsRecycleMode(false);
-                preloadImages(filteredProfiles.slice(0, 5));
-
-                try {
-                    sessionStorage.setItem(getCacheKey(currentMode), JSON.stringify(filteredProfiles));
-                    sessionStorage.setItem(getCacheExpiryKey(currentMode), (Date.now() + CACHE_DURATION).toString());
-                } catch (e) {
-                    console.warn('Failed to cache profiles:', e);
-                }
+                preloadImages(uniqueFreshProfiles.slice(0, 5));
             } else {
                 setQueue([]);
             }
@@ -423,6 +449,29 @@ export const Home: React.FC = () => {
         const upcomingProfiles = filteredQueue.slice(currentIndex, currentIndex + 4);
         preloadImages(upcomingProfiles);
     }, [currentIndex, filteredQueue, preloadImages]);
+
+    // Reset DOM transforms, stamps, and state when active profile changes
+    useEffect(() => {
+        dragXRef.current = 0;
+        dragYRef.current = 0;
+        isDraggingRef.current = false;
+        if (cardRef.current) {
+            cardRef.current.style.transition = 'none';
+            cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
+            cardRef.current.style.cursor = 'grab';
+        }
+        if (likeStampRef.current) {
+            likeStampRef.current.style.opacity = '0';
+            likeStampRef.current.style.transform = 'scale(0.8) rotate(-12deg)';
+        }
+        if (nopeStampRef.current) {
+            nopeStampRef.current.style.opacity = '0';
+            nopeStampRef.current.style.transform = 'scale(0.8) rotate(12deg)';
+        }
+        if (cardGlowRef.current) {
+            cardGlowRef.current.style.boxShadow = 'none';
+        }
+    }, [currentProfile?.id]);
 
     // Attach non-passive touchmove to card for reliable preventDefault on mobile
     useEffect(() => {
@@ -747,14 +796,8 @@ export const Home: React.FC = () => {
 
                     if (swipeError) throw swipeError;
                 } catch (err) {
-                    console.error('Swipe logic error:', err);
-                    swipedIdsRef.current.delete(targetId);
-                    setQueue(prevQueue => {
-                        if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
-                        const rolledBackQueue = [swipedProfile, ...prevQueue];
-                        deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(rolledBackQueue));
-                        return rolledBackQueue;
-                    });
+                    console.error('Swipe background sync error:', err);
+                    // Do not rollback swiped card onto the active deck to avoid jarring card reappearances
                 }
             })();
         }, 180);
@@ -1014,6 +1057,7 @@ export const Home: React.FC = () => {
 
                             {/* === ACTIVE CARD === */}
                             <div
+                                key={currentProfile.id}
                                 ref={cardRef}
                                 onTouchStart={handleTouchStart}
                                 onTouchMove={handleTouchMove}
