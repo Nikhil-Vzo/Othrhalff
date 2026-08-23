@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (typeof window !== 'undefined') {
       const cached = authService.getCurrentUser();
       if (cached) {
-        return !cached.username || !cached.realName;
+        return !cached.realName || !cached.dob;
       }
     }
     return false;
@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setNeedsOnboarding(needsOnboard);
           } else {
             const cachedUser = authService.getCurrentUser();
-            if (cachedUser && cachedUser.username && cachedUser.realName) {
+            if (cachedUser && cachedUser.realName && cachedUser.dob) {
               // Retain valid existing local session if network or DB lookup had a temporary hiccup
               setCurrentUser(prev => prev || cachedUser);
               setNeedsOnboarding(false);
@@ -252,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               safeSetSessionStorage(JSON.stringify(newAppUser));
               setNeedsOnboarding(true);
             } else {
-              setNeedsOnboarding(!localUser.username || !localUser.realName);
+              setNeedsOnboarding(!localUser.realName || !localUser.dob);
             }
           } else if (localUser && !isOAuthCallback) {
             console.warn('Session expired and refresh failed, showing logout countdown...');
