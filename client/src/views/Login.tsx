@@ -91,10 +91,13 @@ export const Login: React.FC = () => {
            return;
         }
 
+        const cleanUsername = finalEmail.trim().replace(/^@/, '');
+        const safeUsername = cleanUsername.replace(/[%_]/g, '\\$&');
+
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('university_email')
-          .eq('username', finalEmail)
+          .ilike('username', safeUsername)
           .maybeSingle();
 
         if (profileError) {
@@ -105,7 +108,7 @@ export const Login: React.FC = () => {
           throw new Error('Username not found. Please try logging in with your email or Google.');
         }
 
-        if (!profile) {
+        if (!profile || !profile.university_email) {
           throw new Error('Username not found. Please try logging in with your email or Google.');
         }
 

@@ -16,6 +16,7 @@ export const authService = {
 
         if (authUser) {
           // Prepare data for Supabase (mapping camelCase to snake_case DB columns)
+          // Exclude server-managed columns (is_verified) to comply with column-level permissions
           const profileData = {
             id: authUser.id, // Use REAL Auth ID, overwriting any temporary ID
             username: user.username,
@@ -29,7 +30,6 @@ export const authService = {
             interests: user.interests,
             bio: user.bio,
             dob: user.dob,
-            is_verified: user.isVerified,
             looking_for: user.lookingFor,
             avatar: user.avatar, // Storing base64/URL string
             updated_at: new Date().toISOString(),
