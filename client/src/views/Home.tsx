@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MatchProfile } from '../types';
 import { useRouter as useNavigate } from 'next/navigation';
-import { Heart, X, Check, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
+import { Heart, X, Check, Timer, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
@@ -68,6 +68,34 @@ export const Home: React.FC = () => {
     const [recycleMessage, setRecycleMessage] = useState<string | null>(null);
     const cardRef = useRef<HTMLDivElement>(null);
     const [showTutorial, setShowTutorial] = useState(false);
+
+    // Reject 2-second cooldown state and stopwatch timer
+    const [rejectCooldownMs, setRejectCooldownMs] = useState(0);
+    const rejectCooldownUntilRef = useRef<number>(0);
+    const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const startRejectCooldown = useCallback(() => {
+        const until = Date.now() + 2000;
+        rejectCooldownUntilRef.current = until;
+        setRejectCooldownMs(2000);
+
+        if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+
+        cooldownIntervalRef.current = setInterval(() => {
+            const remaining = Math.max(0, rejectCooldownUntilRef.current - Date.now());
+            setRejectCooldownMs(remaining);
+            if (remaining <= 0) {
+                if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+                cooldownIntervalRef.current = null;
+            }
+        }, 50);
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         try {
@@ -498,6 +526,23 @@ export const Home: React.FC = () => {
         if (dragX > threshold) {
             handleSwipe('right');
         } else if (dragX < -threshold) {
+            if (rejectCooldownUntilRef.current > Date.now()) {
+                // Spring back if reject cooldown is active
+                dragXRef.current = 0;
+                dragYRef.current = 0;
+                if (cardRef.current) {
+                    cardRef.current.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    cardRef.current.style.transform = 'translateX(0px) translateY(0px) rotateY(0deg) rotateZ(0deg) scale(1)';
+                }
+                if (nopeStampRef.current) {
+                    nopeStampRef.current.style.opacity = '0';
+                    nopeStampRef.current.style.transform = 'scale(0.8) rotate(12deg)';
+                }
+                if (cardGlowRef.current) {
+                    cardGlowRef.current.style.boxShadow = 'none';
+                }
+                return;
+            }
             handleSwipe('left');
         } else {
             // Spring back animation
@@ -532,8 +577,13 @@ export const Home: React.FC = () => {
 
     const handleSwipe = async (direction: 'left' | 'right') => {
         if (!currentProfile || !currentUser || !supabase || swipeInFlightRef.current) return;
+        if (direction === 'left' && rejectCooldownUntilRef.current > Date.now()) return;
 
         swipeInFlightRef.current = true;
+
+        if (direction === 'left') {
+            startRejectCooldown();
+        }
 
         const swipedProfile = currentProfile;
         const targetId = swipedProfile.id;
@@ -1005,16 +1055,59 @@ export const Home: React.FC = () => {
 
                             {/* === ACTION BUTTONS (X & TICK) === */}
                             <div className="absolute bottom-1 inset-x-0 h-20 flex items-center justify-center gap-8 z-20 pointer-events-auto">
-                                {/* Dislike / Pass (X) */}
+                                {/* Dislike / Pass (X) with 2s Stopwatch Cooldown Clock */}
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        if (rejectCooldownMs > 0) return;
                                         handleSwipe('left');
                                     }}
-                                    aria-label="Pass profile (X)"
-                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-red-500/50 hover:border-red-400 hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center text-red-500 shadow-[0_4px_25px_rgba(239,68,68,0.3)] backdrop-blur-md group cursor-pointer"
+                                    disabled={rejectCooldownMs > 0}
+                                    aria-label={rejectCooldownMs > 0 ? `Pass on cooldown (${(rejectCooldownMs / 1000).toFixed(1)}s)` : "Pass profile (X)"}
+                                    className={`relative w-14 h-14 rounded-full bg-zinc-900/95 border-2 transition-all flex items-center justify-center backdrop-blur-md group overflow-hidden ${
+                                        rejectCooldownMs > 0
+                                            ? 'border-amber-500/60 shadow-[0_0_25px_rgba(245,158,11,0.35)] cursor-not-allowed'
+                                            : 'border-red-500/50 hover:border-red-400 hover:bg-red-500/20 active:scale-90 text-red-500 shadow-[0_4px_25px_rgba(239,68,68,0.3)] cursor-pointer'
+                                    }`}
                                 >
-                                    <X className="w-7 h-7 stroke-[3] group-hover:scale-110 transition-transform" />
+                                    {rejectCooldownMs > 0 ? (
+                                        <>
+                                            {/* Circular SVG Stopwatch Sweep Ring */}
+                                            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none p-0.5" viewBox="0 0 56 56">
+                                                {/* Background guide ring */}
+                                                <circle
+                                                    cx="28"
+                                                    cy="28"
+                                                    r="23"
+                                                    fill="none"
+                                                    stroke="rgba(245, 158, 11, 0.15)"
+                                                    strokeWidth="3"
+                                                />
+                                                {/* Active Stopwatch Countdown Arc */}
+                                                <circle
+                                                    cx="28"
+                                                    cy="28"
+                                                    r="23"
+                                                    fill="none"
+                                                    stroke="#f59e0b"
+                                                    strokeWidth="3"
+                                                    strokeLinecap="round"
+                                                    strokeDasharray="144.5"
+                                                    strokeDashoffset={144.5 * (1 - rejectCooldownMs / 2000)}
+                                                />
+                                            </svg>
+
+                                            {/* Center Stopwatch Indicator & Seconds */}
+                                            <div className="flex flex-col items-center justify-center pointer-events-none z-10">
+                                                <Timer className="w-3.5 h-3.5 text-amber-400 -mb-0.5" />
+                                                <span className="font-mono font-black text-[11px] text-amber-300 tracking-tight">
+                                                    {(rejectCooldownMs / 1000).toFixed(1)}s
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <X className="w-7 h-7 stroke-[3] group-hover:scale-110 transition-transform" />
+                                    )}
                                 </button>
 
                                 {/* Like / Match (Tick / Check) */}
