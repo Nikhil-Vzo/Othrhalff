@@ -314,15 +314,26 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
         {/* Floating Sparx FM Live On-Air Dynamic Pill (Centered directly below Campus Toggle) */}
         {!isFullscreen && currentUser && !pathname.startsWith('/sparx/music') && (
-          <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+          <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto select-none">
             <button
               onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
-              className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full animate-sparx-fm bg-gradient-to-r from-purple-950/90 via-black/95 to-pink-950/90 backdrop-blur-2xl border border-purple-500/50 hover:border-pink-400/90 transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(255,0,127,0.7)]"
+              className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full overflow-hidden border border-pink-500/40 hover:border-pink-400 bg-black/90 backdrop-blur-2xl animate-sparx-internal-glow transition-all duration-300 active:scale-95 cursor-pointer"
               aria-label="Listen to Sparx FM 24/7 Campus Radio"
               title="Listen to Sparx FM 24/7 Live Campus Radio"
             >
+              {/* Internal Aurora Ambient Backlight */}
+              <div className="absolute -inset-2 pointer-events-none opacity-40 blur-[3px] bg-[radial-gradient(ellipse_at_center,_rgba(255,0,127,0.35)_0%,_rgba(168,85,247,0.3)_45%,_transparent_70%)] animate-internal-aurora" />
+
+              {/* Internal Animated Drifting Particles */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <span className="absolute left-1 top-1 w-1.5 h-1.5 rounded-full bg-pink-400 blur-[0.5px] shadow-[0_0_6px_#ff007f] animate-particle-1" />
+                <span className="absolute right-2 bottom-1 w-1 h-1 rounded-full bg-purple-300 blur-[0.5px] shadow-[0_0_4px_#c084fc] animate-particle-2" />
+                <span className="absolute left-1/3 top-2 w-1.5 h-1.5 rounded-full bg-cyan-300 blur-[0.5px] shadow-[0_0_6px_#67e8f9] animate-particle-3" />
+                <span className="absolute right-1/4 top-1 w-1 h-1 rounded-full bg-yellow-300 blur-[0.5px] shadow-[0_0_4px_#fde047] animate-particle-1" style={{ animationDelay: '2s' }} />
+              </div>
+
               {/* Dynamic Live Equalizer Soundwaves */}
-              <div className="flex items-end gap-[2px] h-3.5 w-4 overflow-hidden">
+              <div className="relative z-10 flex items-end gap-[2px] h-3.5 w-4 overflow-hidden">
                 <span className="w-0.5 bg-gradient-to-t from-purple-400 to-pink-400 rounded-full animate-eq-1" />
                 <span className="w-0.5 bg-gradient-to-t from-pink-400 to-purple-300 rounded-full animate-eq-2" />
                 <span className="w-0.5 bg-gradient-to-t from-purple-400 to-pink-500 rounded-full animate-eq-3" />
@@ -330,7 +341,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </div>
 
               {/* Dynamic Content */}
-              <div className="flex items-center gap-1.5">
+              <div className="relative z-10 flex items-center gap-1.5">
                 <span className="text-[10px] font-black tracking-wider text-white group-hover:text-pink-300 transition-colors uppercase flex items-center gap-1">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -338,7 +349,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   </span>
                   SPARX FM
                 </span>
-                <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_8px_rgba(255,0,127,0.8)]">
+                <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_6px_rgba(255,0,127,0.7)]">
                   24/7
                 </span>
               </div>
