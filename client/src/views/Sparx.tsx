@@ -705,14 +705,14 @@ export const Sparx: React.FC = () => {
     <div className="relative w-full h-[100dvh] bg-black text-white overflow-hidden select-none">
       {/* Floating Header Campus Switcher */}
       <header className="absolute top-4 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
-        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/10 backdrop-blur-md rounded-full shadow-2xl pointer-events-auto">
+        <div className="flex items-center gap-1 p-1 bg-[#110f17]/90 border border-white/15 backdrop-blur-2xl rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.8),inset_0_1px_0_0_rgba(255,255,255,0.15)] pointer-events-auto select-none">
           {currentUser && (
             <button
               onClick={() => setFeedMode('campus')}
-              className={`px-5 py-2 text-xs font-bold tracking-wider uppercase rounded-full transition-all duration-300
+              className={`px-4 py-1.5 text-[11px] font-black tracking-wider uppercase rounded-full transition-all duration-300 active:scale-95 flex items-center gap-1.5
                 ${feedMode === 'campus'
-                  ? 'bg-white text-black shadow-lg'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] text-white shadow-[0_0_16px_rgba(255,0,127,0.45)] border border-pink-400/40'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
             >
               My Campus
@@ -720,20 +720,20 @@ export const Sparx: React.FC = () => {
           )}
           <button
             onClick={() => setFeedMode('global')}
-            className={`px-5 py-2 text-xs font-bold tracking-wider uppercase rounded-full transition-all duration-300
+            className={`px-4 py-1.5 text-[11px] font-black tracking-wider uppercase rounded-full transition-all duration-300 active:scale-95 flex items-center gap-1.5
               ${feedMode === 'global' || !currentUser
-                ? 'bg-white text-black shadow-lg'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] text-white shadow-[0_0_16px_rgba(255,0,127,0.45)] border border-pink-400/40'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             Global
           </button>
           <button
             onClick={() => setFeedMode('leaderboard')}
-            className={`px-5 py-2 text-xs font-bold tracking-wider uppercase rounded-full transition-all duration-300
+            className={`px-4 py-1.5 text-[11px] font-black tracking-wider uppercase rounded-full transition-all duration-300 active:scale-95 flex items-center gap-1.5
               ${feedMode === 'leaderboard'
-                ? 'bg-white text-black shadow-lg'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] text-white shadow-[0_0_16px_rgba(255,0,127,0.45)] border border-pink-400/40'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             Leaderboard
@@ -797,27 +797,29 @@ export const Sparx: React.FC = () => {
 
             {/* Scope Switcher (Campus vs Global) */}
             {currentUser && (
-              <div className="flex justify-center gap-2 mb-6">
-                <button
-                  onClick={() => setLeaderboardScope('campus')}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                    leaderboardScope === 'campus'
-                      ? 'bg-rose-500 border-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.3)]'
-                      : 'bg-transparent text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-300'
-                  }`}
-                >
-                  My Campus
-                </button>
-                <button
-                  onClick={() => setLeaderboardScope('global')}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                    leaderboardScope === 'global'
-                      ? 'bg-rose-500 border-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.3)]'
-                      : 'bg-transparent text-gray-500 border-gray-800 hover:border-gray-700 hover:text-gray-300'
-                  }`}
-                >
-                  Global
-                </button>
+              <div className="flex justify-center mb-6 select-none">
+                <div className="inline-flex items-center p-1 rounded-full bg-[#110f17]/90 border border-white/15 backdrop-blur-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] gap-1">
+                  <button
+                    onClick={() => setLeaderboardScope('campus')}
+                    className={`px-4 py-1.5 rounded-full text-[11px] font-black tracking-wider uppercase transition-all duration-300 active:scale-95 ${
+                      leaderboardScope === 'campus'
+                        ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] text-white shadow-[0_0_14px_rgba(255,0,127,0.45)] border border-pink-400/40'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    My Campus
+                  </button>
+                  <button
+                    onClick={() => setLeaderboardScope('global')}
+                    className={`px-4 py-1.5 rounded-full text-[11px] font-black tracking-wider uppercase transition-all duration-300 active:scale-95 ${
+                      leaderboardScope === 'global'
+                        ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] text-white shadow-[0_0_14px_rgba(255,0,127,0.45)] border border-pink-400/40'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    Global
+                  </button>
+                </div>
               </div>
             )}
 
