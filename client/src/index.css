@@ -185,3 +185,31 @@ body.story-active .layout-content-wrapper {
   0%, 100% { height: 25%; }
   50% { height: 100%; }
 }
+
+@keyframes nav-continuous-glow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 0, 127, 0.25), inset 0 0 8px rgba(255, 0, 127, 0.08);
+    border-color: rgba(255, 0, 127, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(255, 0, 127, 0.55), 0 0 10px rgba(168, 85, 247, 0.35), inset 0 0 14px rgba(255, 0, 127, 0.18);
+    border-color: rgba(255, 0, 127, 0.75);
+  }
+}
+
+@keyframes nav-shimmer-bg {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-nav-glow {
+  background-size: 200% 200%;
+  animation: nav-continuous-glow 3.5s ease-in-out infinite, nav-shimmer-bg 6s ease-in-out infinite;
+}

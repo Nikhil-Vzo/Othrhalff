@@ -137,12 +137,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
-    { path: '/discover', icon: Search, label: 'Discover', isNew: true, badge: 'NEW' },
-    { path: '/playground', icon: Gamepad2, label: 'Playground', isNew: true, badge: 'NEW' },
+    { path: '/discover', icon: Search, label: 'Discover', isGlowing: true },
+    { path: '/playground', icon: Gamepad2, label: 'Playground', isGlowing: true },
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
-    { path: '/sparx', icon: Zap, label: 'Sparx', isNew: true, badge: 'NEW', isPulse: true },
+    { path: '/sparx', icon: Zap, label: 'Sparx', isGlowing: true },
     { path: '/profile', icon: User, label: 'My Profile' },
   ];
 
@@ -200,8 +200,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   className={`w-full relative group flex items-center justify-start gap-4 p-3 px-5 py-3.5 rounded-2xl transition-all duration-300 ease-out border overflow-hidden
                     ${active
                       ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.1)]'
-                      : item.isNew
-                        ? 'bg-gradient-to-r from-neon/10 via-purple-900/10 to-transparent border-neon/25 hover:border-neon/60 text-gray-300 hover:text-white shadow-[0_0_15px_rgba(255,0,127,0.1)]'
+                      : item.isGlowing
+                        ? 'animate-nav-glow bg-gradient-to-r from-neon/15 via-purple-900/20 to-pink-900/10 border-pink-500/40 text-gray-200 hover:text-white'
                         : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
                     }`}
                 >
@@ -210,9 +210,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
                   )}
 
-                  {/* Glowing border indicator for new items */}
-                  {item.isNew && !active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-pink-500/70 rounded-r-full shadow-[0_0_8px_rgba(255,0,127,0.8)]" />
+                  {/* Continuous Glowing accent line for featured items */}
+                  {item.isGlowing && !active && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-pink-400 to-neon rounded-r-full shadow-[0_0_12px_rgba(255,0,127,0.9)] animate-pulse" />
                   )}
 
                   {/* Hover Gradient Background */}
@@ -220,33 +220,37 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
                   {/* Icon */}
                   <item.icon
-                    className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-300 ${active ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]' : item.isNew ? 'text-pink-400 drop-shadow-[0_0_6px_rgba(255,0,127,0.5)] group-hover:scale-110 group-hover:text-pink-300' : 'group-hover:scale-110 group-hover:text-gray-300'}`}
+                    className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-300 ${
+                      active
+                        ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]'
+                        : item.isGlowing
+                          ? 'text-pink-400 drop-shadow-[0_0_8px_rgba(255,0,127,0.8)] animate-pulse group-hover:scale-110 group-hover:text-pink-300'
+                          : 'group-hover:scale-110 group-hover:text-gray-300'
+                    }`}
                     strokeWidth={active ? 2.5 : 2}
                   />
 
                   {/* Label */}
-                  <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap max-w-[200px] opacity-100 transition-all duration-300 ${active ? 'text-white' : item.isNew ? 'text-gray-200 group-hover:text-white' : ''}`}>
+                  <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap max-w-[200px] opacity-100 transition-all duration-300 ${active ? 'text-white' : item.isGlowing ? 'text-gray-100 group-hover:text-white' : ''}`}>
                     {item.label}
                   </span>
 
                   {/* Badges/Indicators */}
-                  <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[60px] opacity-100">
-                    {item.badge === 'NEW' ? (
-                      <span className="bg-gradient-to-r from-neon to-pink-500 text-white text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.6)] animate-pulse uppercase">
-                        NEW
-                      </span>
-                    ) : item.badge ? (
+                  {item.badge && (
+                    <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[60px] opacity-100">
                       <span className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.4)]">
                         {item.badge}
                       </span>
-                    ) : null}
-                    {item.isPulse && item.badge !== 'NEW' && (
+                    </div>
+                  )}
+                  {item.isPulse && !item.badge && (
+                    <div className="ml-auto relative z-10 flex items-center max-w-[60px] opacity-100">
                       <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon"></span>
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </button>
               );
             })}
