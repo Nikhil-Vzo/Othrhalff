@@ -560,8 +560,6 @@ export const Sparx: React.FC = () => {
   const renderLiveRoomsTray = () => {
     if (feedMode === 'leaderboard') return null;
 
-    const userRooms = activeRooms.filter(r => !r.room_id.includes('Campus_PCO'));
-
     return (
       <div className="w-full bg-[#0c0a12]/95 border-b border-white/10 backdrop-blur-2xl px-4 pt-16 pb-3 select-none shadow-[0_8px_30px_rgba(0,0,0,0.85)] animate-fade-in">
         <div className="max-w-2xl mx-auto flex flex-col gap-3">
@@ -642,50 +640,6 @@ export const Sparx: React.FC = () => {
               <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto" />
             </button>
           </div>
-
-          {/* User Active Vibe Rooms (if any) */}
-          {userRooms.length > 0 && (
-            <div className="flex flex-col gap-1.5 pt-1">
-              <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-gray-500">
-                <span>Active User Rooms</span>
-                <span className="text-cyan-400 font-mono text-[9px]">{userRooms.length} active</span>
-              </div>
-              <div className="flex items-center gap-2.5 overflow-x-auto scrollbar-none py-1">
-                {userRooms.map((room) => {
-                  const details = parseRoomDetails(room.room_id);
-                  const isCinema = details.type === 'cinema';
-
-                  return (
-                    <button
-                      key={room.room_id}
-                      onClick={() => {
-                        if (room.is_private) {
-                          setPendingJoinRoom(room);
-                          setShowPasscodePrompt(true);
-                        } else {
-                          router.push(`/sparx/${details.type}?room=${encodeURIComponent(room.room_id)}`);
-                        }
-                      }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-cyan-500/40 hover:bg-zinc-900/60 transition-all duration-300 active:scale-95 text-left group"
-                    >
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${isCinema ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}`}>
-                        {isCinema ? <Tv className="w-3.5 h-3.5" /> : <Music className="w-3.5 h-3.5" />}
-                      </div>
-                      <div className="flex flex-col min-w-0 max-w-[100px]">
-                        <span className="text-[11px] font-bold text-gray-200 truncate flex items-center gap-1">
-                          {details.name}
-                          {room.is_private && <Lock className="w-2.5 h-2.5 text-gray-500" />}
-                        </span>
-                        <span className="text-[8.5px] text-gray-400 font-medium">
-                          {room.participant_count || 1} online
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
