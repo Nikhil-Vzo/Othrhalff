@@ -193,15 +193,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
             {navItems.map((item: any) => {
               const active = isActive(item.path);
+              const isSpecialGlowing = item.isGlowing;
+
               return (
                 <button
                   key={item.path}
                   onClick={() => handleNavClick(item.path)}
-                  className={`w-full relative group flex items-center justify-start gap-4 p-3 px-5 py-3.5 rounded-2xl transition-all duration-300 ease-out border overflow-hidden
+                  className={`w-full relative group flex items-center justify-between gap-3 p-3 px-4 py-3 rounded-2xl transition-all duration-300 ease-out border overflow-hidden
                     ${active
-                      ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.1)]'
-                      : item.isGlowing
-                        ? 'animate-nav-glow bg-gradient-to-r from-neon/15 via-purple-900/20 to-pink-900/10 border-pink-500/40 text-gray-200 hover:text-white'
+                      ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.15)]'
+                      : isSpecialGlowing
+                        ? 'bg-[#110f17]/95 border-white/15 hover:border-white/35 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)] text-white hover:text-white'
                         : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
                     }`}
                 >
@@ -210,86 +212,59 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
                   )}
 
-                  {/* Continuous Glowing accent line for featured items */}
-                  {item.isGlowing && !active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-pink-400 to-neon rounded-r-full shadow-[0_0_12px_rgba(255,0,127,0.9)] animate-pulse" />
+                  {/* Internal Radiant Corner Bloom (Warm Amber & Rose Light Bloom on Bottom-Right as shown in reference) */}
+                  {isSpecialGlowing && !active && (
+                    <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.3)_40%,_rgba(147,51,234,0.16)_65%,_transparent_80%)] animate-bloom-drift" />
                   )}
 
                   {/* Hover Gradient Background */}
                   <div className={`absolute inset-0 bg-gradient-to-r from-neon/10 to-transparent opacity-0 transition-opacity duration-300 ${active ? 'opacity-100' : 'group-hover:opacity-30'}`} />
 
-                  {/* Icon */}
-                  <item.icon
-                    className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-300 ${
+                  {/* Left content: Icon + Label */}
+                  <div className="relative z-10 flex items-center gap-3.5 min-w-0">
+                    <item.icon
+                      className={`w-5 h-5 shrink-0 transition-transform duration-300 ${
+                        active
+                          ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]'
+                          : isSpecialGlowing
+                            ? 'text-white/90 group-hover:scale-110 group-hover:text-white'
+                            : 'group-hover:scale-110 group-hover:text-gray-300'
+                      }`}
+                      strokeWidth={active ? 2.5 : 2}
+                    />
+
+                    <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap truncate transition-all duration-300 ${
                       active
-                        ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]'
-                        : item.isGlowing
-                          ? 'text-pink-400 drop-shadow-[0_0_8px_rgba(255,0,127,0.8)] animate-pulse group-hover:scale-110 group-hover:text-pink-300'
-                          : 'group-hover:scale-110 group-hover:text-gray-300'
-                    }`}
-                    strokeWidth={active ? 2.5 : 2}
-                  />
+                        ? 'text-white'
+                        : isSpecialGlowing
+                          ? 'text-white group-hover:text-amber-100'
+                          : 'text-gray-400 group-hover:text-white'
+                    }`}>
+                      {item.label}
+                    </span>
+                  </div>
 
-                  {/* Label */}
-                  <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap max-w-[200px] opacity-100 transition-all duration-300 ${active ? 'text-white' : item.isGlowing ? 'text-gray-100 group-hover:text-white' : ''}`}>
-                    {item.label}
-                  </span>
-
-                  {/* Badges/Indicators */}
-                  {item.badge && (
+                  {/* Right Content: Arrow (for isSpecialGlowing) or Badges / Live Pulse */}
+                  {isSpecialGlowing && !active ? (
+                    <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto" />
+                  ) : item.badge ? (
                     <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[60px] opacity-100">
                       <span className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.4)]">
                         {item.badge}
                       </span>
                     </div>
-                  )}
-                  {item.isPulse && !item.badge && (
+                  ) : item.isPulse ? (
                     <div className="ml-auto relative z-10 flex items-center max-w-[60px] opacity-100">
                       <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon"></span>
                       </span>
                     </div>
-                  )}
+                  ) : null}
                 </button>
               );
             })}
           </nav>
-
-          {/* Sparx FM Luxury Station Widget (Integrated natively in Sidebar — no floating overlap) */}
-          <div className="px-4 pb-2">
-            <button
-              onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
-              className="w-full group relative flex items-center justify-between gap-3 p-3 px-4 rounded-2xl overflow-hidden bg-[#110f17]/95 border border-white/15 hover:border-white/35 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)] transition-all duration-300 active:scale-95 cursor-pointer text-left"
-              title="Tune in to Sparx FM 24/7 Campus Radio"
-            >
-              {/* Internal Radiant Corner Bloom */}
-              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.3)_40%,_rgba(147,51,234,0.16)_65%,_transparent_80%)] animate-bloom-drift" />
-
-              <div className="relative z-10 flex items-center gap-3 min-w-0">
-                {/* Dynamic Live Equalizer Soundwaves */}
-                <div className="flex items-end gap-[2px] h-4 w-4 overflow-hidden shrink-0 bg-black/40 p-0.5 rounded-lg border border-white/10">
-                  <span className="w-0.5 bg-white/90 rounded-full animate-eq-1" />
-                  <span className="w-0.5 bg-amber-300/90 rounded-full animate-eq-2" />
-                  <span className="w-0.5 bg-pink-300/90 rounded-full animate-eq-3" />
-                  <span className="w-0.5 bg-white/90 rounded-full animate-eq-4" />
-                </div>
-
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-black text-white tracking-tight leading-tight group-hover:text-amber-100 transition-colors flex items-center gap-1.5">
-                    Sparx FM
-                    <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[7px] font-black text-white uppercase tracking-widest animate-pulse">24/7</span>
-                  </span>
-                  <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">
-                    Campus Radio & Tunes
-                  </span>
-                </div>
-              </div>
-
-              {/* Trailing Arrow */}
-              <ArrowRight className="relative z-10 w-4 h-4 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
-            </button>
-          </div>
 
           {/* User Profile Card */}
           <div className="p-4 border-t border-gray-900/50 bg-black/50">
