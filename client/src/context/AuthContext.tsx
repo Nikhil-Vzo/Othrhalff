@@ -169,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const cachedUser = authService.getCurrentUser();
 
             // If local cached user is already complete and DB has not synced yet or had placeholder:
-            if (!dbComplete && cachedUser && isProfileComplete(cachedUser) && (cachedUser.id === session.user.id || !cachedUser.id)) {
+            if (!dbComplete && cachedUser && isProfileComplete(cachedUser) && cachedUser.id === session.user.id) {
               const verifiedUser = { ...cachedUser, id: session.user.id };
               setCurrentUser(verifiedUser);
               safeSetSessionStorage(JSON.stringify(verifiedUser));
@@ -264,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const appUser = mapProfileToAppUser(profile, activeSession.user);
               const dbComplete = isProfileComplete(profile);
 
-              if (!dbComplete && localUser && isProfileComplete(localUser) && (localUser.id === activeSession.user.id || !localUser.id)) {
+              if (!dbComplete && localUser && isProfileComplete(localUser) && localUser.id === activeSession.user.id) {
                 const verifiedUser = { ...localUser, id: activeSession.user.id };
                 setCurrentUser(verifiedUser);
                 safeSetSessionStorage(JSON.stringify(verifiedUser));

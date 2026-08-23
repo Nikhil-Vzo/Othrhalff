@@ -375,15 +375,15 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
         const { error: upsertErr } = await supabase.from('profiles').upsert({
           id: userId,
           anonymous_id: currentUser.anonymousId || `User#${userId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
-          real_name: currentUser.realName || 'Campus User',
+          real_name: currentUser.realName || null,
           gender: currentUser.gender || 'Other',
-          university: currentUser.university || 'Global',
+          university: currentUser.university || null,
           university_email: currentUser.universityEmail || authUser.email || '',
-          branch: currentUser.branch || 'General',
+          branch: currentUser.branch || null,
           year: currentUser.year || '1st Year',
           interests: currentUser.interests || [],
           bio: currentUser.bio || '',
-          dob: currentUser.dob || '2002-01-01',
+          dob: currentUser.dob || null,
           avatar: currentUser.avatar || '/auth-mascot.webp',
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });

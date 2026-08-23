@@ -28,16 +28,18 @@ export async function ensureProfileExists(
         id: activeUserId,
         username: userProfile?.username?.trim() || null,
         anonymous_id: userProfile?.anonymousId || `User#${activeUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
-        real_name: userProfile?.realName?.trim() || authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || 'Campus User',
-        gender: userProfile?.gender || 'Male',
-        university: userProfile?.university || 'Global',
+        real_name: userProfile?.realName?.trim() || authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || null,
+        gender: userProfile?.gender || 'Other',
+        // NOTE: no fake placeholder values — leaving university/branch/dob NULL keeps
+        // isProfileComplete() accurate and avoids poisoning campus matching forever.
+        university: userProfile?.university || null,
         university_email: userProfile?.universityEmail?.trim() || authUser?.email || null,
-        branch: userProfile?.branch || 'General',
+        branch: userProfile?.branch || null,
         year: userProfile?.year || '1st Year',
         interests: userProfile?.interests || [],
         looking_for: userProfile?.lookingFor || [],
         bio: userProfile?.bio || '',
-        dob: userProfile?.dob || '2000-01-01',
+        dob: userProfile?.dob || null,
         avatar: userProfile?.avatar || authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || '/auth-mascot.webp',
         updated_at: new Date().toISOString()
       };
@@ -77,6 +79,9 @@ export function isProfileComplete(profile: any): boolean {
 
   // Placeholder college or branch indicates incomplete onboarding
   if (university === 'Global' || branch === 'General') return false;
+
+  // Placeholder DOBs written by the DB trigger / ensureProfileExists bootstrap
+  if (dob === '2000-01-01' || dob === '2002-01-01') return false;
 
   return true;
 }

@@ -247,8 +247,20 @@ export const Profile: React.FC = () => {
 
             if (error) throw error;
 
-            // 3. Update Local Context
-            updateProfile({ ...editForm, ...updates, realName: updates.real_name, lookingFor: updates.looking_for });
+            // 3. Update Local Context (camelCase only — never leak snake_case DB keys into UserProfile)
+            updateProfile({
+                realName: updates.real_name,
+                gender: updates.gender,
+                university: updates.university,
+                branch: updates.branch,
+                year: updates.year,
+                bio: updates.bio,
+                dob: updates.dob,
+                avatar: updates.avatar,
+                interests: updates.interests,
+                lookingFor: updates.looking_for,
+                ...(updates.username ? { username: updates.username } : {})
+            });
             setIsEditing(false);
 
         } catch (err: any) {
