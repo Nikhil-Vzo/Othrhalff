@@ -139,9 +139,13 @@ export const Discover: React.FC = () => {
 
   // Safe Broadcast Helper
   const safeBroadcast = useCallback((event: string, payload: any) => {
-    if (!channelRef.current || !isSubscribedRef.current) return;
+    const ch = channelRef.current;
+    if (!ch || !isSubscribedRef.current) {
+      console.warn(`[Discover] broadcast ${event} dropped — channel not joined`);
+      return;
+    }
     try {
-      channelRef.current.send({
+      ch.send({
         type: 'broadcast',
         event,
         payload
@@ -523,6 +527,10 @@ export const Discover: React.FC = () => {
           scope: scopeRef.current
         });
         syncPoolPresence(newChannel);
+      } else {
+        // CHANNEL_ERROR / TIMED_OUT / CLOSED — stop treating the channel as
+        // usable so safeBroadcast() doesn't silently drop chat messages.
+        isSubscribedRef.current = false;
       }
     });
 

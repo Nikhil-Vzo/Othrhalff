@@ -36,6 +36,9 @@ interface Glimpse {
   university: string;
   created_at: string;
   is_anonymous: boolean;
+  location_tag?: string | null;
+  media_url?: string | null;
+  media_type?: string | null;
   profiles: GlimpseProfile | null;
   glimpse_reactions: GlimpseReaction[];
 }
@@ -576,7 +579,7 @@ export const Sparx: React.FC = () => {
               <div className="relative z-10 flex items-center gap-3 min-w-0">
                 {/* Visual Icon with Live Equalizer */}
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-600/30 to-purple-600/30 border border-pink-500/40 flex items-center justify-center text-pink-300 shrink-0 group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(255,0,127,0.3)] relative overflow-hidden">
-                  <Radio className="w-5 h-5 text-white animate-pulse" />
+                  <RadioIcon className="w-5 h-5 text-white animate-pulse" />
                   <div className="absolute bottom-1 right-1 flex items-end gap-[1.5px] h-2.5">
                     <span className="w-0.5 bg-pink-400 rounded-full animate-eq-1" />
                     <span className="w-0.5 bg-pink-300 rounded-full animate-eq-2" />
