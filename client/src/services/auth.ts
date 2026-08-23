@@ -16,9 +16,12 @@ export const authService = {
 
       if (authUserId) {
         // Prepare data for Supabase (mapping camelCase to snake_case DB columns)
-        // Exclude server-managed columns (is_verified, is_premium, is_admin) to comply with column-level permissions
-        const profileData: any = {
-          id: authUserId,
+        // Exclude server-managed columns (is_verified, is_premium, is_admin) to comply
+        // with column-level permissions. CRITICAL: 'id' must NOT be sent on the UPDATE
+        // path — the hardening migration granted UPDATE only on specific columns and
+        // 'id' is not one of them, so including it makes EVERY save fail with a
+        // permission error even when the value is unchanged.
+        const baseProfileData: any = {
           anonymous_id: user.anonymousId || `User#${authUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
           real_name: user.realName?.trim() || null,
           gender: user.gender || 'Other',
@@ -34,22 +37,22 @@ export const authService = {
           updated_at: new Date().toISOString(),
         };
 
-        if (user.username && user.username.trim()) {
-          profileData.username = user.username.trim();
-        }
+        const usernameField = user.username?.trim() ? { username: user.username.trim() } : {};
 
-        // Try updating the existing profile record first
+        // Try updating the existing profile record first (NO id column)
         const { data: updatedRows, error: updateError } = await supabase
           .from('profiles')
-          .update(profileData)
+          .update({ ...baseProfileData, ...usernameField })
           .eq('id', authUserId)
           .select('id');
 
         if (updateError || !updatedRows || updatedRows.length === 0) {
-          // Fallback to upsert if the row does not exist yet
+          // Fallback upsert for when the row does not exist yet.
+          // INSERT path may include id (INSERT privilege is unrestricted;
+          // only UPDATE was column-restricted by the hardening migration).
           const { error: upsertError } = await supabase
             .from('profiles')
-            .upsert(profileData, { onConflict: 'id' });
+            .upsert({ ...baseProfileData, ...usernameField, id: authUserId }, { onConflict: 'id' });
 
           if (upsertError) {
             console.error('[authService.login] Supabase profile sync error (upsert):', upsertError);
