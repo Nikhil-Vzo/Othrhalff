@@ -970,7 +970,7 @@ export const Sparx: React.FC = () => {
               const isViewed = viewedIds.includes(glimpse.id);
               const displayName = glimpse.is_anonymous
                 ? (glimpse.profiles?.anonymous_id || 'Anonymous')
-                : (glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous');
+                : (glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous');
               const timeText = (() => {
                 const diff = Date.now() - new Date(glimpse.created_at).getTime();
                 const hrs = Math.floor(diff / (1000 * 60 * 60));
@@ -1006,7 +1006,9 @@ export const Sparx: React.FC = () => {
                             />
                           ) : (
                             <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
-                              {glimpse.profiles?.anonymous_id?.slice(-2).toUpperCase() || '??'}
+                              {glimpse.is_anonymous 
+                                ? (glimpse.profiles?.anonymous_id?.slice(-2).toUpperCase() || '??')
+                                : (displayName.slice(0, 2).toUpperCase() || '??')}
                             </div>
                           )}
                         </div>
