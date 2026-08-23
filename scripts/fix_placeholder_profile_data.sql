@@ -103,7 +103,7 @@ USING (
   EXISTS (
     SELECT 1 FROM public.matches m
     WHERE m.id = match_id
-    AND (m.user1_id = (select auth.uid()) OR m.user2_id = (select auth.uid()))
+    AND (m.user_a = (select auth.uid()) OR m.user_b = (select auth.uid()))
   )
 )
 WITH CHECK (
@@ -111,7 +111,8 @@ WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.matches m
     WHERE m.id = match_id
-    AND (m.user1_id = (select auth.uid()) OR m.user2_id = (select auth.uid()))
+    AND (m.user_a = (select auth.uid()) OR m.user_b = (select auth.uid()))
   )
 );
+
 
