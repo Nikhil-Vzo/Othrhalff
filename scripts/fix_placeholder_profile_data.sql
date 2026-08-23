@@ -87,3 +87,31 @@ WHERE branch = 'General' AND university IS NULL;
 UPDATE public.profiles
 SET real_name = NULL
 WHERE real_name IN ('Campus Student', 'Campus User');
+
+-- ==============================================================================
+-- FIX READ RECEIPTS: Allow match participants to mark received messages as read
+-- ==============================================================================
+DROP POLICY IF EXISTS "Users can update their own messages" ON public.messages;
+DROP POLICY IF EXISTS "Users can update their own received messages" ON public.messages;
+DROP POLICY IF EXISTS "Participants can update messages" ON public.messages;
+
+CREATE POLICY "Participants can update messages"
+ON public.messages FOR UPDATE
+TO authenticated
+USING (
+  sender_id = (select auth.uid()) OR
+  EXISTS (
+    SELECT 1 FROM public.matches m
+    WHERE m.id = match_id
+    AND (m.user1_id = (select auth.uid()) OR m.user2_id = (select auth.uid()))
+  )
+)
+WITH CHECK (
+  sender_id = (select auth.uid()) OR
+  EXISTS (
+    SELECT 1 FROM public.matches m
+    WHERE m.id = match_id
+    AND (m.user1_id = (select auth.uid()) OR m.user2_id = (select auth.uid()))
+  )
+);
+
