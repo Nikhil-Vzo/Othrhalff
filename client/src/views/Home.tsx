@@ -1277,7 +1277,7 @@ export const Home: React.FC = () => {
                 )}
 
                 {/* Music GIF Floating Button (Bottom Right above Navbar — clean transparent graphic) */}
-                <div className="fixed bottom-[84px] md:bottom-6 right-4 md:right-6 z-40 select-none pointer-events-auto">
+                <div className="fixed bottom-[70px] md:bottom-3.5 right-3.5 md:right-5 z-40 select-none pointer-events-auto">
                     <button
                         onClick={() => navigate.push('/sparx/music?room=Campus_PCO_247')}
                         className="group relative flex items-center justify-center p-0 bg-transparent border-0 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
