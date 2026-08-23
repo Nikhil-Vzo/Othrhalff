@@ -208,31 +208,6 @@ describe('Contact.tsx migration (src/views/Contact.tsx)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Developers.tsx
-// ---------------------------------------------------------------------------
-describe('Developers.tsx migration (src/views/Developers.tsx)', () => {
-  let source: string;
-
-  beforeAll(() => {
-    source = readPage('Developers.tsx');
-  });
-
-  it('does not import from react-router-dom', () => {
-    expect(source).not.toContain("from 'react-router-dom'");
-    expect(source).not.toContain('from "react-router-dom"');
-  });
-
-  it('imports Link from next/link', () => {
-    expect(source).toMatch(/import\s+Link\s+from\s+['"]next\/link['"]/);
-  });
-
-  it('uses Link href= attribute (not to=)', () => {
-    expect(source).not.toMatch(/<Link to=/);
-    expect(source).toMatch(/<Link[^>]*href=/);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Home.tsx
 // ---------------------------------------------------------------------------
 describe('Home.tsx migration (src/views/Home.tsx)', () => {
@@ -513,7 +488,6 @@ describe('No react-router-dom imports in migrated files', () => {
     'Chat.tsx',
     'Confessions.tsx',
     'Contact.tsx',
-    'Developers.tsx',
     'Home.tsx',
     'Landing.tsx',
     'Login.tsx',

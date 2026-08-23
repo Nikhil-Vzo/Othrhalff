@@ -15,7 +15,6 @@ const routes = {
   'sparx/music': 'virtual-dates/MusicDate',
   'profile': 'Profile',
   'profile/[id]': 'Profile',
-  'developers': 'Developers',
   'confessions': 'Confessions',
   'blog': 'Blog',
   'about': 'StaticPages',

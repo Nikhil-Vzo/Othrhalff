@@ -66,7 +66,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const PUBLIC_ROUTES = ['/', '/login', '/confessions', '/about', '/privacy', '/terms', '/developers', '/guidelines', '/contact', '/safety', '/maintenance', '/blog', '/vs-omegle', '/careers', '/reddit'];
+    const PUBLIC_ROUTES = ['/', '/login', '/confessions', '/about', '/privacy', '/terms', '/guidelines', '/contact', '/safety', '/maintenance', '/blog', '/vs-omegle', '/careers', '/reddit'];
     const isPublicSEOPath = pathname.startsWith('/vs/') || pathname.startsWith('/campus/') || pathname.startsWith('/tea/');
 
     // If unauthenticated and accessing a protected view, send to login
