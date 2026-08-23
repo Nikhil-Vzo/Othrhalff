@@ -601,7 +601,7 @@ export const Home: React.FC = () => {
             analytics.swipeLeft();
         }
 
-        setTimeout(async () => {
+        setTimeout(() => {
             dragXRef.current = 0;
             dragYRef.current = 0;
             
@@ -625,32 +625,34 @@ export const Home: React.FC = () => {
             setQueue(optimisticQueue);
             deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(optimisticQueue));
 
-            try {
-                // Use UPSERT to keep duplicate swipe attempts idempotent for the same user/profile pair.
-                const { error: swipeError } = await supabase
-                    .from('swipes')
-                    .upsert({
-                        liker_id: currentUser.id,
-                        target_id: targetId,
-                        action: action,
-                        created_at: new Date().toISOString()
-                    }, { onConflict: 'liker_id, target_id' });
+            // Instant unblock for next swipe - zero delay!
+            swipeInFlightRef.current = false;
 
-                if (swipeError) throw swipeError;
-            } catch (err) {
-                console.error('Swipe logic error:', err);
-                // Remove from swiped set on rollback
-                swipedIdsRef.current.delete(targetId);
-                setQueue(prevQueue => {
-                    if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
-                    const rolledBackQueue = [swipedProfile, ...prevQueue];
-                    deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(rolledBackQueue));
-                    return rolledBackQueue;
-                });
-            } finally {
-                swipeInFlightRef.current = false;
-            }
-        }, 200);
+            // Background async persist to database
+            (async () => {
+                try {
+                    const { error: swipeError } = await supabase
+                        .from('swipes')
+                        .upsert({
+                            liker_id: currentUser.id,
+                            target_id: targetId,
+                            action: action,
+                            created_at: new Date().toISOString()
+                        }, { onConflict: 'liker_id, target_id' });
+
+                    if (swipeError) throw swipeError;
+                } catch (err) {
+                    console.error('Swipe logic error:', err);
+                    swipedIdsRef.current.delete(targetId);
+                    setQueue(prevQueue => {
+                        if (prevQueue.some(profile => profile.id === targetId)) return prevQueue;
+                        const rolledBackQueue = [swipedProfile, ...prevQueue];
+                        deferSafeSetItem(cacheKeyToUpdate, () => JSON.stringify(rolledBackQueue));
+                        return rolledBackQueue;
+                    });
+                }
+            })();
+        }, 180);
     };
     if (!currentUser) return null;
 
@@ -1009,9 +1011,8 @@ export const Home: React.FC = () => {
                                         e.stopPropagation();
                                         handleSwipe('left');
                                     }}
-                                    disabled={swipeInFlightRef.current}
                                     aria-label="Pass profile (X)"
-                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-red-500/50 hover:border-red-400 hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center text-red-500 shadow-[0_4px_25px_rgba(239,68,68,0.3)] backdrop-blur-md group disabled:opacity-50 cursor-pointer"
+                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-red-500/50 hover:border-red-400 hover:bg-red-500/20 active:scale-90 transition-all flex items-center justify-center text-red-500 shadow-[0_4px_25px_rgba(239,68,68,0.3)] backdrop-blur-md group cursor-pointer"
                                 >
                                     <X className="w-7 h-7 stroke-[3] group-hover:scale-110 transition-transform" />
                                 </button>
@@ -1022,9 +1023,8 @@ export const Home: React.FC = () => {
                                         e.stopPropagation();
                                         handleSwipe('right');
                                     }}
-                                    disabled={swipeInFlightRef.current}
                                     aria-label="Like profile (Tick)"
-                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-green-500/50 hover:border-green-400 hover:bg-green-500/20 active:scale-90 transition-all flex items-center justify-center text-green-400 shadow-[0_4px_25px_rgba(34,197,94,0.3)] backdrop-blur-md group disabled:opacity-50 cursor-pointer"
+                                    className="w-14 h-14 rounded-full bg-zinc-900/90 border-2 border-green-500/50 hover:border-green-400 hover:bg-green-500/20 active:scale-90 transition-all flex items-center justify-center text-green-400 shadow-[0_4px_25px_rgba(34,197,94,0.3)] backdrop-blur-md group cursor-pointer"
                                 >
                                     <Check className="w-7 h-7 stroke-[3] group-hover:scale-110 transition-transform" />
                                 </button>
