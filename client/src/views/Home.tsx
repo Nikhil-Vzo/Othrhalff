@@ -244,40 +244,83 @@ export const Home: React.FC = () => {
         fetchFreshSkippedProfiles(showLoading);
     }, [currentUser?.id, currentUser?.university, filterMode, fetchFreshSkippedProfiles, preloadImages]);
 
-    // Load users from Supabase (with caching)
+    // Load users from Supabase (with caching and robust fallback)
     const fetchFreshData = useCallback(async (showLoading: boolean) => {
         if (!currentUser || !supabase) return;
 
         if (showLoading) setIsLoading(true);
 
         try {
-            // Fetch new matches with server-side filtering
-            let { data, error } = await supabase.rpc('get_potential_matches', {
+            // 1. Attempt RPC get_potential_matches
+            let fetchedProfiles: any[] = [];
+            
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_potential_matches', {
                 user_id: currentUser.id,
                 match_mode: filterMode,
-                user_university: currentUser.university
+                user_university: currentUser.university || ''
             });
 
-            if (error) {
-                console.error('Error fetching matches:', error);
-                if (showLoading) setIsLoading(false);
-                return;
+            if (!rpcError && rpcData && rpcData.length > 0) {
+                fetchedProfiles = rpcData;
+            } else {
+                // If RPC had error or returned 0 profiles (e.g. new user or campus has 0 other users yet):
+                if (rpcError) {
+                    console.warn('[Home] get_potential_matches RPC error, using direct query fallback:', rpcError);
+                }
+
+                // Fetch swiped IDs for this user
+                const { data: userSwipes } = await supabase
+                    .from('swipes')
+                    .select('target_id')
+                    .eq('liker_id', currentUser.id);
+
+                const swipedIds = new Set((userSwipes || []).map((s: any) => s.target_id));
+                swipedIds.add(currentUser.id);
+
+                let query = supabase
+                    .from('profiles')
+                    .select('*')
+                    .neq('id', currentUser.id);
+
+                if (filterMode === 'campus' && currentUser.university && currentUser.university !== 'Global' && currentUser.university !== 'Other') {
+                    const cleanUniv = currentUser.university.split(',')[0].trim();
+                    query = query.ilike('university', `%${cleanUniv}%`);
+                }
+
+                const { data: fallbackData, error: fallbackError } = await query.limit(50);
+
+                if (!fallbackError && fallbackData && fallbackData.length > 0) {
+                    fetchedProfiles = fallbackData.filter((p: any) => !swipedIds.has(p.id));
+                }
+
+                // If campus filter returned 0 even in fallback, load global profiles so user is never stuck with an empty screen
+                if (fetchedProfiles.length === 0) {
+                    const { data: globalFallback } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .neq('id', currentUser.id)
+                        .limit(50);
+
+                    if (globalFallback) {
+                        fetchedProfiles = globalFallback.filter((p: any) => !swipedIds.has(p.id));
+                    }
+                }
             }
 
-            if (data) {
-                const mappedProfiles: MatchProfile[] = data.map((p: any) => ({
+            if (fetchedProfiles && fetchedProfiles.length > 0) {
+                const mappedProfiles: MatchProfile[] = fetchedProfiles.map((p: any) => ({
                     id: p.id,
-                    anonymousId: p.anonymous_id,
-                    realName: p.real_name,
-                    gender: p.gender,
-                    university: p.university,
-                    branch: p.branch,
-                    year: p.year,
+                    anonymousId: p.anonymous_id || `User#${p.id.slice(0, 8).toUpperCase()}`,
+                    realName: p.real_name || 'Campus User',
+                    gender: p.gender || 'Other',
+                    university: p.university || 'Global',
+                    branch: p.branch || 'General',
+                    year: p.year || '1st Year',
                     interests: p.interests || [],
-                    bio: p.bio,
-                    dob: p.dob,
-                    isVerified: p.is_verified,
-                    avatar: p.avatar,
+                    bio: p.bio || '',
+                    dob: p.dob || '',
+                    isVerified: !!p.is_verified,
+                    avatar: p.avatar || '/auth-mascot.webp',
                     lookingFor: p.looking_for || [],
                     matchPercentage: calculateMatchPercentage(currentUser, {
                         id: p.id,
@@ -299,29 +342,30 @@ export const Home: React.FC = () => {
                     distance: filterMode === 'campus' ? 'On Campus' : 'Global'
                 }));
 
-                // Read swipedIdsRef INSIDE the filter callback so any swipes that occurred
-                // during the async network request are always excluded (Bug #4 fix)
-                const filteredProfiles = mappedProfiles.filter(p => !swipedIdsRef.current.has(p.id));
+                const activeSwipedIds = swipedIdsRef.current;
+                const filteredProfiles = mappedProfiles.filter((p: any) => !activeSwipedIds.has(p.id));
 
-                // Update state
                 setQueue(filteredProfiles);
+                setCurrentIndex(0);
                 setIsRecycleMode(false);
                 preloadImages(filteredProfiles.slice(0, 5));
 
-                // Cache the data safely
                 try {
                     sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(filteredProfiles));
                     sessionStorage.setItem(getCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache profiles:', e);
                 }
+            } else {
+                setQueue([]);
             }
         } catch (err) {
-            console.error('Unexpected error:', err);
+            console.error('Unexpected error loading discover profiles:', err);
+            setQueue([]);
         } finally {
             if (showLoading) setIsLoading(false);
         }
-    }, [currentUser?.id, currentUser?.university, filterMode, preloadImages]);
+    }, [currentUser, filterMode, preloadImages]);
 
     const loadDiscoverProfiles = useCallback(async (showLoading = true) => {
         if (!currentUser || !supabase) {
