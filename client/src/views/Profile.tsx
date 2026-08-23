@@ -585,7 +585,7 @@ export const Profile: React.FC = () => {
                                                 <div className="space-y-1.5 min-w-0">
                                                     <h4 className="font-black text-white uppercase tracking-widest text-xs">Student Verification</h4>
                                                     <p className="text-xs text-zinc-400 leading-relaxed">
-                                                        Your student credentials are authenticated and active.
+                                                        Your student profile is authenticated and active.
                                                     </p>
                                                 </div>
                                             </div>
@@ -677,7 +677,7 @@ export const Profile: React.FC = () => {
                                             </div>
                                             <div>
                                                 <h3 className="font-black text-white uppercase tracking-widest text-sm">Account Settings</h3>
-                                                <p className="text-[10px] text-zinc-500 font-medium">Manage your security, credentials & session</p>
+                                                <p className="text-[10px] text-zinc-500 font-medium">Manage your account & app settings</p>
                                             </div>
                                         </div>
 

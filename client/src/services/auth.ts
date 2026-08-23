@@ -179,25 +179,5 @@ export const authService = {
 
     if (error) throw error;
     return data;
-  },
-
-  signInWithPassword: async (email: string, password: string) => {
-    if (!supabase) throw new Error('Supabase client not initialized');
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
-  },
-
-  signUp: async (email: string, password: string, username: string) => {
-    if (!supabase) throw new Error('Supabase client not initialized');
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
   }
 };
