@@ -1275,7 +1275,28 @@ export const Home: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Music GIF Floating Button (Bottom Left above Navbar) */}
+                <div className="fixed bottom-[84px] md:bottom-6 left-4 md:left-6 z-40 select-none pointer-events-auto">
+                    <button
+                        onClick={() => navigate.push('/sparx/music?room=Campus_PCO_247')}
+                        className="group relative flex items-center justify-center p-1.5 rounded-2xl bg-black/60 border border-white/15 backdrop-blur-2xl hover:border-pink-500/60 shadow-[0_0_24px_rgba(0,0,0,0.8),0_0_16px_rgba(255,0,127,0.25)] hover:shadow-[0_0_28px_rgba(255,0,127,0.55)] transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
+                        title="Tune in to Sparx FM 24/7 Campus Radio"
+                        aria-label="Sparx FM Campus Radio"
+                    >
+                        <img 
+                            src="/assets/music.gif" 
+                            alt="Sparx FM Music" 
+                            className="w-11 h-11 md:w-13 md:h-13 object-contain rounded-xl"
+                        />
+                        {/* Live ping beacon indicator */}
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-neon border border-black shadow-[0_0_8px_#ff007f]"></span>
+                        </span>
+                    </button>
                 </div>
+            </div>
 
             {/* CSS for custom animations */}
             <style>{`
