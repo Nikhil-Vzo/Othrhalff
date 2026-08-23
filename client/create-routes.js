@@ -18,6 +18,7 @@ const routes = {
   'confessions': 'Confessions',
   'blog': 'Blog',
   'about': 'StaticPages',
+  'developers': 'Developers',
   'careers': 'Careers',
   'contact': 'Contact',
   'privacy': 'StaticPages',

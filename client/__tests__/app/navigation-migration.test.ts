@@ -488,6 +488,7 @@ describe('No react-router-dom imports in migrated files', () => {
     'Chat.tsx',
     'Confessions.tsx',
     'Contact.tsx',
+    'Developers.tsx',
     'Home.tsx',
     'Landing.tsx',
     'Login.tsx',

@@ -777,6 +777,9 @@ export const Profile: React.FC = () => {
                                         <button onClick={() => navigate.push('/blog')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
                                             <Rocket className="w-3.5 h-3.5" /> Our Story
                                         </button>
+                                        <button onClick={() => navigate.push('/developers')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
+                                            <Code className="w-3.5 h-3.5" /> Devs Team
+                                        </button>
                                     </div>
                                 </div>
                             </div>

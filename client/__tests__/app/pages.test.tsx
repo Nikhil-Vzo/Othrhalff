@@ -88,6 +88,10 @@ jest.mock('../../src/views/Profile', () => ({
   Profile: () => <div data-testid="profile-page">Profile</div>,
 }));
 
+jest.mock('../../src/views/Developers', () => ({
+  Developers: () => <div data-testid="developers-page">Developers</div>,
+}));
+
 jest.mock('../../src/views/Confessions', () => ({
   Confessions: () => <div data-testid="confessions-page">Confessions</div>,
 }));
@@ -131,6 +135,7 @@ import SparxCinemaPage from '../../app/sparx/cinema/page';
 import SparxMusicPage from '../../app/sparx/music/page';
 import ProfilePage from '../../app/profile/page';
 import ProfileByIdPage from '../../app/profile/[id]/page';
+import DevelopersPage from '../../app/developers/page';
 import ConfessionsPage from '../../app/confessions/page';
 import BlogPage from '../../app/blog/page';
 import AboutPage from '../../app/about/page';
@@ -281,6 +286,17 @@ describe('Profile [id] page (app/profile/[id]/page.tsx)', () => {
     // Both /profile and /profile/[id] use the same Profile component
     render(<ProfileByIdPage />);
     expect(screen.getByTestId('profile-page')).toBeInTheDocument();
+  });
+});
+
+describe('Developers page (app/developers/page.tsx)', () => {
+  it('renders without throwing', () => {
+    expect(() => render(<DevelopersPage />)).not.toThrow();
+  });
+
+  it('renders the Developers component', () => {
+    render(<DevelopersPage />);
+    expect(screen.getByTestId('developers-page')).toBeInTheDocument();
   });
 });
 
