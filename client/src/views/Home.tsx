@@ -252,11 +252,12 @@ export const Home: React.FC = () => {
 
         try {
             // 1. Attempt RPC get_potential_matches
+            let currentMode = filterMode;
             let fetchedProfiles: any[] = [];
             
             const { data: rpcData, error: rpcError } = await supabase.rpc('get_potential_matches', {
                 user_id: currentUser.id,
-                match_mode: filterMode,
+                match_mode: currentMode,
                 user_university: currentUser.university || ''
             });
 
@@ -282,7 +283,7 @@ export const Home: React.FC = () => {
                     .select('*')
                     .neq('id', currentUser.id);
 
-                if (filterMode === 'campus' && currentUser.university && currentUser.university !== 'Global' && currentUser.university !== 'Other') {
+                if (currentMode === 'campus' && currentUser.university && currentUser.university !== 'Global' && currentUser.university !== 'Other') {
                     const cleanUniv = currentUser.university.split(',')[0].trim();
                     query = query.ilike('university', `%${cleanUniv}%`);
                 }
@@ -303,6 +304,7 @@ export const Home: React.FC = () => {
 
                     if (globalFallback) {
                         fetchedProfiles = globalFallback.filter((p: any) => !swipedIds.has(p.id));
+                        currentMode = 'global';
                     }
                 }
             }
@@ -339,7 +341,7 @@ export const Home: React.FC = () => {
                         matchPercentage: 0,
                         distance: ''
                     }),
-                    distance: filterMode === 'campus' ? 'On Campus' : 'Global'
+                    distance: currentMode === 'campus' ? 'On Campus' : 'Global'
                 }));
 
                 const activeSwipedIds = swipedIdsRef.current;
@@ -351,8 +353,8 @@ export const Home: React.FC = () => {
                 preloadImages(filteredProfiles.slice(0, 5));
 
                 try {
-                    sessionStorage.setItem(getCacheKey(filterMode), JSON.stringify(filteredProfiles));
-                    sessionStorage.setItem(getCacheExpiryKey(filterMode), (Date.now() + CACHE_DURATION).toString());
+                    sessionStorage.setItem(getCacheKey(currentMode), JSON.stringify(filteredProfiles));
+                    sessionStorage.setItem(getCacheExpiryKey(currentMode), (Date.now() + CACHE_DURATION).toString());
                 } catch (e) {
                     console.warn('Failed to cache profiles:', e);
                 }

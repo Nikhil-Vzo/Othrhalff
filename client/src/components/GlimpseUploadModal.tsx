@@ -336,24 +336,21 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
     setError(null);
 
     try {
-      // 1. Resolve authentic Auth User ID to guarantee foreign key integrity
-      const { data: { user: authUser }, error: authUserErr } = await supabase.auth.getUser();
-      const activeUserId = authUser?.id || currentUser.id;
-
-      if (!activeUserId) {
-        throw new Error('Authentication session missing. Please log in again.');
+      // 0. Verify Supabase Auth session
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUser = authData?.user;
+      if (authError || !authUser) {
+        throw new Error('Your session has expired. Please sign in again.');
       }
+      const userId = authUser.id;
 
-      // 2. Ensure profile row exists in public.profiles to satisfy glimpses_user_id_fkey
-      await ensureProfileExists(activeUserId, currentUser);
-
-      // 3. Compress Image
+      // 1. Compress Image
       const compressedBlob = await compressImage(file);
 
-      // 4. Upload to Storage using the auth user's folder
+      // 2. Upload to Storage using the auth user's folder
       const fileExt = 'jpg';
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${activeUserId}/${fileName}`;
+      const filePath = `${userId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('glimpses')
@@ -367,11 +364,41 @@ export const GlimpseUploadModal: React.FC<GlimpseUploadModalProps> = ({
         throw uploadError;
       }
 
-      // 5. Insert metadata into public.glimpses table
+      // 3. Ensure profile row exists in public.profiles to satisfy foreign key constraint
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        const { error: upsertErr } = await supabase.from('profiles').upsert({
+          id: userId,
+          anonymous_id: currentUser.anonymousId || `User#${userId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+          real_name: currentUser.realName || 'Campus User',
+          gender: currentUser.gender || 'Other',
+          university: currentUser.university || 'Global',
+          university_email: currentUser.universityEmail || authUser.email || '',
+          branch: currentUser.branch || 'General',
+          year: currentUser.year || '1st Year',
+          interests: currentUser.interests || [],
+          bio: currentUser.bio || '',
+          dob: currentUser.dob || '2002-01-01',
+          avatar: currentUser.avatar || '/auth-mascot.webp',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+
+        if (upsertErr) {
+          console.error('Failed to ensure profile existence before glimpse upload:', upsertErr);
+          throw new Error('Unable to verify your user profile. Please try completing onboarding first.');
+        }
+      }
+
+      // 4. Insert metadata into public.glimpses table
       const { error: dbError } = await supabase
         .from('glimpses')
         .insert({
-          user_id: activeUserId,
+          user_id: userId,
           image_path: filePath,
           caption: caption.trim() || null,
           university: currentUser.university || 'Global',

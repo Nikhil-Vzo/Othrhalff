@@ -610,7 +610,7 @@ export const Profile: React.FC = () => {
                                                         </span>
                                                     </div>
                                                     <p className="text-xs text-zinc-400 leading-relaxed">
-                                                        Verify your college email to access campus channels & glimpses.
+                                                        Verify your college email to get a verified student badge and boost your profile credibility.
                                                     </p>
                                                 </div>
                                             </div>

@@ -334,10 +334,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(user);
     safeSetSessionStorage(JSON.stringify(user));
     setNeedsOnboarding(false);
-    
-    // Save to localStorage immediately and sync to Supabase
-    await authService.login(user).catch(err => console.error("Profile sync error:", err));
-    
+    try {
+      await authService.login(user);
+    } catch (err) {
+      console.error("Profile sync error on login:", err);
+    }
     // Sync token to SW for background push notification handling
     syncTokenToSW();
   }, [syncTokenToSW]);

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { GlimpseCard } from '../components/GlimpseCard';
 import { GlimpseUploadModal } from '../components/GlimpseUploadModal';
-import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lock, Users, Shield } from 'lucide-react';
+import { Plus, Tv, Music, X, Loader2, AlertCircle, Camera, Ghost, BadgeCheck, Lock, Users, Shield, Globe } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
@@ -933,13 +933,25 @@ export const Sparx: React.FC = () => {
                 : 'Nobody has shared global glimpses in the last 24 hours.'}
             </p>
 
-            <button
-              onClick={handleOpenUpload}
-              className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 mx-auto"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Share a Glimpse</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mx-auto">
+              <button
+                onClick={handleOpenUpload}
+                className="px-6 py-3 bg-gradient-to-r from-neon to-purple-600 text-white rounded-full font-bold text-sm transition-all hover:shadow-[0_0_30px_rgba(255,0,127,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Share a Glimpse</span>
+              </button>
+
+              {feedMode === 'campus' && (
+                <button
+                  onClick={() => setFeedMode('global')}
+                  className="px-6 py-3 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Globe className="w-4 h-4 text-cyan-400" />
+                  <span>Explore Global Glimpses</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ) : (

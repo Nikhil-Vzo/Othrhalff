@@ -17,14 +17,13 @@ export const authService = {
         if (authUserId) {
           // Prepare data for Supabase (mapping camelCase to snake_case DB columns)
           // Exclude server-managed columns (is_verified) to comply with column-level permissions
-          const profileData = {
+          const profileData: any = {
             id: authUserId,
-            username: user.username?.trim() || null,
             anonymous_id: user.anonymousId || `User#${authUserId.replace(/-/g, '').slice(0, 8).toUpperCase()}`,
-            real_name: user.realName?.trim() || 'Campus User',
-            gender: user.gender || 'Male',
+            real_name: user.realName?.trim() || 'Campus Student',
+            gender: user.gender || 'Other',
             university: user.university || 'Global',
-            university_email: user.universityEmail?.trim() || null,
+            university_email: user.universityEmail?.trim() || '',
             branch: user.branch || 'General',
             year: user.year || '1st Year',
             interests: user.interests || [],
@@ -35,13 +34,17 @@ export const authService = {
             updated_at: new Date().toISOString(),
           };
 
+          if (user.username && user.username.trim()) {
+            profileData.username = user.username.trim();
+          }
+
           const { error } = await supabase
             .from('profiles')
             .upsert(profileData, { onConflict: 'id' });
 
           if (error) {
             console.error('Supabase profile sync error:', error);
-            // We log but don't throw, to prevent blocking the UI flow
+            throw error;
           }
         }
       } catch (err) {
