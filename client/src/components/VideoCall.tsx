@@ -179,13 +179,21 @@ export const VideoCall: React.FC<VideoCallProps> = ({
             noShowTimeout = null;
           }
           if (!isMounted) return;
-          await client.subscribe(user, mediaType);
-          console.log('[Agora] Subscribed to remote user:', user.uid, mediaType);
 
-          // Update user in state with a new array reference to trigger re-render
+          try {
+            await client.subscribe(user, mediaType);
+            console.log('[Agora] Subscribed to remote user:', user.uid, mediaType);
+          } catch (subErr) {
+            console.error('[Agora] Failed to subscribe to remote user:', subErr);
+            return;
+          }
+
+          if (!isMounted) return;
+
+          // Update user in state with a cloned object reference to guarantee React re-render
           setRemoteUsers((prev) => {
             const next = prev.filter(u => u.uid !== user.uid);
-            return [...next, user];
+            return [...next, { ...user, videoTrack: user.videoTrack, audioTrack: user.audioTrack }];
           });
 
           if (mediaType === 'audio') {
@@ -204,7 +212,13 @@ export const VideoCall: React.FC<VideoCallProps> = ({
           console.log('[Agora] User unpublished:', user.uid, mediaType);
           setRemoteUsers((prev) => {
             const next = prev.filter(u => u.uid !== user.uid);
-            return [...next, user];
+            if (mediaType === 'video' && user.audioTrack) {
+              return [...next, { ...user, videoTrack: undefined, audioTrack: user.audioTrack }];
+            }
+            if (mediaType === 'audio' && user.videoTrack) {
+              return [...next, { ...user, audioTrack: undefined, videoTrack: user.videoTrack }];
+            }
+            return next;
           });
         });
 
@@ -244,14 +258,41 @@ export const VideoCall: React.FC<VideoCallProps> = ({
         await client.join(appId, channelName, token || null, null);
         console.log('[Agora] Joined channel successfully:', channelName);
 
-        // GHOST CALL DETECTION: If partner doesn't publish within 6s, auto-advance
-        noShowTimeout = setTimeout(() => {
-          if (isMounted) {
-            console.warn('[Agora] Partner no-show after 6s, forcing auto-advance...');
-            if (onPartnerDisconnectRef.current) onPartnerDisconnectRef.current();
-            else onLeaveRef.current();
+        // Check if remote users already joined and published before this client joined
+        if (client.remoteUsers && client.remoteUsers.length > 0) {
+          console.log('[Agora] Found existing remote users in channel:', client.remoteUsers.length);
+          for (const remoteUser of client.remoteUsers) {
+            if (remoteUser.hasAudio) {
+              try {
+                await client.subscribe(remoteUser, 'audio');
+                await remoteUser.audioTrack?.play();
+              } catch (err) {
+                console.warn('[Agora] Error subscribing to existing audio track:', err);
+              }
+            }
+            if (remoteUser.hasVideo) {
+              try {
+                await client.subscribe(remoteUser, 'video');
+              } catch (err) {
+                console.warn('[Agora] Error subscribing to existing video track:', err);
+              }
+            }
           }
-        }, 6000);
+          if (noShowTimeout) {
+            clearTimeout(noShowTimeout);
+            noShowTimeout = null;
+          }
+          setRemoteUsers([...client.remoteUsers.map((u: any) => ({ ...u, videoTrack: u.videoTrack, audioTrack: u.audioTrack }))]);
+        } else {
+          // GHOST CALL DETECTION: Generous 25s window for WebRTC negotiation & camera permission grants
+          noShowTimeout = setTimeout(() => {
+            if (isMounted) {
+              console.warn('[Agora] Partner no-show after 25s, auto-advancing...');
+              if (onPartnerDisconnectRef.current) onPartnerDisconnectRef.current();
+              else onLeaveRef.current();
+            }
+          }, 25000);
+        }
 
         // Create and publish local tracks based on call type
         let audioTrack: IMicrophoneAudioTrack;
@@ -469,15 +510,16 @@ export const VideoCall: React.FC<VideoCallProps> = ({
 
       {/* Video Container */}
       <div className="flex-1 relative bg-gradient-to-b from-[#08020f] to-black flex items-center justify-center overflow-hidden">
-        {/* Render ALL remote users hidden or visible with dedicated RemoteVideoView */}
+        {/* Render remote video tracks with dedicated RemoteVideoView */}
         {remoteUsers.map((user) => (
-          <div
-            key={user.uid}
-            className={`absolute inset-0 ${user.videoTrack ? 'z-10' : '-z-10'}`}
-            style={{ display: user.videoTrack ? 'block' : 'none' }}
-          >
-            <RemoteVideoView user={user} />
-          </div>
+          user.videoTrack ? (
+            <div
+              key={user.uid}
+              className="absolute inset-0 z-10"
+            >
+              <RemoteVideoView user={user} />
+            </div>
+          ) : null
         ))}
 
         {/* Reconnecting overlay */}
