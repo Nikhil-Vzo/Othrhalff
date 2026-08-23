@@ -104,6 +104,8 @@ export const Discover: React.FC = () => {
       setSearchTime(0);
     }
     return () => clearInterval(timer);
+  }, [state]);
+
   // Broadcast matchmaking state to layout so mobile navbar shows in lobby and hides when matchmaking starts
   useEffect(() => {
     const isMatchmakingActive = state !== 'IDLE';
