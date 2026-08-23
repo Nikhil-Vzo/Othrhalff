@@ -314,14 +314,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback(async (user: UserProfile) => {
-    clearAllCaches();
     setCurrentUser(user);
+    safeSetSessionStorage(JSON.stringify(user));
     setNeedsOnboarding(false);
-    // Non-blocking sync
-    authService.login(user).catch(err => console.error("Background sync error:", err));
+    
+    // Save to localStorage immediately and sync to Supabase
+    await authService.login(user).catch(err => console.error("Profile sync error:", err));
+    
     // Sync token to SW for background push notification handling
     syncTokenToSW();
-  }, [clearAllCaches, syncTokenToSW]);
+  }, [syncTokenToSW]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowLogoutCountdown(false);

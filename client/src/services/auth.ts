@@ -11,15 +11,15 @@ export const authService = {
     // 2. Sync to Supabase (Backend persistence)
     if (supabase) {
       try {
-        // Get the real authenticated user ID to ensure strict linkage with Auth
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        // Get the authenticated user ID (fallback to user.id)
+        const authUserId = (await supabase.auth.getUser())?.data?.user?.id || user.id;
 
-        if (authUser) {
+        if (authUserId) {
           // Prepare data for Supabase (mapping camelCase to snake_case DB columns)
           // Exclude server-managed columns (is_verified) to comply with column-level permissions
           const profileData = {
-            id: authUser.id, // Use REAL Auth ID, overwriting any temporary ID
-            username: user.username,
+            id: authUserId,
+            username: user.username || undefined,
             anonymous_id: user.anonymousId,
             real_name: user.realName,
             gender: user.gender,
