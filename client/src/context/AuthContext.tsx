@@ -194,6 +194,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setCurrentUser(null);
           localStorage.removeItem('otherhalf_session');
           setNeedsOnboarding(false);
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/') {
+            router.replace('/login');
+          }
         }
       } catch (err) {
         console.error('[AuthContext] Error loading user profile on auth change:', err);
@@ -353,12 +356,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     router.push('/login');
   }, [clearAllCaches, clearSWToken, router]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setCurrentUser(null);
     clearAllCaches();
     clearSWToken();
-    authService.logout();
-  }, [clearAllCaches, clearSWToken]);
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.warn('[AuthContext] Error during logout:', err);
+    }
+    router.replace('/login');
+  }, [clearAllCaches, clearSWToken, router]);
 
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
     setCurrentUser(prev => {
