@@ -137,11 +137,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
-    { path: '/discover', icon: Search, label: 'Discover' },
+    { path: '/discover', icon: Search, label: 'Discover', isNew: true, badge: 'NEW' },
+    { path: '/playground', icon: Gamepad2, label: 'Playground', isNew: true, badge: 'NEW' },
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
-    { path: '/sparx', icon: Zap, label: 'Sparx' },
+    { path: '/sparx', icon: Zap, label: 'Sparx', isNew: true, badge: 'NEW', isPulse: true },
     { path: '/profile', icon: User, label: 'My Profile' },
   ];
 
@@ -190,7 +191,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               Menu
             </div>
 
-            {navItems.map((item) => {
+            {navItems.map((item: any) => {
               const active = isActive(item.path);
               return (
                 <button
@@ -199,7 +200,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   className={`w-full relative group flex items-center justify-start gap-4 p-3 px-5 py-3.5 rounded-2xl transition-all duration-300 ease-out border overflow-hidden
                     ${active
                       ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.1)]'
-                      : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
+                      : item.isNew
+                        ? 'bg-gradient-to-r from-neon/10 via-purple-900/10 to-transparent border-neon/25 hover:border-neon/60 text-gray-300 hover:text-white shadow-[0_0_15px_rgba(255,0,127,0.1)]'
+                        : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
                     }`}
                 >
                   {/* Active Indicator Line */}
@@ -207,28 +210,37 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
                   )}
 
+                  {/* Glowing border indicator for new items */}
+                  {item.isNew && !active && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-pink-500/70 rounded-r-full shadow-[0_0_8px_rgba(255,0,127,0.8)]" />
+                  )}
+
                   {/* Hover Gradient Background */}
                   <div className={`absolute inset-0 bg-gradient-to-r from-neon/10 to-transparent opacity-0 transition-opacity duration-300 ${active ? 'opacity-100' : 'group-hover:opacity-30'}`} />
 
                   {/* Icon */}
                   <item.icon
-                    className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-300 ${active ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]' : 'group-hover:scale-110 group-hover:text-gray-300'}`}
+                    className={`w-5 h-5 shrink-0 relative z-10 transition-transform duration-300 ${active ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]' : item.isNew ? 'text-pink-400 drop-shadow-[0_0_6px_rgba(255,0,127,0.5)] group-hover:scale-110 group-hover:text-pink-300' : 'group-hover:scale-110 group-hover:text-gray-300'}`}
                     strokeWidth={active ? 2.5 : 2}
                   />
 
                   {/* Label */}
-                  <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap max-w-[200px] opacity-100 transition-all duration-300 ${active ? 'text-white' : ''}`}>
+                  <span className={`text-sm font-bold tracking-wide relative z-10 whitespace-nowrap max-w-[200px] opacity-100 transition-all duration-300 ${active ? 'text-white' : item.isNew ? 'text-gray-200 group-hover:text-white' : ''}`}>
                     {item.label}
                   </span>
 
                   {/* Badges/Indicators */}
-                  <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[50px] opacity-100">
-                    {item.badge && (
+                  <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[60px] opacity-100">
+                    {item.badge === 'NEW' ? (
+                      <span className="bg-gradient-to-r from-neon to-pink-500 text-white text-[8px] font-black tracking-widest px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.6)] animate-pulse uppercase">
+                        NEW
+                      </span>
+                    ) : item.badge ? (
                       <span className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.4)]">
                         {item.badge}
                       </span>
-                    )}
-                    {item.isPulse && (
+                    ) : null}
+                    {item.isPulse && item.badge !== 'NEW' && (
                       <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon"></span>
@@ -295,6 +307,34 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
         {showStars && <StarField />}
+
+        {/* Floating Sparx FM Live On-Air Pill */}
+        {!isFullscreen && currentUser && !pathname.startsWith('/sparx/music') && (
+          <div className="fixed top-4 right-4 z-40">
+            <button
+              onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
+              className="group relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/85 backdrop-blur-xl border border-purple-500/40 hover:border-pink-500/80 shadow-[0_0_20px_rgba(168,85,247,0.35)] hover:shadow-[0_0_25px_rgba(255,0,127,0.6)] transition-all duration-300 active:scale-95"
+              aria-label="Listen to Sparx FM 24/7 Campus Radio"
+              title="Listen to Sparx FM 24/7 Live Campus Radio"
+            >
+              {/* Live Equalizer Animation */}
+              <div className="flex items-end gap-0.5 h-3.5 w-3.5">
+                <span className="w-0.5 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse h-full" />
+                <span className="w-0.5 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse h-2/3" />
+                <span className="w-0.5 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse h-5/6" />
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black tracking-wider text-white group-hover:text-pink-300 transition-colors uppercase">
+                  SPARX FM
+                </span>
+                <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_8px_rgba(255,0,127,0.8)]">
+                  24/7
+                </span>
+              </div>
+            </button>
+          </div>
+        )}
         
         {/* Mobile Top-Left Profile Picture */}
         {isHome && currentUser && (
@@ -351,13 +391,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                 <span className="text-[9px] font-bold tracking-wider">CONFESS</span>
               </button>
 
-              {/* 2. Playground */}
+              {/* 2. Discover (Replaced Playground on Mobile) */}
               <button
-                onClick={() => handleNavClick('/playground')}
-                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/playground') ? 'text-white' : 'text-gray-500'}`}
+                onClick={() => handleNavClick('/discover')}
+                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/discover') ? 'text-white' : 'text-gray-500'}`}
               >
-                <Gamepad2 className={`w-5 h-5 transition-transform ${isActive('/playground') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/playground') ? 2.5 : 2} />
-                <span className="text-[9px] font-bold tracking-wider uppercase">PLAYGROUND</span>
+                <div className="relative">
+                  <Search className={`w-5 h-5 transition-transform ${isActive('/discover') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/discover') ? 2.5 : 2} />
+                  <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-neon animate-ping" />
+                  <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-neon shadow-[0_0_6px_#ff007f]" />
+                </div>
+                <span className="text-[9px] font-bold tracking-wider uppercase">DISCOVER</span>
               </button>
 
               {/* 3. Center Spacer */}
@@ -366,9 +410,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               {/* 4. Sparx */}
               <button
                 onClick={() => handleNavClick('/sparx')}
-                className={`flex flex-col items-center justify-center gap-1 ${isActive('/sparx') ? 'text-white' : 'text-gray-500'}`}
+                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/sparx') ? 'text-white' : 'text-gray-500'}`}
               >
-                <Zap className={`w-5 h-5 transition-transform ${isActive('/sparx') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/sparx') ? 2.5 : 2} />
+                <div className="relative">
+                  <Zap className={`w-5 h-5 transition-transform ${isActive('/sparx') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/sparx') ? 2.5 : 2} />
+                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+                </div>
                 <span className="text-[9px] font-bold tracking-wider">SPARX</span>
               </button>
 
@@ -389,7 +436,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </button>
             </div>
 
-            {/* Center Floating Button (Discover/Home) */}
+            {/* Center Floating Button (Home) */}
             <button
               onClick={() => handleNavClick('/home')}
               className="absolute left-1/2 -translate-x-1/2 bottom-8 w-14 h-14 flex flex-col items-center justify-center rounded-full z-20 transition-transform active:scale-95 pointer-events-auto"
