@@ -312,27 +312,33 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <main className="flex-1 flex flex-col relative min-w-0 bg-black">
         {showStars && <StarField />}
 
-        {/* Floating Sparx FM Live On-Air Pill */}
+        {/* Floating Sparx FM Live On-Air Dynamic Pill (Centered directly below Campus Toggle) */}
         {!isFullscreen && currentUser && !pathname.startsWith('/sparx/music') && (
-          <div className="fixed top-4 right-4 z-40">
+          <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
             <button
               onClick={() => handleNavClick('/sparx/music?room=Campus_PCO_247')}
-              className="group relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/85 backdrop-blur-xl border border-purple-500/40 hover:border-pink-500/80 shadow-[0_0_20px_rgba(168,85,247,0.35)] hover:shadow-[0_0_25px_rgba(255,0,127,0.6)] transition-all duration-300 active:scale-95"
+              className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full animate-sparx-fm bg-gradient-to-r from-purple-950/90 via-black/95 to-pink-950/90 backdrop-blur-2xl border border-purple-500/50 hover:border-pink-400/90 transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(255,0,127,0.7)]"
               aria-label="Listen to Sparx FM 24/7 Campus Radio"
               title="Listen to Sparx FM 24/7 Live Campus Radio"
             >
-              {/* Live Equalizer Animation */}
-              <div className="flex items-end gap-0.5 h-3.5 w-3.5">
-                <span className="w-0.5 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse h-full" />
-                <span className="w-0.5 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse h-2/3" />
-                <span className="w-0.5 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse h-5/6" />
+              {/* Dynamic Live Equalizer Soundwaves */}
+              <div className="flex items-end gap-[2px] h-3.5 w-4 overflow-hidden">
+                <span className="w-0.5 bg-gradient-to-t from-purple-400 to-pink-400 rounded-full animate-eq-1" />
+                <span className="w-0.5 bg-gradient-to-t from-pink-400 to-purple-300 rounded-full animate-eq-2" />
+                <span className="w-0.5 bg-gradient-to-t from-purple-400 to-pink-500 rounded-full animate-eq-3" />
+                <span className="w-0.5 bg-gradient-to-t from-pink-500 to-neon rounded-full animate-eq-4" />
               </div>
 
+              {/* Dynamic Content */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black tracking-wider text-white group-hover:text-pink-300 transition-colors uppercase">
+                <span className="text-[10px] font-black tracking-wider text-white group-hover:text-pink-300 transition-colors uppercase flex items-center gap-1">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
                   SPARX FM
                 </span>
-                <span className="px-1.5 py-0.2 rounded-full bg-pink-500 text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_8px_rgba(255,0,127,0.8)]">
+                <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 to-neon text-[8px] font-black text-white uppercase tracking-widest animate-pulse shadow-[0_0_8px_rgba(255,0,127,0.8)]">
                   24/7
                 </span>
               </div>
