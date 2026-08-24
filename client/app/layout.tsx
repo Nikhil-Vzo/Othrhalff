@@ -106,7 +106,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const gaId = process.env.NEXT_PUBLIC_GA_ID || 'G-OTH4HALFF1';
+  const gaId = process.env.NEXT_PUBLIC_GA_ID || 'G-1SMGFPR49Z';
 
   return (
     <html lang="en">
