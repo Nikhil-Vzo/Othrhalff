@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Providers } from './providers';
+import PageViewTracker from './PageViewTracker';
 import { AppLayout } from '../src/layouts/AppLayout';
 import '../src/index.css';
 
@@ -197,6 +198,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <AppLayout>
+            <PageViewTracker />
             {children}
           </AppLayout>
         </Providers>

@@ -5,6 +5,7 @@ declare global {
     interface Window {
         gtag: (...args: any[]) => void;
         dataLayer: any[];
+        __pageViewTrackerInitialized?: boolean;
     }
 }
 
