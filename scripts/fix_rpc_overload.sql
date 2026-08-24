@@ -1,45 +1,35 @@
 -- ==============================================================================
--- OTHRHALFF: FIX get_potential_matches OVERLOAD AMBIGUITY (PGRST203)
--- Run ONCE in Supabase SQL Editor.
+-- OTHRHALFF: CLEAN & RECREATE CANONICAL MATCHING RPC FUNCTIONS
+-- Run ONCE in the Supabase SQL Editor. 100% Idempotent & Safe.
 --
--- Problem: two overloads of get_potential_matches exist (one with only
--- limit_count/offset_count defaults, one full). PostgREST cannot resolve
--- which to call -> every swipe-deck load throws PGRST203 and falls back to
--- a slower direct client-side query.
---
--- Fix: keep ONE canonical signature (the one Home.tsx actually calls:
--- user_id, match_mode, user_university) and DROP the rest.
--- Idempotent-safe: uses DO block so re-running never errors.
+-- Why: Drops all existing versions and overloads first to avoid PostgreSQL 
+-- ERROR 42P13 ("cannot change return type of existing function").
 -- ==============================================================================
 
+-- 1. DROP ALL existing variants/overloads of get_potential_matches & get_skipped_profiles
 DO $$
 DECLARE
   r record;
 BEGIN
-  -- Drop every overload EXCEPT the exact arg pattern the client calls:
-  -- (user_id uuid, match_mode text, user_university text)
   FOR r IN
     SELECT p.oid::regprocedure AS funcsig
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public'
-      AND p.proname = 'get_potential_matches'
-      AND pg_get_function_arguments(p.oid) NOT ILIKE 'user_id uuid, match_mode text, user_university text'
+      AND p.proname IN ('get_potential_matches', 'get_skipped_profiles')
   LOOP
-    EXECUTE format('DROP FUNCTION %s', r.funcsig);
-    RAISE NOTICE 'Dropped overload: %', r.funcsig;
+    EXECUTE format('DROP FUNCTION IF EXISTS %s CASCADE', r.funcsig);
+    RAISE NOTICE 'Dropped function: %', r.funcsig;
   END LOOP;
 END $$;
 
--- Recreate the canonical version (newest-first, campus/global split,
--- excludes swiped + blocked both ways). Safe even if the surviving
--- definition was stale.
+-- 2. Create canonical get_potential_matches (filters out un-onboarded / placeholder accounts)
 CREATE OR REPLACE FUNCTION public.get_potential_matches(
   user_id uuid,
   match_mode text,
   user_university text
 )
-RETURNS SETOF profiles
+RETURNS SETOF public.profiles
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
@@ -53,7 +43,7 @@ BEGIN
 
   RETURN QUERY
   SELECT p.*
-  FROM profiles p
+  FROM public.profiles p
   WHERE p.id != user_id
     AND p.university IS NOT NULL
     AND p.dob IS NOT NULL
@@ -61,16 +51,16 @@ BEGIN
     AND p.university NOT IN ('Global', 'Unspecified')
     AND p.branch NOT IN ('General')
     AND NOT EXISTS (
-      SELECT 1 FROM swipes s
+      SELECT 1 FROM public.swipes s
       WHERE s.liker_id = get_potential_matches.user_id
         AND s.target_id = p.id
     )
     AND NOT EXISTS (
-      SELECT 1 FROM blocked_users b
+      SELECT 1 FROM public.blocked_users b
       WHERE b.blocker_id = get_potential_matches.user_id AND b.blocked_id = p.id
     )
     AND NOT EXISTS (
-      SELECT 1 FROM blocked_users b
+      SELECT 1 FROM public.blocked_users b
       WHERE b.blocker_id = p.id AND b.blocked_id = get_potential_matches.user_id
     )
     AND (
@@ -85,24 +75,7 @@ BEGIN
 END;
 $$;
 
--- Same treatment for get_skipped_profiles if it also got overloaded:
-DO $$
-DECLARE
-  r record;
-BEGIN
-  FOR r IN
-    SELECT p.oid::regprocedure AS funcsig
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
-      AND p.proname = 'get_skipped_profiles'
-      AND pg_get_function_arguments(p.oid) NOT ILIKE 'current_user_id uuid, match_mode text, user_university text'
-  LOOP
-    EXECUTE format('DROP FUNCTION %s', r.funcsig);
-    RAISE NOTICE 'Dropped skipped-profiles overload: %', r.funcsig;
-  END LOOP;
-END $$;
-
+-- 3. Create canonical get_skipped_profiles (filters out un-onboarded / placeholder accounts)
 CREATE OR REPLACE FUNCTION public.get_skipped_profiles(
   current_user_id uuid,
   match_mode text,
@@ -110,6 +83,7 @@ CREATE OR REPLACE FUNCTION public.get_skipped_profiles(
 )
 RETURNS SETOF public.profiles
 LANGUAGE plpgsql
+STABLE
 SECURITY DEFINER
 AS $$
 BEGIN
@@ -144,3 +118,7 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- 4. Grant Permissions to authenticated and service roles
+GRANT EXECUTE ON FUNCTION public.get_potential_matches(uuid, text, text) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.get_skipped_profiles(uuid, text, text) TO authenticated, anon, service_role;
