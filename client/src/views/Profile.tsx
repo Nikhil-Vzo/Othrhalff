@@ -41,7 +41,7 @@ export const Profile: React.FC = () => {
 
     // New State for fetching external profiles
     const [fetchedProfile, setFetchedProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState<boolean>(Boolean(id && id !== currentUser?.id));
     const [saving, setSaving] = useState(false);
     const [showLegal, setShowLegal] = useState(false);
     const [showAccount, setShowAccount] = useState(false);
@@ -108,12 +108,14 @@ export const Profile: React.FC = () => {
     // Resolve which profile to show
     const profileUser = isSelf ? currentUser : fetchedProfile;
 
-
-
     // Fetch Profile Data (if not self)
     useEffect(() => {
-        if (isSelf || !id || !supabase) return;
+        if (isSelf || !id || !supabase) {
+            setLoading(false);
+            return;
+        }
 
+        let isMounted = true;
         const fetchProfile = async () => {
             setLoading(true);
             try {
@@ -125,12 +127,13 @@ export const Profile: React.FC = () => {
 
                 if (error) throw error;
 
-                if (data) {
+                if (data && isMounted) {
                     // Map DB snake_case to Client camelCase
                     const mapped: UserProfile = {
                         id: data.id,
                         anonymousId: data.anonymous_id,
                         realName: data.real_name,
+                        username: data.username,
                         gender: data.gender,
                         university: data.university,
                         universityEmail: data.university_email,
@@ -149,27 +152,17 @@ export const Profile: React.FC = () => {
             } catch (err) {
                 console.error('Error fetching profile:', err);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchProfile();
-    }, [id, isSelf]);
-
-    // Loading State
-    if (loading) return (
-        <div className="h-full flex items-center justify-center bg-black text-white">
-            <Loader2 className="w-10 h-10 text-neon animate-spin" />
-        </div>
-    );
-
-    if (!profileUser) return (
-        <div className="h-full flex flex-col items-center justify-center bg-black text-white">
-            <Ghost className="w-12 h-12 text-gray-700 mb-4" />
-            <p className="text-gray-500">User not found.</p>
-            <button onClick={() => navigate.back()} className="mt-4 text-neon hover:underline">Go Back</button>
-        </div>
-    );
+        return () => {
+            isMounted = false;
+        };
+    }, [id, isSelf, currentUser?.id]);
 
     // Handlers
     const startEdit = () => {
@@ -202,7 +195,7 @@ export const Profile: React.FC = () => {
         setIsEditing(false);
     };
 
-    // Browser navigation / refresh discard protection
+    // Browser navigation / refresh discard protection (MUST BE UNCONDITIONALLY CALLED BEFORE ANY RETURN)
     useEffect(() => {
         if (!isEditing) return;
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -289,6 +282,21 @@ export const Profile: React.FC = () => {
             alert("Failed to process image. Please try another one.");
         }
     };
+
+    // Loading State (rendered ONLY after all hooks are evaluated)
+    if (loading || (isLoading && !currentUser)) return (
+        <div className="h-full flex items-center justify-center bg-black text-white">
+            <Loader2 className="w-10 h-10 text-neon animate-spin" />
+        </div>
+    );
+
+    if (!profileUser) return (
+        <div className="h-full flex flex-col items-center justify-center bg-black text-white">
+            <Ghost className="w-12 h-12 text-gray-700 mb-4" />
+            <p className="text-gray-500">User not found.</p>
+            <button onClick={() => navigate.back()} className="mt-4 text-neon hover:underline">Go Back</button>
+        </div>
+    );
 
     return (
         <div className="h-full w-full overflow-y-auto custom-scrollbar bg-[#000000] text-white relative">
