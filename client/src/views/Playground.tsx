@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { PlaygroundCanvas, Player } from '../components/PlaygroundCanvas';
+import { PlaygroundCanvas, Player, PRIMARY_SPAWN_CENTER, WHITE_SPAWN_CENTERS, getRandomWhiteAreaCenter } from '../components/PlaygroundCanvas';
 import { AvatarSelectionModal } from '../components/AvatarSelectionModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -38,8 +38,8 @@ export const Playground: React.FC = () => {
     }
   }, []);
 
-  // Default coordinates (approx center of canvas)
-  const [myPos, setMyPos] = useState({ x: 1600, y: 720 });
+  // Default coordinates in the center of the primary white walkable plaza
+  const [myPos, setMyPos] = useState({ x: PRIMARY_SPAWN_CENTER.x, y: PRIMARY_SPAWN_CENTER.y });
   const [mounted, setMounted] = useState(false);
 
   // Interaction States
@@ -149,6 +149,15 @@ export const Playground: React.FC = () => {
 
   const handleCollisionCheckerReady = useCallback((checker: (x: number, y: number) => { x: number; y: number; isBlocked: boolean }) => {
     collisionCheckerRef.current = checker;
+    // Check if initial or restored position is in black / blocked zone; if so, reposition to center of white area
+    setMyPos(currentPos => {
+      const result = checker(currentPos.x, currentPos.y);
+      if (result.isBlocked) {
+        console.log("Player spawn was in blocked region. Repositioned to center of white area:", result);
+        return { x: result.x, y: result.y };
+      }
+      return currentPos;
+    });
   }, []);
 
   useEffect(() => {
@@ -194,7 +203,12 @@ export const Playground: React.FC = () => {
         const savedSettings = await db.playground_settings.get(currentUser.id);
         if (savedSettings && isMounted) {
           if (typeof savedSettings.last_x === 'number' && typeof savedSettings.last_y === 'number') {
-            setMyPos({ x: savedSettings.last_x, y: savedSettings.last_y });
+            if (collisionCheckerRef.current) {
+              const res = collisionCheckerRef.current(savedSettings.last_x, savedSettings.last_y);
+              setMyPos({ x: res.x, y: res.y });
+            } else {
+              setMyPos({ x: savedSettings.last_x, y: savedSettings.last_y });
+            }
           }
         }
       } catch (err) {

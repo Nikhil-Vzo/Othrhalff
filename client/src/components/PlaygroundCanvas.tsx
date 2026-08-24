@@ -93,11 +93,48 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
     return collisionPixelsRef.current[index] < 50;
   }, []);
 
+// ---------------------------------------------------------
+// VERIFIED WHITE WALKABLE AREA CENTERS (WORLD COORDINATES)
+// ---------------------------------------------------------
+export interface WhiteSpawnCenter {
+  name: string;
+  x: number;
+  y: number;
+  radius: number;
+}
+
+export const WHITE_SPAWN_CENTERS: WhiteSpawnCenter[] = [
+  { name: 'Central Grand Plaza', x: 1670, y: 960, radius: 240 },
+  { name: 'Central West Plaza', x: 1560, y: 960, radius: 240 },
+  { name: 'Central East Plaza', x: 1780, y: 960, radius: 240 },
+  { name: 'South Promenade', x: 1680, y: 1160, radius: 130 },
+  { name: 'South-East Garden', x: 1920, y: 1140, radius: 140 },
+  { name: 'South-West Terrace', x: 1460, y: 1160, radius: 130 },
+  { name: 'North Courtyard', x: 1660, y: 200, radius: 110 },
+  { name: 'North-West Gate', x: 1440, y: 220, radius: 120 },
+  { name: 'North-East Quad', x: 2020, y: 160, radius: 110 },
+  { name: 'West Plaza', x: 740, y: 380, radius: 100 },
+  { name: 'East Plaza', x: 1960, y: 820, radius: 100 },
+];
+
+export const PRIMARY_SPAWN_CENTER = { x: 1670, y: 960 };
+
+export const getRandomWhiteAreaCenter = (jitterRadius = 30) => {
+  const center = WHITE_SPAWN_CENTERS[Math.floor(Math.random() * WHITE_SPAWN_CENTERS.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const dist = Math.random() * jitterRadius;
+  return {
+    x: Math.round(center.x + Math.cos(angle) * dist),
+    y: Math.round(center.y + Math.sin(angle) * dist)
+  };
+};
+
   const findNearestWalkablePosition = useCallback((startX: number, startY: number) => {
     if (!checkPixelCollision(startX, startY)) {
       return { x: startX, y: startY, isBlocked: false };
     }
 
+    // 1. Try local radial search (if nearby white pixel exists within 120px)
     for (let r = 5; r <= 120; r += 5) {
       for (let angle = 0; angle < 360; angle += 45) {
         const rad = (angle * Math.PI) / 180;
@@ -108,7 +145,31 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         }
       }
     }
-    return { x: startX, y: startY, isBlocked: true };
+
+    // 2. If completely outside or in a deep black zone, relocate to the center of the nearest white area!
+    let closestCenter = PRIMARY_SPAWN_CENTER;
+    let minDist = Infinity;
+    for (const center of WHITE_SPAWN_CENTERS) {
+      const dx = startX - center.x;
+      const dy = startY - center.y;
+      const dist = dx * dx + dy * dy;
+      if (dist < minDist && !checkPixelCollision(center.x, center.y)) {
+        minDist = dist;
+        closestCenter = center;
+      }
+    }
+
+    // Add a tiny random offset so players don't overlap pixel-for-pixel
+    const jitterX = Math.round((Math.random() - 0.5) * 20);
+    const jitterY = Math.round((Math.random() - 0.5) * 20);
+    const safeX = closestCenter.x + jitterX;
+    const safeY = closestCenter.y + jitterY;
+
+    if (!checkPixelCollision(safeX, safeY)) {
+      return { x: safeX, y: safeY, isBlocked: true };
+    }
+
+    return { x: closestCenter.x, y: closestCenter.y, isBlocked: true };
   }, [checkPixelCollision]);
 
   useEffect(() => {

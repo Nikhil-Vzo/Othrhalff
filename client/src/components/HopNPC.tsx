@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { WHITE_SPAWN_CENTERS, PRIMARY_SPAWN_CENTER } from './PlaygroundCanvas';
 
 interface HopNPCProps {
   checkCollision: (x: number, y: number, size?: number) => boolean;
@@ -8,14 +9,6 @@ interface HopNPCProps {
 
 const WORLD_WIDTH = 2560;
 const WORLD_HEIGHT = 1440;
-
-// Verified Open White Walkable Zones (Central Diamond Plaza, Pathways & Courtyards)
-const WHITE_WALKABLE_ZONES = [
-  { minX: 1500, maxX: 2150, minY: 500, maxY: 1100 }, // Main Open Central Plaza & Lawn Walkway
-  { minX: 1450, maxX: 1900, minY: 350, maxY: 600 },  // Upper North Plaza
-  { minX: 1550, maxX: 2200, minY: 750, maxY: 1200 }, // Lower South Plaza
-  { minX: 950,  maxX: 1350, minY: 150, maxY: 320 },  // Top North Courtyard
-];
 
 const HOP_MESSAGES = [
   'Hop! 🐰✨',
@@ -27,9 +20,9 @@ const HOP_MESSAGES = [
 ];
 
 export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY }) => {
-  // Start right in the middle of the main open white plaza
-  const posRef = useRef({ x: 1680, y: 720 });
-  const [renderPos, setRenderPos] = useState({ x: 1680, y: 720 });
+  // Start right in the center of the main open white plaza
+  const posRef = useRef({ x: PRIMARY_SPAWN_CENTER.x, y: PRIMARY_SPAWN_CENTER.y });
+  const [renderPos, setRenderPos] = useState({ x: PRIMARY_SPAWN_CENTER.x, y: PRIMARY_SPAWN_CENTER.y });
   const [facingRight, setFacingRight] = useState(true);
   const [isHopping, setIsHopping] = useState(false);
   const [bubbleText, setBubbleText] = useState<string | null>(null);
@@ -41,13 +34,16 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
   const idleTimerRef = useRef(0.5);
   const hopCycleRef = useRef(0);
 
-  // Pick a random valid target coordinate strictly inside the white walkable area
+  // Pick a random valid target coordinate strictly inside the white walkable area centers
   const pickRandomWhiteAreaTarget = useCallback(() => {
-    // 1. Try picking from the confirmed open white zones first
+    // 1. Try picking from the verified white area centers with safe radius
     for (let attempts = 0; attempts < 40; attempts++) {
-      const zone = WHITE_WALKABLE_ZONES[Math.floor(Math.random() * WHITE_WALKABLE_ZONES.length)];
-      const testX = Math.round(zone.minX + Math.random() * (zone.maxX - zone.minX));
-      const testY = Math.round(zone.minY + Math.random() * (zone.maxY - zone.minY));
+      const center = WHITE_SPAWN_CENTERS[Math.floor(Math.random() * WHITE_SPAWN_CENTERS.length)];
+      const maxJitter = Math.min(center.radius * 0.6, 100);
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * maxJitter;
+      const testX = Math.round(center.x + Math.cos(angle) * dist);
+      const testY = Math.round(center.y + Math.sin(angle) * dist);
 
       // Strictly verify coordinate is NOT blocked by any black mask pixel (checkCollision === false)
       if (!checkCollision(testX, testY, 24)) {
@@ -55,9 +51,9 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
       }
     }
 
-    // 2. Fallback to nearby white radius
+    // 2. Fallback to nearby white radius from current position
     for (let attempts = 0; attempts < 25; attempts++) {
-      const distance = 80 + Math.random() * 250;
+      const distance = 60 + Math.random() * 180;
       const angle = Math.random() * Math.PI * 2;
       const testX = Math.round(posRef.current.x + Math.cos(angle) * distance);
       const testY = Math.round(posRef.current.y + Math.sin(angle) * distance);
@@ -71,8 +67,8 @@ export const HopNPC: React.FC<HopNPCProps> = ({ checkCollision, playerX, playerY
       }
     }
 
-    // Default safe white area coordinate in the central plaza
-    return { x: 1680 + (Math.random() * 120 - 60), y: 720 + (Math.random() * 120 - 60) };
+    // Default safe white area coordinate in the primary central plaza
+    return { x: PRIMARY_SPAWN_CENTER.x, y: PRIMARY_SPAWN_CENTER.y };
   }, [checkCollision]);
 
   // Main 60 FPS autonomous roaming animation loop
