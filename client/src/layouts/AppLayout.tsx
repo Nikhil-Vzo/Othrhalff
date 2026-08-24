@@ -149,12 +149,54 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
-    { path: '/discover', icon: Search, label: 'Discover', isGlowing: true },
-    { path: '/playground', icon: Gamepad2, label: 'Playground', isGlowing: true },
+    { 
+      path: '/discover', 
+      icon: Search, 
+      label: 'Discover', 
+      featured: {
+        tag: 'LIVE',
+        glowColor: 'rgba(244,63,94,0.25)',
+        gradient: 'from-rose-500/20 via-pink-500/15 to-purple-600/20',
+        border: 'border-pink-500/35 hover:border-pink-400/70',
+        iconBg: 'bg-pink-500/20 text-pink-300 border border-pink-500/30',
+        textColor: 'text-white',
+        badgeBg: 'bg-rose-500/25 text-rose-200 border border-rose-500/40',
+        pulseColor: 'bg-rose-400'
+      }
+    },
+    { 
+      path: '/playground', 
+      icon: Gamepad2, 
+      label: 'Playground', 
+      featured: {
+        tag: '2D WORLD',
+        glowColor: 'rgba(139,92,246,0.25)',
+        gradient: 'from-violet-500/20 via-purple-500/15 to-cyan-500/20',
+        border: 'border-violet-500/35 hover:border-cyan-400/70',
+        iconBg: 'bg-violet-500/20 text-cyan-300 border border-violet-500/30',
+        textColor: 'text-white',
+        badgeBg: 'bg-cyan-500/25 text-cyan-200 border border-cyan-500/40',
+        pulseColor: 'bg-cyan-400'
+      }
+    },
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
-    { path: '/sparx', icon: Zap, label: 'Sparx', isGlowing: true },
+    { 
+      path: '/sparx', 
+      icon: Zap, 
+      label: 'Sparx', 
+      featured: {
+        tag: 'HOT',
+        glowColor: 'rgba(217,70,239,0.25)',
+        gradient: 'from-fuchsia-500/20 via-pink-500/15 to-amber-500/20',
+        border: 'border-fuchsia-500/35 hover:border-amber-400/70',
+        iconBg: 'bg-fuchsia-500/20 text-amber-300 border border-fuchsia-500/30',
+        textColor: 'text-white',
+        badgeBg: 'bg-amber-500/25 text-amber-200 border border-amber-500/40',
+        pulseColor: 'bg-amber-400'
+      }
+    },
     { path: '/profile', icon: User, label: 'My Profile' },
   ];
 
@@ -198,80 +240,102 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar overflow-x-hidden">
-            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-4 px-4">
+          <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto custom-scrollbar overflow-x-hidden">
+            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-3">
               Menu
             </div>
 
             {navItems.map((item: any) => {
               const active = isActive(item.path);
-              const isSpecialGlowing = item.isGlowing;
+              const featured = item.featured;
 
+              if (featured) {
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => handleNavClick(item.path)}
+                    className={`w-full relative group flex items-center justify-between gap-3 p-2 px-3 rounded-2xl transition-all duration-300 ease-out border overflow-hidden active:scale-[0.98] ${
+                      active
+                        ? `bg-gradient-to-r ${featured.gradient} ${featured.border} shadow-[0_0_24px_${featured.glowColor}] text-white ring-1 ring-white/20`
+                        : `bg-gradient-to-r ${featured.gradient} ${featured.border} shadow-[0_0_12px_${featured.glowColor}] hover:shadow-[0_0_22px_${featured.glowColor}] hover:brightness-125 text-white backdrop-blur-md`
+                    }`}
+                  >
+                    {/* Active Indicator Bar */}
+                    {active && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-r-full shadow-[0_0_10px_#ffffff]" />
+                    )}
+
+                    {/* Ambient Hover Shimmer Sheen Layer */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+
+                    {/* Left content: Glowing Icon Container + Label */}
+                    <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm ${featured.iconBg}`}>
+                        <item.icon className="w-3.5 h-3.5 drop-shadow-sm" strokeWidth={2.5} />
+                      </div>
+
+                      <span className="text-[13px] font-black tracking-wide text-white drop-shadow-sm whitespace-nowrap">
+                        {item.label}
+                      </span>
+                    </div>
+
+                    {/* Right Content: Badge + Sleek Animated Arrow */}
+                    <div className="relative z-10 flex items-center gap-1.5 ml-auto shrink-0">
+                      {featured.tag && (
+                        <span className={`text-[8.5px] font-black tracking-wider px-1.5 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm ${featured.badgeBg}`}>
+                          <span className={`w-1 h-1 rounded-full animate-ping ${featured.pulseColor}`} />
+                          {featured.tag}
+                        </span>
+                      )}
+                      <ArrowRight className="w-3.5 h-3.5 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                    </div>
+                  </button>
+                );
+              }
+
+              // Standard Nav Items (Home, Messages, Notifications, Confessions, Profile)
               return (
                 <button
                   key={item.path}
                   onClick={() => handleNavClick(item.path)}
-                  className={`w-full relative group flex items-center justify-between gap-3 p-3 px-4 py-3 rounded-2xl transition-all duration-300 ease-out border overflow-hidden
-                    ${active
-                      ? 'bg-gray-900/80 border-neon/30 text-white shadow-[0_0_20px_rgba(255,0,127,0.15)]'
-                      : isSpecialGlowing
-                        ? 'bg-gradient-to-r from-[#ff007f] via-[#c026d3] to-[#8b5cf6] border-pink-400/40 hover:border-pink-300 shadow-[0_0_18px_rgba(255,0,127,0.35)] hover:shadow-[0_0_28px_rgba(217,70,239,0.55)] text-white hover:text-white active:scale-98'
-                        : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-900/50 hover:text-gray-200 hover:border-gray-800'
-                    }`}
+                  className={`w-full relative group flex items-center justify-between gap-3 p-2 px-3 rounded-2xl transition-all duration-300 ease-out border overflow-hidden active:scale-[0.98] ${
+                    active
+                      ? 'bg-gray-900/90 border-neon/40 text-white shadow-[0_0_18px_rgba(255,0,127,0.18)]'
+                      : 'bg-transparent border-transparent text-gray-400 hover:bg-gray-900/60 hover:text-white hover:border-gray-800/80'
+                  }`}
                 >
                   {/* Active Indicator Line */}
                   {active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
-                  )}
-
-                  {/* Shimmer Sheen Layer on Hover for Gradient Buttons */}
-                  {isSpecialGlowing && !active && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                  )}
-
-                  {/* Hover Gradient Background for standard buttons */}
-                  {!isSpecialGlowing && (
-                    <div className={`absolute inset-0 bg-gradient-to-r from-neon/10 to-transparent opacity-0 transition-opacity duration-300 ${active ? 'opacity-100' : 'group-hover:opacity-30'}`} />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
                   )}
 
                   {/* Left content: Icon + Label */}
-                  <div className="relative z-10 flex items-center gap-3.5 min-w-0">
-                    <item.icon
-                      className={`w-5 h-5 shrink-0 transition-transform duration-300 ${
-                        active
-                          ? 'text-neon scale-110 drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]'
-                          : isSpecialGlowing
-                            ? 'text-white drop-shadow-sm group-hover:scale-110'
-                            : 'group-hover:scale-110 group-hover:text-gray-300'
-                      }`}
-                      strokeWidth={isSpecialGlowing ? 2.5 : active ? 2.5 : 2}
-                    />
+                  <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 ${
+                      active ? 'bg-neon/15 text-neon' : 'text-gray-400 group-hover:text-white group-hover:scale-110'
+                    }`}>
+                      <item.icon className="w-4 h-4" strokeWidth={active ? 2.5 : 2} />
+                    </div>
 
-                    <span className={`text-sm font-black tracking-wide relative z-10 whitespace-nowrap truncate transition-all duration-300 ${
-                      active
-                        ? 'text-white'
-                        : isSpecialGlowing
-                          ? 'text-white drop-shadow-sm'
-                          : 'text-gray-400 group-hover:text-white'
+                    <span className={`text-[13px] font-bold tracking-wide whitespace-nowrap truncate transition-colors duration-300 ${
+                      active ? 'text-white font-black' : 'text-gray-400 group-hover:text-white'
                     }`}>
                       {item.label}
                     </span>
                   </div>
 
-                  {/* Right Content: Arrow (for isSpecialGlowing) or Badges / Live Pulse */}
-                  {isSpecialGlowing && !active ? (
-                    <ArrowRight className="relative z-10 w-4 h-4 text-white group-hover:translate-x-0.5 transition-all shrink-0 ml-auto drop-shadow-sm" />
-                  ) : item.badge ? (
-                    <div className="ml-auto relative z-10 flex items-center gap-2 max-w-[60px] opacity-100">
-                      <span className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.4)]">
+                  {/* Right Content: Badge or Pulse Indicator */}
+                  {item.badge ? (
+                    <div className="ml-auto relative z-10 flex items-center gap-2 opacity-100">
+                      <span className="bg-neon text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.5)]">
                         {item.badge}
                       </span>
                     </div>
                   ) : item.isPulse ? (
-                    <div className="ml-auto relative z-10 flex items-center max-w-[60px] opacity-100">
-                      <span className="relative flex h-2.5 w-2.5">
+                    <div className="ml-auto relative z-10 flex items-center opacity-100">
+                      <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-neon"></span>
                       </span>
                     </div>
                   ) : null}
