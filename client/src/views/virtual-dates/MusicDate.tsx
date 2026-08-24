@@ -28,25 +28,26 @@ interface PeerStream {
     stream: MediaStream;
 }
 
-const StreamVideo = ({ stream, muted = false, mirrored, volume = 1 }: { stream: MediaStream, muted?: boolean, mirrored: boolean, volume?: number }) => {
+const StreamVideo = ({ stream, muted = false, mirrored, volume = 1, objectFit = 'cover' }: { stream: MediaStream, muted?: boolean, mirrored: boolean, volume?: number, objectFit?: 'cover' | 'contain' }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !stream) return;
 
+        // Ensure video tracks are active & enabled
+        stream.getVideoTracks().forEach(t => {
+            if (!t.enabled) t.enabled = true;
+        });
+
         video.srcObject = stream;
+        video.playsInline = true;
 
         const attemptPlay = () => {
-            if (!video) return;
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.catch((err) => {
-                    console.warn("Video playback prevented, attempting muted fallback:", err);
-                    if (!muted) {
-                        video.muted = true;
-                        video.play().catch(e => console.error("Muted playback fallback failed:", e));
-                    }
+            if (video && video.paused) {
+                video.play().catch((err) => {
+                    console.warn("Video playback notice:", err);
                 });
             }
         };
@@ -63,7 +64,7 @@ const StreamVideo = ({ stream, muted = false, mirrored, volume = 1 }: { stream: 
             }
         };
 
-        const tracks = stream.getVideoTracks();
+        const tracks = stream.getTracks();
         const handleTrackActive = () => {
             if (stream.active && video) {
                 if (video.srcObject !== stream) {
@@ -81,6 +82,15 @@ const StreamVideo = ({ stream, muted = false, mirrored, volume = 1 }: { stream: 
 
         document.addEventListener('visibilitychange', handlePlayPause);
 
+        const handleUserGesture = () => {
+            attemptPlay();
+            if (audioRef.current && audioRef.current.paused && !muted) {
+                audioRef.current.play().catch(() => {});
+            }
+        };
+        window.addEventListener('click', handleUserGesture, { once: true });
+        window.addEventListener('touchstart', handleUserGesture, { once: true });
+
         return () => {
             video.removeEventListener('loadedmetadata', handleLoaded);
             video.removeEventListener('canplay', handleLoaded);
@@ -90,24 +100,37 @@ const StreamVideo = ({ stream, muted = false, mirrored, volume = 1 }: { stream: 
                 track.removeEventListener('mute', handleTrackActive);
                 track.removeEventListener('unmute', handleTrackActive);
             });
+            window.removeEventListener('click', handleUserGesture);
+            window.removeEventListener('touchstart', handleUserGesture);
         };
     }, [stream, muted]);
 
     useEffect(() => {
-        if (videoRef.current) {
-            videoRef.current.volume = volume;
+        if (audioRef.current && stream && !muted) {
+            audioRef.current.srcObject = stream;
+            audioRef.current.volume = volume;
+            audioRef.current.play().catch(e => console.warn("Audio play notice:", e));
         }
-    }, [volume]);
+    }, [stream, muted, volume]);
 
     return (
-        <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted={muted}
-            className="w-full h-full object-cover"
-            style={{ transform: mirrored ? 'rotateY(180deg)' : 'none' }}
-        />
+        <>
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted={true}
+                className={`w-full h-full object-${objectFit}`}
+                style={{ transform: mirrored ? 'rotateY(180deg)' : 'none' }}
+            />
+            {!muted && (
+                <audio
+                    ref={audioRef}
+                    autoPlay
+                    playsInline
+                />
+            )}
+        </>
     );
 };
 
@@ -209,6 +232,7 @@ export const MusicDate = () => {
     const peersRef = useRef<PeerStream[]>([]);
     const hostRef = useRef(isHost);
     const myStreamRef = useRef<MediaStream | null>(null);
+    const activeCalls = useRef<Map<string, any>>(new Map());
 
     useEffect(() => {
         roomHostIdRef.current = roomHostId;
@@ -888,7 +912,15 @@ export const MusicDate = () => {
                     peer.on('call', (call) => {
                         console.log('Receiving call from:', call.peer);
                         attachIceMonitoring(call);
-                        call.answer(myStreamRef.current || stream);
+                        if (activeCalls.current.has(call.peer)) {
+                            console.log(`Replacing previous call with incoming call from ${call.peer}`);
+                            try {
+                                activeCalls.current.get(call.peer)?.close();
+                            } catch (e) {}
+                        }
+                        activeCalls.current.set(call.peer, call);
+                        const activeStream = myStreamRef.current || stream;
+                        call.answer(activeStream);
                         call.on('stream', (remoteStream) => {
                             console.log('Received remote stream from peer:', call.peer, remoteStream.getTracks());
                             setPeers(prev => {
@@ -914,10 +946,12 @@ export const MusicDate = () => {
                         });
                         call.on('close', () => {
                             console.log("Call closed for peer:", call.peer);
+                            activeCalls.current.delete(call.peer);
                             setPeers(prev => prev.filter(p => p.peerId !== call.peer));
                         });
                         call.on('error', (err) => {
                             console.error("Call error:", err);
+                            activeCalls.current.delete(call.peer);
                         });
                     });
 
@@ -966,6 +1000,7 @@ export const MusicDate = () => {
                     peerInstance.current.destroy();
                     peerInstance.current = null;
                 }
+                activeCalls.current.clear();
                 setPeers([]);
                 if (myStreamRef.current) {
                     myStreamRef.current.getTracks().forEach(track => track.stop());
@@ -975,87 +1010,100 @@ export const MusicDate = () => {
     }, [roomCode, needsPasscode, roomPasscode]);
 
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
-        console.log(`Attempting to connect to Host: ${targetId}`);
+        if (activeCalls.current.has(targetId)) {
+            console.log(`Call to ${targetId} already exists, skipping duplicate call`);
+            return;
+        }
+        console.log(`Attempting to connect to Host/Peer: ${targetId}`);
         const activeStream = myStreamRef.current || stream;
         const call = peer.call(targetId, activeStream);
-        const conn = peer.connect(targetId, { 
-            reliable: true, 
-            metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
-        });
-
-        const connectionTimeout = setTimeout(() => {
-            if (!conn.open) {
-                console.warn("Connection timeout - Host unreachable. Cleaning up stale host...");
-                conn.close();
-                handleStaleHost();
-            }
-        }, 8000);
-
-        setupDataConnection(conn);
-
-        conn.on('open', () => {
-            clearTimeout(connectionTimeout);
-            console.log("Connected to Host Data Channel!");
-        });
-
-        conn.on('error', (err) => {
-            clearTimeout(connectionTimeout);
-            console.error("Data Connection Error:", err);
-            setError("Lost connection to Host.");
-        });
-
-        conn.on('close', () => {
-            clearTimeout(connectionTimeout);
-            console.log("Disconnected from Host");
-            setError("Host disconnected.");
-            if (targetId === roomHostIdRef.current) {
-                handleHostDisconnect();
-            }
-        });
-
-        const pc = (call as any)?.peerConnection;
-        if (pc) {
-            pc.addEventListener('iceconnectionstatechange', () => {
-                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${targetId}. Attempting ICE restart...`);
-                    try {
-                        if (typeof pc.restartIce === 'function') {
-                            pc.restartIce();
+        if (call) {
+            activeCalls.current.set(targetId, call);
+            const pc = (call as any)?.peerConnection;
+            if (pc) {
+                pc.addEventListener('iceconnectionstatechange', () => {
+                    if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                        console.warn(`ICE state ${pc.iceConnectionState} with peer ${targetId}. Attempting ICE restart...`);
+                        try {
+                            if (typeof pc.restartIce === 'function') {
+                                pc.restartIce();
+                            }
+                        } catch (e) {
+                            console.error("ICE restart error:", e);
                         }
-                    } catch (e) {
-                        console.error("ICE restart error:", e);
                     }
-                }
+                });
+            }
+
+            call.on('stream', (remoteStream) => {
+                console.log('Received remote stream from target:', targetId, remoteStream.getTracks());
+                setPeers(prev => {
+                    const existingIdx = prev.findIndex(p => p.peerId === targetId);
+                    if (existingIdx >= 0) {
+                        console.log(`Peer ${targetId} stream updated`);
+                        const updated = [...prev];
+                        updated[existingIdx] = { peerId: targetId, stream: remoteStream };
+                        return updated;
+                    }
+                    
+                    setCamPositions(prevPos => {
+                        if (!prevPos[targetId]) {
+                            const peerCount = prev.length;
+                            const defaultX = typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20;
+                            const defaultY = typeof window !== 'undefined' ? Math.max(80, 80 + (peerCount * 76)) : 80;
+                            return { ...prevPos, [targetId]: { x: defaultX, y: defaultY } };
+                        }
+                        return prevPos;
+                    });
+                    return [...prev, { peerId: targetId, stream: remoteStream }];
+                });
+            });
+            call.on('close', () => {
+                activeCalls.current.delete(targetId);
+                setPeers(prev => prev.filter(p => p.peerId !== targetId));
+            });
+            call.on('error', (err) => {
+                console.error("Call error:", err);
+                activeCalls.current.delete(targetId);
             });
         }
 
-        call.on('stream', (remoteStream) => {
-            console.log('Received remote stream from target:', targetId, remoteStream.getTracks());
-            setPeers(prev => {
-                const existingIdx = prev.findIndex(p => p.peerId === targetId);
-                if (existingIdx >= 0) {
-                    console.log(`Peer ${targetId} stream updated`);
-                    const updated = [...prev];
-                    updated[existingIdx] = { peerId: targetId, stream: remoteStream };
-                    return updated;
-                }
-                
-                setCamPositions(prevPos => {
-                    if (!prevPos[targetId]) {
-                        const peerCount = prev.length;
-                        const defaultX = typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20;
-                        const defaultY = typeof window !== 'undefined' ? Math.max(80, 80 + (peerCount * 76)) : 80;
-                        return { ...prevPos, [targetId]: { x: defaultX, y: defaultY } };
-                    }
-                    return prevPos;
-                });
-                return [...prev, { peerId: targetId, stream: remoteStream }];
+        if (!connections.current[targetId]) {
+            const conn = peer.connect(targetId, { 
+                reliable: true, 
+                metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
             });
-        });
-        call.on('close', () => setPeers(prev => prev.filter(p => p.peerId !== targetId)));
-        call.on('error', (err) => {
-            console.error("Call error:", err);
-        });
+
+            const connectionTimeout = setTimeout(() => {
+                if (!conn.open) {
+                    console.warn("Connection timeout - Host unreachable. Cleaning up stale host...");
+                    conn.close();
+                    handleStaleHost();
+                }
+            }, 8000);
+
+            setupDataConnection(conn);
+
+            conn.on('open', () => {
+                clearTimeout(connectionTimeout);
+                console.log("Connected to Host Data Channel!");
+            });
+
+            conn.on('error', (err) => {
+                clearTimeout(connectionTimeout);
+                console.error("Data Connection Error:", err);
+                setError("Lost connection to Host.");
+            });
+
+            conn.on('close', () => {
+                clearTimeout(connectionTimeout);
+                console.log("Disconnected from Host");
+                setError("Host disconnected.");
+                if (targetId === roomHostIdRef.current) {
+                    handleHostDisconnect();
+                }
+            });
+        }
     };
 
     const setupDataConnection = (conn: DataConnection) => {
@@ -1121,10 +1169,20 @@ export const MusicDate = () => {
             }
         } else if (data.type === 'PEER_LIST') {
             const activeStream = myStreamRef.current || myStream;
-            if (peerInstance.current && activeStream) {
+            if (peerInstance.current && activeStream && Array.isArray(data.peers)) {
                 data.peers.forEach((pid: string) => {
-                    if (pid !== myPeerId && !connections.current[pid]) {
-                        connectToPeer(pid, activeStream, peerInstance.current!);
+                    if (pid !== myPeerId && !connections.current[pid] && !activeCalls.current.has(pid)) {
+                        if (myPeerId < pid) {
+                            console.log(`Polite peer initiating mesh call to ${pid}`);
+                            connectToPeer(pid, activeStream, peerInstance.current!);
+                        } else {
+                            console.log(`Connecting data channel to ${pid}, waiting for their media call`);
+                            const c = peerInstance.current!.connect(pid, {
+                                reliable: true,
+                                metadata: { passcode: roomPasscodeRef.current || roomPasscode }
+                            });
+                            setupDataConnection(c);
+                        }
                     }
                 });
             }
@@ -2790,7 +2848,7 @@ export const MusicDate = () => {
                             }}
                             className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
                         >
-                            <StreamVideo stream={peer.stream} mirrored={true} volume={partnerVolume} />
+                            <StreamVideo stream={peer.stream} mirrored={false} volume={partnerVolume} />
                             <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">{peerNames[peer.peerId] || 'Peer'}</span>
                         </div>
                     ))}

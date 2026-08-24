@@ -16,46 +16,43 @@ interface PeerStream {
     stream: MediaStream;
 }
 
-const StreamVideo = ({ stream, muted = false, mirrored, objectFit = 'cover' }: { stream: MediaStream, muted?: boolean, mirrored: boolean, objectFit?: 'cover' | 'contain' }) => {
+const StreamVideo = ({ stream, muted = false, mirrored, objectFit = 'cover', volume = 1 }: { stream: MediaStream, muted?: boolean, mirrored: boolean, objectFit?: 'cover' | 'contain', volume?: number }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !stream) return;
 
+        // Ensure video tracks are active & enabled
+        stream.getVideoTracks().forEach(t => {
+            if (!t.enabled) t.enabled = true;
+        });
+
         video.srcObject = stream;
+        video.playsInline = true;
 
         const attemptPlay = () => {
-            if (!video) return;
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.catch((err) => {
-                    console.warn("Video playback prevented, attempting muted fallback:", err);
-                    if (!muted) {
-                        video.muted = true;
-                        video.play().catch(e => console.error("Muted playback fallback failed:", e));
-                    }
+            if (video && video.paused) {
+                video.play().catch((err) => {
+                    console.warn("Video play error:", err);
                 });
             }
         };
 
-        // Try playing immediately
         attemptPlay();
 
-        // Listen to loadedmetadata & canplay to start video as soon as media frames arrive
         const handleLoaded = () => attemptPlay();
         video.addEventListener('loadedmetadata', handleLoaded);
         video.addEventListener('canplay', handleLoaded);
 
-        // Auto-play recovery (browsers can pause on visibility change or tab switch)
         const handlePlayPause = () => {
             if (video && video.paused && stream.active) {
                 attemptPlay();
             }
         };
 
-        // Track ended/mute/unmute monitoring to detect when partner camera activates
-        const tracks = stream.getVideoTracks();
+        const tracks = stream.getTracks();
         const handleTrackActive = () => {
             if (stream.active && video) {
                 if (video.srcObject !== stream) {
@@ -73,6 +70,15 @@ const StreamVideo = ({ stream, muted = false, mirrored, objectFit = 'cover' }: {
 
         document.addEventListener('visibilitychange', handlePlayPause);
 
+        const handleUserGesture = () => {
+            attemptPlay();
+            if (audioRef.current && audioRef.current.paused && !muted) {
+                audioRef.current.play().catch(() => {});
+            }
+        };
+        window.addEventListener('click', handleUserGesture, { once: true });
+        window.addEventListener('touchstart', handleUserGesture, { once: true });
+
         return () => {
             video.removeEventListener('loadedmetadata', handleLoaded);
             video.removeEventListener('canplay', handleLoaded);
@@ -82,18 +88,37 @@ const StreamVideo = ({ stream, muted = false, mirrored, objectFit = 'cover' }: {
                 track.removeEventListener('mute', handleTrackActive);
                 track.removeEventListener('unmute', handleTrackActive);
             });
+            window.removeEventListener('click', handleUserGesture);
+            window.removeEventListener('touchstart', handleUserGesture);
         };
     }, [stream, muted]);
 
+    useEffect(() => {
+        if (audioRef.current && stream && !muted) {
+            audioRef.current.srcObject = stream;
+            audioRef.current.volume = volume;
+            audioRef.current.play().catch(e => console.warn("Audio play notice:", e));
+        }
+    }, [stream, muted, volume]);
+
     return (
-        <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted={muted}
-            className={`w-full h-full object-${objectFit}`}
-            style={{ transform: mirrored ? 'rotateY(180deg)' : 'none' }}
-        />
+        <>
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted={true}
+                className={`w-full h-full object-${objectFit}`}
+                style={{ transform: mirrored ? 'rotateY(180deg)' : 'none' }}
+            />
+            {!muted && (
+                <audio
+                    ref={audioRef}
+                    autoPlay
+                    playsInline
+                />
+            )}
+        </>
     );
 };
 
@@ -730,10 +755,10 @@ export const CinemaDate: React.FC = () => {
                     peer.on('call', (call) => {
                         console.log('Receiving call from:', call.peer, 'Metadata:', call.metadata);
                         attachIceMonitoring(call);
-                        activeCalls.current.set(call.peer, call);
                         try {
                             if (call.metadata?.type === 'video') {
                                 console.log('Answering video stream call (no camera back)');
+                                activeCalls.current.set(call.peer, call);
                                 call.answer();
                                 call.on('stream', (stream) => {
                                     console.log("Received remote video stream from", call.peer, stream);
@@ -744,7 +769,15 @@ export const CinemaDate: React.FC = () => {
                                 });
                             } else {
                                 console.log('Answering camera call with my stream');
-                                call.answer(myStreamRef.current || stream);
+                                if (activeCalls.current.has(call.peer)) {
+                                    console.log(`Replacing previous call with incoming call from ${call.peer}`);
+                                    try {
+                                        activeCalls.current.get(call.peer)?.close();
+                                    } catch (e) {}
+                                }
+                                activeCalls.current.set(call.peer, call);
+                                const activeStream = myStreamRef.current || stream;
+                                call.answer(activeStream);
                                 call.on('stream', (remoteStream) => {
                                     console.log('Received peer camera stream from', call.peer, remoteStream.getTracks());
                                     addPeerStream(call.peer, remoteStream);
@@ -754,7 +787,10 @@ export const CinemaDate: React.FC = () => {
                                     activeCalls.current.delete(call.peer);
                                     removePeer(call.peer);
                                 });
-                                call.on('error', (e) => console.error("Call Error in handler:", e));
+                                call.on('error', (e) => {
+                                    console.error("Call Error in handler:", e);
+                                    activeCalls.current.delete(call.peer);
+                                });
                             }
                         } catch (e) {
                             console.error("Failed to answer call:", e);
@@ -896,79 +932,89 @@ export const CinemaDate: React.FC = () => {
     }, [joinNotification]);
 
     const connectToPeer = (peerId: string, stream: MediaStream, peer: Peer) => {
-        console.log(`Attempting to connect to Host: ${peerId}`);
+        if (activeCalls.current.has(peerId)) {
+            console.log(`Call to ${peerId} already exists, skipping duplicate call`);
+            return;
+        }
+        console.log(`Attempting to connect to Host/Peer: ${peerId}`);
 
         // 1. Call for Media
         console.log('Calling peer with my camera stream...');
         const activeStream = myStreamRef.current || stream;
         const call = peer.call(peerId, activeStream, { metadata: { type: 'camera' } });
-        activeCalls.current.set(peerId, call);
+        if (call) {
+            activeCalls.current.set(peerId, call);
 
-        // 2. Data Connection for Sync
-        const conn = peer.connect(peerId, { 
-            reliable: true, 
-            metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
-        });
-
-        const connectionTimeout = setTimeout(() => {
-            if (!conn.open) {
-                console.warn("Connection timeout - Host unreachable. Cleaning up stale host...");
-                conn.close();
-                handleStaleHost();
-            }
-        }, 8000);
-
-        setupDataConnection(conn);
-
-        conn.on('open', () => {
-            clearTimeout(connectionTimeout);
-            console.log("Connected to Host Data Channel!");
-        });
-
-        conn.on('error', (err) => {
-            clearTimeout(connectionTimeout);
-            console.error("Data Connection Error:", err);
-            setError("Lost connection to Host.");
-            handleHostDisconnect();
-        });
-
-        conn.on('close', () => {
-            clearTimeout(connectionTimeout);
-            console.log("Disconnected from Host");
-            setError("Host disconnected.");
-            handleHostDisconnect();
-        });
-
-        // Setup Call Events
-        const pc = (call as any)?.peerConnection;
-        if (pc) {
-            pc.addEventListener('iceconnectionstatechange', () => {
-                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                    console.warn(`ICE state ${pc.iceConnectionState} with peer ${peerId}. Restarting ICE...`);
-                    try {
-                        if (typeof pc.restartIce === 'function') {
-                            pc.restartIce();
+            // Setup Call Events
+            const pc = (call as any)?.peerConnection;
+            if (pc) {
+                pc.addEventListener('iceconnectionstatechange', () => {
+                    if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                        console.warn(`ICE state ${pc.iceConnectionState} with peer ${peerId}. Restarting ICE...`);
+                        try {
+                            if (typeof pc.restartIce === 'function') {
+                                pc.restartIce();
+                            }
+                        } catch (e) {
+                            console.error("ICE restart error:", e);
                         }
-                    } catch (e) {
-                        console.error("ICE restart error:", e);
                     }
-                }
+                });
+            }
+
+            call.on('stream', (remoteStream) => {
+                console.log('Received stream from', peerId, remoteStream.getTracks());
+                addPeerStream(peerId, remoteStream);
+            });
+
+            call.on('close', () => {
+                console.log("Call closed for peer:", peerId);
+                activeCalls.current.delete(peerId);
+                removePeer(peerId);
+            });
+
+            call.on('error', (err) => {
+                console.error("Call error:", err);
+                activeCalls.current.delete(peerId);
             });
         }
 
-        call.on('stream', (remoteStream) => {
-            console.log('Received stream from', peerId, remoteStream.getTracks());
-            addPeerStream(peerId, remoteStream);
-        });
+        // 2. Data Connection for Sync
+        if (!connections.current[peerId]) {
+            const conn = peer.connect(peerId, { 
+                reliable: true, 
+                metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
+            });
 
-        call.on('close', () => {
-            console.log("Call closed for peer:", peerId);
-            removePeer(peerId);
-        });
+            const connectionTimeout = setTimeout(() => {
+                if (!conn.open) {
+                    console.warn("Connection timeout - Host unreachable. Cleaning up stale host...");
+                    conn.close();
+                    handleStaleHost();
+                }
+            }, 8000);
 
-        call.on('error', (err) => {
-            console.error("Call error:", err);
-        });
+            setupDataConnection(conn);
+
+            conn.on('open', () => {
+                clearTimeout(connectionTimeout);
+                console.log("Connected to Host Data Channel!");
+            });
+
+            conn.on('error', (err) => {
+                clearTimeout(connectionTimeout);
+                console.error("Data Connection Error:", err);
+                setError("Lost connection to Host.");
+                handleHostDisconnect();
+            });
+
+            conn.on('close', () => {
+                clearTimeout(connectionTimeout);
+                console.log("Disconnected from Host");
+                setError("Host disconnected.");
+                handleHostDisconnect();
+            });
+        }
     };
 
     // --- YouTube API Integration (Manual with resilient ready loop) ---
@@ -1214,13 +1260,23 @@ export const CinemaDate: React.FC = () => {
                 }
             }
         } else if (data.type === 'PEER_LIST') {
-            // I just joined and host sent me a list or peers
-            // Connect to them (Mesh)
+            // I just joined and host sent me a list of peers
+            // Connect to them (Mesh) - polite peer initiates media call
             const activeStream = myStreamRef.current || myStream;
-            if (peerInstance.current && activeStream) {
+            if (peerInstance.current && activeStream && Array.isArray(data.peers)) {
                 data.peers.forEach((pid: string) => {
-                    if (pid !== myPeerId && !connections.current[pid]) {
-                        connectToPeer(pid, activeStream, peerInstance.current!);
+                    if (pid !== myPeerId && !connections.current[pid] && !activeCalls.current.has(pid)) {
+                        if (myPeerId < pid) {
+                            console.log(`Polite peer initiating mesh call to ${pid}`);
+                            connectToPeer(pid, activeStream, peerInstance.current!);
+                        } else {
+                            console.log(`Connecting data channel to ${pid}, waiting for their media call`);
+                            const c = peerInstance.current!.connect(pid, {
+                                reliable: true,
+                                metadata: { passcode: roomPasscodeRef.current || roomPasscode }
+                            });
+                            setupDataConnection(c);
+                        }
                     }
                 });
             }
@@ -2807,7 +2863,7 @@ export const CinemaDate: React.FC = () => {
                         }}
                         className="bg-black rounded-lg overflow-hidden border border-gray-800 shadow-xl select-none pointer-events-auto opacity-90 hover:opacity-100 transition-opacity cursor-move touch-none"
                     >
-                        <StreamVideo stream={peer.stream} mirrored={true} />
+                        <StreamVideo stream={peer.stream} mirrored={false} />
                         <div className="absolute bottom-1 right-1 text-[8px] bg-black/50 px-1 rounded text-white font-bold pointer-events-none">{peerNames[peer.peerId] || peer.peerId.substring(0, 4)}</div>
                         <div onMouseDown={(e) => handleCamResizeMouseDown(e, peer.peerId)} onTouchStart={(e) => handleCamResizeTouchStart(e, peer.peerId)} className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize z-10"></div>
                     </div>
