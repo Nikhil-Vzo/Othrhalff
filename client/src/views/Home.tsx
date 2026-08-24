@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
+import { isProfileComplete } from '../lib/profileHelper';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 import { deferSafeSetItem } from '../utils/storage';
@@ -158,8 +159,10 @@ export const Home: React.FC = () => {
 
             if (error) throw error;
 
-            if (data && data.length > 0) {
-                const mappedProfiles: MatchProfile[] = data.map((p: any) => ({
+            const validData = (data || []).filter((p: any) => isProfileComplete(p));
+
+            if (validData.length > 0) {
+                const mappedProfiles: MatchProfile[] = validData.map((p: any) => ({
                     id: p.id,
                     anonymousId: p.anonymous_id,
                     realName: p.real_name,
@@ -274,7 +277,7 @@ export const Home: React.FC = () => {
             });
 
             if (!rpcError && rpcData && rpcData.length > 0) {
-                fetchedProfiles = rpcData;
+                fetchedProfiles = rpcData.filter((p: any) => isProfileComplete(p));
             } else {
                 // If RPC had error or returned 0 profiles (e.g. new user or campus has 0 other users yet):
                 if (rpcError) {
@@ -293,7 +296,10 @@ export const Home: React.FC = () => {
                 let query = supabase
                     .from('profiles')
                     .select('*')
-                    .neq('id', currentUser.id);
+                    .neq('id', currentUser.id)
+                    .not('university', 'is', null)
+                    .not('dob', 'is', null)
+                    .not('branch', 'is', null);
 
                 if (currentMode === 'campus' && currentUser.university && currentUser.university !== 'Global' && currentUser.university !== 'Other') {
                     const cleanUniv = currentUser.university.split(',')[0].trim();
@@ -303,7 +309,7 @@ export const Home: React.FC = () => {
                 const { data: fallbackData, error: fallbackError } = await query.limit(50);
 
                 if (!fallbackError && fallbackData && fallbackData.length > 0) {
-                    fetchedProfiles = fallbackData.filter((p: any) => !swipedIds.has(p.id));
+                    fetchedProfiles = fallbackData.filter((p: any) => !swipedIds.has(p.id) && isProfileComplete(p));
                 }
 
                 // If campus filter returned 0 even in fallback, load global profiles so user is never stuck with an empty screen
@@ -312,10 +318,13 @@ export const Home: React.FC = () => {
                         .from('profiles')
                         .select('*')
                         .neq('id', currentUser.id)
+                        .not('university', 'is', null)
+                        .not('dob', 'is', null)
+                        .not('branch', 'is', null)
                         .limit(50);
 
                     if (globalFallback) {
-                        fetchedProfiles = globalFallback.filter((p: any) => !swipedIds.has(p.id));
+                        fetchedProfiles = globalFallback.filter((p: any) => !swipedIds.has(p.id) && isProfileComplete(p));
                         currentMode = 'global';
                     }
                 }

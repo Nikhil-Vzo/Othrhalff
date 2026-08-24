@@ -55,6 +55,11 @@ BEGIN
   SELECT p.*
   FROM profiles p
   WHERE p.id != user_id
+    AND p.university IS NOT NULL
+    AND p.dob IS NOT NULL
+    AND p.branch IS NOT NULL
+    AND p.university NOT IN ('Global', 'Unspecified')
+    AND p.branch NOT IN ('General')
     AND NOT EXISTS (
       SELECT 1 FROM swipes s
       WHERE s.liker_id = get_potential_matches.user_id
@@ -98,7 +103,44 @@ BEGIN
   END LOOP;
 END $$;
 
--- Sanity check (run manually): should return exactly ONE row
--- SELECT proname, pg_get_function_arguments(oid) FROM pg_proc
--- WHERE proname IN ('get_potential_matches','get_skipped_profiles')
---   AND pronamespace = 'public'::regnamespace;
+CREATE OR REPLACE FUNCTION public.get_skipped_profiles(
+  current_user_id uuid,
+  match_mode text,
+  user_university text
+)
+RETURNS SETOF public.profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF match_mode = 'campus' THEN
+    RETURN QUERY
+    SELECT p.*
+    FROM public.profiles p
+    JOIN public.swipes s ON s.target_id = p.id
+    WHERE s.liker_id = current_user_id
+      AND s.action = 'pass'
+      AND p.university IS NOT NULL
+      AND p.dob IS NOT NULL
+      AND p.branch IS NOT NULL
+      AND p.university NOT IN ('Global', 'Unspecified')
+      AND p.branch NOT IN ('General')
+      AND LOWER(TRIM(SPLIT_PART(p.university, ',', 1))) = LOWER(TRIM(SPLIT_PART(user_university, ',', 1)))
+    ORDER BY s.created_at DESC;
+  ELSE -- Global mode
+    RETURN QUERY
+    SELECT p.*
+    FROM public.profiles p
+    JOIN public.swipes s ON s.target_id = p.id
+    WHERE s.liker_id = current_user_id
+      AND s.action = 'pass'
+      AND p.university IS NOT NULL
+      AND p.dob IS NOT NULL
+      AND p.branch IS NOT NULL
+      AND p.university NOT IN ('Global', 'Unspecified')
+      AND p.branch NOT IN ('General')
+      AND LOWER(TRIM(SPLIT_PART(p.university, ',', 1))) != LOWER(TRIM(SPLIT_PART(user_university, ',', 1)))
+    ORDER BY s.created_at DESC;
+  END IF;
+END;
+$$;
