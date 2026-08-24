@@ -18,45 +18,73 @@ interface PeerStream {
 
 const StreamVideo = ({ stream, muted = false, mirrored, objectFit = 'cover' }: { stream: MediaStream, muted?: boolean, mirrored: boolean, objectFit?: 'cover' | 'contain' }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !stream) return;
 
         video.srcObject = stream;
 
-        // Auto-play recovery (browsers can pause on visibility change)
-        const handlePlayPause = () => {
-            if (video.paused && stream.active) {
-                video.play().catch(() => { /* Ignore autoplay policy errors */ });
+        const attemptPlay = () => {
+            if (!video) return;
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch((err) => {
+                    console.warn("Video playback prevented, attempting muted fallback:", err);
+                    if (!muted) {
+                        video.muted = true;
+                        video.play().catch(e => console.error("Muted playback fallback failed:", e));
+                    }
+                });
             }
         };
 
-        // Track ended/mute monitoring to detect frozen streams
+        // Try playing immediately
+        attemptPlay();
+
+        // Listen to loadedmetadata & canplay to start video as soon as media frames arrive
+        const handleLoaded = () => attemptPlay();
+        video.addEventListener('loadedmetadata', handleLoaded);
+        video.addEventListener('canplay', handleLoaded);
+
+        // Auto-play recovery (browsers can pause on visibility change or tab switch)
+        const handlePlayPause = () => {
+            if (video && video.paused && stream.active) {
+                attemptPlay();
+            }
+        };
+
+        // Track ended/mute/unmute monitoring to detect when partner camera activates
         const tracks = stream.getVideoTracks();
-        const handleTrackEnded = () => {
-            // Re-attach stream if track ended but stream is still active
+        const handleTrackActive = () => {
             if (stream.active && video) {
-                video.srcObject = null;
-                video.srcObject = stream;
-                video.play().catch(() => { });
+                if (video.srcObject !== stream) {
+                    video.srcObject = stream;
+                }
+                attemptPlay();
             }
         };
 
         tracks.forEach(track => {
-            track.addEventListener('ended', handleTrackEnded);
-            track.addEventListener('mute', handleTrackEnded);
+            track.addEventListener('ended', handleTrackActive);
+            track.addEventListener('mute', handleTrackActive);
+            track.addEventListener('unmute', handleTrackActive);
         });
 
         document.addEventListener('visibilitychange', handlePlayPause);
 
         return () => {
+            video.removeEventListener('loadedmetadata', handleLoaded);
+            video.removeEventListener('canplay', handleLoaded);
             document.removeEventListener('visibilitychange', handlePlayPause);
             tracks.forEach(track => {
-                track.removeEventListener('ended', handleTrackEnded);
-                track.removeEventListener('mute', handleTrackEnded);
+                track.removeEventListener('ended', handleTrackActive);
+                track.removeEventListener('mute', handleTrackActive);
+                track.removeEventListener('unmute', handleTrackActive);
             });
         };
-    }, [stream]);
+    }, [stream, muted]);
+
     return (
         <video
             ref={videoRef}
@@ -716,7 +744,7 @@ export const CinemaDate: React.FC = () => {
                                 });
                             } else {
                                 console.log('Answering camera call with my stream');
-                                call.answer(stream);
+                                call.answer(myStreamRef.current || stream);
                                 call.on('stream', (remoteStream) => {
                                     console.log('Received peer camera stream from', call.peer, remoteStream.getTracks());
                                     addPeerStream(call.peer, remoteStream);
@@ -872,7 +900,8 @@ export const CinemaDate: React.FC = () => {
 
         // 1. Call for Media
         console.log('Calling peer with my camera stream...');
-        const call = peer.call(peerId, stream, { metadata: { type: 'camera' } });
+        const activeStream = myStreamRef.current || stream;
+        const call = peer.call(peerId, activeStream, { metadata: { type: 'camera' } });
         activeCalls.current.set(peerId, call);
 
         // 2. Data Connection for Sync
@@ -1187,10 +1216,11 @@ export const CinemaDate: React.FC = () => {
         } else if (data.type === 'PEER_LIST') {
             // I just joined and host sent me a list or peers
             // Connect to them (Mesh)
-            if (peerInstance.current && myStream) {
+            const activeStream = myStreamRef.current || myStream;
+            if (peerInstance.current && activeStream) {
                 data.peers.forEach((pid: string) => {
                     if (pid !== myPeerId && !connections.current[pid]) {
-                        connectToPeer(pid, myStream!, peerInstance.current!);
+                        connectToPeer(pid, activeStream, peerInstance.current!);
                     }
                 });
             }
@@ -1218,11 +1248,14 @@ export const CinemaDate: React.FC = () => {
     };
 
     const addPeerStream = (peerId: string, stream: MediaStream) => {
-        console.log(`Adding peer stream for ${peerId}`, stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+        console.log(`Adding/updating peer stream for ${peerId}`, stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
         setPeers(prev => {
-            if (prev.find(p => p.peerId === peerId)) {
-                console.log(`Peer ${peerId} stream already exists, skipping`);
-                return prev;
+            const existingIdx = prev.findIndex(p => p.peerId === peerId);
+            if (existingIdx >= 0) {
+                console.log(`Peer ${peerId} stream updated`);
+                const updated = [...prev];
+                updated[existingIdx] = { peerId, stream };
+                return updated;
             }
             console.log(`Added new peer stream for ${peerId}`);
             
@@ -1230,10 +1263,9 @@ export const CinemaDate: React.FC = () => {
             setCamPositions(prevPos => {
                 if (!prevPos[peerId]) {
                     const peerCount = prev.length;
-                    return { ...prevPos, [peerId]: { 
-                        x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
-                        y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
-                    }};
+                    const defaultX = typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20;
+                    const defaultY = typeof window !== 'undefined' ? Math.max(80, 80 + (peerCount * 76)) : 80;
+                    return { ...prevPos, [peerId]: { x: defaultX, y: defaultY } };
                 }
                 return prevPos;
             });
@@ -2749,7 +2781,7 @@ export const CinemaDate: React.FC = () => {
                             position: 'absolute',
                             left: 0,
                             top: 0,
-                            transform: `translate(${camPositions['YOU']?.x || 0}px, ${camPositions['YOU']?.y || 0}px)`,
+                            transform: `translate(${camPositions['YOU']?.x ?? 20}px, ${camPositions['YOU']?.y ?? 80}px)`,
                             width: `${camSizes['YOU']?.width || 96}px`,
                             height: `${camSizes['YOU']?.height || 64}px`
                         }}
@@ -2760,7 +2792,7 @@ export const CinemaDate: React.FC = () => {
                         <div onMouseDown={(e) => handleCamResizeMouseDown(e, 'YOU')} onTouchStart={(e) => handleCamResizeTouchStart(e, 'YOU')} className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize z-10"></div>
                     </div>
                 )}
-                {peers.map((peer) => (
+                {peers.map((peer, index) => (
                     <div
                         key={peer.peerId}
                         onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
@@ -2769,7 +2801,7 @@ export const CinemaDate: React.FC = () => {
                             position: 'absolute',
                             left: 0,
                             top: 0,
-                            transform: `translate(${camPositions[peer.peerId]?.x || 0}px, ${camPositions[peer.peerId]?.y || 0}px)`,
+                            transform: `translate(${camPositions[peer.peerId]?.x ?? (typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20)}px, ${camPositions[peer.peerId]?.y ?? (80 + (index * 76))}px)`,
                             width: `${camSizes[peer.peerId]?.width || 96}px`,
                             height: `${camSizes[peer.peerId]?.height || 64}px`
                         }}

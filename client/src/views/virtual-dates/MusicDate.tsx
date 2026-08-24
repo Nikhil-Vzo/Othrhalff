@@ -30,17 +30,75 @@ interface PeerStream {
 
 const StreamVideo = ({ stream, muted = false, mirrored, volume = 1 }: { stream: MediaStream, muted?: boolean, mirrored: boolean, volume?: number }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+
     useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
-        }
-    }, [stream]);
+        const video = videoRef.current;
+        if (!video || !stream) return;
+
+        video.srcObject = stream;
+
+        const attemptPlay = () => {
+            if (!video) return;
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch((err) => {
+                    console.warn("Video playback prevented, attempting muted fallback:", err);
+                    if (!muted) {
+                        video.muted = true;
+                        video.play().catch(e => console.error("Muted playback fallback failed:", e));
+                    }
+                });
+            }
+        };
+
+        attemptPlay();
+
+        const handleLoaded = () => attemptPlay();
+        video.addEventListener('loadedmetadata', handleLoaded);
+        video.addEventListener('canplay', handleLoaded);
+
+        const handlePlayPause = () => {
+            if (video && video.paused && stream.active) {
+                attemptPlay();
+            }
+        };
+
+        const tracks = stream.getVideoTracks();
+        const handleTrackActive = () => {
+            if (stream.active && video) {
+                if (video.srcObject !== stream) {
+                    video.srcObject = stream;
+                }
+                attemptPlay();
+            }
+        };
+
+        tracks.forEach(track => {
+            track.addEventListener('ended', handleTrackActive);
+            track.addEventListener('mute', handleTrackActive);
+            track.addEventListener('unmute', handleTrackActive);
+        });
+
+        document.addEventListener('visibilitychange', handlePlayPause);
+
+        return () => {
+            video.removeEventListener('loadedmetadata', handleLoaded);
+            video.removeEventListener('canplay', handleLoaded);
+            document.removeEventListener('visibilitychange', handlePlayPause);
+            tracks.forEach(track => {
+                track.removeEventListener('ended', handleTrackActive);
+                track.removeEventListener('mute', handleTrackActive);
+                track.removeEventListener('unmute', handleTrackActive);
+            });
+        };
+    }, [stream, muted]);
 
     useEffect(() => {
         if (videoRef.current) {
             videoRef.current.volume = volume;
         }
     }, [volume]);
+
     return (
         <video
             ref={videoRef}
@@ -830,19 +888,24 @@ export const MusicDate = () => {
                     peer.on('call', (call) => {
                         console.log('Receiving call from:', call.peer);
                         attachIceMonitoring(call);
-                        call.answer(stream);
+                        call.answer(myStreamRef.current || stream);
                         call.on('stream', (remoteStream) => {
-                            console.log('Received remote stream from host:', remoteStream.getTracks());
+                            console.log('Received remote stream from peer:', call.peer, remoteStream.getTracks());
                             setPeers(prev => {
-                                if (prev.find(p => p.peerId === call.peer)) return prev;
+                                const existingIdx = prev.findIndex(p => p.peerId === call.peer);
+                                if (existingIdx >= 0) {
+                                    console.log(`Peer ${call.peer} stream updated`);
+                                    const updated = [...prev];
+                                    updated[existingIdx] = { peerId: call.peer, stream: remoteStream };
+                                    return updated;
+                                }
                                 
                                 setCamPositions(prevPos => {
                                     if (!prevPos[call.peer]) {
                                         const peerCount = prev.length;
-                                        return { ...prevPos, [call.peer]: { 
-                                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
-                                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
-                                        }};
+                                        const defaultX = typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20;
+                                        const defaultY = typeof window !== 'undefined' ? Math.max(80, 80 + (peerCount * 76)) : 80;
+                                        return { ...prevPos, [call.peer]: { x: defaultX, y: defaultY } };
                                     }
                                     return prevPos;
                                 });
@@ -913,7 +976,8 @@ export const MusicDate = () => {
 
     const connectToPeer = (targetId: string, stream: MediaStream, peer: Peer) => {
         console.log(`Attempting to connect to Host: ${targetId}`);
-        const call = peer.call(targetId, stream);
+        const activeStream = myStreamRef.current || stream;
+        const call = peer.call(targetId, activeStream);
         const conn = peer.connect(targetId, { 
             reliable: true, 
             metadata: { passcode: roomPasscodeRef.current || roomPasscode } 
@@ -966,16 +1030,22 @@ export const MusicDate = () => {
         }
 
         call.on('stream', (remoteStream) => {
+            console.log('Received remote stream from target:', targetId, remoteStream.getTracks());
             setPeers(prev => {
-                if (prev.find(p => p.peerId === targetId)) return prev;
+                const existingIdx = prev.findIndex(p => p.peerId === targetId);
+                if (existingIdx >= 0) {
+                    console.log(`Peer ${targetId} stream updated`);
+                    const updated = [...prev];
+                    updated[existingIdx] = { peerId: targetId, stream: remoteStream };
+                    return updated;
+                }
                 
                 setCamPositions(prevPos => {
                     if (!prevPos[targetId]) {
                         const peerCount = prev.length;
-                        return { ...prevPos, [targetId]: { 
-                            x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 48 : 400, 
-                            y: typeof window !== 'undefined' ? (window.innerHeight / 2) - 32 + ((peerCount) * 80) : 300 
-                        }};
+                        const defaultX = typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20;
+                        const defaultY = typeof window !== 'undefined' ? Math.max(80, 80 + (peerCount * 76)) : 80;
+                        return { ...prevPos, [targetId]: { x: defaultX, y: defaultY } };
                     }
                     return prevPos;
                 });
@@ -1050,10 +1120,11 @@ export const MusicDate = () => {
                 setQueue(data.payload);
             }
         } else if (data.type === 'PEER_LIST') {
-            if (peerInstance.current && myStream) {
+            const activeStream = myStreamRef.current || myStream;
+            if (peerInstance.current && activeStream) {
                 data.peers.forEach((pid: string) => {
                     if (pid !== myPeerId && !connections.current[pid]) {
-                        connectToPeer(pid, myStream!, peerInstance.current!);
+                        connectToPeer(pid, activeStream, peerInstance.current!);
                     }
                 });
             }
@@ -2693,7 +2764,7 @@ export const MusicDate = () => {
                             onMouseDown={(e) => handleCamMouseDown(e, 'me')}
                             onTouchStart={(e) => handleCamTouchStart(e, 'me')}
                             style={{
-                                transform: `translate(${camPositions['me']?.x || 0}px, ${camPositions['me']?.y || 0}px)`,
+                                transform: `translate(${camPositions['me']?.x ?? 20}px, ${camPositions['me']?.y ?? 80}px)`,
                                 position: 'absolute', top: 0, left: 0
                             }}
                             className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
@@ -2714,7 +2785,7 @@ export const MusicDate = () => {
                             onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
                             onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
                             style={{
-                                transform: `translate(${camPositions[peer.peerId]?.x || 0}px, ${camPositions[peer.peerId]?.y || 0}px)`,
+                                transform: `translate(${camPositions[peer.peerId]?.x ?? (typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20)}px, ${camPositions[peer.peerId]?.y ?? (80 + (i * 76))}px)`,
                                 position: 'absolute', top: 0, left: 0
                             }}
                             className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
