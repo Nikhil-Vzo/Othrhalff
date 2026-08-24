@@ -34,12 +34,6 @@
 
   <!-- Confession Farm Hub (Programmatic UGC) -->
   <url>
-    <loc>https://www.othrhalff.in/confessions</loc>
-    <lastmod>2026-08-15</lastmod>
-    <changefreq>hourly</changefreq>
-    <priority>0.95</priority>
-  </url>
-  <url>
     <loc>https://www.othrhalff.in/tea/delhi-university</loc>
     <lastmod>2026-08-15</lastmod>
     <changefreq>hourly</changefreq>

@@ -44,33 +44,25 @@ interface Glimpse {
 }
 
 interface GlimpseProgressBarProps {
-  idx: number;
-  activeStoryIndex: number;
+  activeGlimpseId: string;
 }
 
-const GlimpseProgressBar: React.FC<GlimpseProgressBarProps> = ({ idx, activeStoryIndex }) => {
+const GlimpseProgressBar: React.FC<GlimpseProgressBarProps> = ({ activeGlimpseId }) => {
   const [animate, setAnimate] = useState(false);
 
   useEffect(() => {
-    if (idx === activeStoryIndex) {
-      setAnimate(false);
-      // Wait for next frame/tick so browser registers the 0% state reset
-      const t = setTimeout(() => setAnimate(true), 20);
-      return () => clearTimeout(t);
-    }
-  }, [idx, activeStoryIndex]);
-
-  let width = '0%';
-  if (idx < activeStoryIndex) width = '100%';
-  else if (idx === activeStoryIndex && animate) width = '100%';
+    setAnimate(false);
+    // Wait for next frame/tick so browser registers the 0% state reset
+    const t = setTimeout(() => setAnimate(true), 20);
+    return () => clearTimeout(t);
+  }, [activeGlimpseId]);
 
   return (
     <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
       <div
         className={`h-full bg-white ${
-          idx === activeStoryIndex && animate ? 'transition-all duration-[6000ms] ease-linear' : ''
+          animate ? 'transition-all duration-[6000ms] ease-linear w-full' : 'w-0'
         }`}
-        style={{ width }}
       />
     </div>
   );
@@ -223,8 +215,8 @@ export const Sparx: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Active index of the currently viewed Glimpse card in the full-screen story viewer
-  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+  // Active ID of the currently viewed Glimpse card in the single snap viewer
+  const [activeGlimpseId, setActiveGlimpseId] = useState<string | null>(null);
 
   // Viewed glimpses tracker
   const [viewedIds, setViewedIds] = useState<string[]>([]);
@@ -259,30 +251,23 @@ export const Sparx: React.FC = () => {
     });
   };
 
-  // Mark glimpses as viewed when opened in the story viewer
+  // Mark glimpse as viewed when opened
   useEffect(() => {
-    if (activeStoryIndex !== null && glimpses.length > 0 && glimpses[activeStoryIndex]) {
-      markAsViewed(glimpses[activeStoryIndex].id);
+    if (activeGlimpseId) {
+      markAsViewed(activeGlimpseId);
     }
-  }, [activeStoryIndex, glimpses]);
+  }, [activeGlimpseId]);
 
-  // Auto-advance logic for story overlay (single setTimeout instead of 100ms interval)
+  // Auto-close single glimpse viewer after 6 seconds (Snapchat-style single post view)
   useEffect(() => {
-    if (activeStoryIndex === null) return;
+    if (!activeGlimpseId) return;
 
     const timer = setTimeout(() => {
-      setActiveStoryIndex(prev => {
-        if (prev === null) return null;
-        if (prev < glimpses.length - 1) {
-          return prev + 1;
-        } else {
-          return null;
-        }
-      });
+      setActiveGlimpseId(null);
     }, 6000);
 
     return () => clearTimeout(timer);
-  }, [activeStoryIndex, glimpses.length]);
+  }, [activeGlimpseId]);
 
   const fetchLeaderboard = async () => {
     if (!supabase) return;
@@ -970,7 +955,7 @@ export const Sparx: React.FC = () => {
                       <div 
                         onClick={() => {
                           markAsViewed(glimpse.id);
-                          setActiveStoryIndex(index);
+                          setActiveGlimpseId(glimpse.id);
                         }}
                         className="flex items-center justify-between hover:bg-gray-950/40 p-2 rounded-2xl transition-colors cursor-pointer"
                       >
@@ -1079,7 +1064,7 @@ export const Sparx: React.FC = () => {
                         <div 
                           onClick={() => {
                             markAsViewed(glimpse.id);
-                            setActiveStoryIndex(index);
+                            setActiveGlimpseId(glimpse.id);
                           }}
                           className="flex items-start pr-4 cursor-pointer select-none group mt-1"
                         >
@@ -1114,52 +1099,41 @@ export const Sparx: React.FC = () => {
         </div>
       )}
 
-      {/* Full-screen Story Viewer Overlay */}
-      {activeStoryIndex !== null && glimpses[activeStoryIndex] && (
-        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none animate-in fade-in duration-200">
-          <GlimpseCard
-            glimpse={glimpses[activeStoryIndex]}
-            currentUser={currentUser}
-            initialReactions={glimpses[activeStoryIndex].glimpse_reactions || []}
-            onOpenLobby={() => setIsLobbyOpen(true)}
-            onNext={() => {
-              if (activeStoryIndex < glimpses.length - 1) {
-                setActiveStoryIndex(activeStoryIndex + 1);
-              } else {
-                setActiveStoryIndex(null);
-              }
-            }}
-            onPrev={() => {
-              if (activeStoryIndex > 0) {
-                setActiveStoryIndex(activeStoryIndex - 1);
-              }
-            }}
-          />
+      {/* Full-screen Single Glimpse Viewer Overlay (Snap style) */}
+      {(() => {
+        const activeGlimpse = activeGlimpseId ? glimpses.find(g => g.id === activeGlimpseId) : null;
+        if (!activeGlimpse) return null;
 
-          {/* Glimpse Progress Indicators at the Top */}
-          <div className="absolute top-4 left-4 md:left-[104px] right-12 z-50 flex gap-1">
-            {glimpses.map((_, idx) => (
-              <GlimpseProgressBar
-                key={idx}
-                idx={idx}
-                activeStoryIndex={activeStoryIndex!}
-              />
-            ))}
+        return (
+          <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none animate-in fade-in duration-200">
+            <GlimpseCard
+              glimpse={activeGlimpse}
+              currentUser={currentUser}
+              initialReactions={activeGlimpse.glimpse_reactions || []}
+              onOpenLobby={() => setIsLobbyOpen(true)}
+              onNext={() => setActiveGlimpseId(null)}
+              onPrev={() => setActiveGlimpseId(null)}
+            />
+
+            {/* Single Glimpse Progress Indicator at the Top */}
+            <div className="absolute top-4 left-4 md:left-[104px] right-12 z-50 flex gap-1">
+              <GlimpseProgressBar activeGlimpseId={activeGlimpse.id} />
+            </div>
+
+            {/* Close overlay button */}
+            <button
+              onClick={() => setActiveGlimpseId(null)}
+              className="absolute top-2.5 right-3 z-50 p-2 bg-black/40 hover:bg-black/60 border border-white/10 rounded-full transition-all duration-200 text-white active:scale-95"
+              aria-label="Close glimpse"
+            >
+              <X className="w-5 h-5 stroke-[2.5px]" />
+            </button>
           </div>
-
-          {/* Close overlay button */}
-          <button
-            onClick={() => setActiveStoryIndex(null)}
-            className="absolute top-2.5 right-3 z-50 p-2 bg-black/40 hover:bg-black/60 border border-white/10 rounded-full transition-all duration-200 text-white active:scale-95"
-            aria-label="Close stories"
-          >
-            <X className="w-5 h-5 stroke-[2.5px]" />
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Floating Action Buttons (FAB) */}
-      {feedMode !== 'leaderboard' && activeStoryIndex === null && (
+      {feedMode !== 'leaderboard' && activeGlimpseId === null && (
         <div className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-30 flex flex-col gap-4 items-center">
           {/* Upload FAB */}
           <button

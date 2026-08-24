@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';

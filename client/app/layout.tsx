@@ -22,6 +22,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'Othrhalff',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
   formatDetection: {
     telephone: false,
   },
@@ -47,13 +50,14 @@ export const metadata: Metadata = {
   applicationName: 'Othrhalff',
   icons: {
     icon: [
-      { url: '/icons/icon-192x192.webp', sizes: '192x192', type: 'image/webp' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
       { url: '/favicon.webp', type: 'image/webp' },
       { url: '/favicon.png', type: 'image/png' },
       { url: '/favicon.ico' },
     ],
     shortcut: '/favicon.ico',
-    apple: '/icons/icon-192x192.webp',
+    apple: '/icons/icon-192x192.png',
   },
   robots: {
     index: true,
@@ -89,12 +93,11 @@ export const metadata: Metadata = {
     creator: '@othrhalff',
     images: ['https://www.othrhalff.in/og-image.webp'],
   },
-  alternates: {
-    canonical: 'https://www.othrhalff.in',
-    languages: {
-      'en-IN': 'https://www.othrhalff.in',
-    },
-  },
+  // NOTE: no site-wide `alternates.canonical` here — a canonical on the root
+  // layout is inherited by every child page that lacks its own metadata, which
+  // made /discover, /confessions, /reddit etc. declare themselves duplicates of
+  // the homepage ("Alternate page with proper canonical tag" in Search Console).
+  // Canonicals belong on leaf pages only.
 };
 
 export default function RootLayout({
