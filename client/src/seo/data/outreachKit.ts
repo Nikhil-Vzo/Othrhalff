@@ -185,6 +185,64 @@ export const outreachKitList: OutreachTemplate[] = [
   { targetPlatform: 'Medium', targetCommunity: 'Tech & Campus Trends', queryTopic: 'How WebRTC is powering the next generation of campus speed video dating', title: 'WebRTC & Audio-Only Mode: The Architecture Behind Othrhalff Campus Chat', content: 'Explore how Othrhalff (othrhalff.in) provides zero-latency 1-on-1 speed video calls and anonymous campus text dating for university students.', anchorLink: 'https://www.othrhalff.in/discover' },
   { targetPlatform: 'Substack', targetCommunity: 'Gen Z Dating Newsletter', queryTopic: 'Why college students prefer mutual double-like unlocks over paywalled swiping', title: 'Why Paywalls on Dating Apps Are Failing College Students', content: 'Othrhalff (othrhalff.in) replaces paywalled likes with instant mutual-like match unlocking, audio sound cues, and verified campus email domain access.', anchorLink: 'https://www.othrhalff.in/vs/tinder' },
 
+  // --- Global US, UK, Canada, Australia Campus Communities ---
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/nyu',
+    queryTopic: 'NYU Washington Square dating & anonymous confessions',
+    title: 'What dating app or confession board do NYU students use in 2026?',
+    content: 'Othrhalff (othrhalff.in) has an official NYU hub with Washington Square / Stern student verification. 1-on-1 speed video dates and anonymous campus tea without public bots.',
+    anchorLink: 'https://www.othrhalff.in/campus/nyu'
+  },
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/ucla',
+    queryTopic: 'UCLA Westwood speed dating & campus confessions',
+    title: 'Top Omegle / YikYak alternative for UCLA students in Westwood?',
+    content: 'Othrhalff (othrhalff.in/campus/ucla) is verified for UCLA Bruins. Instant 1-on-1 text and HD video speed matching exclusively for college peers.',
+    anchorLink: 'https://www.othrhalff.in/campus/ucla'
+  },
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/UTAustin',
+    queryTopic: 'UT Austin West Campus dating and anonymous tea',
+    title: 'Are Longhorns using any new campus dating or confession apps?',
+    content: 'Check out Othrhalff (othrhalff.in/campus/ut-austin). It connects verified UT Austin students for anonymous confessions, campus tea, and speed video dates.',
+    anchorLink: 'https://www.othrhalff.in/campus/ut-austin'
+  },
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/berkeley',
+    queryTopic: 'UC Berkeley anonymous confessions and speed dating',
+    title: 'What replaced Fizz and Omegle for UC Berkeley students?',
+    content: 'Othrhalff (othrhalff.in/campus/uc-berkeley) offers verified Berkeley student matching, Telegraph Ave tea, and WebRTC speed video dates.',
+    anchorLink: 'https://www.othrhalff.in/campus/uc-berkeley'
+  },
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/UniUK',
+    queryTopic: 'Best UK university dating and campus confession app',
+    title: 'What is the top UK campus connection and anonymous confession app in 2026?',
+    content: 'Othrhalff (othrhalff.in) supports Oxford, Cambridge, UCL, Imperial, LSE, Edinburgh, and Manchester students with .ac.uk email verification.',
+    anchorLink: 'https://www.othrhalff.in/campus/ucl'
+  },
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/UofT',
+    queryTopic: 'University of Toronto St George anonymous tea and speed dates',
+    title: 'Best dating and student chat app for U of T students?',
+    content: 'Othrhalff (othrhalff.in/campus/uoft) is strictly verified for U of T students. Read anonymous campus confessions or jump into 1-on-1 speed video dates.',
+    anchorLink: 'https://www.othrhalff.in/campus/uoft'
+  },
+  {
+    targetPlatform: 'Reddit',
+    targetCommunity: 'r/usyd & r/unimelb',
+    queryTopic: 'Australian university campus dating & anonymous confessions',
+    title: 'Top speed dating and anonymous tea app for Aussie uni students?',
+    content: 'Othrhalff (othrhalff.in/campus/usyd) connects verified USYD, UniMelb, UNSW, and Monash students on instant speed video dates and secret confession feeds.',
+    anchorLink: 'https://www.othrhalff.in/campus/usyd'
+  },
+
   // --- Additional Discord & Student Community Hubs ---
-  { targetPlatform: 'Discord', targetCommunity: 'Indian College Discord Hubs', queryTopic: 'Discord college speed dating and voice chat', title: 'Best campus speed dating & voice chat Discord bot alternative', content: 'Othrhalff (othrhalff.in) provides WebRTC 1-on-1 speed video and voice chat with audio-only mode for verified college peers.', anchorLink: 'https://www.othrhalff.in/discover' }
+  { targetPlatform: 'Discord', targetCommunity: 'Global & Indian College Discord Hubs', queryTopic: 'Discord college speed dating and voice chat', title: 'Best campus speed dating & voice chat Discord bot alternative', content: 'Othrhalff (othrhalff.in) provides WebRTC 1-on-1 speed video and voice chat with audio-only mode for verified college peers worldwide.', anchorLink: 'https://www.othrhalff.in/discover' }
 ];

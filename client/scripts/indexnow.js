@@ -1,10 +1,11 @@
 import https from 'https';
+import { campusList } from '../src/seo/data/campuses.js';
 
 const host = 'www.othrhalff.in';
 const key = '4f8b91a2c3d4e5f678901234567890ab';
 const keyLocation = `https://${host}/${key}.txt`;
 
-const urls = [
+const staticUrls = [
   `https://${host}/`,
   `https://${host}/discover`,
   `https://${host}/confessions`,
@@ -17,33 +18,12 @@ const urls = [
   `https://${host}/vs/bumble`,
   `https://${host}/vs/hinge`,
   `https://${host}/vs/yikyak`,
-  `https://${host}/campus/delhi-university`,
-  `https://${host}/campus/iit-delhi`,
-  `https://${host}/campus/iit-bombay`,
-  `https://${host}/campus/bits-pilani`,
-  `https://${host}/campus/christ-university`,
-  `https://${host}/campus/manipal-university`,
-  `https://${host}/campus/amity-noida`,
-  `https://${host}/campus/amity-raipur`,
-  `https://${host}/campus/amity-gurgaon`,
-  `https://${host}/campus/amity-jaipur`,
-  `https://${host}/campus/amity-lucknow`,
-  `https://${host}/campus/amity-mumbai`,
-  `https://${host}/campus/amity-kolkata`,
-  `https://${host}/campus/sharda-university`,
-  `https://${host}/campus/kiit-university`,
-  `https://${host}/campus/nit-raipur`,
-  `https://${host}/campus/aiims-raipur`,
-  `https://${host}/campus/hnlu-raipur`,
-  `https://${host}/campus/bit-durg`,
-  `https://${host}/campus/ssipmt-raipur`,
-  `https://${host}/campus/csvtu-bhilai`,
-  `https://${host}/campus/mats-university`,
-  `https://${host}/campus/itm-university-raipur`,
-  `https://${host}/campus/vit-vellore`,
-  `https://${host}/campus/srm-chennai`,
-  `https://${host}/campus/lpu-punjab`
 ];
+
+const campusUrls = campusList.map(c => `https://${host}/campus/${c.slug}`);
+const teaUrls = campusList.map(c => `https://${host}/tea/${c.slug}`);
+
+const urls = [...staticUrls, ...campusUrls, ...teaUrls];
 
 const payload = JSON.stringify({
   host,

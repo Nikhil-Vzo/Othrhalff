@@ -68,6 +68,7 @@ export default function Page({ params }: Props) {
       address: {
         '@type': 'PostalAddress',
         addressLocality: campus.location,
+        addressCountry: campus.country,
       },
     },
   };

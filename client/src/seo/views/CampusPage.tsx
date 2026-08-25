@@ -75,6 +75,13 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
               Join {campus.shortName} Community
             </Link>
             <Link
+              href={`/tea/${campus.slug}`}
+              className="inline-flex items-center gap-2 rounded-full border border-[#F45D9B]/40 bg-[#F45D9B]/10 px-7 py-3.5 text-sm font-bold text-[#F45D9B] transition-all hover:bg-[#F45D9B]/20 hover:scale-[1.03]"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Read {campus.shortName} Tea
+            </Link>
+            <Link
               href="/discover"
               className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-bold text-white transition-all hover:bg-white/10"
             >
@@ -90,12 +97,12 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
           <h2 className="font-geist text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl">
             Built for <span className="text-[#F45D9B]">{campus.shortName}</span> students
           </h2>
-          <p className="mt-3 text-white/55">Everything your campus WhatsApp group is too scared to say.</p>
+          <p className="mt-3 text-white/55">Everything your campus group chats are too scared to say.</p>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
-              { icon: Video, title: 'Speed Video Dates', desc: `1-on-1 HD video matching with verified ${campus.shortName} peers. No bots.` },
-              { icon: MessageCircle, title: 'Anonymous Confessions', desc: `Post your ${campus.shortName} tea anonymously. Campus drama, crushes, real talk.` },
+              { icon: Video, title: 'Speed Video Dates', desc: `1-on-1 HD video matching with verified ${campus.shortName} peers. No bots, no creeps.` },
+              { icon: MessageCircle, title: 'Anonymous Confessions', desc: `Post your ${campus.shortName} tea anonymously. Campus drama, crushes, and real talk.` },
               { icon: Lock, title: 'Campus-Only Network', desc: `Strict college email verification. Only real ${campus.shortName} students get in.` },
             ].map(({ icon: Icon, title, desc }) => (
               <article key={title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
@@ -131,17 +138,25 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
           {/* CTA */}
           <div className="mt-14 rounded-2xl border border-[#F45D9B]/20 bg-[#F45D9B]/8 p-8">
             <p className="font-geist text-xl font-black text-white">
-              Be the first from {campus.shortName} to join the fastest-growing campus app in India.
+              Be the first from {campus.shortName} to join the next-generation campus network in {campus.country || 'your university'}.
             </p>
             <p className="mt-2 text-sm text-white/55">
               Verified campus connections. Anonymous confessions. Speed dates. All in one place.
             </p>
-            <Link
-              href="/login"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#F45D9B] px-6 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(244,93,155,0.35)] transition-all hover:scale-[1.03]"
-            >
-              Get Started Free
-            </Link>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-[#F45D9B] px-6 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(244,93,155,0.35)] transition-all hover:scale-[1.03]"
+              >
+                Get Started Free
+              </Link>
+              <Link
+                href={`/tea/${campus.slug}`}
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-white/10"
+              >
+                Browse Confession Board
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -149,23 +164,45 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
       {/* ── All campuses footer nav ── */}
       <section className="border-t border-white/8 px-5 py-16 sm:px-10 lg:px-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="mb-6 font-mono text-[10px] font-bold tracking-[0.18em] text-white/40">
-            OTHER CAMPUS COMMUNITIES
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {campusList
-              .filter(c => c.slug !== slug)
-              .slice(0, 12)
-              .map(c => (
-                <Link
-                  key={c.slug}
-                  href={`/campus/${c.slug}`}
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs text-white/50 transition-colors hover:border-white/25 hover:text-white/80"
-                >
-                  {c.shortName}
-                </Link>
-              ))}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-mono text-[10px] font-bold tracking-[0.18em] text-white/40">
+              EXPLORE GLOBAL CAMPUS COMMUNITIES
+            </h2>
+            <span className="font-mono text-[10px] text-[#F45D9B]">
+              {campusList.length} CAMPUSES WORLDWIDE
+            </span>
           </div>
+
+          {/* Grouped by country */}
+          {(['United States', 'United Kingdom', 'Canada', 'Australia', 'India'] as const).map((country) => {
+            const countryCampuses = campusList.filter(c => c.country === country);
+            if (countryCampuses.length === 0) return null;
+            const flag = country === 'United States' ? '🇺🇸' : country === 'United Kingdom' ? '🇬🇧' : country === 'Canada' ? '🇨🇦' : country === 'Australia' ? '🇦🇺' : '🇮🇳';
+
+            return (
+              <div key={country} className="mb-6 last:mb-0">
+                <h3 className="mb-2.5 font-mono text-[11px] font-semibold text-white/70 flex items-center gap-1.5">
+                  <span>{flag}</span>
+                  <span>{country}</span>
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {countryCampuses.map(c => (
+                    <Link
+                      key={c.slug}
+                      href={`/campus/${c.slug}`}
+                      className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                        c.slug === slug
+                          ? 'border-[#F45D9B] bg-[#F45D9B]/20 text-[#F45D9B] font-bold'
+                          : 'border-white/10 bg-white/[0.03] text-white/50 hover:border-white/25 hover:text-white/80'
+                      }`}
+                    >
+                      {c.shortName}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
     </main>
