@@ -27,7 +27,9 @@ END $$;
 CREATE OR REPLACE FUNCTION public.get_potential_matches(
   user_id uuid,
   match_mode text,
-  user_university text
+  user_university text,
+  limit_count integer DEFAULT 50,
+  offset_count integer DEFAULT 0
 )
 RETURNS SETOF public.profiles
 LANGUAGE plpgsql
@@ -37,7 +39,7 @@ AS $$
 DECLARE
   my_key text;
 BEGIN
-  SELECT LOWER(TRIM(SPLIT_PART(COALESCE(university, ''), ',', 1)))
+  SELECT LOWER(TRIM(COALESCE(university, '')))
     INTO my_key
   FROM public.profiles WHERE id = user_id;
 
@@ -48,7 +50,7 @@ BEGIN
     AND p.university IS NOT NULL
     AND p.dob IS NOT NULL
     AND p.branch IS NOT NULL
-    AND p.university NOT IN ('Global', 'Unspecified')
+    AND p.university NOT IN ('Global', 'Unspecified', 'Other')
     AND p.branch NOT IN ('General')
     AND NOT EXISTS (
       SELECT 1 FROM public.swipes s
@@ -65,13 +67,13 @@ BEGIN
     )
     AND (
       (match_mode = 'campus'
-        AND LOWER(TRIM(SPLIT_PART(COALESCE(p.university, ''), ',', 1))) = COALESCE(my_key, '~none~'))
+        AND LOWER(TRIM(COALESCE(p.university, ''))) = COALESCE(my_key, '~none~'))
       OR
       (match_mode = 'global'
-        AND LOWER(TRIM(SPLIT_PART(COALESCE(p.university, ''), ',', 1))) <> COALESCE(my_key, '~none~'))
+        AND LOWER(TRIM(COALESCE(p.university, ''))) <> COALESCE(my_key, '~none~'))
     )
   ORDER BY p.updated_at DESC NULLS LAST
-  LIMIT 50;
+  LIMIT limit_count OFFSET offset_count;
 END;
 $$;
 
@@ -79,7 +81,9 @@ $$;
 CREATE OR REPLACE FUNCTION public.get_skipped_profiles(
   current_user_id uuid,
   match_mode text,
-  user_university text
+  user_university text,
+  limit_count integer DEFAULT 50,
+  offset_count integer DEFAULT 0
 )
 RETURNS SETOF public.profiles
 LANGUAGE plpgsql
@@ -97,10 +101,11 @@ BEGIN
       AND p.university IS NOT NULL
       AND p.dob IS NOT NULL
       AND p.branch IS NOT NULL
-      AND p.university NOT IN ('Global', 'Unspecified')
+      AND p.university NOT IN ('Global', 'Unspecified', 'Other')
       AND p.branch NOT IN ('General')
-      AND LOWER(TRIM(SPLIT_PART(p.university, ',', 1))) = LOWER(TRIM(SPLIT_PART(user_university, ',', 1)))
-    ORDER BY s.created_at DESC;
+      AND LOWER(TRIM(COALESCE(p.university, ''))) = LOWER(TRIM(COALESCE(user_university, '~none~')))
+    ORDER BY s.created_at DESC
+    LIMIT limit_count OFFSET offset_count;
   ELSE -- Global mode
     RETURN QUERY
     SELECT p.*
@@ -111,14 +116,15 @@ BEGIN
       AND p.university IS NOT NULL
       AND p.dob IS NOT NULL
       AND p.branch IS NOT NULL
-      AND p.university NOT IN ('Global', 'Unspecified')
+      AND p.university NOT IN ('Global', 'Unspecified', 'Other')
       AND p.branch NOT IN ('General')
-      AND LOWER(TRIM(SPLIT_PART(p.university, ',', 1))) != LOWER(TRIM(SPLIT_PART(user_university, ',', 1)))
-    ORDER BY s.created_at DESC;
+      AND LOWER(TRIM(COALESCE(p.university, ''))) <> LOWER(TRIM(COALESCE(user_university, '~none~')))
+    ORDER BY s.created_at DESC
+    LIMIT limit_count OFFSET offset_count;
   END IF;
 END;
 $$;
 
--- 4. Grant Permissions to authenticated and service roles
-GRANT EXECUTE ON FUNCTION public.get_potential_matches(uuid, text, text) TO authenticated, anon, service_role;
-GRANT EXECUTE ON FUNCTION public.get_skipped_profiles(uuid, text, text) TO authenticated, anon, service_role;
+-- 4. Grant Permissions to authenticated, anon, and service roles
+GRANT EXECUTE ON FUNCTION public.get_potential_matches(uuid, text, text, integer, integer) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.get_skipped_profiles(uuid, text, text, integer, integer) TO authenticated, anon, service_role;

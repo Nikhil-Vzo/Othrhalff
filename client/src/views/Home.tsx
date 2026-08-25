@@ -299,34 +299,29 @@ export const Home: React.FC = () => {
                     .neq('id', currentUser.id)
                     .not('university', 'is', null)
                     .not('dob', 'is', null)
-                    .not('branch', 'is', null);
+                    .not('branch', 'is', null)
+                    .not('university', 'in', '("Global","Unspecified")')
+                    .not('branch', 'eq', 'General');
 
-                if (currentMode === 'campus' && currentUser.university && currentUser.university !== 'Global' && currentUser.university !== 'Other') {
-                    const cleanUniv = currentUser.university.split(',')[0].trim();
-                    query = query.ilike('university', `%${cleanUniv}%`);
+                const userUniv = currentUser.university?.trim();
+
+                if (currentMode === 'campus') {
+                    if (userUniv && userUniv !== 'Global' && userUniv !== 'Other' && userUniv !== 'Unspecified') {
+                        query = query.eq('university', userUniv);
+                    } else {
+                        // User has no valid campus assigned — campus queue is empty
+                        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+                    }
+                } else if (currentMode === 'global') {
+                    if (userUniv && userUniv !== 'Global' && userUniv !== 'Other' && userUniv !== 'Unspecified') {
+                        query = query.neq('university', userUniv);
+                    }
                 }
 
                 const { data: fallbackData, error: fallbackError } = await query.limit(50);
 
                 if (!fallbackError && fallbackData && fallbackData.length > 0) {
                     fetchedProfiles = fallbackData.filter((p: any) => !swipedIds.has(p.id) && isProfileComplete(p));
-                }
-
-                // If campus filter returned 0 even in fallback, load global profiles so user is never stuck with an empty screen
-                if (fetchedProfiles.length === 0) {
-                    const { data: globalFallback } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .neq('id', currentUser.id)
-                        .not('university', 'is', null)
-                        .not('dob', 'is', null)
-                        .not('branch', 'is', null)
-                        .limit(50);
-
-                    if (globalFallback) {
-                        fetchedProfiles = globalFallback.filter((p: any) => !swipedIds.has(p.id) && isProfileComplete(p));
-                        currentMode = 'global';
-                    }
                 }
             }
 
