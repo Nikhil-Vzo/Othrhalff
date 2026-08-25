@@ -1,5 +1,17 @@
 import https from 'https';
-import { campusList } from '../src/seo/data/campuses.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const campusesFilePath = path.join(__dirname, '../src/seo/data/campuses.ts');
+const fileContent = fs.readFileSync(campusesFilePath, 'utf8');
+
+// Extract all slug strings from campuses.ts
+const slugMatches = [...fileContent.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1]);
+const uniqueSlugs = Array.from(new Set(slugMatches));
 
 const host = 'www.othrhalff.in';
 const key = '4f8b91a2c3d4e5f678901234567890ab';
@@ -20,8 +32,8 @@ const staticUrls = [
   `https://${host}/vs/yikyak`,
 ];
 
-const campusUrls = campusList.map(c => `https://${host}/campus/${c.slug}`);
-const teaUrls = campusList.map(c => `https://${host}/tea/${c.slug}`);
+const campusUrls = uniqueSlugs.map(slug => `https://${host}/campus/${slug}`);
+const teaUrls = uniqueSlugs.map(slug => `https://${host}/tea/${slug}`);
 
 const urls = [...staticUrls, ...campusUrls, ...teaUrls];
 
