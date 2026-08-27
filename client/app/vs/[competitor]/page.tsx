@@ -55,10 +55,37 @@ export default function Page({ params }: Props) {
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: comp.title,
-    description: comp.summary,
-    url: `https://www.othrhalff.in/vs/${comp.slug}`,
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        name: comp.title,
+        description: comp.summary,
+        url: `https://www.othrhalff.in/vs/${comp.slug}`,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: 'https://www.othrhalff.in',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Comparisons',
+            item: 'https://www.othrhalff.in/vs/tinder',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: `Othrhalff vs ${comp.name}`,
+            item: `https://www.othrhalff.in/vs/${comp.slug}`,
+          },
+        ],
+      },
+    ],
   };
 
   return (

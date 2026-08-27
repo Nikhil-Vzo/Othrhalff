@@ -65,19 +65,46 @@ export default function Page({ params }: Props) {
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: `Othrhalff ${campus.name} Campus Hub`,
-    description: `Speed dating, 1-on-1 video chats, and anonymous confessions for ${campus.name} students.`,
-    url: `https://www.othrhalff.in/campus/${campus.slug}`,
-    about: {
-      '@type': 'CollegeOrUniversity',
-      name: campus.name,
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: campus.location,
-        addressCountry: campus.country,
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        name: `Othrhalff ${campus.name} Campus Hub`,
+        description: `Speed dating, 1-on-1 video chats, and anonymous confessions for ${campus.name} students.`,
+        url: `https://www.othrhalff.in/campus/${campus.slug}`,
+        about: {
+          '@type': 'CollegeOrUniversity',
+          name: campus.name,
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: campus.location,
+            addressCountry: campus.country,
+          },
+        },
       },
-    },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: 'https://www.othrhalff.in',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Campuses',
+            item: 'https://www.othrhalff.in/discover',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: campus.name,
+            item: `https://www.othrhalff.in/campus/${campus.slug}`,
+          },
+        ],
+      },
+    ],
   };
 
   return (
