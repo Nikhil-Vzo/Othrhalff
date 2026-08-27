@@ -513,11 +513,103 @@ export const Landing: React.FC = () => {
       <div className={`fixed inset-0 z-[999] transition-all duration-700 ${pageLoaded ? 'pointer-events-none scale-110 opacity-0' : 'opacity-100'}`}>
         <LoadingState message="Connecting signals..." className="bg-[#05000a] h-full w-full" />
       </div>
-      <div className="pointer-events-none fixed inset-0 z-[1] opacity-[.045] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
-      <header className="relative min-h-[100svh] overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-8 transition-transform duration-1000 ease-out" style={{ transform: `translate3d(${mousePos.x * -15}px,${mousePos.y * -15}px,0) scale(1.04)` }}><img src="/landing_hero-bg.webp?v=10" alt="" className="hidden h-full w-full object-cover md:block" /><img src="/landing_hero-mobile-bg.webp?v=10" alt="" className="h-full w-full object-cover md:hidden" /></div><div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(7,3,13,.04),rgba(7,3,13,.12)_54%,#07030d_100%)]" /></div>
-        <Navbar><NavBody><NavbarLogo /><NavItems items={navItems} /><div className="flex items-center gap-4"><NavbarButton variant="secondary" onClick={onEnter}>Log In</NavbarButton><NavbarButton variant="primary" onClick={onEnter}>Sign Up</NavbarButton></div></NavBody><MobileNav><MobileNavHeader><NavbarLogo /><MobileNavToggle isOpen={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} /></MobileNavHeader><MobileNavMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}><div className="flex flex-col">{navItems.map((item) => <a key={item.name} href={item.link} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-between border-b border-white/5 py-3.5 text-base font-semibold text-white/90"><span>{item.name}</span><ArrowRight className="h-4 w-4 text-[#F45D9B]" /></a>)}</div><div className="mt-3 flex flex-col gap-3"><NavbarButton variant="secondary" onClick={onEnter} className="w-full">Log In</NavbarButton><NavbarButton variant="primary" onClick={onEnter} className="w-full">Sign Up</NavbarButton></div></MobileNavMenu></MobileNav></Navbar>
-        <main className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center justify-center px-5 pb-16 pt-28 text-center sm:px-8"><div className="max-w-3xl"><h1 className="font-geist text-5xl font-black leading-[.98] tracking-[-.07em] text-white drop-shadow-[0_10px_35px_rgba(0,0,0,.8)] sm:text-7xl md:text-8xl">{'Find your people.'.split(' ').map((word, index) => <span key={word} className="mr-[.25em] inline-block whitespace-nowrap transition-all duration-700" style={{ opacity: textRevealed ? 1 : 0, transform: textRevealed ? 'translateY(0) rotateX(0)' : 'translateY(42px) rotateX(-90deg)', transitionDelay: `${190 + index * 120}ms` }}>{word}</span>)}</h1><p className="mx-auto mt-7 max-w-2xl text-lg font-medium leading-relaxed text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,.8)] sm:text-2xl" style={{ opacity: textRevealed ? 1 : 0, transform: textRevealed ? 'translateY(0)' : 'translateY(20px)', transition: 'all .8s ease-out .75s' }}>Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.</p><div className="mt-10" style={{ opacity: textRevealed ? 1 : 0, transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(.9)', transition: 'all .6s ease-out 1.05s' }}><MagneticButton onClick={onEnter}>Find Your Othrhalff</MagneticButton></div></div><a href="#experience" className="absolute bottom-8 inline-flex items-center gap-2 font-mono text-[10px] font-bold tracking-[.16em] text-white/65"><span className="h-px w-7 bg-white/40" /> START THE SIGNAL <ArrowDownRight className="h-3.5 w-3.5" /></a></main>
+      <header className="relative min-h-[100svh] overflow-hidden bg-black">
+        {/* Background Campus Building anchored at bottom */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute inset-0 transition-transform duration-1000 ease-out"
+            style={{ transform: `translate3d(${mousePos.x * -10}px,${mousePos.y * -10}px,0) scale(1.03)` }}
+          >
+            <img
+              src="/landing_hero-bg.webp?v=12"
+              alt="Campus Horizon"
+              className="w-full h-full object-cover object-bottom"
+            />
+          </div>
+          {/* Subtle top shade to ensure contrast while seamlessly blending into page */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent pointer-events-none" />
+          {/* Bottom fade into the next section */}
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#07030d] via-[#07030d]/60 to-transparent pointer-events-none" />
+        </div>
+
+        <Navbar>
+          <NavBody>
+            <NavbarLogo />
+            <NavItems items={navItems} />
+            <div className="flex items-center gap-4">
+              <NavbarButton variant="secondary" onClick={onEnter}>Log In</NavbarButton>
+              <NavbarButton variant="primary" onClick={onEnter}>Sign Up</NavbarButton>
+            </div>
+          </NavBody>
+          <MobileNav>
+            <MobileNavHeader>
+              <NavbarLogo />
+              <MobileNavToggle isOpen={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+            </MobileNavHeader>
+            <MobileNavMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}>
+              <div className="flex flex-col">
+                {navItems.map((item) => (
+                  <a
+                    key={item.name}
+                    href={item.link}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-between border-b border-white/5 py-3.5 text-base font-semibold text-white/90"
+                  >
+                    <span>{item.name}</span>
+                    <ArrowRight className="h-4 w-4 text-[#F45D9B]" />
+                  </a>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-col gap-3">
+                <NavbarButton variant="secondary" onClick={onEnter} className="w-full">Log In</NavbarButton>
+                <NavbarButton variant="primary" onClick={onEnter} className="w-full">Sign Up</NavbarButton>
+              </div>
+            </MobileNavMenu>
+          </MobileNav>
+        </Navbar>
+
+        <main className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center justify-center px-5 pb-20 pt-24 text-center sm:px-8">
+          <div className="max-w-3xl">
+            <h1 className="font-geist text-5xl font-black leading-[.98] tracking-[-.07em] text-white drop-shadow-[0_10px_35px_rgba(0,0,0,.9)] sm:text-7xl md:text-8xl">
+              {'Find your people.'.split(' ').map((word, index) => (
+                <span
+                  key={word}
+                  className="mr-[.25em] inline-block whitespace-nowrap transition-all duration-700"
+                  style={{
+                    opacity: textRevealed ? 1 : 0,
+                    transform: textRevealed ? 'translateY(0) rotateX(0)' : 'translateY(42px) rotateX(-90deg)',
+                    transitionDelay: `${190 + index * 120}ms`
+                  }}
+                >
+                  {word}
+                </span>
+              ))}
+            </h1>
+            <p
+              className="mx-auto mt-7 max-w-2xl text-lg font-medium leading-relaxed text-white/95 drop-shadow-[0_2px_12px_rgba(0,0,0,.9)] sm:text-2xl"
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
+                transition: 'all .8s ease-out .75s'
+              }}
+            >
+              Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.
+            </p>
+            <div
+              className="mt-10"
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(.9)',
+                transition: 'all .6s ease-out 1.05s'
+              }}
+            >
+              <MagneticButton onClick={onEnter}>Find Your Othrhalff</MagneticButton>
+            </div>
+          </div>
+          <a href="#experience" className="absolute bottom-8 inline-flex items-center gap-2 font-mono text-[10px] font-bold tracking-[.16em] text-white/65 hover:text-white transition-colors">
+            <span className="h-px w-7 bg-white/40" /> START THE SIGNAL <ArrowDownRight className="h-3.5 w-3.5" />
+          </a>
+        </main>
       </header>
       <ManifestoSection />
       <ArtDirectedExperience />
