@@ -88,4 +88,22 @@ export const competitorList: CompetitorData[] = [
     verdict:
       'Othrhalff takes the best part of anonymous campus boards and connects it directly to real 1-on-1 speed dating.',
   },
+  {
+    slug: 'omegle',
+    name: 'Omegle',
+    category: 'Random Video Chat',
+    title: 'Othrhalff vs Omegle – Safe, Verified College Video Chat & Anonymous Confessions',
+    tagline: 'The campus-verified Omegle replacement for university students in India and worldwide.',
+    summary:
+      'Omegle shut down permanently due to safety and moderation failures. Othrhalff is the safe, verified alternative for college students—offering 1-on-1 speed video and text chat with verified university peers, alongside anonymous campus confession boards.',
+    features: [
+      { name: 'Campus Email Domain Verification', othrhalff: 'College Email Protected', competitor: 'Unverified Strangers / Bots', othrhalffHas: true, competitorHas: false },
+      { name: '1-on-1 Speed Video Chat', othrhalff: 'HD WebRTC Speed Dating', competitor: 'Shut Down / Low Quality', othrhalffHas: true, competitorHas: false },
+      { name: 'Anonymous Campus Confessions', othrhalff: 'Full Confession Board & Polls', competitor: 'Not Available', othrhalffHas: true, competitorHas: false },
+      { name: 'Student Identity Safety', othrhalff: 'Verified College Network', competitor: 'Rampant Scams & Inappropriate Content', othrhalffHas: true, competitorHas: false },
+      { name: 'Keep Connections (Matching)', othrhalff: 'Match & Chat After Call', competitor: 'Lost Forever on Disconnect', othrhalffHas: true, competitorHas: false },
+    ],
+    verdict:
+      'Othrhalff delivers the excitement of 1-on-1 random video chat without the creeps, scammers, or safety risks of old Omegle.',
+  },
 ];

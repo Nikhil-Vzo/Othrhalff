@@ -21,12 +21,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = `Anonymous Campus Confessions & Tea – ${campus.name} | Othrhalff`;
-  const description = `Read the latest unfiltered campus tea, crushes, gossip, and confessions from verified ${campus.name} students in ${campus.location}. Join the discussion on Othrhalff.`;
+  const title = `${campus.name} Anonymous Campus Confessions & Tea | Othrhalff`;
+  const description = `Read the latest unfiltered confessions, crushes, campus gossip, and student tea from verified ${campus.name} students in ${campus.location}. Join the discussion on Othrhalff.`;
 
   return {
     title,
     description,
+    keywords: [
+      `${campus.name} confessions`,
+      `${campus.shortName} confession page`,
+      `${campus.name} campus tea`,
+      `${campus.shortName} anonymous confessions`,
+      `${campus.name} student dating`,
+      `${campus.shortName} college crushes`,
+      'anonymous college confessions',
+      'campus tea board',
+      'university speed dating',
+    ],
     alternates: {
       canonical: `https://www.othrhalff.in/tea/${campus.slug}`,
     },
@@ -58,19 +69,39 @@ export default function Page({ params }: Props) {
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
-    name: `${campus.name} Anonymous Campus Confessions & Tea`,
-    description: `Unfiltered anonymous confessions, student discussions, and campus tea for ${campus.name}.`,
-    url: `https://www.othrhalff.in/tea/${campus.slug}`,
-    about: {
-      '@type': 'CollegeOrUniversity',
-      name: campus.name,
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: campus.location,
-        addressCountry: campus.country,
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        name: `${campus.name} Anonymous Campus Confessions & Tea`,
+        description: `Unfiltered anonymous confessions, student discussions, and campus tea for ${campus.name}.`,
+        url: `https://www.othrhalff.in/tea/${campus.slug}`,
+        about: {
+          '@type': 'CollegeOrUniversity',
+          name: campus.name,
+          alternateName: campus.shortName,
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: campus.location,
+            addressCountry: campus.country,
+          },
+        },
       },
-    },
+      {
+        '@type': 'DiscussionForumPosting',
+        headline: `${campus.name} Anonymous Campus Confession Hub`,
+        articleBody: `Real-time anonymous discussions, confessions, and campus polls from verified ${campus.name} students.`,
+        url: `https://www.othrhalff.in/tea/${campus.slug}`,
+        author: {
+          '@type': 'Organization',
+          name: 'Othrhalff Verified Campus Community',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Othrhalff',
+          url: 'https://www.othrhalff.in',
+        },
+      },
+    ],
   };
 
   return (
