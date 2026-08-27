@@ -20,3 +20,9 @@ db_backup/
 PUSH_NOTIFICATIONS_MANUAL.txt
 posters/
 *.tsbuildinfo
+*service-account*.json
+*gsc-key*.json
+*credentials*.json
+scripts/*.json
+!scripts/package.json
+
