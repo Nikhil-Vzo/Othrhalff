@@ -174,10 +174,22 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
           </div>
 
           {/* Grouped by country */}
-          {(['United States', 'United Kingdom', 'Canada', 'Australia', 'India'] as const).map((country) => {
+          {(['India', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'Nepal', 'UAE', 'United States', 'United Kingdom', 'Canada', 'Australia'] as const).map((country) => {
             const countryCampuses = campusList.filter(c => c.country === country);
             if (countryCampuses.length === 0) return null;
-            const flag = country === 'United States' ? '🇺🇸' : country === 'United Kingdom' ? '🇬🇧' : country === 'Canada' ? '🇨🇦' : country === 'Australia' ? '🇦🇺' : '🇮🇳';
+            const flagMap: Record<string, string> = {
+              'India': '🇮🇳',
+              'Pakistan': '🇵🇰',
+              'Bangladesh': '🇧🇩',
+              'Sri Lanka': '🇱🇰',
+              'Nepal': '🇳🇵',
+              'UAE': '🇦🇪',
+              'United States': '🇺🇸',
+              'United Kingdom': '🇬🇧',
+              'Canada': '🇨🇦',
+              'Australia': '🇦🇺',
+            };
+            const flag = flagMap[country] || '🎓';
 
             return (
               <div key={country} className="mb-6 last:mb-0">
