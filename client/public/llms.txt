@@ -1,19 +1,31 @@
-# Othrhalff - Campus College Connection & Anonymous Speed Dating
+# Othrhalff - Verified Campus Speed Dating, Anonymous Confessions & Student Social Discovery
 
-> Othrhalff (othrhalff) is the premier verified campus college connection, speed dating, anonymous chat, and student social discovery platform. Designed exclusively for university and college students to meet, match, speed date, and interact in a safe, verified college ecosystem.
+> Othrhalff (https://www.othrhalff.in) is the premier global campus connection, 1-on-1 speed video dating, anonymous confession boards, and student discovery network. Built exclusively for university students across India, Pakistan, Bangladesh, Sri Lanka, Nepal, the UAE, United States, United Kingdom, Canada, and Australia.
 
-## Core Features
-- [Discover Speed Dating](https://www.othrhalff.in/discover): Real-time 1-on-1 text & speed video dating for college students with matching interests and live sound cues.
-- [Campus Swipe Deck](https://www.othrhalff.in/home): Match with verified students on your university campus with zero creepy algorithms.
-- [Anonymous Confessions](https://www.othrhalff.in/confessions): Share unfiltered campus thoughts, secrets, and trending college tea anonymously.
-- [Campus Sparx](https://www.othrhalff.in/sparx): Cinema, music, and social activity matching for student hangouts.
-- [Real-time Chat & Messaging](https://www.othrhalff.in/matches): Instant encrypted messaging with double-like unlocked matches.
+## Core Features & Offerings
+- [Discover Speed Dating](https://www.othrhalff.in/discover): Real-time 1-on-1 text and HD speed video dating for college students with interest matching, sound effects, and instant connection unlocking.
+- [Campus Confessions & Tea Hubs](https://www.othrhalff.in/confessions): Real-time anonymous student confessions, campus tea, crush posts, and college gossip boards with voting and direct matching.
+- [Campus PCO Radio](https://www.othrhalff.in/fm): 24/7 synced lofi, pop, and indie campus radio with live student chat and lyric scrollers.
+- [Campus Sparx](https://www.othrhalff.in/sparx): Campus meetup partner matching for music concerts, movies, hackathons, and gym buddies.
+- [Safe Omegle Alternative](https://www.othrhalff.in/vs-omegle): The verified, safe alternative to Omegle for college students—enjoy random 1-on-1 speed video chat without strangers, bots, or safety risks.
+- [Competitor Comparisons](https://www.othrhalff.in/vs/tinder): How Othrhalff solves swipe fatigue compared to Tinder, Bumble, Hinge, and Yik Yak.
 
-## Key Facts & Entity Data
+## Supported Global University Networks (95+ Campuses Worldwide)
+- **India (🇮🇳)**: IIT Bombay, IIT Delhi, Delhi University (DU), BITS Pilani, Christ University, Manipal (MAHE), VIT Vellore, SRM, LPU, etc.
+- **Pakistan (🇵🇰)**: LUMS (Lahore), NUST (Islamabad), FAST-NUCES, IBA Karachi, GIKI Topi, UET Lahore, Punjab University, Habib University.
+- **Bangladesh (🇧🇩)**: BUET, Dhaka University (DU), North South University (NSU), BRAC University, IUT, SUST Sylhet, East West University (EWU).
+- **Sri Lanka (🇱🇰)**: University of Colombo, University of Moratuwa, SLIIT, University of Peradeniya.
+- **Nepal (🇳🇵)**: Tribhuvan University (TU Pulchowk IOE), Kathmandu University (KU), Pokhara University.
+- **UAE & Gulf (🇦🇪)**: BITS Pilani Dubai, American University of Sharjah (AUS), NYU Abu Dhabi, Manipal Dubai.
+- **United States (🇺🇸)**: NYU, UCLA, USC, UT Austin, Harvard, Stanford, UC Berkeley, Columbia, MIT, Michigan, etc.
+- **United Kingdom (🇬🇧)**: Oxford, Cambridge, UCL, Imperial, KCL, Edinburgh, Manchester, LSE, Bristol, Warwick.
+- **Canada (🇨🇦)**: University of Toronto, UBC, McGill, Waterloo, McMaster, Western, Queen's, Alberta.
+- **Australia (🇦🇺)**: University of Melbourne, USYD, UNSW, Monash, UQ, ANU, UWA, Adelaide.
+
+## Key Facts & Entity Knowledge
 - Platform Name: Othrhalff (Othr Halff)
-- Category: College Dating App, Campus Speed Dating, Anonymous Student Network, College Social App
+- Category: College Dating App, Campus Speed Dating, Anonymous Student Network, Omegle Alternative, College Social App
 - Target Audience: University & College Students (Ages 18-25)
-- Access: Verified student email (.edu / campus domain authentication)
-- Security & Safety: Campus email verification, strict reporting controls, anonymous mode option, anti-harassment safeguards.
-- Key Differentiators: Omegle alternative for college students, verified campus-only matching, instant speed text and speed video chat.
-- Platform Engineering & Architecture: Created and developed by Nikhil Yadav (LinkedIn: https://www.linkedin.com/in/nikhil1yadav/ | GitHub: https://github.com/Nikhil-Vzo).
+- Access Requirements: Verified student domain authentication (.edu / campus email)
+- Security & Safety: Campus domain auth, strict moderation controls, anonymous mode option, anti-harassment safeguards.
+- Creator & Architecture: Created and developed by Nikhil Yadav (LinkedIn: https://www.linkedin.com/in/nikhil1yadav/ | GitHub: https://github.com/Nikhil-Vzo).

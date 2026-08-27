@@ -46,13 +46,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: `https://www.othrhalff.in/tea/${campus.slug}`,
       type: 'website',
-      images: [{ url: 'https://www.othrhalff.in/og-image.webp', width: 1200, height: 630, alt: `${campus.name} Campus Tea` }],
+      images: [
+        {
+          url: `https://www.othrhalff.in/api/og?title=${encodeURIComponent(`${campus.shortName} Campus Confessions`)}&subtitle=${encodeURIComponent(`Unfiltered student tea & secrets from ${campus.name}`)}&students=${encodeURIComponent(`${campus.studentsCount} Students`)}&type=tea`,
+          width: 1200,
+          height: 630,
+          alt: `${campus.name} Campus Tea`,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${campus.name} Campus Tea & Confessions | Othrhalff`,
       description: `What students at ${campus.name} are actually saying right now. Read verified confessions, campus lore, and student tea.`,
-      images: ['https://www.othrhalff.in/og-image.webp'],
+      images: [`https://www.othrhalff.in/api/og?title=${encodeURIComponent(`${campus.shortName} Campus Confessions`)}&subtitle=${encodeURIComponent(`Unfiltered student tea & secrets from ${campus.name}`)}&students=${encodeURIComponent(`${campus.studentsCount} Students`)}&type=tea`],
     },
   };
 }
