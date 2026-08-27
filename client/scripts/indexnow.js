@@ -13,7 +13,7 @@ const fileContent = fs.readFileSync(campusesFilePath, 'utf8');
 const slugMatches = [...fileContent.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1]);
 const uniqueSlugs = Array.from(new Set(slugMatches));
 
-const host = 'othrhalff.in';
+const host = 'www.othrhalff.in';
 const key = '4f8b91a2c3d4e5f678901234567890ab';
 const keyLocation = `https://${host}/${key}.txt`;
 
