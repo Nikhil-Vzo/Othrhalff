@@ -518,23 +518,16 @@ export const Landing: React.FC = () => {
       <div className={`fixed inset-0 z-[999] transition-all duration-700 ${pageLoaded ? 'pointer-events-none scale-110 opacity-0' : 'opacity-100'}`}>
         <LoadingState message="Connecting signals..." className="bg-[#05000a] h-full w-full" />
       </div>
-      <header className="relative min-h-[100svh] overflow-hidden bg-black">
-        {/* Background Campus Building anchored at bottom */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <header className="relative min-h-[100svh] overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
           <div
-            className="absolute inset-0 transition-transform duration-1000 ease-out"
-            style={{ transform: `translate3d(${mousePos.x * -10}px,${mousePos.y * -10}px,0) scale(1.03)` }}
+            className="absolute -inset-8 transition-transform duration-1000 ease-out"
+            style={{ transform: `translate3d(${mousePos.x * -15}px,${mousePos.y * -15}px,0) scale(1.04)` }}
           >
-            <img
-              src="/landing_hero-bg.webp?v=12"
-              alt="Campus Horizon"
-              className="w-full h-full object-cover object-bottom"
-            />
+            <img src="/landing_hero-bg.webp?v=14" alt="Campus Sunset Horizon" className="hidden h-full w-full object-cover md:block" />
+            <img src="/landing_hero-mobile-bg.webp?v=14" alt="Campus Sunset Horizon" className="h-full w-full object-cover md:hidden" />
           </div>
-          {/* Subtle top shade to ensure contrast while seamlessly blending into page */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent pointer-events-none" />
-          {/* Bottom fade into the next section */}
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#07030d] via-[#07030d]/60 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(7,3,13,.04),rgba(7,3,13,.12)_54%,#07030d_100%)]" />
         </div>
 
         <Navbar>
