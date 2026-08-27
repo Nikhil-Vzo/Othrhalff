@@ -7,6 +7,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { Bell, Heart, MessageCircle, Zap, Check, X, Ghost, Loader2, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ProfilePreviewModal } from '../components/ProfilePreviewModal';
+import { formatMessageSnippet } from '../utils/messagePreview';
 
 interface NotificationItem {
   id: string;
@@ -407,7 +408,7 @@ export const Notifications: React.FC = () => {
                       {formatNotificationTime(notif.timestamp)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed">{notif.message}</p>
+                  <p className="text-sm text-gray-400 leading-relaxed">{formatMessageSnippet(notif.message)}</p>
 
                   {/* Action Buttons for Likes */}
                   {notif.type === 'like' && (

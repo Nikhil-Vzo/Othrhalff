@@ -12,6 +12,7 @@ import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { getRandomQuote } from '../data/loadingQuotes';
 import { LoadingState } from '../components/LoadingState';
 import { buildRealtimeIdFilter, chunkIds } from '../utils/realtime';
+import { formatMessageSnippet } from '../utils/messagePreview';
 
 import { db } from '../lib/db';
 
@@ -137,7 +138,7 @@ const ChatPreviewItem = React.memo<ChatPreviewItemProps>(({ chat, isOnline, onSe
             {chat.lastMessageTime && <span className="text-[10px] text-gray-500 font-mono whitespace-nowrap">{new Date(chat.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
           <div className="flex justify-between items-center">
-            <p className={`text-sm truncate pr-4 ${chat.unreadCount > 0 ? 'text-white font-semibold' : 'text-gray-500 group-hover:text-gray-400'}`}>{chat.lastMessage}</p>
+            <p className={`text-sm truncate pr-4 ${chat.unreadCount > 0 ? 'text-white font-semibold' : 'text-gray-500 group-hover:text-gray-400'}`}>{formatMessageSnippet(chat.lastMessage)}</p>
             {chat.unreadCount > 0 && <div className="bg-neon text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-neon/20 min-w-[20px] text-center">{chat.unreadCount}</div>}
           </div>
         </div>
