@@ -467,7 +467,12 @@ export const Landing: React.FC = () => {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const onEnter = () => navigate.push('/login');
-  const navItems = [{ name: 'Experience', link: '#experience' }, { name: 'Stories', link: '/blog' }, { name: 'Confessions', link: '#confess' }, { name: 'About', link: '/about' }];
+  const navItems = [
+    { name: 'Experience', link: '#experience' },
+    { name: 'Stories', link: '/blog' },
+    { name: 'Confessions', link: '/confessions' },
+    { name: 'About', link: '/about' }
+  ];
 
   const isOAuthCallback = typeof window !== 'undefined' && (
     window.location.hash.includes('access_token=') ||
