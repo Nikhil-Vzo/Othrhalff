@@ -1,17 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { RotateCcw, Mail, ArrowRight, Check, Loader2, X, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { NeonInput, NeonButton } from '../components/Common';
 import { useRouter as useNavigate } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '../services/auth';
 import { analytics } from '../utils/analytics';
 import { useAuth } from '../context/AuthContext';
+import { validateEmail } from '../utils/emailSanitizer';
 
 export const Login: React.FC = () => {
   const { currentUser, needsOnboarding, isLoading: isAuthLoading } = useAuth();
   const [email, setEmail] = useState('');
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState(''); // Anti-bot honeypot field
   const [isLogin, setIsLogin] = useState(true);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,14 +50,23 @@ export const Login: React.FC = () => {
     }
   }, []);
 
-  // Clear error when user starts typing
+  // Update suggestions & clear error when email changes
   useEffect(() => {
     if (error) setError(null);
+    if (!email.trim()) {
+      setSuggestion(null);
+      return;
+    }
+    const validation = validateEmail(email);
+    setSuggestion(validation.suggestion || null);
   }, [email]);
 
-  // Email validation regex
-  const isValidEmail = (emailStr: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr);
+  const handleApplySuggestion = () => {
+    if (suggestion) {
+      setEmail(suggestion);
+      setSuggestion(null);
+      setError(null);
+    }
   };
 
   const handleMagicLink = async (e: React.FormEvent) => {
@@ -62,28 +74,40 @@ export const Login: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    const cleanEmail = email.trim().toLowerCase();
+    // Bot check: if hidden honeypot field is filled by bot scripts, abort silently
+    if (honeypot.trim()) {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setSuccess('Magic Link sent! Please check your inbox.');
+      }, 1000);
+      return;
+    }
 
     if (!isLogin && !agreedToTerms) {
       setError('You must agree to the Terms and Conditions to continue.');
       return;
     }
 
-    if (!cleanEmail) {
-      setError('Please enter your email address.');
+    // Perform smart email validation (RFC syntax, disposable blocker, typo guard)
+    const validation = validateEmail(email);
+
+    if (!validation.isValid) {
+      setError(validation.error || 'Please enter a valid email address.');
       return;
     }
 
-    if (!isValidEmail(cleanEmail)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
+    const cleanEmail = validation.cleanEmail;
+
+    // If there's an active typo suggestion, auto-correct and inform the user
+    const finalEmail = validation.suggestion || cleanEmail;
 
     setIsLoading(true);
     try {
-      await authService.signInWithMagicLink(cleanEmail);
+      await authService.signInWithMagicLink(finalEmail);
       analytics.login('MagicLink');
-      setSuccess(`Magic Link sent to ${cleanEmail}! Check your inbox (or spam) to sign in instantly.`);
+      setSuccess(`Magic Link sent to ${finalEmail}! Check your inbox (or spam) to sign in instantly.`);
+      setSuggestion(null);
     } catch (err: any) {
       console.error('Magic link error:', err);
       const msg = err.message || '';
@@ -208,7 +232,19 @@ export const Login: React.FC = () => {
           </div>
 
           {/* Magic Link Form */}
-          <form onSubmit={handleMagicLink} className="space-y-5">
+          <form onSubmit={handleMagicLink} className="space-y-4">
+            {/* Anti-Bot Honeypot Field (invisible to humans) */}
+            <div className="hidden" aria-hidden="true">
+              <input
+                type="text"
+                name="website_url_hp"
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={e => setHoneypot(e.target.value)}
+              />
+            </div>
+
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
               <NeonInput
@@ -221,6 +257,23 @@ export const Login: React.FC = () => {
                 className="h-14 rounded-2xl border-gray-800 bg-[#111522] pl-12 placeholder:text-gray-500 focus:border-neon/80"
               />
             </div>
+
+            {/* Smart Typo Suggestion Banner */}
+            {suggestion && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-neon/30 bg-neon/10 px-3.5 py-2 text-xs animate-fade-in">
+                <div className="flex items-center gap-1.5 text-white/90">
+                  <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-neon" />
+                  <span className="truncate">Did you mean <strong className="text-neon">{suggestion}</strong>?</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplySuggestion}
+                  className="shrink-0 font-bold text-neon hover:underline focus:outline-none"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
 
             {!isLogin && (
               <div className="flex items-start gap-3 px-1 animate-fade-in">
