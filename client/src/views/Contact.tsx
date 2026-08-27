@@ -36,16 +36,34 @@ export const Contact: React.FC = () => {
         setIsSubmitting(true);
         setErrorMessage(null);
 
+        const payload = {
+            user_id: currentUser?.id || null,
+            email: email.trim(),
+            category: reportUserId ? 'Report User' : (subject.trim() || 'General Inquiry'),
+            message: message.trim(),
+            status: 'open'
+        };
+
         try {
+            // First attempt: Server API endpoint (bypasses client-side RLS issues)
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+                setSubmitted(true);
+                setTimeout(() => {
+                    navigate.back();
+                }, 2000);
+                return;
+            }
+
+            // Fallback: Direct Supabase client insert
             const { error } = await supabase
                 .from('support_tickets')
-                .insert({
-                    user_id: currentUser?.id || null,
-                    email: email.trim(),
-                    category: reportUserId ? 'Report User' : (subject.trim() || 'General Inquiry'),
-                    message: message.trim(),
-                    status: 'open'
-                });
+                .insert(payload);
 
             if (error) {
                 console.error('Error submitting support ticket:', error);
@@ -55,9 +73,8 @@ export const Contact: React.FC = () => {
             }
 
             setSubmitted(true);
-
             setTimeout(() => {
-                navigate.back(); // Go back after 2 seconds
+                navigate.back();
             }, 2000);
         } catch (err) {
             console.error('Unexpected error submitting support ticket:', err);
