@@ -39,6 +39,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.font-geraldine {
+  font-family: 'Geraldine', cursive, sans-serif;
+}
+
 html,
 body,
 #root {

@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 import { ViralArchetypeQuiz } from '../../src/components/ViralArchetypeQuiz';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, ShieldCheck, Users, Flame, Zap } from 'lucide-react';
+import { ArrowLeft, Sparkles, Flame } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Romantic Archetype & Chemistry Radar (60s Test) | Othrhalff',
-  description: 'Discover your relationship archetype, psychological green flags, and highest-synergy campus matches. 100% free, 60-second chemistry radar.',
+  title: 'Romantic Archetype & Chemistry Radar | Othrhalff',
+  description: 'Discover your relationship archetype, emotional green flags, and highest-synergy campus matches. 60-second chemistry radar.',
   alternates: {
     canonical: 'https://www.othrhalff.in/vibe',
   },
@@ -19,45 +19,43 @@ export const metadata: Metadata = {
 
 export default function VibePage() {
   return (
-    <main className="relative min-h-[100dvh] w-full overflow-hidden bg-[#06010a] px-4 py-16 sm:px-8 sm:py-24 text-white flex flex-col items-center justify-center">
-      {/* ── Atmospheric Backdrop Asset & Mesh ── */}
-      <div className="pointer-events-none absolute inset-0 opacity-20">
+    <main className="relative min-h-[100dvh] w-full overflow-hidden bg-[#07030d] px-4 py-12 sm:px-8 sm:py-20 text-white flex flex-col items-center justify-center">
+      {/* ── Aesthetic vibe-bg Backdrop Asset ── */}
+      <div className="pointer-events-none absolute inset-0 z-0">
         <img
-          src="/assets/vibe/midnight-connection.png"
-          alt="Midnight Connection Atmospheric Background"
-          className="h-full w-full object-cover object-center filter blur-[60px] scale-110"
+          src="/assets/vibe/vibe-bg.png"
+          alt="Othrhalff Vibe Background"
+          className="h-full w-full object-cover object-center opacity-40 mix-blend-screen filter saturate-150"
         />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#07030d]/80 via-transparent to-[#07030d]/95" />
       </div>
-      <div className="pointer-events-none absolute left-[5%] top-[12%] h-[38rem] w-[38rem] rounded-full bg-[#F45D9B]/15 blur-[160px]" />
-      <div className="pointer-events-none absolute right-[5%] bottom-[12%] h-[32rem] w-[32rem] rounded-full bg-violet-600/18 blur-[150px]" />
-      <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:32px_32px]" />
 
-      <div className="relative z-10 w-full max-w-4xl mx-auto space-y-8">
-        {/* ── Header Intro ── */}
-        <div className="text-center space-y-4">
+      <div className="relative z-10 w-full max-w-3xl mx-auto space-y-6">
+        {/* ── Header Intro with Geraldine Script Font ── */}
+        <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-white/60 transition-all hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-md transition-all hover:bg-white/10 hover:text-white"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
+              <ArrowLeft className="h-3 w-3" /> Back
             </Link>
 
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#F45D9B]/30 bg-[#F45D9B]/10 px-3.5 py-1.5 font-mono text-[11px] font-bold text-[#F45D9B]">
-              <Flame className="h-3.5 w-3.5 fill-current" /> 1,420+ Tests Taken Today
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#F45D9B]/30 bg-[#F45D9B]/10 px-3 py-1 font-mono text-[10px] font-bold text-[#F45D9B]">
+              <Sparkles className="h-3 w-3" /> 60s Radar
             </div>
           </div>
 
-          <h1 className="font-geist text-4xl sm:text-6xl font-black tracking-tight text-white leading-none">
-            Discover Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F45D9B] via-[#FF007F] to-violet-400">Romantic Archetype</span>
+          <h1 className="text-4xl sm:text-6xl font-normal text-white leading-none tracking-wide">
+            Discover Your <span className="font-geraldine text-5xl sm:text-7xl text-[#F45D9B] tracking-normal inline-block ml-1">Romantic Archetype</span>
           </h1>
 
-          <p className="text-sm sm:text-base text-white/70 max-w-md mx-auto leading-relaxed">
-            Stop guessing. Take the 60-second psychological radar test to unlock your dating blueprint and find your highest-synergy campus match.
+          <p className="text-xs sm:text-sm text-white/70 max-w-sm mx-auto font-medium leading-relaxed">
+            Take the 60-second radar test to unlock your romantic blueprint and find your counterpart.
           </p>
         </div>
 
-        {/* ── The Quiz Component ── */}
+        {/* ── The Clean Skeuomorphic Quiz Component ── */}
         <ViralArchetypeQuiz />
       </div>
     </main>
