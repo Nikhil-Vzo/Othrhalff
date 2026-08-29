@@ -10,7 +10,8 @@ import {
   Copy,
   Heart,
   ShieldCheck,
-  Zap
+  Zap,
+  Star
 } from 'lucide-react';
 import Link from 'next/link';
 import { personalityTypes, PersonalityType } from '../seo/data/personalityTypes';
@@ -159,9 +160,9 @@ const QUIZ_QUESTIONS = [
 ];
 
 const CALC_MESSAGES = [
-  "Mapping Cognitive Functions...",
-  "Calibrating Resonance...",
-  "Synthesizing Archetype..."
+  "Mapping Cognitive Resonance...",
+  "Calibrating Archetype Synergy...",
+  "Synthesizing Your Blueprint..."
 ];
 
 export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityType) => void }> = ({ onComplete }) => {
@@ -232,7 +233,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
   const progressPercent = ((currentStep + 1) / QUIZ_QUESTIONS.length) * 100;
 
   return (
-    /* ── Full Skeuomorphic / Neomorphic Chassis with 3D Depth, Double Bevel & Inset Highlights ── */
+    /* ── Seamless Tactile Glass Console ── */
     <div 
       className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[2.8rem] p-6 sm:p-9 text-white transition-all duration-300"
       style={{
@@ -246,7 +247,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
         `
       }}
     >
-      {/* ── Realistic Top Glass Specular Reflection Highlight Arc ── */}
+      {/* ── Top Glass Specular Arc ── */}
       <div 
         className="pointer-events-none absolute inset-x-0 top-0 h-36 rounded-t-[2.8rem]"
         style={{
@@ -267,7 +268,6 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
           >
             {/* Skeuomorphic Top Header */}
             <div className="flex items-center justify-between">
-              {/* Tactile Embossed Step Pill */}
               <div 
                 className="flex items-center gap-2.5 rounded-full px-3.5 py-1.5"
                 style={{
@@ -275,12 +275,11 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                   boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.08)'
                 }}
               >
-                {/* 3D Candy Gem Step Number */}
                 <div 
                   className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white"
                   style={{
                     background: 'radial-gradient(circle at 35% 30%, #ff6bb1 0%, #F45D9B 50%, #a82062 100%)',
-                    boxShadow: '0 2px 6px rgba(244, 93, 155, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 2px rgba(0, 0, 0, 0.5)'
+                    boxShadow: '0 2px 6px rgba(244, 93, 155, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8)'
                   }}
                 >
                   {currentStep + 1}
@@ -295,7 +294,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
               </span>
             </div>
 
-            {/* Debossed Carved Neomorphic Progress Channel */}
+            {/* Debossed Progress Channel */}
             <div 
               className="h-2.5 w-full overflow-hidden rounded-full p-0.5"
               style={{
@@ -307,7 +306,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                 className="h-full rounded-full"
                 style={{
                   background: 'linear-gradient(90deg, #F45D9B 0%, #ff2e93 50%, #9933ff 100%)',
-                  boxShadow: '0 0 10px #F45D9B, inset 0 1px 1px rgba(255, 255, 255, 0.7), inset 0 -1px 1px rgba(0, 0, 0, 0.4)'
+                  boxShadow: '0 0 10px #F45D9B, inset 0 1px 1px rgba(255, 255, 255, 0.7)'
                 }}
                 initial={{ width: `${(currentStep / QUIZ_QUESTIONS.length) * 100}%` }}
                 animate={{ width: `${progressPercent}%` }}
@@ -316,19 +315,19 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
             </div>
 
             {/* Question Heading */}
-            <h2 className="font-geist text-2xl sm:text-[1.7rem] font-bold leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <h2 className="font-geist text-2xl sm:text-[1.65rem] font-bold leading-snug text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {QUIZ_QUESTIONS[currentStep].question}
             </h2>
 
             {/* Skeuomorphic Extruded 3D Push-Buttons */}
-            <div className="space-y-3.5 pt-1">
+            <div className="space-y-3 pt-1">
               {QUIZ_QUESTIONS[currentStep].options.map((opt, idx) => (
                 <motion.button
                   key={idx}
                   onClick={() => handleOptionSelect(opt.codeMap)}
                   whileHover={{ y: -2 }}
                   whileTap={{ y: 2 }}
-                  className="group relative flex w-full items-center gap-4 rounded-2xl p-4 sm:p-4.5 text-left transition-all duration-150"
+                  className="group relative flex w-full items-center gap-3.5 rounded-2xl p-3.5 sm:p-4 text-left transition-all duration-150"
                   style={{
                     background: 'linear-gradient(180deg, #2b1c3d 0%, #1c102a 60%, #130a1e 100%)',
                     boxShadow: `
@@ -340,12 +339,11 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                     `
                   }}
                 >
-                  {/* Debossed Inset Icon Stamp */}
                   <div 
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg transition-transform group-hover:scale-105"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
                     style={{
                       background: 'linear-gradient(180deg, #100619 0%, #1d0f2b 100%)',
-                      boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.08)'
+                      boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.15)'
                     }}
                   >
                     {opt.icon}
@@ -355,20 +353,19 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                     <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                       {opt.title}
                     </h4>
-                    <p className="mt-0.5 text-xs text-white/60 line-clamp-1 group-hover:text-white/80">
+                    <p className="text-xs text-white/60 line-clamp-1 group-hover:text-white/80">
                       {opt.desc}
                     </p>
                   </div>
 
-                  {/* Tactile Inset Arrow Dial */}
                   <div 
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all group-hover:border-[#F45D9B] group-hover:bg-[#F45D9B] group-hover:shadow-[0_0_10px_#F45D9B]"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
                     style={{
                       background: '#0d0517',
                       boxShadow: 'inset 0 2px 3px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.1)'
                     }}
                   >
-                    <ArrowRight className="h-3.5 w-3.5 text-white/40 transition-transform group-hover:translate-x-0.5 group-hover:text-white" />
+                    <ArrowRight className="h-3 w-3 text-white/40 transition-transform group-hover:translate-x-0.5 group-hover:text-white" />
                   </div>
                 </motion.button>
               ))}
@@ -376,21 +373,20 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
           </motion.div>
         )}
 
-        {/* ── 2. SKEUOMORPHIC SYNTHESIZING SCREEN ── */}
+        {/* ── 2. SYNTHESIZING SCREEN ── */}
         {isCalculating && (
           <motion.div
             key="calculating"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 py-14 text-center space-y-6"
+            className="relative z-10 py-16 text-center space-y-6"
           >
-            {/* Beveled Illuminated Radial Radar */}
             <div 
               className="relative mx-auto flex h-28 w-28 items-center justify-center rounded-full"
               style={{
                 background: 'linear-gradient(180deg, #1b0f27 0%, #0a0312 100%)',
-                boxShadow: 'inset 0 3px 6px rgba(0, 0, 0, 0.9), 0 1px 1px rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                boxShadow: 'inset 0 3px 6px rgba(0, 0, 0, 0.9), 0 1px 1px rgba(255, 255, 255, 0.2)'
               }}
             >
               <div className="absolute inset-1.5 rounded-full border-2 border-dashed border-[#F45D9B]/50 animate-[spin_6s_linear_infinite]" />
@@ -398,32 +394,32 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                 className="relative flex h-14 w-14 items-center justify-center rounded-2xl"
                 style={{
                   background: 'radial-gradient(circle at 35% 30%, #ff6bb1 0%, #F45D9B 60%, #991550 100%)',
-                  boxShadow: '0 0 25px rgba(244, 93, 155, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.8)'
+                  boxShadow: '0 0 25px rgba(244, 93, 155, 0.8)'
                 }}
               >
                 <Zap className="h-7 w-7 text-white fill-current animate-pulse" />
               </div>
             </div>
 
-            <h3 className="font-geraldine text-3xl sm:text-4xl text-[#F45D9B] drop-shadow-[0_2px_8px_rgba(244,93,155,0.4)]">
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               {CALC_MESSAGES[calcMsgIndex]}
             </h3>
           </motion.div>
         )}
 
-        {/* ── 3. ELEGANT SKEUOMORPHIC REVEAL POSTER ── */}
+        {/* ── 3. HYPER-AESTHETIC HERO REVEAL CARD ── */}
         {result && (
           <motion.div
             key="result"
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4 }}
-            className="relative z-10 space-y-5"
+            className="relative z-10 space-y-6"
           >
             {/* Top Bar */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#F45D9B]">
-                ✦ Romantic Blueprint
+                ✦ ROMANTIC ARCHETYPE
               </span>
               <button
                 onClick={restartQuiz}
@@ -437,115 +433,109 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
               </button>
             </div>
 
-            {/* Poster Card with Mascot & Geraldine Font */}
-            <div 
-              className="relative overflow-hidden rounded-3xl p-6"
-              style={{
-                background: 'linear-gradient(175deg, #2a1a3e 0%, #180d27 50%, #0d0517 100%)',
-                boxShadow: `
-                  0 12px 30px rgba(0, 0, 0, 0.8),
-                  inset 0 1px 1px rgba(255, 255, 255, 0.35),
-                  inset 0 -2px 3px rgba(0, 0, 0, 0.8),
-                  0 0 0 1px rgba(255, 255, 255, 0.15)
-                `
-              }}
-            >
-              <div className="flex items-center gap-4">
-                {/* 3D Mascot in Embossed Frame */}
+            {/* ── Centered Hero Artwork & Identity ── */}
+            <div className="text-center space-y-4">
+              {/* Glowing 3D Mascot Centerpiece */}
+              <div className="relative mx-auto flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-[#F45D9B]/30 blur-[30px] animate-pulse" />
                 <div 
-                  className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl p-1"
+                  className="relative flex h-full w-full items-center justify-center rounded-3xl p-2"
                   style={{
-                    background: 'linear-gradient(180deg, #1a0f2b 0%, #0a0312 100%)',
-                    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.9), 0 1px 1px rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.6) 100%)',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4), 0 12px 24px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.15)'
                   }}
                 >
                   <img
                     src="/assets/vibe/cyber-mascot.png"
                     alt="Cyber Mascot"
-                    className="h-full w-full object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]"
+                    className="h-full w-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)]"
                   />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div 
-                    className="inline-block rounded px-2 py-0.5 font-mono text-[10px] font-black text-white"
-                    style={{
-                      background: 'linear-gradient(180deg, #F45D9B 0%, #ad2264 100%)',
-                      boxShadow: '0 2px 4px rgba(244,93,155,0.4), inset 0 1px 1px rgba(255,255,255,0.5)'
-                    }}
-                  >
-                    {result.code}
-                  </div>
-                  <h2 className="font-geraldine text-3xl sm:text-4xl text-white tracking-normal leading-none mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    {result.name}
-                  </h2>
-                  <p className="text-xs italic text-white/70 truncate mt-0.5">
-                    "{result.tagline}"
-                  </p>
                 </div>
               </div>
 
-              {/* Traits Pills */}
-              <div className="mt-4 flex flex-wrap gap-1.5">
+              {/* Title & Badge */}
+              <div className="space-y-1.5">
+                <div 
+                  className="inline-block rounded-full px-3 py-0.5 font-mono text-[11px] font-black uppercase tracking-wider text-white"
+                  style={{
+                    background: 'linear-gradient(180deg, #F45D9B 0%, #a82062 100%)',
+                    boxShadow: '0 2px 8px rgba(244,93,155,0.5), inset 0 1px 1px rgba(255,255,255,0.6)'
+                  }}
+                >
+                  {result.code} • {result.archetype.toUpperCase()}
+                </div>
+
+                <h2 className="font-geist text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                  {result.name}
+                </h2>
+
+                <p className="text-xs sm:text-sm italic text-white/75 max-w-md mx-auto leading-relaxed px-4">
+                  "{result.tagline}"
+                </p>
+              </div>
+
+              {/* Trait Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                 {result.traits.map((trait, i) => (
                   <span
                     key={i}
-                    className="rounded-full px-2.5 py-0.5 font-mono text-[10px] text-white/85"
+                    className="rounded-full px-3 py-1 font-mono text-[10px] font-bold text-white/90"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 1px 2px rgba(0,0,0,0.4)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      background: 'rgba(255, 255, 255, 0.07)',
+                      boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)'
                     }}
                   >
                     ✦ {trait}
                   </span>
                 ))}
               </div>
+            </div>
 
-              {/* Green Flags & Best Matches */}
-              <div className="mt-4 grid grid-cols-2 gap-3 pt-3 border-t border-white/10">
-                <div>
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
-                    Green Flags
-                  </span>
-                  <p className="text-xs text-white/80 mt-1 line-clamp-2">
-                    {result.greenFlags.slice(0, 2).join(' • ')}
-                  </p>
+            {/* ── Synergy Matrix & Green Flags Bar ── */}
+            <div 
+              className="rounded-2xl p-4 sm:p-5 space-y-3.5"
+              style={{
+                background: 'linear-gradient(180deg, #180d24 0%, #0d0515 100%)',
+                boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.08)'
+              }}
+            >
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="text-[#F45D9B] flex items-center gap-1.5">
+                  <Heart className="h-3.5 w-3.5 fill-current" /> Golden Matches:
+                </span>
+                <div className="flex gap-1.5">
+                  {result.bestMatches.slice(0, 3).map((m, i) => (
+                    <Link
+                      key={i}
+                      href={`/compatibility/${result.code.toLowerCase()}-and-${m.toLowerCase()}`}
+                      className="rounded-md px-2 py-0.5 text-xs font-black text-[#F45D9B] transition-all hover:bg-[#F45D9B] hover:text-white"
+                      style={{
+                        background: 'rgba(244, 93, 155, 0.15)',
+                        border: '1px solid rgba(244, 93, 155, 0.35)'
+                      }}
+                    >
+                      {m}
+                    </Link>
+                  ))}
                 </div>
+              </div>
 
-                <div>
-                  <span className="text-[10px] font-bold text-[#F45D9B] uppercase tracking-wider block">
-                    Golden Match
-                  </span>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {result.bestMatches.slice(0, 2).map((m, i) => (
-                      <Link
-                        key={i}
-                        href={`/compatibility/${result.code.toLowerCase()}-and-${m.toLowerCase()}`}
-                        className="rounded-lg px-2 py-0.5 text-xs font-bold text-[#F45D9B] transition-all hover:brightness-125"
-                        style={{
-                          background: 'rgba(244, 93, 155, 0.12)',
-                          border: '1px solid rgba(244, 93, 155, 0.3)',
-                          boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.2)'
-                        }}
-                      >
-                        {m} →
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+              <div className="flex items-start gap-2 text-xs text-white/80 pt-1 border-t border-white/10">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+                <span className="leading-snug">{result.greenFlags.slice(0, 2).join(' • ')}</span>
               </div>
             </div>
 
-            {/* Skeuomorphic 3D Action Buttons */}
-            <div className="space-y-2.5 pt-1">
+            {/* ── Skeuomorphic 3D Action Buttons ── */}
+            <div className="space-y-3 pt-1">
               <Link
                 href={`/login?archetype=${result.code}`}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-center font-bold text-white transition-all active:translate-y-0.5"
+                className="flex w-full items-center justify-center gap-2.5 rounded-2xl py-4 text-center font-bold text-white transition-all active:translate-y-0.5"
                 style={{
                   background: 'linear-gradient(180deg, #ff4d9e 0%, #F45D9B 50%, #9e1a5a 100%)',
                   boxShadow: `
-                    0 8px 20px rgba(244, 93, 155, 0.5),
+                    0 8px 22px rgba(244, 93, 155, 0.55),
                     0 2px 4px rgba(0, 0, 0, 0.4),
                     inset 0 1px 1px rgba(255, 255, 255, 0.7),
                     inset 0 -2px 2px rgba(0, 0, 0, 0.5),
@@ -554,14 +544,14 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                 }}
               >
                 <Zap className="h-4 w-4 fill-current" />
-                <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                  Find Your {result.bestMatches[0]} Match (Free) →
+                <span className="text-base drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  Find Your {result.bestMatches[0]} Match Free →
                 </span>
               </Link>
 
               <button
                 onClick={handleCopyLink}
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold text-white/80 transition-all active:translate-y-0.5"
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold text-white/80 transition-all active:translate-y-0.5"
                 style={{
                   background: 'linear-gradient(180deg, #221535 0%, #130a1e 100%)',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)'
