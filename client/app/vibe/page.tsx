@@ -59,24 +59,6 @@ export default function VibePage() {
 
         {/* ── The Quiz Component ── */}
         <ViralArchetypeQuiz />
-
-        {/* ── Social Proof & Trust Badges ── */}
-        <div className="mx-auto flex flex-wrap items-center justify-center gap-6 pt-4 text-center font-mono text-[11px] text-white/50">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span>100% Anonymous & Private</span>
-          </div>
-          <span className="hidden sm:inline text-white/20">•</span>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-[#F45D9B]" />
-            <span>Verified Campus Matching</span>
-          </div>
-          <span className="hidden sm:inline text-white/20">•</span>
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-violet-400 fill-current" />
-            <span>Daily 8:00 PM Synchronous Spark</span>
-          </div>
-        </div>
       </div>
     </main>
   );
