@@ -568,6 +568,7 @@ export const Landing: React.FC = () => {
   const onEnter = () => navigate.push('/login');
   const navItems = [
     { name: 'Experience', link: '#experience' },
+    { name: 'Chemistry Quiz', link: '/vibe' },
     { name: 'Stories', link: '/blog' },
     { name: 'Confessions', link: '/confessions' },
     { name: 'About', link: '/about' }
@@ -693,7 +694,7 @@ export const Landing: React.FC = () => {
               Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.
             </p>
             <div
-              className="mt-10"
+              className="mt-10 flex flex-wrap items-center justify-center gap-4"
               style={{
                 opacity: textRevealed ? 1 : 0,
                 transform: textRevealed ? 'translateY(0) scale(1)' : 'translateY(30px) scale(.9)',
@@ -701,6 +702,13 @@ export const Landing: React.FC = () => {
               }}
             >
               <MagneticButton onClick={onEnter}>Find Your Othrhalff</MagneticButton>
+              <Link
+                href="/vibe"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 hover:scale-105 shadow-[0_0_25px_rgba(244,93,155,0.25)]"
+              >
+                <Sparkles className="h-4 w-4 text-[#F45D9B]" />
+                Take Chemistry Quiz
+              </Link>
             </div>
           </div>
           <a href="#experience" className="absolute bottom-8 inline-flex items-center gap-2 font-mono text-[10px] font-bold tracking-[.16em] text-white/65 hover:text-white transition-colors">

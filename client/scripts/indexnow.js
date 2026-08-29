@@ -13,12 +13,22 @@ const fileContent = fs.readFileSync(campusesFilePath, 'utf8');
 const slugMatches = [...fileContent.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1]);
 const uniqueSlugs = Array.from(new Set(slugMatches));
 
+// Generate compatibility slugs for top MBTI types
+const personalityCodes = ['infp', 'intj', 'enfp', 'infj', 'intp', 'entp', 'enfj', 'entj', 'isfp', 'istp', 'esfp', 'estp', 'isfj', 'istj', 'esfj', 'estj'];
+const compatibilityUrls = [];
+for (const c1 of personalityCodes) {
+  for (const c2 of personalityCodes) {
+    compatibilityUrls.push(`https://www.othrhalff.in/compatibility/${c1}-and-${c2}`);
+  }
+}
+
 const host = 'www.othrhalff.in';
 const key = '4f8b91a2c3d4e5f678901234567890ab';
 const keyLocation = `https://${host}/${key}.txt`;
 
 const staticUrls = [
   `https://${host}/`,
+  `https://${host}/vibe`,
   `https://${host}/discover`,
   `https://${host}/confessions`,
   `https://${host}/reddit`,
@@ -35,7 +45,7 @@ const staticUrls = [
 const campusUrls = uniqueSlugs.map(slug => `https://${host}/campus/${slug}`);
 const teaUrls = uniqueSlugs.map(slug => `https://${host}/tea/${slug}`);
 
-const urls = [...staticUrls, ...campusUrls, ...teaUrls];
+const urls = [...staticUrls, ...campusUrls, ...teaUrls, ...compatibilityUrls];
 
 const payload = JSON.stringify({
   host,
@@ -58,7 +68,7 @@ const req = https.request('https://api.indexnow.org/indexnow', {
   res.on('data', chunk => data += chunk);
   res.on('end', () => {
     if (res.statusCode === 200 || res.statusCode === 202) {
-      console.log('✅ [IndexNow] Successfully submitted all URLs for instant crawling!');
+      console.log(`✅ [IndexNow] Successfully submitted all ${urls.length} URLs for instant crawling!`);
     } else {
       console.log(`[IndexNow] Result: ${data || res.statusCode}`);
     }
