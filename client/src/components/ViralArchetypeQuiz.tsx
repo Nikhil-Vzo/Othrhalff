@@ -384,16 +384,25 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
               <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[#F45D9B]/30 blur-[70px]" />
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="inline-block rounded-md bg-[#F45D9B] px-2.5 py-0.5 font-mono text-xs font-black uppercase tracking-widest text-white shadow-[0_0_12px_#F45D9B]">
-                    {result.code}
+                <div className="flex items-center gap-4">
+                  <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-black/50 p-1.5 shadow-[0_0_25px_rgba(244,93,155,0.4)]">
+                    <img
+                      src="/assets/vibe/cyber-mascot.png"
+                      alt="Cyber Romantic Mascot"
+                      className="h-full w-full object-contain"
+                    />
                   </div>
-                  <h2 className="mt-2 font-geist text-3xl sm:text-4xl font-black text-white leading-none tracking-tight">
-                    {result.name}
-                  </h2>
-                  <p className="mt-1 text-xs sm:text-sm font-medium italic text-white/70">
-                    "{result.tagline}"
-                  </p>
+                  <div>
+                    <div className="inline-block rounded-md bg-[#F45D9B] px-2.5 py-0.5 font-mono text-xs font-black uppercase tracking-widest text-white shadow-[0_0_12px_#F45D9B]">
+                      {result.code}
+                    </div>
+                    <h2 className="mt-1 font-geist text-2xl sm:text-3xl font-black text-white leading-tight tracking-tight">
+                      {result.name}
+                    </h2>
+                    <p className="text-xs sm:text-sm font-medium italic text-white/70">
+                      "{result.tagline}"
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-center sm:flex-col sm:justify-center">

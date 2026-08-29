@@ -20,7 +20,14 @@ export const metadata: Metadata = {
 export default function VibePage() {
   return (
     <main className="relative min-h-[100dvh] w-full overflow-hidden bg-[#06010a] px-4 py-16 sm:px-8 sm:py-24 text-white flex flex-col items-center justify-center">
-      {/* ── Ambient Background Mesh & Lighting ── */}
+      {/* ── Atmospheric Backdrop Asset & Mesh ── */}
+      <div className="pointer-events-none absolute inset-0 opacity-20">
+        <img
+          src="/assets/vibe/midnight-connection.png"
+          alt="Midnight Connection Atmospheric Background"
+          className="h-full w-full object-cover object-center filter blur-[60px] scale-110"
+        />
+      </div>
       <div className="pointer-events-none absolute left-[5%] top-[12%] h-[38rem] w-[38rem] rounded-full bg-[#F45D9B]/15 blur-[160px]" />
       <div className="pointer-events-none absolute right-[5%] bottom-[12%] h-[32rem] w-[32rem] rounded-full bg-violet-600/18 blur-[150px]" />
       <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:32px_32px]" />
