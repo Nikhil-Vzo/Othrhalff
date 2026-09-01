@@ -7,6 +7,7 @@ import ScrollTrigger from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { trackPageView } from '../utils/analytics';
 import { blogPosts } from '../data/blogPosts';
+import { Footer } from '../components/Footer';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -617,36 +618,8 @@ export const Blog: React.FC = () => {
               </div>
             </section>
 
-            {/* 9. FOOTER */}
-            <footer className="border-t border-pink-900/30 pt-16 pb-8 px-6 text-center bg-[#05000a] relative z-10 overflow-hidden">
-              <video 
-                autoPlay 
-                loop 
-                muted 
-                playsInline 
-                src="/blog/ticket-rip.webm" 
-                className="absolute inset-0 w-full h-full object-cover opacity-30 z-[-2] pointer-events-none" 
-              />
-              <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-black via-black/80 to-transparent z-[-1] pointer-events-none" />
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black to-transparent z-[-1] pointer-events-none" />
-              
-              <div className="w-12 h-12 rounded-full border border-white/10 bg-[#050505] flex items-center justify-center mx-auto mb-16 hover:bg-neon hover:border-neon transition-colors duration-500 group relative z-10">
-                <Ghost className="w-5 h-5 text-gray-400 group-hover:text-black transition-colors duration-500" />
-              </div>
-              
-              <h2 className="text-[clamp(2rem,4vw,3.5rem)] font-light mb-16 text-gray-400 leading-tight relative z-10 drop-shadow-xl" style={fontPlayfair}>
-                We built something small.<br/>
-                <span className="text-white italic" style={fontInstrument}>And it started breathing on its own.</span>
-              </h2>
-              
-              <Link href="/" className="inline-flex items-center gap-3 text-xs uppercase tracking-[0.2em] font-bold text-gray-400 hover:text-white transition-colors duration-300 mb-24 pb-2 border-b border-transparent hover:border-white relative z-10">
-                Find Your Other Half <ArrowRight className="w-3 h-3" />
-              </Link>
-              
-              <p className="text-[10px] tracking-[0.3em] text-gray-600 uppercase relative z-10">
-                © {new Date().getFullYear()} OTHRHALFF
-              </p>
-            </footer>
+            {/* 9. SHARED FOOTER */}
+            <Footer />
           </main>
         </div>
       </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { ArrowLeft, Clock, Calendar, User, Share2, Sparkles, ChevronRight, HelpCircle } from 'lucide-react';
 import { blogPosts, BlogPost } from '../../../src/data/blogPosts';
+import { Footer } from '../../../src/components/Footer';
 
 interface Props {
   params: { slug: string };
@@ -264,6 +265,8 @@ export default function BlogPostPage({ params }: Props) {
           </div>
         )}
       </main>
+
+      <Footer />
     </article>
   );
 }

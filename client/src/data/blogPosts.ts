@@ -240,5 +240,126 @@ export const blogPosts: BlogPost[] = [
         answer: 'Othrhalff provides low-pressure interaction options: anonymous confession boards, interest-based radar matching, and text-first conversations before meeting up in person.'
       }
     ]
+  },
+  {
+    slug: 'dating-in-2026-college-connections-reinvented',
+    title: 'Dating in 2026: How Student Connections Are Being Reinvented',
+    metaTitle: 'Dating in 2026: How Student Connections Are Being Reinvented | Othrhalff',
+    metaDescription: 'Swipe fatigue is real. College students in 2026 are ditching algorithms for authentic campus connections. Here is what dating actually looks like on campus right now.',
+    keywords: [
+      'dating in 2026',
+      'college dating apps 2026',
+      'campus connections 2026',
+      'student dating trends',
+      'how college students meet 2026',
+      'beyond swipe apps college',
+      'campus social networks'
+    ],
+    publishedDate: '2026-09-01',
+    modifiedDate: '2026-09-02',
+    readTime: '6 min read',
+    author: {
+      name: 'Nikhil Yadav',
+      role: 'Founder & Engineer, Othrhalff',
+      avatar: '/favicon.png'
+    },
+    category: 'Campus Culture',
+    featuredImage: '/blog/home-screen.webp',
+    excerpt: 'The algorithm promised connection. Instead it delivered burnout. Here is what college students in 2026 are actually doing to find real people — and why the old playbook is officially broken.',
+    content: [
+      'Every few years someone declares dating dead. But 2026 feels different. On campuses across India, students are not just complaining about swipe apps — they are actively walking away from them.',
+      'The numbers are telling. Tinder, Bumble, and Hinge report average user ages climbing past 28. College students are not just aging out — they are opting out. And what they are replacing these apps with is far more interesting.',
+      '### The Algorithm Broke First',
+      'Dating apps were built on a simple premise: more options = better outcomes. But decades of data show the opposite. The more people you swipe through, the less satisfied you become with any single choice. Your brain was not designed to evaluate hundreds of potential partners in a single sitting.',
+      'On a college campus, this problem is amplified. You are not trying to find a life partner from a global pool — you are trying to find study partners, gym buddies, and yes, maybe someone to get coffee with. The app treats every interaction the same way whether you are looking for a late-night study session or something more.',
+      '### What 2026 Students Are Doing Instead',
+      'Campuses are seeing a quiet renaissance of analog connection. Students are forming tight friend circles in the first two weeks and closing ranks. The pressure to use apps decreases as organic networks form.',
+      'But not everyone finds their people in those first weeks. For those who do not, the digital tools that work best are the ones that feel like extensions of campus life — not portals to a separate dating marketplace.',
+      '### The Proximity Principle',
+      'Every serious study on human connection arrives at the same conclusion: proximity is the single strongest predictor of friendship and romance. You meet people you share physical space with.',
+      'Dating apps broke this by letting you match with someone 500 km away. College students in 2026 are quietly fixing this. The tools gaining traction are the ones that surface people in your own lecture hall, your own hostel corridor, your own campus.',
+      '### Why Anonymity Changes the Game',
+      'One of the biggest shifts on campus is the comfort with anonymity. Students are using anonymous confession walls not just for venting — but as genuine discovery tools. An anonymous post about hating 8 AM classes surfaces someone who also despises early mornings. An anonymous confession about wanting a gym spotter finds a match.',
+      'The identity filter comes later. The connection starts with shared context.',
+      '### What Comes Next',
+      'The next generation of campus tools will not look like Tinder. They will look more like community infrastructure: study group finders, anonymous campus media networks, real-time presence indicators. The dating label will matter less. The belonging label will matter more.',
+      'Students in 2026 are not giving up on connection. They are just done waiting for an algorithm to manufacture what proximity and shared context can build naturally.',
+      'And honestly — that is a much better bet.'
+    ],
+    faqs: [
+      {
+        question: 'Are college students still using dating apps in 2026?',
+        answer: 'Usage among 18-22 year olds has dropped significantly since 2024. Most students who still use apps treat them as supplementary — not primary — connection tools.'
+      },
+      {
+        question: 'What do college students prefer instead of dating apps?',
+        answer: 'Campus-native platforms, anonymous confession walls, interest-based study groups, and real-time presence tools that respect student schedules and proximity.'
+      },
+      {
+        question: 'How does Othrhalff fit into the 2026 campus dating scene?',
+        answer: 'Othrhalff was built around the idea that genuine campus connection — study partners, friendships, confessions, and yes, relationships — happens best when the platform disappears and the people remain.'
+      }
+    ]
+  },
+  {
+    slug: 'gen-z-wants-2026-beyond-algorithm',
+    title: 'Beyond the Algorithm: What Gen Z Actually Wants in 2026',
+    metaTitle: 'What Gen Z Actually Wants in 2026 | Beyond Algorithm Dating | Othrhalff',
+    metaDescription: 'Gen Z is done performing for algorithms. In 2026, college students want authentic, proximity-based connections without the dopamine manipulation. Here is the full picture.',
+    keywords: [
+      'gen z dating 2026',
+      'what gen z wants in relationships',
+      'college students algorithm fatigue',
+      'authentic connections gen z',
+      'campus social apps 2026',
+      'gen z social media alternatives'
+    ],
+    publishedDate: '2026-09-01',
+    modifiedDate: '2026-09-02',
+    readTime: '5 min read',
+    author: {
+      name: 'Nikhil Yadav',
+      role: 'Founder & Engineer, Othrhalff',
+      avatar: '/favicon.png'
+    },
+    category: 'Campus Culture',
+    featuredImage: '/blog/home-screen.webp',
+    excerpt: 'Gen Z grew up with smartphones. They know exactly how apps are manipulating them — and they are building different rules for what connection actually means.',
+    content: [
+      'There is a running joke among Gen Z: you can tell when someone on Hinge is on their phone because their location updates but they have not messaged in three days.',
+      'It is funny because it is true. And it points to something real: the generation that grew up with smartphones has developed a finely tuned sense for when technology is working for them versus when it is working against them.',
+      '### The Performance Allergy',
+      'Every social platform since 2012 has asked the same thing of users: curate yourself. Choose the right photos. Write the perfect bio. Optimize for engagement. Gen Z watched their older siblings and parents do this for fifteen years and decided — largely correctly — that it was exhausting and pointless.',
+      'The result is a generation that is deeply skeptical of any platform that asks them to perform. They want tools, not stages. They want connection, not content.',
+      '### Proximity Over Popularity',
+      'In 2026, the most popular social features on college campuses are the ones that do not travel. Campus confession walls that disappear in 24 hours. Study group finders that work within a 500-meter radius. Anonymous matching within your own university.',
+      'The metric that matters is not follower count. It is: how many people on this campus share my context right now?',
+      '### Control as a Value',
+      'Gen Z wants to be in control of their own narrative in ways previous generations did not. Anonymity is not a bug — it is a feature. The ability to post an anonymous confession about exam stress without it being tied to your profile is more valuable than another photo-sharing feature.',
+      'This is why disappearing content caught on so fast. It is not about being careless — it is about reclaiming the right to be present without building a permanent record.',
+      '### The Verification Paradox',
+      'Gen Z is simultaneously the most privacy-conscious generation and the most willing to verify themselves when they trust a platform. The logic is simple: on a closed campus network, verification means safety. It means the person you are talking to actually goes to your university.',
+      'This is the opposite of traditional apps, where fake profiles are rampant and verification is a premium feature.',
+      '### What Platforms Get Wrong',
+      'Most platforms still treat Gen Z users as a demographic to be acquired rather than a culture to be understood. They see declining engagement and try to engineer more dopamine hits. They see anonymous features and add AI moderation that defeats the purpose.',
+      'The platforms that will win with this generation are the ones that know when to get out of the way — and trust their users to build the community themselves.',
+      '### The Honest Take',
+      'Gen Z is not anti-technology. They are anti-manipulation. They will use every tool available to find their people — they just want the tools to respect their intelligence.',
+      'That is not a high bar. It just requires actually building for them instead of building for their attention.'
+    ],
+    faqs: [
+      {
+        question: 'Why is Gen Z moving away from traditional social media?',
+        answer: 'Gen Z recognizes the manipulation built into traditional social platforms — curated personas, engagement algorithms, and performance pressure — and actively seeks tools that feel more authentic and low-stakes.'
+      },
+      {
+        question: 'What do Gen Z college students look for in a social app?',
+        answer: 'Proximity-based matching, anonymity by default, disappearing content, verified student identity, and tools that facilitate real-world connection rather than endless scrolling.'
+      },
+      {
+        question: 'How is Othrhalff designed around Gen Z values?',
+        answer: 'Othrhalff is built around verified campus identity, anonymous confession walls, disappearing Sparx stories, and real-time presence tools — designed to facilitate real-world belonging, not online performance.'
+      }
+    ]
   }
 ];
