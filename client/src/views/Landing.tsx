@@ -11,6 +11,7 @@ import {
   Ghost,
   Instagram,
   Lock,
+  Radio,
   Sparkles,
   Volume2,
   VolumeX,
@@ -76,6 +77,12 @@ const ArtDirectedExperience: React.FC = () => {
   const glimpsePhoneY = useTransform(glimpseScrollProgress, [0, 0.5, 1], [40, 0, -35]);
   const glimpseBackPhoneY = useTransform(glimpseScrollProgress, [0, 0.5, 1], [65, 10, -15]);
   const glimpseRingRotate = useTransform(glimpseScrollProgress, [0, 1], [12, -18]);
+
+  const speedRef = useRef<HTMLElement>(null);
+  const { scrollYProgress: speedScrollProgress } = useScroll({ target: speedRef, offset: ['start end', 'end start'] });
+  const speedPhoneY = useTransform(speedScrollProgress, [0, 0.5, 1], [40, 0, -35]);
+  const speedBackPhoneY = useTransform(speedScrollProgress, [0, 0.5, 1], [65, 10, -15]);
+  const speedRingRotate = useTransform(speedScrollProgress, [0, 1], [-12, 18]);
 
   return (
     <div id="experience">
@@ -345,6 +352,130 @@ const ArtDirectedExperience: React.FC = () => {
                 <p className="mt-0.5 text-xs font-medium text-black/55">What&apos;s real right now.</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 04 / SPEED DISCOVER SECTION */}
+      <section ref={speedRef} id="speed-discover" className="relative isolate overflow-hidden bg-[#FAF7EF] px-5 py-24 text-[#0c0710] sm:px-10 sm:py-28 lg:min-h-[105svh] lg:px-16 lg:py-36 border-t border-black/5">
+        {/* Subtle background dots & ambient atmospheric glows */}
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-25" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.15) .75px, transparent .75px)', backgroundSize: '12px 12px' }} />
+        <div className="pointer-events-none absolute -right-24 top-16 h-80 w-80 rounded-full bg-[#F45D9B]/10 blur-3xl z-0" />
+        <div className="pointer-events-none absolute -left-20 bottom-16 h-72 w-72 rounded-full bg-purple-400/10 blur-3xl z-0" />
+
+        {/* Orbiting geometric rings */}
+        <motion.div style={{ rotate: speedRingRotate }} className="pointer-events-none absolute -right-28 top-16 h-[32rem] w-[32rem] rounded-full border border-[#F45D9B]/15 sm:h-[44rem] sm:w-[44rem] z-0" />
+        <div className="pointer-events-none absolute -right-16 top-28 h-[22rem] w-[22rem] rounded-full border border-dashed border-black/10 sm:h-[34rem] sm:w-[34rem] z-0" />
+
+        <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+          {/* Text Column */}
+          <div className="relative max-w-xl">
+            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
+              <h2 className="font-geist text-5xl font-black leading-[0.95] tracking-tight text-[#0c0710] sm:text-7xl lg:text-[5.5rem]">
+                Speed Discover.<br />
+                <span className="font-geraldine font-normal text-6xl text-[#F45D9B] sm:text-8xl lg:text-[7rem] tracking-normal inline-block mt-2">
+                  live campus radar.
+                </span>
+              </h2>
+              <p className="mt-6 max-w-md text-base leading-relaxed text-black/65 sm:text-lg">
+                See who&apos;s active on campus right now. Instant match, quick wave, and zero hesitation.
+              </p>
+            </motion.div>
+
+            {/* Two Frosted Cards */}
+            <div className="mt-8 grid max-w-lg grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/10 text-[#F45D9B] shadow-inner">
+                    <Radio className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-black/40 uppercase">Live Radar</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Active now.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Match in real time.</p>
+              </div>
+
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/15 text-[#F45D9B] shadow-inner">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-[#F45D9B] uppercase">Fast Track</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Quick connects.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">No waiting around.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Visual Column with Dual Phone Mockups (Searching + Lobby) */}
+          <div className="relative mx-auto flex min-h-[34rem] w-full max-w-[36rem] items-center justify-center sm:min-h-[42rem]">
+            {/* Ambient circular backdrop accent */}
+            <div className="absolute h-[20rem] w-[20rem] rotate-6 rounded-[3rem] bg-gradient-to-tl from-[#F45D9B]/20 via-pink-300/15 to-transparent sm:h-[28rem] sm:w-[28rem]" />
+
+            {/* Background Phone: Live Radar Searching Screen */}
+            <motion.div
+              style={{ y: speedBackPhoneY }}
+              initial={{ opacity: 0, x: 30, rotate: 10 }}
+              whileInView={{ opacity: 0.88, x: 0, rotate: 7 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.9, ease: sceneEase }}
+              className="absolute -right-2 sm:right-2 z-10 w-[14rem] sm:w-[17.5rem] lg:w-[19rem] drop-shadow-[0_25px_45px_rgba(28,9,24,.18)] transition-all duration-500 hover:opacity-100 hover:scale-105"
+            >
+              <img
+                src="/mockups/phone-speed-searching.png"
+                alt="Othrhalff Speed Discover campus radar searching"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Foreground Phone: Speed Discover Home Screen */}
+            <motion.div
+              style={{ y: speedPhoneY }}
+              initial={{ opacity: 0, y: 40, rotate: -6 }}
+              whileInView={{ opacity: 1, y: 0, rotate: -4 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 1, ease: sceneEase }}
+              className="relative z-20 mr-12 sm:mr-20 w-[15.5rem] sm:w-[19rem] lg:w-[21rem] drop-shadow-[0_35px_60px_rgba(28,9,24,.32)] transition-transform duration-500 hover:scale-105 hover:rotate-0"
+            >
+              <img
+                src="/mockups/phone-speed-home.png"
+                alt="Othrhalff Speed Discover real-time matching"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Top Floating Badge: Live Radar */}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -top-3 left-2 sm:left-6 z-30 rounded-2xl border border-black/10 bg-white/95 px-4 py-2.5 shadow-[0_15px_35px_rgba(28,9,24,.1)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#F45D9B] opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#F45D9B]" />
+                </span>
+                <span className="font-mono text-[10px] font-bold tracking-wider text-black/75 uppercase">RADAR ACTIVE</span>
+              </div>
+            </motion.div>
+
+            {/* Bottom Floating Badge: Instant Match */}
+            <motion.div
+              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -6, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+              className="absolute -bottom-3 right-2 sm:right-6 z-30 max-w-[12.5rem] rounded-2xl border border-black/10 bg-white/95 p-3.5 shadow-[0_20px_45px_rgba(28,9,24,.12)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2 text-[#F45D9B]">
+                <Sparkles className="h-4 w-4 fill-current" />
+                <span className="font-mono text-[9px] font-bold tracking-[.14em] uppercase">INSTANT WAVE</span>
+              </div>
+              <p className="mt-1 text-xs font-bold leading-snug text-[#0c0710]">
+                Match &amp; connect in under 60 seconds.
+              </p>
+            </motion.div>
           </div>
         </div>
       </section>
