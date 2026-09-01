@@ -11,7 +11,7 @@ import {
     Edit2, Camera, X, Ghost, User, GraduationCap, BadgeCheck, CheckCircle2,
     LogOut, ChevronDown, Settings, Lock, ShieldBan,
     MessageCircle, Mail, Phone, Loader2, Heart, Search,
-    Download, Smartphone, ExternalLink, Code, Scale, FileText,
+    Download, Smartphone, ExternalLink, Scale, FileText,
     Shield, Info, Briefcase, Users, Rocket, Sparkles
 } from 'lucide-react';
 import { AVATAR_PRESETS, LOOKING_FOR_OPTIONS, YEAR_OPTIONS, MOCK_INTERESTS } from '../constants';
@@ -786,9 +786,6 @@ export const Profile: React.FC = () => {
                                         </button>
                                         <button onClick={() => navigate.push('/blog')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
                                             <Rocket className="w-3.5 h-3.5" /> Our Story
-                                        </button>
-                                        <button onClick={() => navigate.push('/developers')} className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-xs font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-2">
-                                            <Code className="w-3.5 h-3.5" /> Devs Team
                                         </button>
                                     </div>
                                 </div>

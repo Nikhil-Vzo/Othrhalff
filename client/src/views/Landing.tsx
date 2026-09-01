@@ -717,11 +717,6 @@ const Footer: React.FC = () => (
               </Link>
             </li>
             <li>
-              <Link href="/developers" className="inline-block transition-all duration-200 hover:translate-x-1 hover:text-[#F45D9B]">
-                Developers
-              </Link>
-            </li>
-            <li>
               <Link href="/careers" className="inline-block transition-all duration-200 hover:translate-x-1 hover:text-[#F45D9B]">
                 Careers
               </Link>
