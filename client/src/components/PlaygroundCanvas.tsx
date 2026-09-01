@@ -409,7 +409,7 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
         style={{
           width: `${WORLD_WIDTH}px`,
           height: `${WORLD_HEIGHT}px`,
-          backgroundImage: `url('/assets/campus-map.webp')`,
+          backgroundImage: `url('/assets/campus-map.jpg')`,
           backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
           imageRendering: 'pixelated',
@@ -418,13 +418,13 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
       >
         {/* Crisp Campus Map Background Layer */}
         <img
-          src="/assets/campus-map.webp"
+          src="/assets/campus-map.jpg"
           alt="Campus Map"
           className="absolute inset-0 w-full h-full pointer-events-none select-none z-0"
           style={{ imageRendering: 'pixelated', width: `${WORLD_WIDTH}px`, height: `${WORLD_HEIGHT}px` }}
           onError={(e) => {
             const target = e.currentTarget as HTMLImageElement;
-            if (target.src.includes('campus-map.webp')) {
+            if (target.src.includes('campus-map.jpg')) {
               target.src = '/assets/campus-map.png';
             }
           }}
