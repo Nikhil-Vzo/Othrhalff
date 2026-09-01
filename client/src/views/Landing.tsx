@@ -616,21 +616,6 @@ export const Landing: React.FC = () => {
 
         <main className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center justify-center px-5 pb-20 pt-24 text-center sm:px-8">
           <div className="max-w-3xl">
-            {/* Top beyond dating badge */}
-            <div
-              className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-[#F45D9B]/35 bg-[#F45D9B]/15 px-4 py-1.5 backdrop-blur-md shadow-[0_0_25px_rgba(244,93,155,0.25)]"
-              style={{
-                opacity: textRevealed ? 1 : 0,
-                transform: textRevealed ? 'translateY(0)' : 'translateY(-15px)',
-                transition: 'all .6s ease-out .1s'
-              }}
-            >
-              <Zap className="h-3.5 w-3.5 fill-current text-[#F45D9B]" />
-              <span className="font-mono text-xs font-bold tracking-wider text-white uppercase">
-                WE ARE BEYOND DATING • CAMPUS CONNECTIONS &amp; VIBE
-              </span>
-            </div>
-
             <h1 className="font-geist text-5xl font-black leading-[.98] tracking-[-.07em] text-white drop-shadow-[0_10px_35px_rgba(0,0,0,.9)] sm:text-7xl md:text-8xl">
               {'Find your people.'.split(' ').map((word, index) => (
                 <span
@@ -654,7 +639,7 @@ export const Landing: React.FC = () => {
                 transition: 'all .8s ease-out .75s'
               }}
             >
-              We are beyond dating. Meet verified students you&apos;ll naturally cross paths with every day — for study sessions, gym partners, real friendships, anonymous confessions, and authentic campus connections.
+              Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.
             </p>
             <div
               className="mt-10 flex flex-wrap items-center justify-center gap-4"
@@ -664,7 +649,7 @@ export const Landing: React.FC = () => {
                 transition: 'all .6s ease-out 1.05s'
               }}
             >
-              <MagneticButton onClick={onEnter}>Explore Campus</MagneticButton>
+              <MagneticButton onClick={onEnter}>Find Your People</MagneticButton>
             </div>
           </div>
         </main>
