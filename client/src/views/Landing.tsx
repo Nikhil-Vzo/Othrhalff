@@ -1,42 +1,22 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion';
 import {
-  ArrowDownRight,
   ArrowRight,
   BadgeCheck,
-  Bell,
   Camera,
-  Check,
-  CheckCheck,
   Clock,
-  Compass,
   Flame,
   Ghost,
-  Heart,
   Instagram,
   Lock,
-  MapPin,
-  MessageCircle,
-  Mic,
-  Phone,
-  Play,
-  Plus,
-  Radio,
-  Send,
   Sparkles,
-  UserRound,
-  Video,
   Volume2,
   VolumeX,
-  X,
   Zap,
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
-
-const Prism = dynamic(() => import('@/components/ui/Prism'), { ssr: false });
 import { useRouter as useNavigate } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { LoadingState } from '../components/LoadingState';
@@ -54,16 +34,7 @@ import {
   NavbarLogo,
 } from '@/components/ui/resizable-navbar';
 
-const pink = '#F45D9B';
 const sceneEase = [0.22, 1, 0.36, 1] as const;
-
-const chapterMeta = [
-  { id: 'discover', label: '01 / DISCOVER' },
-  { id: 'confess', label: '02 / CONFESS' },
-  { id: 'playground', label: '03 / PLAYGROUND' },
-  { id: 'chat', label: '04 / CHAT' },
-  { id: 'safety', label: '05 / YOUR PACE' },
-];
 
 const reveal = {
   hidden: { opacity: 0, y: 32, filter: 'blur(8px)' },
@@ -95,6 +66,11 @@ const ArtDirectedExperience: React.FC = () => {
   const phoneY = useTransform(scrollYProgress, [0, 0.5, 1], [60, 0, -48]);
   const ringRotate = useTransform(scrollYProgress, [0, 1], [-8, 18]);
 
+  const confessRef = useRef<HTMLElement>(null);
+  const { scrollYProgress: confessScrollProgress } = useScroll({ target: confessRef, offset: ['start end', 'end start'] });
+  const confessPhoneY = useTransform(confessScrollProgress, [0, 0.5, 1], [50, 0, -40]);
+  const confessRingRotate = useTransform(confessScrollProgress, [0, 1], [15, -15]);
+
   const glimpseRef = useRef<HTMLElement>(null);
   const { scrollYProgress: glimpseScrollProgress } = useScroll({ target: glimpseRef, offset: ['start end', 'end start'] });
   const glimpsePhoneY = useTransform(glimpseScrollProgress, [0, 0.5, 1], [40, 0, -35]);
@@ -103,30 +79,12 @@ const ArtDirectedExperience: React.FC = () => {
 
   return (
     <div id="experience">
+      {/* 01 / DISCOVER SECTION */}
       <section ref={discoverRef} id="discover" className="relative isolate overflow-hidden bg-[#FAF7EF] px-5 py-20 sm:px-10 sm:py-28 lg:min-h-[100svh] lg:px-16 lg:py-32 text-[#0c0710]">
-        {/* Full-Section Ambient 3D WebGL Prism Background (Optimized: 30FPS cap, 32 raymarch steps, 0.8 DPR) */}
-        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center opacity-85 overflow-hidden">
-          <Prism
-            animationType="3drotate"
-            timeScale={0.25}
-            height={3.5}
-            baseWidth={5.5}
-            scale={4.0}
-            hueShift={-0.45}
-            colorFrequency={0.85}
-            noise={0.45}
-            glow={1.2}
-            bloom={1.2}
-            steps={32}
-            dpr={0.8}
-            fpsLimit={35}
-            transparent={true}
-            suspendWhenOffscreen={true}
-          />
-        </div>
-
-        {/* Subtle dot pattern */}
+        {/* Subtle background dots & ambient atmospheric glow */}
         <div className="pointer-events-none absolute inset-0 z-0 opacity-25" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.15) .75px, transparent .75px)', backgroundSize: '12px 12px' }} />
+        <div className="pointer-events-none absolute -right-24 top-10 h-80 w-80 rounded-full bg-[#F45D9B]/10 blur-3xl z-0" />
+        <div className="pointer-events-none absolute -left-20 bottom-10 h-72 w-72 rounded-full bg-pink-300/15 blur-3xl z-0" />
 
         {/* Decorative Circle Doodles & Orbital Rings */}
         <motion.div style={{ rotate: ringRotate }} className="pointer-events-none absolute -right-32 top-10 h-[34rem] w-[34rem] rounded-full border border-[#F45D9B]/20 sm:-right-20 sm:h-[46rem] sm:w-[46rem] z-0" />
@@ -188,31 +146,16 @@ const ArtDirectedExperience: React.FC = () => {
         </div>
       </section>
 
-      <section id="confess" className="relative isolate overflow-hidden bg-[#faf6ed] px-5 py-24 text-[#100913] sm:px-10 sm:py-28 lg:min-h-[108svh] lg:px-16 lg:py-36">
-        {/* Full-Section Ambient 3D WebGL Prism Background (Optimized: 30FPS cap, 32 raymarch steps, 0.8 DPR) */}
-        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center opacity-80 overflow-hidden">
-          <Prism
-            animationType="rotate"
-            timeScale={0.22}
-            height={3.2}
-            baseWidth={5.2}
-            scale={3.8}
-            hueShift={-0.42}
-            colorFrequency={0.8}
-            noise={0.45}
-            glow={1.15}
-            bloom={1.15}
-            steps={32}
-            dpr={0.8}
-            fpsLimit={35}
-            transparent={true}
-            suspendWhenOffscreen={true}
-          />
-        </div>
+      {/* 02 / CONFESS SECTION */}
+      <section ref={confessRef} id="confess" className="relative isolate overflow-hidden bg-[#FAF7EF] px-5 py-24 text-[#0c0710] sm:px-10 sm:py-28 lg:min-h-[105svh] lg:px-16 lg:py-36 border-t border-black/5">
+        {/* Subtle background dots & ambient atmospheric glow */}
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-25" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.15) .75px, transparent .75px)', backgroundSize: '12px 12px' }} />
+        <div className="pointer-events-none absolute -left-28 top-16 h-80 w-80 rounded-full bg-[#F45D9B]/10 blur-3xl z-0" />
+        <div className="pointer-events-none absolute -right-20 bottom-16 h-72 w-72 rounded-full bg-pink-300/15 blur-3xl z-0" />
 
-        {/* Subtle dot pattern */}
-        <div className="pointer-events-none absolute inset-0 z-0 opacity-30" style={{ backgroundImage: 'radial-gradient(rgba(16,9,19,.18) .75px, transparent .75px)', backgroundSize: '10px 10px' }} />
-        <div className="pointer-events-none absolute -left-28 top-16 h-64 w-64 rounded-full border-[20px] border-[#F45D9B]/12 sm:h-96 sm:w-96 z-0" />
+        {/* Orbiting geometric rings */}
+        <motion.div style={{ rotate: confessRingRotate }} className="pointer-events-none absolute -left-28 top-16 h-[32rem] w-[32rem] rounded-full border border-[#F45D9B]/15 sm:h-[44rem] sm:w-[44rem] z-0" />
+        <div className="pointer-events-none absolute -left-16 top-28 h-[22rem] w-[22rem] rounded-full border border-dashed border-black/10 sm:h-[34rem] sm:w-[34rem] z-0" />
 
         <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.02fr_.98fr] lg:gap-20">
           <div className="relative order-1 max-w-xl">
@@ -253,7 +196,7 @@ const ArtDirectedExperience: React.FC = () => {
           </div>
           <div className="relative order-2 mx-auto flex min-h-[33rem] w-full max-w-[34rem] items-center justify-center sm:min-h-[40rem]">
             <div className="absolute h-[21rem] w-[21rem] rotate-12 rounded-[3rem] bg-[#F45D9B]/14 sm:h-[29rem] sm:w-[29rem]" />
-            <motion.div initial={{ opacity: 0, y: 48, rotate: 5 }} whileInView={{ opacity: 1, y: 0, rotate: 0 }} viewport={{ once: true, amount: .25 }} transition={{ duration: 1, ease: sceneEase }} className="relative z-10 w-[16.5rem] drop-shadow-[0_35px_55px_rgba(28,9,24,.27)] sm:w-[21rem]">
+            <motion.div style={{ y: confessPhoneY }} initial={{ opacity: 0, y: 48, rotate: 5 }} whileInView={{ opacity: 1, y: 0, rotate: 0 }} viewport={{ once: true, amount: .25 }} transition={{ duration: 1, ease: sceneEase }} className="relative z-10 w-[16.5rem] drop-shadow-[0_35px_55px_rgba(28,9,24,.27)] sm:w-[21rem]">
               <img src="/mockups/phone-confession.png" alt="Othrhalff's anonymous Confessions feed" className="h-auto w-full object-contain" />
             </motion.div>
             <motion.div animate={{ rotate: [-2, 2, -2], y: [0, -7, 0] }} transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-[9%] left-[1%] z-20 max-w-[12rem] rounded-2xl border border-black/10 bg-white/85 p-3.5 shadow-xl backdrop-blur"><p className="font-mono text-[8px] font-bold tracking-[.14em] text-black/42">ANONYMOUS BY DESIGN</p><p className="mt-2 text-xs font-bold leading-snug">The room gets honest when names leave it.</p></motion.div>
