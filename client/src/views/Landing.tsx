@@ -7,9 +7,12 @@ import {
   ArrowRight,
   BadgeCheck,
   Bell,
+  Camera,
   Check,
   CheckCheck,
+  Clock,
   Compass,
+  Flame,
   Ghost,
   Heart,
   Instagram,
@@ -91,6 +94,12 @@ const ArtDirectedExperience: React.FC = () => {
   const { scrollYProgress } = useScroll({ target: discoverRef, offset: ['start end', 'end start'] });
   const phoneY = useTransform(scrollYProgress, [0, 0.5, 1], [60, 0, -48]);
   const ringRotate = useTransform(scrollYProgress, [0, 1], [-8, 18]);
+
+  const glimpseRef = useRef<HTMLElement>(null);
+  const { scrollYProgress: glimpseScrollProgress } = useScroll({ target: glimpseRef, offset: ['start end', 'end start'] });
+  const glimpsePhoneY = useTransform(glimpseScrollProgress, [0, 0.5, 1], [40, 0, -35]);
+  const glimpseBackPhoneY = useTransform(glimpseScrollProgress, [0, 0.5, 1], [65, 10, -15]);
+  const glimpseRingRotate = useTransform(glimpseScrollProgress, [0, 1], [12, -18]);
 
   return (
     <div id="experience">
@@ -248,6 +257,130 @@ const ArtDirectedExperience: React.FC = () => {
               <img src="/mockups/phone-confession.png" alt="Othrhalff's anonymous Confessions feed" className="h-auto w-full object-contain" />
             </motion.div>
             <motion.div animate={{ rotate: [-2, 2, -2], y: [0, -7, 0] }} transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-[9%] left-[1%] z-20 max-w-[12rem] rounded-2xl border border-black/10 bg-white/85 p-3.5 shadow-xl backdrop-blur"><p className="font-mono text-[8px] font-bold tracking-[.14em] text-black/42">ANONYMOUS BY DESIGN</p><p className="mt-2 text-xs font-bold leading-snug">The room gets honest when names leave it.</p></motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* 03 / GLIMPSE (SPARX) SECTION */}
+      <section ref={glimpseRef} id="glimpse" className="relative isolate overflow-hidden bg-[#FAF7EF] px-5 py-24 text-[#0c0710] sm:px-10 sm:py-28 lg:min-h-[105svh] lg:px-16 lg:py-36 border-t border-black/5">
+        {/* Subtle background dots & ambient atmospheric glows */}
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-25" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.15) .75px, transparent .75px)', backgroundSize: '12px 12px' }} />
+        <div className="pointer-events-none absolute -right-32 bottom-10 h-72 w-72 rounded-full bg-[#F45D9B]/10 blur-3xl sm:h-96 sm:w-96 z-0" />
+        <div className="pointer-events-none absolute -left-20 top-20 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl z-0" />
+
+        {/* Orbiting geometric rings */}
+        <motion.div style={{ rotate: glimpseRingRotate }} className="pointer-events-none absolute -left-24 top-16 h-[30rem] w-[30rem] rounded-full border border-[#F45D9B]/15 sm:h-[42rem] sm:w-[42rem] z-0" />
+        <div className="pointer-events-none absolute -left-12 top-28 h-[20rem] w-[20rem] rounded-full border border-dashed border-black/10 sm:h-[32rem] sm:w-[32rem] z-0" />
+
+        <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[1.1fr_.9fr] lg:gap-16">
+          {/* Visual Column with Dual Phone Mockups (Feed + Capture) */}
+          <div className="relative order-2 lg:order-1 mx-auto flex min-h-[34rem] w-full max-w-[36rem] items-center justify-center sm:min-h-[42rem]">
+            {/* Ambient circular backdrop accent */}
+            <div className="absolute h-[20rem] w-[20rem] -rotate-6 rounded-[3rem] bg-gradient-to-tr from-[#F45D9B]/20 via-pink-300/15 to-transparent sm:h-[28rem] sm:w-[28rem]" />
+
+            {/* Background Phone: Instant Camera Capture Screen */}
+            <motion.div
+              style={{ y: glimpseBackPhoneY }}
+              initial={{ opacity: 0, x: -30, rotate: -10 }}
+              whileInView={{ opacity: 0.88, x: 0, rotate: -7 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.9, ease: sceneEase }}
+              className="absolute -left-2 sm:left-2 z-10 w-[14rem] sm:w-[17.5rem] lg:w-[19rem] drop-shadow-[0_25px_45px_rgba(28,9,24,.18)] transition-all duration-500 hover:opacity-100 hover:scale-105"
+            >
+              <img
+                src="/mockups/phone-glimpse-capture.png"
+                alt="Othrhalff Glimpse instant campus camera capture"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Foreground Phone: 24-Hour Glimpse / Sparx Story Feed */}
+            <motion.div
+              style={{ y: glimpsePhoneY }}
+              initial={{ opacity: 0, y: 40, rotate: 6 }}
+              whileInView={{ opacity: 1, y: 0, rotate: 4 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 1, ease: sceneEase }}
+              className="relative z-20 ml-12 sm:ml-20 w-[15.5rem] sm:w-[19rem] lg:w-[21rem] drop-shadow-[0_35px_60px_rgba(28,9,24,.32)] transition-transform duration-500 hover:scale-105 hover:rotate-1"
+            >
+              <img
+                src="/mockups/phone-glimpse-feed.png"
+                alt="Othrhalff 24-hour campus Glimpse story feed"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Top Floating Badge: Live 24H Feed */}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -top-3 right-2 sm:right-6 z-30 rounded-2xl border border-black/10 bg-white/95 px-4 py-2.5 shadow-[0_15px_35px_rgba(28,9,24,.1)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                <span className="font-mono text-[10px] font-bold tracking-wider text-black/75 uppercase">24H CAMPUS FEED</span>
+              </div>
+            </motion.div>
+
+            {/* Bottom Floating Badge: Zero Clout Anxiety */}
+            <motion.div
+              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -7, 0] }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+              className="absolute -bottom-3 left-2 sm:left-6 z-30 max-w-[13.5rem] rounded-2xl border border-black/10 bg-white/95 p-3.5 shadow-[0_20px_45px_rgba(28,9,24,.12)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2 text-[#F45D9B]">
+                <Flame className="h-4 w-4 fill-current" />
+                <span className="font-mono text-[9px] font-bold tracking-[.14em] uppercase">ZERO CLOUT ANXIETY</span>
+              </div>
+              <p className="mt-1.5 text-xs font-bold leading-snug text-[#0c0710]">
+                Auto-erases after 24 hours. No likes count, just pure moments.
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Text Column */}
+          <div className="relative order-1 lg:order-2 max-w-xl">
+            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: .3 }} transition={{ duration: .9, ease: sceneEase }}>
+              <h2 className="font-geist text-5xl font-black leading-[0.95] tracking-tight text-[#0c0710] sm:text-7xl lg:text-[5.5rem]">
+                24 hours.<br />
+                <span className="font-geraldine font-normal text-6xl text-[#F45D9B] sm:text-8xl lg:text-[7rem] tracking-normal inline-block mt-2">
+                  then it&apos;s gone.
+                </span>
+              </h2>
+              <p className="mt-6 max-w-md text-base leading-relaxed text-black/65 sm:text-lg">
+                Raw, unfiltered glimpses of campus life. Lecture doodles, cafeteria finds, sunset over the quad, and late-night library grinds.
+              </p>
+            </motion.div>
+
+            {/* Two Frosted Cards */}
+            <div className="mt-8 grid max-w-lg grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/10 text-[#F45D9B] shadow-inner">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-black/40 uppercase">Ephemeral</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Auto-disappearing.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Erases at midnight. Zero digital footprint.</p>
+              </div>
+
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/15 text-[#F45D9B] shadow-inner">
+                    <Camera className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-[#F45D9B] uppercase">Real Time</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Quick snapshots.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Share what&apos;s actually happening right now.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
