@@ -1,4 +1,4 @@
-# Othrhalff - Campus College Connection & Anonymous Speed Dating Platform
+# Othrhalff - Beyond Dating: Verified Campus Connections, Real Friendships & Belonging
 # Allow all search engines & AI discovery crawlers
 
 User-agent: *

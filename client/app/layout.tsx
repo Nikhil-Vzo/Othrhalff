@@ -30,21 +30,23 @@ export const metadata: Metadata = {
     telephone: false,
   },
   title: {
-    default: 'Othrhalff – Campus Connections, Dating & Beyond | Find Your Vibe',
+    default: 'Othrhalff – Beyond Dating • Verified Campus Connections & Community',
     template: '%s | Othrhalff'
   },
-  description: "Go beyond dating. Connect with verified college students through anonymous random text & video chat, post awesome campus confessions & tea, and play interactive games on campus maps. Find your vibe or your other half.",
+  description: "We are beyond dating. Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, 24-hour Sparx stories, and authentic campus belonging.",
   keywords: [
     'othrhalff',
     'othr halff',
-    'campus connection',
-    'college dating India',
-    'omegle alternative college',
-    'university dating',
+    'campus connection app',
+    'college social network',
+    'university friends finder',
     'anonymous campus confessions',
-    'student partner matching',
-    'campus crush',
-    'college social app'
+    'college study partner app',
+    'gym partner finder campus',
+    'student community app India',
+    'campus radar',
+    'sparx stories college',
+    'college meetup app'
   ],
   authors: [{ name: 'Othrhalff Team' }],
   creator: 'Othrhalff',
@@ -76,8 +78,8 @@ export const metadata: Metadata = {
     locale: 'en_IN',
     url: 'https://www.othrhalff.in',
     siteName: 'Othrhalff',
-    title: 'Othrhalff – Campus Connections, Dating & Beyond',
-    description: "Go beyond dating. Random text & video partner chat, post awesome campus confessions & tea, and play on interactive maps with verified college students. Find your vibe or your other half.",
+    title: 'Othrhalff – Beyond Dating • Verified Campus Connections & Community',
+    description: "We are beyond dating. Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, and authentic campus belonging.",
     images: [
       {
         url: 'https://www.othrhalff.in/og-image.webp',
@@ -89,8 +91,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Othrhalff – Campus Connections, Dating & Beyond',
-    description: 'Go beyond dating. Random text & video partner chat, post awesome campus confessions & tea, and play on interactive maps with verified college students. Find your vibe.',
+    title: 'Othrhalff – Beyond Dating • Verified Campus Connections & Community',
+    description: 'We are beyond dating. Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, and authentic community.',
     creator: '@othrhalff',
     images: ['https://www.othrhalff.in/og-image.webp'],
   },
@@ -120,7 +122,7 @@ export default function RootLayout({
             "url": "https://www.othrhalff.in",
             "applicationCategory": "SocialNetworkingApplication",
             "operatingSystem": "Web, Android, iOS",
-            "description": "Campus-verified speed dating and anonymous confession app for Indian university students. 1-on-1 text and video chat, campus confessions, and interactive campus maps.",
+            "description": "Campus-verified student connection platform. Meet verified peers between classes for study sessions, gym partners, real friendships, anonymous confessions, 24h Sparx, and authentic campus belonging.",
             "offers": {
               "@type": "Offer",
               "price": "0",
@@ -151,7 +153,7 @@ export default function RootLayout({
             "name": "Othrhalff",
             "url": "https://www.othrhalff.in",
             "logo": "https://www.othrhalff.in/favicon.png",
-            "description": "India's campus-verified speed dating and anonymous social platform for university students.",
+            "description": "Campus-verified student community platform connecting university students for study partnerships, genuine friendships, anonymous confessions, and real campus life.",
             "sameAs": [
               "https://www.instagram.com/othrhalff",
               "https://twitter.com/othrhalff"

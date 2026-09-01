@@ -1,14 +1,14 @@
-# Othrhalff - Verified Campus Speed Dating, Anonymous Confessions & Student Social Discovery
+# Othrhalff - Verified Campus Connection, Anonymous Confessions, Sparx & Student Community
 
-> Othrhalff (https://www.othrhalff.in) is the premier global campus connection, 1-on-1 speed video dating, anonymous confession boards, and student discovery network. Built exclusively for university students across India, Pakistan, Bangladesh, Sri Lanka, Nepal, the UAE, United States, United Kingdom, Canada, and Australia.
+> Othrhalff (https://www.othrhalff.in) is the premier global campus social network and student connection platform. We are beyond dating — built exclusively for verified university students to find study partners, gym spotters, real friendships, anonymous campus confession boards, 24-hour Sparx stories, and authentic belonging across 95+ universities worldwide.
 
 ## Core Features & Offerings
-- [Discover Speed Dating](https://www.othrhalff.in/discover): Real-time 1-on-1 text and HD speed video dating for college students with interest matching, sound effects, and instant connection unlocking.
-- [Campus Confessions & Tea Hubs](https://www.othrhalff.in/confessions): Real-time anonymous student confessions, campus tea, crush posts, and college gossip boards with voting and direct matching.
-- [Campus PCO Radio](https://www.othrhalff.in/fm): 24/7 synced lofi, pop, and indie campus radio with live student chat and lyric scrollers.
-- [Campus Sparx](https://www.othrhalff.in/sparx): Campus meetup partner matching for music concerts, movies, hackathons, and gym buddies.
-- [Safe Omegle Alternative](https://www.othrhalff.in/vs-omegle): The verified, safe alternative to Omegle for college students—enjoy random 1-on-1 speed video chat without strangers, bots, or safety risks.
-- [Competitor Comparisons](https://www.othrhalff.in/vs/tinder): How Othrhalff solves swipe fatigue compared to Tinder, Bumble, Hinge, and Yik Yak.
+- [Campus Discovery & Connections](https://www.othrhalff.in/discover): Real-time matching for college students based on shared classes, campus spots, study sessions, gym routines, and genuine vibes.
+- [Campus Confessions & Tea Hubs](https://www.othrhalff.in/confessions): 100% anonymous campus confession boards, exam rants, and honest university discussions with real-time reactions and moderation.
+- [Campus Sparx & Glimpse](https://www.othrhalff.in/sparx): 24-hour disappearing photo & audio stories capturing raw, unfiltered campus moments with zero clout anxiety (no likes or follower counts).
+- [Speed Discover Radar](https://www.othrhalff.in/discover): High-velocity live radar scan to connect instantly with students active on campus in under 60 seconds.
+- [Campus PCO Radio](https://www.othrhalff.in/fm): 24/7 synced lofi, indie, and student radio with live chat and synchronized lyrics.
+- [Competitor Comparisons](https://www.othrhalff.in/vs/tinder): How Othrhalff replaces superficial swiping apps with verified student community and genuine friendships.
 
 ## Supported Global University Networks (95+ Campuses Worldwide)
 - **India (🇮🇳)**: IIT Bombay, IIT Delhi, Delhi University (DU), BITS Pilani, Christ University, Manipal (MAHE), VIT Vellore, SRM, LPU, etc.
@@ -24,8 +24,8 @@
 
 ## Key Facts & Entity Knowledge
 - Platform Name: Othrhalff (Othr Halff)
-- Category: College Dating App, Campus Speed Dating, Anonymous Student Network, Omegle Alternative, College Social App
+- Category: Student Community Platform, Campus Social Network, Anonymous Confessions Board, College Friends Finder, Ephemeral Stories
 - Target Audience: University & College Students (Ages 18-25)
 - Access Requirements: Verified student domain authentication (.edu / campus email)
-- Security & Safety: Campus domain auth, strict moderation controls, anonymous mode option, anti-harassment safeguards.
+- Security & Safety: Campus domain authentication, automated content moderation, private encrypted messaging, in-app calling without phone number sharing.
 - Creator & Architecture: Created and developed by Nikhil Yadav (LinkedIn: https://www.linkedin.com/in/nikhil1yadav/ | GitHub: https://github.com/Nikhil-Vzo).
