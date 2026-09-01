@@ -218,16 +218,27 @@ const ArtDirectedExperience: React.FC = () => {
                 Unfiltered thoughts, campus tea, exam rants, and honest confessions — 100% anonymous.
               </p>
             </motion.div>
-            <div className="mt-8 grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-[0_10px_30px_rgba(28,11,21,.05)] backdrop-blur">
-                <BadgeCheck className="h-4 w-4 text-[#F45D9B]" />
-                <p className="mt-3 text-sm font-bold text-[#0c0710]">Read freely.</p>
-                <p className="mt-0.5 text-xs text-black/50">No login required.</p>
+            <div className="mt-8 grid max-w-lg grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/10 text-[#F45D9B] shadow-inner">
+                    <BadgeCheck className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-black/40 uppercase">Open Access</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Read freely.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">No login required.</p>
               </div>
-              <div className="rounded-2xl border border-black/10 bg-[#170b1d] p-4 text-white shadow-[0_10px_30px_rgba(28,11,21,.13)] backdrop-blur">
-                <Lock className="h-4 w-4 text-[#F45D9B]" />
-                <p className="mt-3 text-sm font-bold text-white">Post & react.</p>
-                <p className="mt-0.5 text-xs text-white/50">Join your campus wall.</p>
+
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/15 text-[#F45D9B] shadow-inner">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-[#F45D9B] uppercase">Campus Only</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Post &amp; react.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Join your campus wall.</p>
               </div>
             </div>
           </div>
