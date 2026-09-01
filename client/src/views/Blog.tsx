@@ -6,6 +6,7 @@ import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { trackPageView } from '../utils/analytics';
+import { blogPosts } from '../data/blogPosts';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -516,7 +517,56 @@ export const Blog: React.FC = () => {
               </div>
             </section>
 
-            {/* 8. THE CORE TEAM */}
+            {/* 8. CAMPUS GUIDES & ARTICLES */}
+            <section className="relative py-20 sm:py-28 bg-[#05000a] text-left z-10 border-t border-white/5">
+              <div className="max-w-6xl mx-auto px-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+                  <div>
+                    <span className="text-[11px] font-mono font-bold tracking-[0.2em] text-[#ff007f] uppercase">
+                      Campus Knowledge Base
+                    </span>
+                    <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight mt-2">
+                      Guides &amp; <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon to-purple-400">Campus Stories</span>
+                    </h2>
+                  </div>
+                  <p className="text-xs font-mono text-gray-500 mt-2 md:mt-0 tracking-wider">
+                    {blogPosts.length} ESSAYS &amp; GUIDES
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {blogPosts.map((post) => (
+                    <Link
+                      key={post.slug}
+                      href={`/blog/${post.slug}`}
+                      className="group relative flex flex-col justify-between bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:border-[#ff007f]/50 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_10px_30px_rgba(255,0,127,0.15)]"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 mb-3">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#ff007f]/15 text-[#ff007f] font-bold">
+                            {post.category}
+                          </span>
+                          <span>{post.readTime}</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-white group-hover:text-[#ff007f] transition-colors leading-snug line-clamp-2 mb-2">
+                          {post.title}
+                        </h3>
+                        <p className="text-xs leading-relaxed text-gray-400 line-clamp-3 mb-6">
+                          {post.excerpt}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-white/5 pt-4 text-xs font-mono text-gray-500 group-hover:text-white transition-colors">
+                        <span>Read Article</span>
+                        <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1 text-[#ff007f]" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* 9. THE CORE TEAM */}
             <section className="team-section relative py-20 sm:py-32 overflow-hidden bg-gradient-to-b from-[#05000a] text-center to-[#020005] z-10 border-t border-white/5">
               <div className="max-w-6xl mx-auto px-6">
                 <h2 className="text-[clamp(2.5rem,5vw,5rem)] font-black text-white uppercase tracking-tighter mb-4">

@@ -9,6 +9,7 @@
 - [Speed Discover Radar](https://www.othrhalff.in/discover): High-velocity live radar scan to connect instantly with students active on campus in under 60 seconds.
 - [Campus PCO Radio](https://www.othrhalff.in/fm): 24/7 synced lofi, indie, and student radio with live chat and synchronized lyrics.
 - [Competitor Comparisons](https://www.othrhalff.in/vs/tinder): How Othrhalff replaces superficial swiping apps with verified student community and genuine friendships.
+- [Campus Life & Student Guides](https://www.othrhalff.in/blog): Actionable guides on finding study partners, overcoming swipe fatigue, campus confessions culture, and building genuine college friendships.
 
 ## Supported Global University Networks (95+ Campuses Worldwide)
 - **India (🇮🇳)**: IIT Bombay, IIT Delhi, Delhi University (DU), BITS Pilani, Christ University, Manipal (MAHE), VIT Vellore, SRM, LPU, etc.
