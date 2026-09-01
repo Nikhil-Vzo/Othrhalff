@@ -143,7 +143,7 @@ const ArtDirectedExperience: React.FC = () => {
             <div className="absolute h-[16rem] w-[16rem] rounded-full border border-[#F45D9B]/30 sm:h-[22rem] sm:w-[22rem]" />
             <div className="absolute h-[22rem] w-[22rem] rounded-full border border-dashed border-black/15 sm:h-[30rem] sm:w-[30rem]" />
             <div className="absolute h-[28rem] w-[28rem] rounded-full border border-black/10 sm:h-[38rem] sm:w-[38rem]" />
-            
+
             {/* Floating Orbiting Accent Dot */}
             <motion.div
               animate={{ rotate: 360 }}
@@ -528,15 +528,15 @@ export const Landing: React.FC = () => {
     window.location.search.includes('code=')
   );
 
-  useEffect(() => { 
+  useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate.replace(needsOnboarding ? '/onboarding' : '/home'); 
+      navigate.replace(needsOnboarding ? '/onboarding' : '/home');
     }
   }, [isAuthenticated, needsOnboarding, isLoading, navigate]);
   useEffect(() => { const textTimer = window.setTimeout(() => setTextRevealed(true), 120); const loadTimer = window.setTimeout(() => setPageLoaded(true), 1050); return () => { window.clearTimeout(textTimer); window.clearTimeout(loadTimer); }; }, []);
   useEffect(() => { const html = document.documentElement.style.overflow; const body = document.body.style.overflow; document.documentElement.style.overflow = 'unset'; document.body.style.overflow = 'unset'; return () => { document.documentElement.style.overflow = html; document.body.style.overflow = body; }; }, []);
   useEffect(() => { const move = (event: MouseEvent) => setMousePos({ x: event.clientX / window.innerWidth - .5, y: event.clientY / window.innerHeight - .5 }); window.addEventListener('mousemove', move, { passive: true }); return () => window.removeEventListener('mousemove', move); }, []);
-  
+
   useEffect(() => {
     if (isOAuthCallback && typeof window !== 'undefined') {
       const timer = setTimeout(() => {
@@ -639,7 +639,7 @@ export const Landing: React.FC = () => {
                 transition: 'all .8s ease-out .75s'
               }}
             >
-              Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.
+              Go beyond dating. Meet persons you&apos;ll naturally cross paths with every day.
             </p>
             <div
               className="mt-10 flex flex-wrap items-center justify-center gap-4"
