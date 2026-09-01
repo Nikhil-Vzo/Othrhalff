@@ -34,11 +34,11 @@ import {
   NavbarLogo,
 } from '@/components/ui/resizable-navbar';
 
-const sceneEase = [0.22, 1, 0.36, 1] as const;
+const sceneEase = [0.16, 1, 0.3, 1] as const;
 
 const reveal = {
-  hidden: { opacity: 0, y: 32, filter: 'blur(8px)' },
-  show: { opacity: 1, y: 0, filter: 'blur(0px)' },
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.65, ease: sceneEase } },
 };
 
 const MagneticButton: React.FC<{ children: React.ReactNode; onClick: () => void; dark?: boolean }> = ({ children, onClick, dark = false }) => {
@@ -63,12 +63,12 @@ const MagneticButton: React.FC<{ children: React.ReactNode; onClick: () => void;
 const ArtDirectedExperience: React.FC = () => {
   const discoverRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: discoverRef, offset: ['start end', 'end start'] });
-  const phoneY = useTransform(scrollYProgress, [0, 0.5, 1], [60, 0, -48]);
+  const phoneY = useTransform(scrollYProgress, [0, 0.5, 1], [50, 0, -40]);
   const ringRotate = useTransform(scrollYProgress, [0, 1], [-8, 18]);
 
   const confessRef = useRef<HTMLElement>(null);
   const { scrollYProgress: confessScrollProgress } = useScroll({ target: confessRef, offset: ['start end', 'end start'] });
-  const confessPhoneY = useTransform(confessScrollProgress, [0, 0.5, 1], [50, 0, -40]);
+  const confessPhoneY = useTransform(confessScrollProgress, [0, 0.5, 1], [45, 0, -35]);
   const confessRingRotate = useTransform(confessScrollProgress, [0, 1], [15, -15]);
 
   const glimpseRef = useRef<HTMLElement>(null);
@@ -92,7 +92,7 @@ const ArtDirectedExperience: React.FC = () => {
 
         <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-[.9fr_1.1fr] lg:gap-12">
           {/* Left Text Column */}
-          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.28 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative z-10 max-w-xl">
+          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} className="relative z-10 max-w-xl">
             <h2 className="font-geist text-5xl font-black leading-[0.95] tracking-tight text-[#0c0710] sm:text-7xl lg:text-[5.5rem]">
               Your campus,<br />
               <span className="font-geraldine font-normal text-6xl text-[#F45D9B] sm:text-8xl lg:text-[7rem] tracking-normal inline-block mt-2">
@@ -120,18 +120,25 @@ const ArtDirectedExperience: React.FC = () => {
               <span className="absolute -top-1.5 left-1/2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#F45D9B] shadow-[0_0_12px_#F45D9B]" />
             </motion.div>
 
-            {/* Parallax Phone Mockup */}
-            <motion.div style={{ y: phoneY }} className="relative z-10 w-[15.5rem] drop-shadow-[0_30px_50px_rgba(12,7,16,.2)] sm:w-[19.5rem] lg:w-[21.5rem]">
+            {/* Parallax Phone Mockup with Smooth Entrance and Hover Lift */}
+            <motion.div
+              style={{ y: phoneY }}
+              initial={{ opacity: 0, y: 35, rotate: -2 }}
+              whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.75, ease: sceneEase }}
+              className="relative z-10 w-[15.5rem] sm:w-[19.5rem] lg:w-[21.5rem] drop-shadow-[0_35px_55px_rgba(12,7,16,.22)] transition-transform duration-500 hover:scale-105 hover:rotate-1"
+            >
               <img src="/mockups/phone-discover.png" alt="Othrhalff Discover campus connections" className="h-auto w-full object-contain" />
             </motion.div>
 
             {/* Floating Match Card */}
             <motion.div
-              initial={{ opacity: 0, scale: .8, y: 12 }}
+              initial={{ opacity: 0, scale: 0.85, y: 15 }}
               whileInView={{ opacity: 1, scale: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: .35, duration: .65, ease: sceneEase }}
-              className="absolute bottom-[10%] right-[2%] z-20 min-w-[12rem] rounded-2xl border border-black/10 bg-white/90 p-4 shadow-[0_20px_45px_rgba(12,7,16,.12)] backdrop-blur-xl sm:right-[6%]"
+              transition={{ delay: 0.15, duration: 0.55, ease: sceneEase }}
+              className="absolute bottom-[10%] right-[2%] z-20 min-w-[12rem] rounded-2xl border border-black/10 bg-white/95 p-4 shadow-[0_20px_45px_rgba(12,7,16,.14)] backdrop-blur-xl sm:right-[6%]"
             >
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F45D9B]">
@@ -159,7 +166,7 @@ const ArtDirectedExperience: React.FC = () => {
 
         <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.02fr_.98fr] lg:gap-20">
           <div className="relative order-1 max-w-xl">
-            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: .3 }} transition={{ duration: .9, ease: sceneEase }}>
+            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} className="relative z-10 max-w-xl">
               <h2 className="font-geist text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl lg:text-[5.5rem]">
                 Say what you&apos;d never<br />
                 <span className="font-geraldine font-normal text-6xl text-[#F45D9B] sm:text-8xl lg:text-[7rem] tracking-normal inline-block mt-2">
@@ -196,10 +203,24 @@ const ArtDirectedExperience: React.FC = () => {
           </div>
           <div className="relative order-2 mx-auto flex min-h-[33rem] w-full max-w-[34rem] items-center justify-center sm:min-h-[40rem]">
             <div className="absolute h-[21rem] w-[21rem] rotate-12 rounded-[3rem] bg-[#F45D9B]/14 sm:h-[29rem] sm:w-[29rem]" />
-            <motion.div style={{ y: confessPhoneY }} initial={{ opacity: 0, y: 48, rotate: 5 }} whileInView={{ opacity: 1, y: 0, rotate: 0 }} viewport={{ once: true, amount: .25 }} transition={{ duration: 1, ease: sceneEase }} className="relative z-10 w-[16.5rem] drop-shadow-[0_35px_55px_rgba(28,9,24,.27)] sm:w-[21rem]">
+            <motion.div
+              style={{ y: confessPhoneY }}
+              initial={{ opacity: 0, y: 35, rotate: 4 }}
+              whileInView={{ opacity: 1, y: 0, rotate: 2 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.75, ease: sceneEase }}
+              className="relative z-10 w-[15.5rem] sm:w-[19.5rem] lg:w-[21.5rem] drop-shadow-[0_35px_55px_rgba(28,9,24,.28)] transition-transform duration-500 hover:scale-105 hover:-rotate-1"
+            >
               <img src="/mockups/phone-confession.png" alt="Othrhalff's anonymous Confessions feed" className="h-auto w-full object-contain" />
             </motion.div>
-            <motion.div animate={{ rotate: [-2, 2, -2], y: [0, -7, 0] }} transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-[9%] left-[1%] z-20 max-w-[12rem] rounded-2xl border border-black/10 bg-white/85 p-3.5 shadow-xl backdrop-blur"><p className="font-mono text-[8px] font-bold tracking-[.14em] text-black/42">ANONYMOUS BY DESIGN</p><p className="mt-2 text-xs font-bold leading-snug">The room gets honest when names leave it.</p></motion.div>
+            <motion.div
+              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -6, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute bottom-[9%] left-[1%] z-20 max-w-[12rem] rounded-2xl border border-black/10 bg-white/95 p-3.5 shadow-xl backdrop-blur-xl"
+            >
+              <p className="font-mono text-[8px] font-bold tracking-[.14em] text-black/42">ANONYMOUS BY DESIGN</p>
+              <p className="mt-2 text-xs font-bold leading-snug">The room gets honest when names leave it.</p>
+            </motion.div>
           </div>
         </div>
       </section>
