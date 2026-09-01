@@ -293,23 +293,23 @@ const ArtDirectedExperience: React.FC = () => {
 
             {/* Bottom Floating Badge: Zero Clout Anxiety */}
             <motion.div
-              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -7, 0] }}
-              transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-              className="absolute -bottom-3 left-2 sm:left-6 z-30 max-w-[13.5rem] rounded-2xl border border-black/10 bg-white/95 p-3.5 shadow-[0_20px_45px_rgba(28,9,24,.12)] backdrop-blur-xl"
+              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -6, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+              className="absolute -bottom-3 left-2 sm:left-6 z-30 max-w-[12.5rem] rounded-2xl border border-black/10 bg-white/95 p-3.5 shadow-[0_20px_45px_rgba(28,9,24,.12)] backdrop-blur-xl"
             >
               <div className="flex items-center gap-2 text-[#F45D9B]">
                 <Flame className="h-4 w-4 fill-current" />
-                <span className="font-mono text-[9px] font-bold tracking-[.14em] uppercase">ZERO CLOUT ANXIETY</span>
+                <span className="font-mono text-[9px] font-bold tracking-[.14em] uppercase">ZERO PRESSURE</span>
               </div>
-              <p className="mt-1.5 text-xs font-bold leading-snug text-[#0c0710]">
-                Auto-erases after 24 hours. No likes count, just pure moments.
+              <p className="mt-1 text-xs font-bold leading-snug text-[#0c0710]">
+                No likes, no follower counts.
               </p>
             </motion.div>
           </div>
 
           {/* Text Column */}
           <div className="relative order-1 lg:order-2 max-w-xl">
-            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: .3 }} transition={{ duration: .9, ease: sceneEase }}>
+            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
               <h2 className="font-geist text-5xl font-black leading-[0.95] tracking-tight text-[#0c0710] sm:text-7xl lg:text-[5.5rem]">
                 24 hours.<br />
                 <span className="font-geraldine font-normal text-6xl text-[#F45D9B] sm:text-8xl lg:text-[7rem] tracking-normal inline-block mt-2">
@@ -317,7 +317,7 @@ const ArtDirectedExperience: React.FC = () => {
                 </span>
               </h2>
               <p className="mt-6 max-w-md text-base leading-relaxed text-black/65 sm:text-lg">
-                Raw, unfiltered glimpses of campus life. Lecture doodles, cafeteria finds, sunset over the quad, and late-night library grinds.
+                Raw campus moments snapped in real time. Disappears tomorrow.
               </p>
             </motion.div>
 
@@ -331,7 +331,7 @@ const ArtDirectedExperience: React.FC = () => {
                   <span className="font-mono text-[9px] font-bold tracking-[.14em] text-black/40 uppercase">Ephemeral</span>
                 </div>
                 <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Auto-disappearing.</p>
-                <p className="mt-0.5 text-xs font-medium text-black/55">Erases at midnight. Zero digital footprint.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Gone in 24 hours.</p>
               </div>
 
               <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
@@ -342,7 +342,7 @@ const ArtDirectedExperience: React.FC = () => {
                   <span className="font-mono text-[9px] font-bold tracking-[.14em] text-[#F45D9B] uppercase">Real Time</span>
                 </div>
                 <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Quick snapshots.</p>
-                <p className="mt-0.5 text-xs font-medium text-black/55">Share what&apos;s actually happening right now.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">What&apos;s real right now.</p>
               </div>
             </div>
           </div>
