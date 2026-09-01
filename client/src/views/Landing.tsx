@@ -67,40 +67,6 @@ const reveal = {
   show: { opacity: 1, y: 0, filter: 'blur(0px)' },
 };
 
-const SectionIndex: React.FC = () => {
-  const [active, setActive] = useState('discover');
-
-  useEffect(() => {
-    const observers = chapterMeta.map((chapter) => {
-      const element = document.getElementById(chapter.id);
-      if (!element) return null;
-      const observer = new IntersectionObserver(
-        ([entry]) => entry.isIntersecting && setActive(chapter.id),
-        { rootMargin: '-45% 0px -45% 0px' }
-      );
-      observer.observe(element);
-      return observer;
-    });
-    return () => observers.forEach((observer) => observer?.disconnect());
-  }, []);
-
-  return (
-    <nav aria-label="Experience chapters" className="fixed right-5 top-1/2 z-40 hidden -translate-y-1/2 lg:flex flex-col items-end gap-2.5">
-      {chapterMeta.map((chapter) => {
-        const isActive = active === chapter.id;
-        return (
-          <a key={chapter.id} href={`#${chapter.id}`} className="group flex items-center gap-2">
-            <span className={`font-mono text-[9px] tracking-[0.16em] transition-all duration-300 ${isActive ? 'translate-x-0 text-white opacity-100' : 'translate-x-2 text-white/50 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'}`}>
-              {chapter.label}
-            </span>
-            <span className={`h-1.5 rounded-full transition-all duration-500 ${isActive ? 'w-8 bg-[#F45D9B] shadow-[0_0_14px_#F45D9B]' : 'w-1.5 bg-white/35 group-hover:bg-white/70'}`} />
-          </a>
-        );
-      })}
-    </nav>
-  );
-};
-
 const MagneticButton: React.FC<{ children: React.ReactNode; onClick: () => void; dark?: boolean }> = ({ children, onClick, dark = false }) => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   return (
@@ -117,237 +83,6 @@ const MagneticButton: React.FC<{ children: React.ReactNode; onClick: () => void;
       <span>{children}</span>
       <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
     </button>
-  );
-};
-
-const SectionKicker: React.FC<{ index: string; title: string; tone?: 'dark' | 'light' }> = ({ index, title, tone = 'dark' }) => (
-  <div className={`flex items-center gap-3 font-mono text-[10px] font-bold tracking-[0.18em] ${tone === 'dark' ? 'text-white/60' : 'text-black/45'}`}>
-    <span className="text-[#F45D9B]">{index}</span>
-    <span className={`h-px w-10 ${tone === 'dark' ? 'bg-white/20' : 'bg-black/15'}`} />
-    <span>{title}</span>
-  </div>
-);
-
-const Cursor: React.FC = () => (
-  <motion.div initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: 0.65, duration: 0.45 }} viewport={{ once: true }} className="absolute -bottom-3 -right-3 z-30 rounded-full border border-white/20 bg-black px-3 py-2 text-[10px] font-bold text-white shadow-2xl">
-    <span className="mr-1 text-[#F45D9B]">+</span> IT&apos;S A MATCH
-  </motion.div>
-);
-
-const DiscoverScene: React.FC = () => {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
-  const xOne = useTransform(scrollYProgress, [0, 0.45, 1], [-85, 12, 100]);
-  const xTwo = useTransform(scrollYProgress, [0, 0.52, 1], [90, -12, -110]);
-  const rotateOne = useTransform(scrollYProgress, [0, 0.45, 1], [-16, -5, 9]);
-  const rotateTwo = useTransform(scrollYProgress, [0, 0.52, 1], [17, 6, -9]);
-
-  return (
-    <section ref={ref} id="discover" className="relative min-h-[110svh] overflow-hidden bg-[#09030e] px-5 py-24 sm:px-10 lg:px-16 lg:py-36">
-      <div className="discover-grid absolute inset-0 opacity-40" />
-      <div className="absolute left-[8%] top-[20%] h-[34rem] w-[34rem] rounded-full bg-[#F45D9B]/20 blur-[150px]" />
-      <div className="absolute bottom-[5%] right-[8%] h-[26rem] w-[26rem] rounded-full bg-blue-500/15 blur-[130px]" />
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-8">
-        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative z-10 max-w-xl">
-          <SectionKicker index="01" title="THE FIRST SIGNAL" />
-          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.75rem]">
-            You were never<br />
-            <span className="text-white/35">one swipe</span><br />
-            away.
-          </h2>
-          <p className="mt-8 max-w-md text-base leading-relaxed text-white/65 sm:text-lg">Discover the people already orbiting your campus. Same night classes, same niche interests, same kind of strange.</p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            {['YOUR CAMPUS', 'YOUR INTENT', 'YOUR VIBE'].map((item) => <span key={item} className="rounded-full border border-white/15 bg-white/[0.035] px-3 py-2 font-mono text-[10px] font-bold tracking-[0.12em] text-white/75">{item}</span>)}
-          </div>
-        </motion.div>
-
-        <div className="relative mx-auto flex h-[36rem] w-full max-w-[41rem] items-center justify-center sm:h-[42rem]">
-          <motion.div style={{ x: xOne, rotate: rotateOne }} className="absolute left-[2%] top-[12%] h-[25rem] w-[13rem] overflow-hidden rounded-[2rem] border border-white/20 bg-zinc-900 shadow-[-20px_30px_80px_rgba(0,0,0,0.55)] sm:h-[31rem] sm:w-[16rem]">
-            <img src="/mockups/phone-discover.png" alt="Othrhalff Discover screen" className="h-full w-full object-cover object-top" />
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/45 to-transparent" />
-            <span className="absolute bottom-5 left-5 font-mono text-[10px] tracking-[0.18em] text-white/75">CAMPUS / LIVE</span>
-          </motion.div>
-          <motion.div style={{ x: xTwo, rotate: rotateTwo }} className="absolute right-[1%] top-[20%] h-[23rem] w-[12rem] overflow-hidden rounded-[2rem] border border-white/20 bg-zinc-950 shadow-[20px_30px_80px_rgba(0,0,0,0.65)] sm:h-[29rem] sm:w-[15rem]">
-            <img src="/mockups/phone-nearby.png" alt="Othrhalff campus radar" className="h-full w-full object-cover object-top" />
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/45 to-transparent" />
-            <span className="absolute bottom-5 left-5 font-mono text-[10px] tracking-[0.18em] text-white/75">NEARBY / NOW</span>
-          </motion.div>
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }} transition={{ delay: 0.35, duration: 0.8, ease: sceneEase }} viewport={{ once: true }} className="relative z-20 flex h-36 w-36 items-center justify-center rounded-full border border-white/20 bg-[#F45D9B] text-center font-geist text-2xl font-black leading-none text-white shadow-[0_0_70px_rgba(244,93,155,0.75)] sm:h-44 sm:w-44 sm:text-3xl">
-            FIND<br />YOUR<br />PEOPLE
-          </motion.div>
-          <Cursor />
-          <div className="absolute bottom-[5%] left-[8%] flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-4 py-2 backdrop-blur-xl">
-            <MapPin className="h-3.5 w-3.5 text-[#F45D9B]" /><span className="font-mono text-[10px] tracking-[0.12em] text-white/70">ON CAMPUS</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const ConfessionScene: React.FC = () => {
-  const [reacted, setReacted] = useState(false);
-  return (
-    <section id="confess" className="relative overflow-hidden bg-[#fbf8f0] px-5 py-24 text-[#0c0710] sm:px-10 lg:min-h-[110svh] lg:px-16 lg:py-36">
-      <div className="absolute inset-0 opacity-[0.42]" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.17) .75px, transparent .75px)', backgroundSize: '8px 8px' }} />
-      <motion.div animate={{ rotate: [0, 2, 0, -2, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} className="absolute -right-16 top-12 h-72 w-72 rounded-full border-[28px] border-[#F45D9B]/15" />
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-[1.08fr_0.92fr]">
-        <div className="relative mx-auto flex min-h-[32rem] w-full max-w-[38rem] items-center justify-center sm:min-h-[38rem]">
-          <motion.div initial={{ opacity: 0, rotate: -8, x: -65 }} whileInView={{ opacity: 1, rotate: -5, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="absolute left-0 top-10 z-10 w-[72%] overflow-hidden rounded-[2.2rem] border border-black/10 bg-[#16111a] p-2 shadow-[0_35px_65px_rgba(19,8,18,0.25)]">
-            <img src="/mockups/phone-confession.png" alt="Othrhalff Confessions feed" className="h-full w-full rounded-[1.7rem] object-cover object-top" />
-          </motion.div>
-          <motion.article initial={{ opacity: 0, rotate: 8, x: 65 }} whileInView={{ opacity: 1, rotate: 4, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ delay: 0.16, duration: 0.9, ease: sceneEase }} className="absolute right-0 top-[31%] z-20 w-[54%] rounded-[1.75rem] border border-black/10 bg-white p-5 shadow-[0_35px_65px_rgba(19,8,18,0.19)] sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0c0710] font-mono text-[10px] text-white">??</span><span className="font-mono text-[9px] font-bold tracking-[.13em] text-black/45">ANONYMOUS</span></div>
-              <span className="font-mono text-[9px] text-black/35">NOW</span>
-            </div>
-            <p className="mt-5 text-sm font-semibold leading-relaxed text-[#0c0710] sm:text-base">“Who else has had a full existential crisis in the library this week?”</p>
-            <div className="mt-5 flex items-center gap-2 border-t border-black/7 pt-4">
-              <button onClick={() => setReacted((value) => !value)} aria-label="React to confession" className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all ${reacted ? 'bg-[#F45D9B] text-white' : 'bg-[#fff0f5] text-[#F45D9B]'}`}><Heart className={`h-3.5 w-3.5 ${reacted ? 'fill-current' : ''}`} /> {reacted ? '25' : '24'}</button>
-              <span className="inline-flex items-center gap-1.5 px-1 text-[11px] text-black/45"><MessageCircle className="h-3.5 w-3.5" /> 08</span>
-            </div>
-          </motion.article>
-          <motion.div animate={{ y: [0, -11, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-4 left-[10%] z-30 rounded-full border border-black/10 bg-[#F45D9B] px-4 py-2 font-mono text-[10px] font-bold tracking-[.12em] text-white shadow-xl">SAY THE REAL THING</motion.div>
-        </div>
-        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl lg:justify-self-end">
-          <SectionKicker index="02" title="THE OPEN SECRET" tone="light" />
-          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] sm:text-7xl lg:text-[5.4rem]">For the things<br />you&apos;d never put<br /><span className="text-[#F45D9B]">on your story.</span></h2>
-          <p className="mt-8 max-w-md text-base leading-relaxed text-black/60 sm:text-lg">Confessions is the campus group chat without the names. Read the room, start a poll, leave a thought, or just be the quiet witness.</p>
-          <p className="mt-7 font-mono text-[10px] font-bold tracking-[0.16em] text-black/45">OPEN TO READ. YOUR VOICE, WHEN YOU&apos;RE READY.</p>
-        </motion.div>
-      </div>
-    </section>
-  );
-};
-
-const ChatScene: React.FC = () => {
-  const [showReply, setShowReply] = useState(false);
-  const [hearted, setHearted] = useState(false);
-  useEffect(() => {
-    const interval = window.setInterval(() => setShowReply((value) => !value), 3300);
-    return () => window.clearInterval(interval);
-  }, []);
-  return (
-    <section id="chat" className="relative min-h-[110svh] overflow-hidden bg-[#05070b] px-5 py-24 sm:px-10 lg:px-16 lg:py-36">
-      <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
-      <motion.div animate={{ x: ['-10%', '10%', '-10%'], y: ['-5%', '9%', '-5%'] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }} className="absolute left-[18%] top-[28%] h-[28rem] w-[28rem] rounded-full bg-[#4c1d95]/35 blur-[135px]" />
-      <motion.div animate={{ x: ['8%', '-10%', '8%'], y: ['4%', '-7%', '4%'] }} transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-[6%] right-[12%] h-[22rem] w-[22rem] rounded-full bg-[#F45D9B]/24 blur-[125px]" />
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-[0.95fr_1.05fr]">
-        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.25 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl">
-          <SectionKicker index="03" title="THE PART THAT MATTERS" />
-          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.5rem]">A conversation<br />with somewhere<br /><span className="text-[#bca7ff]">to go.</span></h2>
-          <p className="mt-8 max-w-md text-base leading-relaxed text-white/65 sm:text-lg">Typing dots become inside jokes. Inside jokes become a two-truths challenge, a call, a movie room, or something that takes longer to name.</p>
-          <div className="mt-9 flex flex-wrap gap-2.5 font-mono text-[10px] font-bold tracking-[.11em] text-white/70">
-            {['LIVE TYPING', 'READ STATUS', 'VOICE + VIDEO', 'ICEBREAKERS'].map((item) => <span key={item} className="rounded-full border border-white/15 bg-white/5 px-3 py-2">{item}</span>)}
-          </div>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, scale: 0.92, rotate: 3 }} whileInView={{ opacity: 1, scale: 1, rotate: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ delay: 0.08, duration: 0.95, ease: sceneEase }} className="relative mx-auto w-full max-w-[34rem] rounded-[2.3rem] border border-white/15 bg-[#10121d]/90 p-3 shadow-[0_38px_100px_rgba(0,0,0,.65)] backdrop-blur-xl sm:p-4">
-          <div className="overflow-hidden rounded-[1.65rem] border border-white/7 bg-[#0b0d16]">
-            <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
-              <div className="flex items-center gap-3"><div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#F45D9B] to-[#7258e8] font-mono text-xs font-bold text-white">A<div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#0b0d16] bg-emerald-400" /></div><div><p className="text-sm font-bold text-white">Anon A7</p><p className="text-[10px] text-emerald-400">active now</p></div></div>
-              <div className="flex gap-3 text-white/60"><Phone className="h-4 w-4" /><Video className="h-4 w-4" /></div>
-            </div>
-            <div className="min-h-[23rem] space-y-4 px-5 py-6 sm:min-h-[25rem]">
-              <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }} viewport={{ once: true }} className="max-w-[82%] rounded-2xl rounded-tl-sm bg-white/8 px-4 py-3 text-sm leading-relaxed text-white/85">Okay, important question: which library floor has the least emotionally devastating lighting?</motion.div>
-              <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.66 }} viewport={{ once: true }} className="ml-auto max-w-[76%] rounded-2xl rounded-tr-sm bg-[#F45D9B] px-4 py-3 text-sm leading-relaxed text-white">Third floor. But only if we pretend the printer noise is ambient music.</motion.div>
-              <button onClick={() => setHearted((value) => !value)} className="ml-auto -mt-3 mr-1 flex items-center gap-1 rounded-full border border-white/10 bg-[#171827] px-2 py-1 text-[10px] text-white/70"><Heart className={`h-3 w-3 ${hearted ? 'fill-[#F45D9B] text-[#F45D9B]' : ''}`} /> {hearted ? '1' : ''}</button>
-              <AnimatePresence mode="wait">
-                {showReply ? <motion.div key="typing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="flex items-center gap-2"><div className="flex gap-1 rounded-2xl rounded-tl-sm bg-white/8 px-3 py-3"><span className="chat-dot h-1.5 w-1.5 rounded-full bg-white/65" /><span className="chat-dot h-1.5 w-1.5 rounded-full bg-white/65" /><span className="chat-dot h-1.5 w-1.5 rounded-full bg-white/65" /></div><span className="font-mono text-[9px] tracking-[.1em] text-white/35">TYPING</span></motion.div> : <motion.div key="game" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="max-w-[90%] rounded-xl border border-violet-400/25 bg-violet-400/10 p-3"><div className="flex items-center gap-2 text-[10px] font-bold tracking-[.1em] text-violet-200"><Sparkles className="h-3.5 w-3.5" /> WOULD YOU RATHER</div><p className="mt-2 text-xs text-white/80">Have a playlist made for you or make one for someone else?</p><div className="mt-3 flex gap-2"><span className="rounded-md bg-white/10 px-2 py-1 text-[10px] text-white/75">GET ONE</span><span className="rounded-md bg-white/10 px-2 py-1 text-[10px] text-white/75">MAKE ONE</span></div></motion.div>}
-              </AnimatePresence>
-            </div>
-            <div className="flex items-center gap-3 border-t border-white/8 px-4 py-3"><Plus className="h-4 w-4 text-white/45" /><div className="flex-1 rounded-full bg-white/7 px-4 py-2 text-xs text-white/35">Type something true...</div><Send className="h-4 w-4 text-[#F45D9B]" /></div>
-          </div>
-          <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }} className="absolute -right-6 top-[17%] rounded-2xl border border-white/15 bg-[#191323]/95 px-4 py-3 shadow-2xl backdrop-blur-xl"><p className="font-mono text-[9px] tracking-[.13em] text-white/50">CHEMISTRY</p><p className="mt-1 text-lg font-black text-white">86<span className="text-[#F45D9B]">%</span></p></motion.div>
-        </motion.div>
-      </div>
-    </section>
-  );
-};
-
-const GlimpseScene: React.FC = () => {
-  const [isLive, setIsLive] = useState(false);
-  return (
-    <section id="glimpse" className="relative overflow-hidden bg-[#e9efff] px-5 py-24 text-[#090d1e] sm:px-10 lg:min-h-[110svh] lg:px-16 lg:py-36">
-      <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(115deg, transparent 49.8%, rgba(9,13,30,.08) 50%, transparent 50.2%)', backgroundSize: '44px 44px' }} />
-      <motion.div animate={{ rotate: 360 }} transition={{ duration: 70, repeat: Infinity, ease: 'linear' }} className="absolute -left-40 top-0 h-[36rem] w-[36rem] rounded-full border-[1px] border-[#090d1e]/15" />
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_0.93fr] lg:gap-20">
-        <div className="order-2 max-w-xl lg:order-1">
-          <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }}>
-            <SectionKicker index="04" title="24 HOURS OF CAMPUS" tone="light" />
-            <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] sm:text-7xl lg:text-[5.45rem]">The campus is<br />always making<br /><span className="text-[#3155e8]">a little noise.</span></h2>
-            <p className="mt-8 max-w-md text-base leading-relaxed text-[#090d1e]/60 sm:text-lg">Glimpses are the moments that would disappear otherwise. A late-night floor, a bad canteen take, the exact second something became lore.</p>
-          </motion.div>
-          <button onClick={() => setIsLive((value) => !value)} className="group mt-9 inline-flex items-center gap-3 rounded-full bg-[#090d1e] px-5 py-3 font-mono text-[10px] font-bold tracking-[.13em] text-white transition-transform hover:scale-[1.03]">
-            <span className={`h-2 w-2 rounded-full ${isLive ? 'bg-[#F45D9B] shadow-[0_0_12px_#F45D9B]' : 'bg-white/35'}`} /> {isLive ? 'LIVE MOMENT SAVED' : 'TAP INTO THE MOMENT'} <ArrowDownRight className="h-4 w-4 transition-transform group-hover:translate-y-0.5 group-hover:translate-x-0.5" />
-          </button>
-        </div>
-        <motion.div initial={{ opacity: 0, y: 55, rotate: -3 }} whileInView={{ opacity: 1, y: 0, rotate: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative order-1 mx-auto w-full max-w-[29rem] lg:order-2">
-          <div className="absolute -inset-12 rounded-[3rem] bg-[#3155e8]/20 blur-3xl" />
-          <div className="relative aspect-[9/14] overflow-hidden rounded-[2.4rem] border-[7px] border-[#090d1e] bg-[#090d1e] shadow-[0_34px_70px_rgba(48,82,232,.3)]">
-            <img src="/mockups/phone-notification.png" alt="Othrhalff Glimpse and notifications" className="h-full w-full object-cover object-top opacity-90" />
-            <div className="absolute inset-x-5 top-5 flex gap-1.5">{[1, 2, 3, 4].map((bar) => <span key={bar} className={`h-1 flex-1 rounded-full ${bar < 4 ? 'bg-white' : 'bg-white/35'}`} />)}</div>
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#090d1e] via-[#090d1e]/45 to-transparent px-6 pb-6 pt-24">
-              <div className="flex items-center gap-2"><span className="h-8 w-8 rounded-full bg-[#F45D9B]" /><span className="font-mono text-[10px] font-bold tracking-[.13em] text-white">CAMPUS / 10:42 PM</span></div>
-              <p className="mt-3 text-sm font-semibold leading-relaxed text-white">The chai queue just became a support group.</p>
-              <div className="mt-4 flex items-center gap-2"><Heart className="h-4 w-4 fill-white text-white" /><span className="text-xs font-bold text-white">42</span></div>
-            </div>
-          </div>
-          <motion.div animate={{ x: [0, 13, 0], y: [0, -10, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} className="absolute -left-10 top-[24%] rounded-2xl border border-[#090d1e]/10 bg-white/90 px-4 py-3 shadow-xl backdrop-blur"><p className="font-mono text-[9px] font-bold tracking-[.12em] text-[#090d1e]/50">NEW GLIMPSE</p><p className="mt-1 text-xs font-bold">Someone is here.</p></motion.div>
-        </motion.div>
-      </div>
-    </section>
-  );
-};
-
-const PlaygroundScene: React.FC = () => (
-  <section id="playground" className="relative overflow-hidden bg-[#0b0710] px-5 py-24 sm:px-10 lg:min-h-[105svh] lg:px-16 lg:py-36">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(244,93,155,.17),transparent_23%),radial-gradient(circle_at_30%_75%,rgba(47,93,228,.16),transparent_28%)]" />
-    <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[.92fr_1.08fr]">
-      <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl">
-        <SectionKicker index="05" title="COLLEGE, MULTIPLAYER" />
-        <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] text-white sm:text-7xl lg:text-[5.4rem]">Leave your<br />room without<br /><span className="text-[#F45D9B]">leaving it.</span></h2>
-        <p className="mt-8 max-w-md text-base leading-relaxed text-white/65 sm:text-lg">A shared campus made for wandering. Be a tiny avatar. Run into someone. Find the people still awake, without the “hey” that has to mean everything.</p>
-        <div className="mt-9 flex items-center gap-3"><span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" /></span><span className="font-mono text-[10px] font-bold tracking-[.14em] text-white/65">CAMPUS WORLD ONLINE</span></div>
-      </motion.div>
-      <motion.div initial={{ opacity: 0, scale: .92 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: 0.25 }} transition={{ duration: 1.05, ease: sceneEase }} className="relative mx-auto w-full max-w-[43rem]">
-        <div className="absolute -inset-5 rounded-[2rem] bg-gradient-to-tr from-[#F45D9B]/30 via-transparent to-blue-500/25 blur-2xl" />
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-black shadow-[0_30px_90px_rgba(0,0,0,.5)]">
-          <video src="/game.mp4" autoPlay loop muted playsInline preload="metadata" className="aspect-[16/10] w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
-          <div className="absolute bottom-5 left-5 flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black"><Play className="h-4 w-4 fill-current" /></div><div><p className="font-mono text-[9px] font-bold tracking-[.16em] text-white/55">PLAYGROUND</p><p className="text-sm font-bold text-white">Find the room between rooms.</p></div></div>
-        </div>
-      </motion.div>
-    </div>
-  </section>
-);
-
-const DatesScene: React.FC = () => {
-  const [mode, setMode] = useState<'cinema' | 'music'>('cinema');
-  return (
-    <section id="dates" className="relative overflow-hidden bg-[#f53476] px-5 py-24 text-[#18040b] sm:px-10 lg:min-h-[105svh] lg:px-16 lg:py-36">
-      <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 23px, rgba(24,4,11,.18) 24px 25px)' }} />
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[1fr_1fr]">
-        <motion.div initial={{ opacity: 0, x: -38 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="relative mx-auto w-full max-w-[34rem]">
-          <div className="relative overflow-hidden rounded-[2rem] border border-[#18040b]/20 bg-[#18040b] p-3 shadow-[0_35px_80px_rgba(78,7,28,.35)]">
-            <div className="overflow-hidden rounded-[1.35rem] bg-[#25111a]">
-              <div className="relative aspect-video overflow-hidden">
-                <img src="/blog/virtual-dates.jpeg" alt="Othrhalff virtual date cinema room" className={`h-full w-full object-cover transition-all duration-700 ${mode === 'cinema' ? 'scale-100 opacity-85' : 'scale-110 opacity-35 grayscale'}`} />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#25111a] via-transparent to-transparent" />
-                <AnimatePresence mode="wait">{mode === 'cinema' ? <motion.div key="cinema" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="absolute inset-0 flex items-center justify-center"><span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white backdrop-blur"><Play className="h-5 w-5 fill-current" /></span></motion.div> : <motion.div key="music" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-x-0 bottom-8 flex items-end justify-center gap-1">{[18, 36, 58, 28, 72, 45, 33, 64, 24, 48, 69, 30].map((height, index) => <motion.span key={index} animate={{ height: [height / 2, height, height / 1.6] }} transition={{ duration: .65 + index * .04, repeat: Infinity, repeatType: 'mirror' }} className="w-1.5 rounded-full bg-[#F45D9B]" />)}</motion.div>}</AnimatePresence>
-              </div>
-              <div className="flex items-center justify-between px-5 py-4 text-white"><div><p className="font-mono text-[9px] font-bold tracking-[.14em] text-white/45">PRIVATE ROOM / 8391</p><p className="mt-1 text-sm font-bold">{mode === 'cinema' ? 'Cinema after class' : 'The late-night playlist'}</p></div><div className="flex -space-x-2"><span className="h-8 w-8 rounded-full border-2 border-[#25111a] bg-[#F45D9B]" /><span className="h-8 w-8 rounded-full border-2 border-[#25111a] bg-[#8b7aff]" /></div></div>
-            </div>
-          </div>
-          <div className="mt-5 flex justify-center gap-2"><button onClick={() => setMode('cinema')} className={`rounded-full px-4 py-2 font-mono text-[10px] font-bold tracking-[.12em] transition-colors ${mode === 'cinema' ? 'bg-[#18040b] text-white' : 'border border-[#18040b]/25 text-[#18040b]/60'}`}>CINEMA</button><button onClick={() => setMode('music')} className={`rounded-full px-4 py-2 font-mono text-[10px] font-bold tracking-[.12em] transition-colors ${mode === 'music' ? 'bg-[#18040b] text-white' : 'border border-[#18040b]/25 text-[#18040b]/60'}`}>MUSIC JAM</button></div>
-        </motion.div>
-        <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.9, ease: sceneEase }} className="max-w-xl lg:justify-self-end">
-          <SectionKicker index="06" title="A BETTER NEXT MOVE" tone="light" />
-          <h2 className="mt-7 font-geist text-5xl font-black leading-[0.91] tracking-[-0.07em] sm:text-7xl lg:text-[5.4rem]">When chat says,<br /><span className="text-[#fff3d0]">“do something?”</span></h2>
-          <p className="mt-8 max-w-md text-base leading-relaxed text-[#18040b]/70 sm:text-lg">Start a private room. Press play at the same moment. Swap songs. Keep your camera off if you want. The date is only as big as you make it.</p>
-          <div className="mt-8 flex items-center gap-3 font-mono text-[10px] font-bold tracking-[.12em] text-[#18040b]/65"><span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#18040b]/20"><Lock className="h-3 w-3" /></span> INVITE-ONLY, WHEN IT SHOULD BE</div>
-        </motion.div>
-      </div>
-    </section>
   );
 };
 
@@ -398,7 +133,7 @@ const ArtDirectedExperience: React.FC = () => {
               </span>
             </h2>
             <p className="mt-6 max-w-md text-base leading-relaxed text-black/65 sm:text-lg">
-              Meet people between classes. Expand beyond when you&apos;re ready.
+              Meet study partners, gym spotters, and genuine friends between classes. Expand beyond when you&apos;re ready.
             </p>
           </motion.div>
 
@@ -433,12 +168,12 @@ const ArtDirectedExperience: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F45D9B]">
-                  <Heart className="h-3.5 w-3.5 fill-current text-white" />
+                  <Sparkles className="h-3.5 w-3.5 fill-current text-white" />
                 </span>
-                <span className="font-mono text-[9px] font-bold tracking-[.15em] text-black/50">NEW MATCH</span>
+                <span className="font-mono text-[9px] font-bold tracking-[.15em] text-black/50">NEW CONNECTION</span>
               </div>
-              <p className="mt-2.5 text-sm font-bold text-[#0c0710]">A shared signal.</p>
-              <p className="mt-0.5 text-[11px] text-black/50">The next move is yours.</p>
+              <p className="mt-2.5 text-sm font-bold text-[#0c0710]">A shared campus signal.</p>
+              <p className="mt-0.5 text-[11px] text-black/50">Study partner, friend, or vibe.</p>
             </motion.div>
           </div>
         </div>
@@ -480,7 +215,7 @@ const ArtDirectedExperience: React.FC = () => {
                 </span>
               </h2>
               <p className="mt-6 max-w-md text-base leading-relaxed text-black/65 sm:text-lg">
-                Unfiltered thoughts, confessions, and crushes — 100% anonymous.
+                Unfiltered thoughts, campus tea, exam rants, and honest confessions — 100% anonymous.
               </p>
             </motion.div>
             <div className="mt-8 grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
@@ -513,14 +248,14 @@ const MarqueeBar: React.FC = () => (
   <div className="relative w-full overflow-hidden bg-[#07030d] py-6 sm:py-0">
     <div className="w-full md:-ml-[5vw] md:w-[110vw] rotate-0 md:-rotate-2 border-y border-[#F45D9B]/30 bg-[#F45D9B]/10 py-4 sm:py-7 md:py-10 shadow-[0_0_80px_rgba(244,93,155,0.1)]">
       <div className="landing-marquee-left flex w-max whitespace-nowrap font-geist text-2xl font-black tracking-[-.04em] text-white sm:text-6xl md:text-8xl lg:text-9xl">
-        <span className="mx-6 sm:mx-8">FIND YOUR GYM SPOTTER <i className="not-italic text-[#F45D9B]">/</i> ROW TWO LECTURE PARTNER <i className="not-italic text-[#F45D9B]">/</i> LATE NIGHT STUDY BUDDY</span>
-        <span className="mx-6 sm:mx-8">FIND YOUR GYM SPOTTER <i className="not-italic text-[#F45D9B]">/</i> ROW TWO LECTURE PARTNER <i className="not-italic text-[#F45D9B]">/</i> LATE NIGHT STUDY BUDDY</span>
+        <span className="mx-6 sm:mx-8">FIND YOUR GYM SPOTTER <i className="not-italic text-[#F45D9B]">/</i> ROW TWO LECTURE PARTNER <i className="not-italic text-[#F45D9B]">/</i> LATE NIGHT STUDY BUDDY <i className="not-italic text-[#F45D9B]">/</i> CAMPUS TEA SQUAD</span>
+        <span className="mx-6 sm:mx-8">FIND YOUR GYM SPOTTER <i className="not-italic text-[#F45D9B]">/</i> ROW TWO LECTURE PARTNER <i className="not-italic text-[#F45D9B]">/</i> LATE NIGHT STUDY BUDDY <i className="not-italic text-[#F45D9B]">/</i> CAMPUS TEA SQUAD</span>
       </div>
     </div>
     <div className="w-full md:-ml-[5vw] mt-3 md:-mt-10 md:w-[110vw] rotate-0 md:rotate-1 border-y border-blue-400/30 bg-blue-950/30 py-3 sm:py-6 md:py-8 mix-blend-screen">
       <div className="landing-marquee-right flex w-max whitespace-nowrap font-mono text-base tracking-[.12em] text-blue-200 sm:text-3xl md:text-5xl lg:text-7xl">
-        <span className="mx-6 sm:mx-10">THE MICROSCOPIC GEOGRAPHY OF COLLEGE <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE IT YOURS</span>
-        <span className="mx-6 sm:mx-10">THE MICROSCOPIC GEOGRAPHY OF COLLEGE <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE IT YOURS</span>
+        <span className="mx-6 sm:mx-10">WE ARE BEYOND DATING <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE CAMPUS YOURS</span>
+        <span className="mx-6 sm:mx-10">WE ARE BEYOND DATING <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE CAMPUS YOURS</span>
       </div>
     </div>
   </div>
@@ -650,15 +385,15 @@ const PromoVideoSection: React.FC = () => {
 };
 
 const ManifestoSection: React.FC = () => {
-  const primary = <span className="flex items-center gap-6">GO BEYOND DATING <span className="text-[#F45D9B]">/</span></span>;
-  const secondary = <span className="flex items-center gap-6">FIND YOUR PEOPLE <span className="text-black/30">/</span></span>;
+  const primary = <span className="flex items-center gap-6">WE ARE BEYOND DATING <span className="text-[#F45D9B]">/</span></span>;
+  const secondary = <span className="flex items-center gap-6">FIND YOUR PEOPLE <span className="text-black/30">/</span> REAL CAMPUS BELONGING <span className="text-black/30">/</span></span>;
   return (
     <section className="relative z-10 overflow-hidden border-y border-gray-300/40 bg-[#FAF7EF] pb-20 pt-0 text-gray-950 sm:pb-32">
       <VelocityScroll text1={primary} text2={secondary} default_velocity={1.8} bar1ClassName="bg-[linear-gradient(110deg,#FEDEE5_0%,#FFFFFF_45%,#FCE7F3_60%,#FEDEE5_100%)] text-[#07030d] border-b border-pink-200/60" bar2ClassName="bg-[linear-gradient(110deg,#FBCFE8_0%,#FEDEE5_35%,#FFFFFF_50%,#F45D9B_100%)] text-black border-b border-pink-300/50" textClassName="font-mono font-black text-2xl sm:text-4xl lg:text-7xl uppercase tracking-tighter" />
       <div className="mx-auto max-w-3xl space-y-8 px-6 pt-16 font-mono text-left sm:space-y-12 sm:px-12 sm:pt-24">
-        <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">College isn&apos;t meant to be lonely. Somewhere along the way, campus life became endless swipes, fake personas, and conversations that never went anywhere. Othrhalff is built to bring back real student connection—where people meet naturally instead of becoming another profile.</p>
-        <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">Discover people. Say the thing anonymously. Let chat turn into a call, a game, a shared movie, or an actual plan. Meet inside the campus world when curiosity needs somewhere to go.</p>
-        <p className="border-l-4 border-[#F45D9B] py-1 pl-5 text-base font-semibold leading-[1.85] text-gray-950 sm:pl-8 sm:text-xl">One verified student identity. A growing student network. Friendships, collaborations, communities, and relationships—without being forced into a box. <span className="font-bold text-[#F45D9B]">Not built for dating. Built for belonging.</span></p>
+        <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">College isn&apos;t meant to be lonely. Somewhere along the way, campus apps became endless superficial swiping, fake personas, and dead-end conversations. Othrhalff is built to bring back real student connection—where people meet naturally for friendships, study circles, and shared moments instead of becoming another profile card.</p>
+        <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">Discover people across your university. Share honest thoughts anonymously on campus confession walls. Let chat turn into a late-night study call, an interactive 2D campus world game, or an actual plan between classes.</p>
+        <p className="border-l-4 border-[#F45D9B] py-1 pl-5 text-base font-semibold leading-[1.85] text-gray-950 sm:pl-8 sm:text-xl">One verified student identity. A genuine campus community. Study groups, gym spotters, creative collaborators, lasting friendships, and real relationships. <span className="font-bold text-[#F45D9B]">We are beyond dating. Built for belonging.</span></p>
       </div>
     </section>
   );
@@ -682,7 +417,7 @@ const Footer: React.FC = () => (
             </span>
           </div>
           <p className="mt-4 max-w-md text-sm font-normal leading-relaxed text-zinc-400">
-            The campus is already full of your people. We just make the signal easier to find.
+            The campus is already full of your people. We are beyond dating — built for genuine student connections, friendships &amp; belonging.
           </p>
           <div className="mt-6 flex items-center gap-3.5">
             <a
@@ -782,7 +517,6 @@ export const Landing: React.FC = () => {
   const onEnter = () => navigate.push('/login');
   const navItems = [
     { name: 'Experience', link: '#experience' },
-    { name: 'Chemistry Quiz', link: '/vibe' },
     { name: 'Stories', link: '/blog' },
     { name: 'Confessions', link: '/confessions' },
     { name: 'About', link: '/about' }
@@ -882,6 +616,21 @@ export const Landing: React.FC = () => {
 
         <main className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center justify-center px-5 pb-20 pt-24 text-center sm:px-8">
           <div className="max-w-3xl">
+            {/* Top beyond dating badge */}
+            <div
+              className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-[#F45D9B]/35 bg-[#F45D9B]/15 px-4 py-1.5 backdrop-blur-md shadow-[0_0_25px_rgba(244,93,155,0.25)]"
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0)' : 'translateY(-15px)',
+                transition: 'all .6s ease-out .1s'
+              }}
+            >
+              <Zap className="h-3.5 w-3.5 fill-current text-[#F45D9B]" />
+              <span className="font-mono text-xs font-bold tracking-wider text-white uppercase">
+                WE ARE BEYOND DATING • CAMPUS CONNECTIONS &amp; VIBE
+              </span>
+            </div>
+
             <h1 className="font-geist text-5xl font-black leading-[.98] tracking-[-.07em] text-white drop-shadow-[0_10px_35px_rgba(0,0,0,.9)] sm:text-7xl md:text-8xl">
               {'Find your people.'.split(' ').map((word, index) => (
                 <span
@@ -905,7 +654,7 @@ export const Landing: React.FC = () => {
                 transition: 'all .8s ease-out .75s'
               }}
             >
-              Go beyond dating. Meet students you&apos;ll naturally cross paths with every day.
+              We are beyond dating. Meet verified students you&apos;ll naturally cross paths with every day — for study sessions, gym partners, real friendships, anonymous confessions, and authentic campus connections.
             </p>
             <div
               className="mt-10 flex flex-wrap items-center justify-center gap-4"
@@ -915,14 +664,7 @@ export const Landing: React.FC = () => {
                 transition: 'all .6s ease-out 1.05s'
               }}
             >
-              <MagneticButton onClick={onEnter}>Find Your Othrhalff</MagneticButton>
-              <Link
-                href="/vibe"
-                className="group inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/[0.08] px-6 py-3 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:bg-white/15 hover:border-white/35 active:scale-[0.98]"
-              >
-                <span>Take Chemistry Quiz</span>
-                <ArrowRight className="h-4 w-4 text-white/60 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-white" />
-              </Link>
+              <MagneticButton onClick={onEnter}>Explore Campus</MagneticButton>
             </div>
           </div>
         </main>
