@@ -11,7 +11,10 @@ import {
   Ghost,
   Instagram,
   Lock,
+  MessageCircle,
+  Phone,
   Radio,
+  ShieldCheck,
   Sparkles,
   Volume2,
   VolumeX,
@@ -83,6 +86,13 @@ const ArtDirectedExperience: React.FC = () => {
   const speedPhoneY = useTransform(speedScrollProgress, [0, 0.5, 1], [40, 0, -35]);
   const speedBackPhoneY = useTransform(speedScrollProgress, [0, 0.5, 1], [65, 10, -15]);
   const speedRingRotate = useTransform(speedScrollProgress, [0, 1], [-12, 18]);
+
+  const chatRef = useRef<HTMLElement>(null);
+  const { scrollYProgress: chatScrollProgress } = useScroll({ target: chatRef, offset: ['start end', 'end start'] });
+  const chatPhoneY = useTransform(chatScrollProgress, [0, 0.5, 1], [40, 0, -35]);
+  const chatLeftPhoneY = useTransform(chatScrollProgress, [0, 0.5, 1], [65, 10, -15]);
+  const chatRightPhoneY = useTransform(chatScrollProgress, [0, 0.5, 1], [65, 10, -15]);
+  const chatRingRotate = useTransform(chatScrollProgress, [0, 1], [14, -16]);
 
   return (
     <div id="experience">
@@ -476,6 +486,147 @@ const ArtDirectedExperience: React.FC = () => {
                 Match &amp; connect in under 60 seconds.
               </p>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* 05 / CHAT SECTION */}
+      <section ref={chatRef} id="chat" className="relative isolate overflow-hidden bg-[#FAF7EF] px-5 py-24 text-[#0c0710] sm:px-10 sm:py-28 lg:min-h-[108svh] lg:px-16 lg:py-36 border-t border-black/5">
+        {/* Subtle background dots & ambient atmospheric glows */}
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-25" style={{ backgroundImage: 'radial-gradient(rgba(12,7,16,.15) .75px, transparent .75px)', backgroundSize: '12px 12px' }} />
+        <div className="pointer-events-none absolute -left-28 top-16 h-80 w-80 rounded-full bg-[#F45D9B]/10 blur-3xl z-0" />
+        <div className="pointer-events-none absolute -right-24 bottom-16 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl z-0" />
+
+        {/* Orbiting geometric rings */}
+        <motion.div style={{ rotate: chatRingRotate }} className="pointer-events-none absolute -left-28 top-16 h-[32rem] w-[32rem] rounded-full border border-[#F45D9B]/15 sm:h-[44rem] sm:w-[44rem] z-0" />
+        <div className="pointer-events-none absolute -left-16 top-28 h-[22rem] w-[22rem] rounded-full border border-dashed border-black/10 sm:h-[34rem] sm:w-[34rem] z-0" />
+
+        <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+          {/* Visual Column with 3 Phone Mockups (Matches List, Messages, In-App Call) */}
+          <div className="relative order-2 lg:order-1 mx-auto flex min-h-[35rem] w-full max-w-[40rem] items-center justify-center sm:min-h-[44rem]">
+            {/* Ambient circular backdrop accent */}
+            <div className="absolute h-[22rem] w-[22rem] -rotate-3 rounded-[3.5rem] bg-gradient-to-tr from-[#F45D9B]/20 via-emerald-300/10 to-transparent sm:h-[30rem] sm:w-[30rem]" />
+
+            {/* Left Background Phone: Matches & Inboxes */}
+            <motion.div
+              style={{ y: chatLeftPhoneY }}
+              initial={{ opacity: 0, x: -40, rotate: -14 }}
+              whileInView={{ opacity: 0.88, x: 0, rotate: -10 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.85, ease: sceneEase }}
+              className="absolute -left-4 sm:left-0 z-10 w-[12rem] sm:w-[15.5rem] lg:w-[17rem] drop-shadow-[0_25px_40px_rgba(28,9,24,.18)] transition-all duration-500 hover:opacity-100 hover:scale-105"
+            >
+              <img
+                src="/mockups/phone-chat-matches.png"
+                alt="Othrhalff Campus matches and conversation inbox"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Right Background Phone: In-App Call Screen */}
+            <motion.div
+              style={{ y: chatRightPhoneY }}
+              initial={{ opacity: 0, x: 40, rotate: 14 }}
+              whileInView={{ opacity: 0.88, x: 0, rotate: 10 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.85, ease: sceneEase }}
+              className="absolute -right-4 sm:right-0 z-10 w-[12rem] sm:w-[15.5rem] lg:w-[17rem] drop-shadow-[0_25px_40px_rgba(28,9,24,.18)] transition-all duration-500 hover:opacity-100 hover:scale-105"
+            >
+              <img
+                src="/mockups/phone-chat-call.png"
+                alt="Othrhalff In-app voice and video calling"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Center Foreground Phone: Active Messages Screen */}
+            <motion.div
+              style={{ y: chatPhoneY }}
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 1, ease: sceneEase }}
+              className="relative z-20 w-[14rem] sm:w-[17.5rem] lg:w-[19.5rem] drop-shadow-[0_35px_65px_rgba(28,9,24,.35)] transition-transform duration-500 hover:scale-105"
+            >
+              <img
+                src="/mockups/phone-chat-messages.png"
+                alt="Othrhalff Real-time private messaging"
+                className="h-auto w-full object-contain"
+                loading="lazy"
+              />
+            </motion.div>
+
+            {/* Top Floating Badge: Calling & Voice */}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -top-3 right-2 sm:right-6 z-30 rounded-2xl border border-black/10 bg-white/95 px-4 py-2.5 shadow-[0_15px_35px_rgba(28,9,24,.1)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                <span className="font-mono text-[10px] font-bold tracking-wider text-black/75 uppercase">HD CALLS &amp; VOICE</span>
+              </div>
+            </motion.div>
+
+            {/* Bottom Floating Badge: Encrypted & Private */}
+            <motion.div
+              animate={{ rotate: [-1.5, 1.5, -1.5], y: [0, -6, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+              className="absolute -bottom-3 left-2 sm:left-6 z-30 max-w-[12.5rem] rounded-2xl border border-black/10 bg-white/95 p-3.5 shadow-[0_20px_45px_rgba(28,9,24,.12)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2 text-[#F45D9B]">
+                <ShieldCheck className="h-4 w-4 fill-current" />
+                <span className="font-mono text-[9px] font-bold tracking-[.14em] uppercase">PRIVATE &amp; DIRECT</span>
+              </div>
+              <p className="mt-1 text-xs font-bold leading-snug text-[#0c0710]">
+                Zero phone number sharing.
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Text Column */}
+          <div className="relative order-1 lg:order-2 max-w-xl">
+            <motion.div variants={reveal} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
+              <h2 className="font-geist text-5xl font-black leading-[0.95] tracking-tight text-[#0c0710] sm:text-7xl lg:text-[5.5rem]">
+                Real chats.<br />
+                <span className="font-geraldine font-normal text-6xl text-[#F45D9B] sm:text-8xl lg:text-[7rem] tracking-normal inline-block mt-2">
+                  from text to call.
+                </span>
+              </h2>
+              <p className="mt-6 max-w-md text-base leading-relaxed text-black/65 sm:text-lg">
+                Private messaging, instant voice notes, and seamless in-app calls. Where campus plans actually happen.
+              </p>
+            </motion.div>
+
+            {/* Two Frosted Cards */}
+            <div className="mt-8 grid max-w-lg grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/10 text-[#F45D9B] shadow-inner">
+                    <MessageCircle className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-black/40 uppercase">Direct Messaging</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Instant chat.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Text, voice notes &amp; media.</p>
+              </div>
+
+              <div className="group rounded-2xl border border-black/10 bg-white/90 p-4 sm:p-5 shadow-[0_12px_30px_rgba(28,11,21,.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#F45D9B]/35 hover:shadow-[0_20px_40px_rgba(244,93,155,.12)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F45D9B]/15 text-[#F45D9B] shadow-inner">
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[9px] font-bold tracking-[.14em] text-[#F45D9B] uppercase">In-App Audio</span>
+                </div>
+                <p className="mt-3.5 text-sm font-bold text-[#0c0710] sm:text-base">Voice &amp; video.</p>
+                <p className="mt-0.5 text-xs font-medium text-black/55">Safe, instant audio calls.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
