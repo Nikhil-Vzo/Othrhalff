@@ -71,6 +71,21 @@ describe('Campus PCO Radio Deterministic Scheduler & Admin Service', () => {
     Date.now = realNow;
   });
 
+  test('getPcoLiveSchedule provides daily schedule variation across different days', () => {
+    const day1Sec = Math.floor(new Date('2026-09-01T12:00:00Z').getTime() / 1000);
+    const day2Sec = Math.floor(new Date('2026-09-02T12:00:00Z').getTime() / 1000);
+
+    const schedDay1 = getPcoLiveSchedule(day1Sec);
+    const schedDay2 = getPcoLiveSchedule(day2Sec);
+
+    expect(schedDay1.currentTrack).toBeDefined();
+    expect(schedDay2.currentTrack).toBeDefined();
+    // Shuffled sequence on day 2 should be different from day 1
+    const order1 = schedDay1.upcomingTracks.map(t => t.id).join(',');
+    const order2 = schedDay2.upcomingTracks.map(t => t.id).join(',');
+    expect(order1).not.toBe(order2);
+  });
+
   test('checkIsPcoAdmin recognizes platform owner emails as admins', async () => {
     const primaryEmails = [
       'nikhilyadav200530@gmail.com',

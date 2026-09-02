@@ -90,11 +90,19 @@ function seededShuffleList<T>(array: T[], seed: number = 789456): T[] {
 
 /**
  * Calculates current playing track and next 20 scheduled songs deterministically.
+ * Uses a daily date-based seed (e.g. UTC YYYY-MM-DD hash) so every single day
+ * has a fresh, completely reshuffled song queue, while remaining 100% synchronized
+ * down to the exact second across all listeners worldwide.
  */
-export function getPcoLiveSchedule(): PcoLiveSchedule {
-  const allTracks = seededShuffleList(curatedRomanticTracks as PcoTrack[], 789456);
+export function getPcoLiveSchedule(customTimestampSec?: number): PcoLiveSchedule {
+  const nowMs = customTimestampSec !== undefined ? customTimestampSec * 1000 : Date.now();
+  const d = new Date(nowMs);
+  const dateKey = d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+  const dailySeed = ((dateKey * 2654435761) ^ 789456) >>> 0;
+
+  const allTracks = seededShuffleList(curatedRomanticTracks as PcoTrack[], dailySeed);
   const totalDuration = allTracks.reduce((acc, t) => acc + (parseInt(t.duration, 10) || 240), 0);
-  const nowSec = Math.floor(Date.now() / 1000);
+  const nowSec = customTimestampSec !== undefined ? customTimestampSec : Math.floor(nowMs / 1000);
   let cycleTime = nowSec % (totalDuration || 1);
 
   let currentIndex = 0;

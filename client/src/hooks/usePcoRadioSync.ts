@@ -483,10 +483,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
 
         // Auto schedule rollover check or background tab watchdog
         if (!activeTrack || activeTrack.id !== sched.currentTrack.id) {
-          setCurrentTrack(sched.currentTrack);
-          audio.currentTime = sched.offsetSec;
-          setCurrentTime(sched.offsetSec);
-          audio.playbackRate = 1.0;
+          loadAutoScheduleTrack(sched.offsetSec);
           return;
         }
 
@@ -514,7 +511,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         driftIntervalRef.current = null;
       }
     };
-  }, [handleTrackEnd, setCurrentTrack, ensurePreservesPitch]);
+  }, [handleTrackEnd, loadAutoScheduleTrack, ensurePreservesPitch]);
 
   // 4. Audio Event Handlers
   // SCALING FIX: throttle currentTime state updates to ~1 Hz. onTimeUpdate
