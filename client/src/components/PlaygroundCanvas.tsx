@@ -108,6 +108,21 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
   const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const collisionPixelsRef = useRef<Uint8ClampedArray | null>(null);
 
+  const isBlockedPixel = (px: number, py: number): boolean => {
+    if (px < 0 || px >= WORLD_WIDTH || py < 0 || py >= WORLD_HEIGHT) return true;
+    if (!collisionPixelsRef.current) return false;
+
+    const idx = (Math.floor(py) * WORLD_WIDTH + Math.floor(px)) * 4;
+    const r = collisionPixelsRef.current[idx];
+    const g = collisionPixelsRef.current[idx + 1];
+    const b = collisionPixelsRef.current[idx + 2];
+    const a = collisionPixelsRef.current[idx + 3];
+
+    // Strictly walkable ONLY if light/white (R, G, B >= 120 and A > 128)
+    // Red obstacle areas (e.g. 231, 25, 31) and Dark/Black areas (0, 0, 0) are blocked!
+    return !(r >= 120 && g >= 120 && b >= 120 && a > 128);
+  };
+
   const checkPixelCollision = useCallback((x: number, y: number, size: number = 32) => {
     if (x < 0 || x > WORLD_WIDTH || y < 0 || y > WORLD_HEIGHT) return true;
 
@@ -120,13 +135,21 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
 
     if (!collisionPixelsRef.current) return false;
 
-    const checkX = Math.round(x);
-    const checkY = Math.round(y + size / 2);
-    if (checkX < 0 || checkX >= WORLD_WIDTH || checkY < 0 || checkY >= WORLD_HEIGHT) return true;
+    // Check footprint bounding area around avatar base to prevent clipping into walls/red areas
+    const footY = Math.round(y + size / 2 - 2);
+    const halfW = 8;
+    const footH = 6;
 
-    // Fast array index lookup (4 bytes per pixel: R, G, B, A)
-    const index = (checkY * WORLD_WIDTH + checkX) * 4;
-    return collisionPixelsRef.current[index] < 50;
+    // Check center, left, right, top, bottom of the player's base footprint
+    if (isBlockedPixel(x, footY)) return true;
+    if (isBlockedPixel(x - halfW, footY)) return true;
+    if (isBlockedPixel(x + halfW, footY)) return true;
+    if (isBlockedPixel(x, footY - footH)) return true;
+    if (isBlockedPixel(x, footY + 4)) return true;
+    if (isBlockedPixel(x - halfW, footY - footH)) return true;
+    if (isBlockedPixel(x + halfW, footY - footH)) return true;
+
+    return false;
   }, []);
 
   const findNearestWalkablePosition = useCallback((startX: number, startY: number) => {
@@ -487,14 +510,6 @@ export const PlaygroundCanvas: React.FC<PlaygroundCanvasProps> = ({
            isLocal={true}
            speechBubble={speechBubbles.get(localSessionId)?.text}
            avatarId={avatarId}
-        />
-
-        {/* 🏛️ Campus Map Foreground Overlay Layer (Overlays avatar when in the red mask area) */}
-        <img
-          src="/assets/campus-overlay.webp"
-          alt="Campus Map Foreground Overlay"
-          className="absolute inset-0 w-full h-full pointer-events-none select-none z-30"
-          style={{ imageRendering: 'pixelated', width: `${WORLD_WIDTH}px`, height: `${WORLD_HEIGHT}px` }}
         />
 
       </div>
