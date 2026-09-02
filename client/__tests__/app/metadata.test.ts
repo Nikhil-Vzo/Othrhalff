@@ -77,6 +77,8 @@ import { metadata as aboutMetadata } from '../../app/about/page';
 import { metadata as blogMetadata } from '../../app/blog/page';
 import { metadata as careersMetadata } from '../../app/careers/page';
 import { metadata as layoutMetadata } from '../../app/layout';
+import { metadata as sparxMusicMetadata } from '../../app/sparx/music/layout';
+import { metadata as playgroundMetadata } from '../../app/playground/layout';
 
 // Type alias for convenience
 type OGMeta = { title?: string; description?: string; images?: string[] };
@@ -296,3 +298,54 @@ describe('Layout metadata (client/app/layout.tsx)', () => {
     expect(desc.includes('campus') || desc.includes('dating')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Sparx Music layout metadata tests (client/app/sparx/music/layout.tsx)
+// ---------------------------------------------------------------------------
+describe('Sparx Music layout metadata (client/app/sparx/music/layout.tsx)', () => {
+  it('exports a metadata object', () => {
+    expect(sparxMusicMetadata).toBeDefined();
+  });
+
+  it('has a title mentioning Sparx FM and 24/7 Campus Radio', () => {
+    expect((sparxMusicMetadata.title as string)).toContain('Sparx FM');
+    expect((sparxMusicMetadata.title as string)).toContain('Campus Radio');
+  });
+
+  it('has a description mentioning synchronized radio or lyrics', () => {
+    const desc = (sparxMusicMetadata.description as string).toLowerCase();
+    expect(desc.includes('synchronized') || desc.includes('lyrics') || desc.includes('radio')).toBe(true);
+  });
+
+  it('has canonical alternate set to /sparx/music', () => {
+    expect((sparxMusicMetadata.alternates as any)?.canonical).toBe('https://www.othrhalff.in/sparx/music');
+  });
+
+  it('has openGraph metadata with title and images', () => {
+    expect(sparxMusicMetadata.openGraph).toBeDefined();
+    expect(sparxMusicMetadata.openGraph?.title).toContain('Sparx FM');
+    expect(sparxMusicMetadata.openGraph?.images).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Playground layout metadata tests (client/app/playground/layout.tsx)
+// ---------------------------------------------------------------------------
+describe('Playground layout metadata (client/app/playground/layout.tsx)', () => {
+  it('exports a metadata object', () => {
+    expect(playgroundMetadata).toBeDefined();
+  });
+
+  it('has a title mentioning Campus Pixel Playground', () => {
+    expect((playgroundMetadata.title as string)).toContain('Campus Pixel Playground');
+  });
+
+  it('has a description mentioning pixel or voice chat', () => {
+    const desc = (playgroundMetadata.description as string).toLowerCase();
+    expect(desc.includes('pixel') || desc.includes('voice') || desc.includes('avatar')).toBe(true);
+  });
+
+  it('has canonical alternate set to /playground', () => {
+    expect((playgroundMetadata.alternates as any)?.canonical).toBe('https://www.othrhalff.in/playground');
+  });
+});

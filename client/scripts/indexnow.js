@@ -6,14 +6,19 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 1. Campuses
 const campusesFilePath = path.join(__dirname, '../src/seo/data/campuses.ts');
 const fileContent = fs.readFileSync(campusesFilePath, 'utf8');
-
-// Extract all slug strings from campuses.ts
 const slugMatches = [...fileContent.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1]);
 const uniqueSlugs = Array.from(new Set(slugMatches));
 
-// Generate compatibility slugs for top MBTI types
+// 2. Blog Posts
+const blogFilePath = path.join(__dirname, '../src/data/blogPosts.ts');
+const blogContent = fs.readFileSync(blogFilePath, 'utf8');
+const blogSlugMatches = [...blogContent.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1]);
+const uniqueBlogSlugs = Array.from(new Set(blogSlugMatches));
+
+// 3. MBTI Personality Combinations
 const personalityCodes = ['infp', 'intj', 'enfp', 'infj', 'intp', 'entp', 'enfj', 'entj', 'isfp', 'istp', 'esfp', 'estp', 'isfj', 'istj', 'esfj', 'estj'];
 const compatibilityUrls = [];
 for (const c1 of personalityCodes) {
@@ -28,24 +33,35 @@ const keyLocation = `https://${host}/${key}.txt`;
 
 const staticUrls = [
   `https://${host}/`,
-  `https://${host}/vibe`,
   `https://${host}/discover`,
   `https://${host}/confessions`,
   `https://${host}/reddit`,
   `https://${host}/sparx`,
-  `https://${host}/blog`,
-  `https://${host}/about`,
+  `https://${host}/sparx/music`,
+  `https://${host}/playground`,
+  `https://${host}/vibe`,
   `https://${host}/vs-omegle`,
+  `https://${host}/vs/omegle`,
   `https://${host}/vs/tinder`,
   `https://${host}/vs/bumble`,
   `https://${host}/vs/hinge`,
   `https://${host}/vs/yikyak`,
+  `https://${host}/blog`,
+  `https://${host}/about`,
+  `https://${host}/contact`,
+  `https://${host}/safety`,
+  `https://${host}/guidelines`,
+  `https://${host}/terms`,
+  `https://${host}/privacy`,
+  `https://${host}/careers`,
+  `https://${host}/developers`,
 ];
 
+const blogUrls = uniqueBlogSlugs.map(slug => `https://${host}/blog/${slug}`);
 const campusUrls = uniqueSlugs.map(slug => `https://${host}/campus/${slug}`);
 const teaUrls = uniqueSlugs.map(slug => `https://${host}/tea/${slug}`);
 
-const urls = [...staticUrls, ...campusUrls, ...teaUrls, ...compatibilityUrls];
+const urls = [...staticUrls, ...blogUrls, ...campusUrls, ...teaUrls, ...compatibilityUrls];
 
 const payload = JSON.stringify({
   host,

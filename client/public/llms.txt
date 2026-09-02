@@ -6,10 +6,13 @@
 - [Campus Discovery & Connections](https://www.othrhalff.in/discover): Real-time matching for college students based on shared classes, campus spots, study sessions, gym routines, and genuine vibes.
 - [Campus Confessions & Tea Hubs](https://www.othrhalff.in/confessions): 100% anonymous campus confession boards, exam rants, and honest university discussions with real-time reactions and moderation.
 - [Campus Sparx & Glimpse](https://www.othrhalff.in/sparx): 24-hour disappearing photo & audio stories capturing raw, unfiltered campus moments with zero clout anxiety (no likes or follower counts).
+- [Sparx FM 24/7 Campus Radio](https://www.othrhalff.in/sparx/music): 24/7 synchronized college radio station streaming Bollywood hits, Punjabi anthems, and campus lo-fi with real-time scrolling lyrics, live student chat reactions, and community DJ queues.
+- [Campus Pixel Playground](https://www.othrhalff.in/playground): Interactive 2D retro campus playground with spatial voice chat, arcade mini-games, and custom avatars.
+- [Chemistry & Archetype Radar](https://www.othrhalff.in/vibe): 60-second viral psychological relationship archetype test and campus compatibility matrix.
 - [Speed Discover Radar](https://www.othrhalff.in/discover): High-velocity live radar scan to connect instantly with students active on campus in under 60 seconds.
-- [Campus PCO Radio](https://www.othrhalff.in/fm): 24/7 synced lofi, indie, and student radio with live chat and synchronized lyrics.
 - [Competitor Comparisons](https://www.othrhalff.in/vs/tinder): How Othrhalff replaces superficial swiping apps with verified student community and genuine friendships.
-- [Campus Life & Student Guides](https://www.othrhalff.in/blog): Actionable guides on finding study partners, overcoming swipe fatigue, campus confessions culture, and building genuine college friendships.
+- [Campus Life & Student Guides](https://www.othrhalff.in/blog): Actionable guides on campus radio, finding study partners, overcoming swipe fatigue, campus confessions culture, and building genuine college friendships.
+- [Sparx FM Guide](https://www.othrhalff.in/blog/sparx-fm-the-rise-of-24-7-campus-radio): Deep dive into the resurgence of synchronized college radio airwaves and student jukeboxes in 2026.
 
 ## Supported Global University Networks (95+ Campuses Worldwide)
 - **India (🇮🇳)**: IIT Bombay, IIT Delhi, Delhi University (DU), BITS Pilani, Christ University, Manipal (MAHE), VIT Vellore, SRM, LPU, etc.

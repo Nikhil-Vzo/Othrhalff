@@ -361,5 +361,59 @@ export const blogPosts: BlogPost[] = [
         answer: 'Othrhalff is built around verified campus identity, anonymous confession walls, disappearing Sparx stories, and real-time presence tools — designed to facilitate real-world belonging, not online performance.'
       }
     ]
+  },
+  {
+    slug: 'sparx-fm-the-rise-of-24-7-campus-radio',
+    title: 'Sparx FM: The Rise of 24/7 Synchronized Campus Radio & Student Jukeboxes',
+    metaTitle: 'Sparx FM: 24/7 Synchronized Campus Radio & Student Jukebox | Othrhalff',
+    metaDescription: 'College students are tuning into synchronized 24/7 campus radio stations. Discover why Sparx FM with real-time lyrics, live chat, and student song requests is transforming dorm study vibes.',
+    keywords: [
+      'sparx fm campus radio',
+      'campus radio 24/7',
+      'synchronized music college',
+      'student jukebox radio',
+      'college study radio stream',
+      'bollywood lofi radio campus',
+      'shared music listening college'
+    ],
+    publishedDate: '2026-09-03',
+    modifiedDate: '2026-09-03',
+    readTime: '5 min read',
+    author: {
+      name: 'Nikhil Yadav',
+      role: 'Founder & Engineer, Othrhalff',
+      avatar: '/favicon.png'
+    },
+    category: 'Product',
+    featuredImage: '/sparxfm-wall.webp',
+    excerpt: 'Listening to Spotify in isolation is fine, but listening together in sync with thousands of students across campus hits differently. Here is why synchronized 24/7 campus radio is making a major comeback.',
+    content: [
+      'Put on noise-cancelling headphones in any college library and you will see hundreds of students bobbing their heads in complete isolation. We have millions of songs in our pockets, yet the communal feeling of sharing an unexpected banger with friends has largely vanished.',
+      'That is why Sparx FM was built: to bring the magic of synchronized college radio into 2026.',
+      '### The Power of Synchronized Listening',
+      'There is a psychological phenomenon that happens when people listen to the exact same audio stream at the exact same moment. Whether it is an upbeat Punjabi anthem turning up the vibe at 11 PM or a mellow Bollywood lo-fi melody during 2 AM finals prep, knowing that classmates across your campus are hearing the exact same bridge creates an unspoken bond of belonging.',
+      'Traditional radio was bound to FM transmitters and geographical towers. Sparx FM reimagines campus radio for the modern web—clock-synchronized down to the millisecond across 95+ university campuses worldwide.',
+      '### Real-Time Lyrics & Campus Chat',
+      'Sparx FM is not just passive background audio; it is an interactive campus jukebox. As each track plays, time-coded synchronized lyrics scroll on screen in real time, accompanied by live reactions and student chat.',
+      'Students can vibe together, comment on their favorite verses, or drop anonymous shoutouts to study partners without missing a beat.',
+      '### Curated for Campus Rhythms',
+      'Streaming algorithms often pull you into repetitive echo chambers. Sparx FM features an expanding daily rotation of over 98 verified campus tracks—ranging from soothing midnight study lo-fi to energetic anthems—with dynamic daily shuffling that guarantees you never hear the same predictable sequence two days in a row.',
+      'Campus life moves fast, but having a shared soundtrack brings everyone back on the same frequency.'
+    ],
+    faqs: [
+      {
+        question: 'What is Sparx FM?',
+        answer: 'Sparx FM is Othrhalff’s 24/7 synchronized campus radio station and live student jukebox, streaming curated music with real-time scrolling lyrics and campus chat across 95+ universities.'
+      },
+      {
+        question: 'Can students request songs on Sparx FM?',
+        answer: 'Yes! In manual DJ mode, campus administrators and verified students can submit song requests and queue tracks directly in the live radio player.'
+      },
+      {
+        question: 'Is Sparx FM free to listen to?',
+        answer: 'Yes, Sparx FM is 100% free and open for all university students to stream without any subscription fees or audio ads.'
+      }
+    ]
   }
 ];
+
