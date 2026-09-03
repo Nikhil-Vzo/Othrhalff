@@ -6,7 +6,7 @@ Built with a focus on **anonymity, simplicity, and real-time interaction**, it r
 No fake perfection.  
 No forced identity.  
 Just people, thoughts, and connections.
-> **Production Platform**: [Othrhalff](https://www.othrhalff.in)  
+> **Production Platform**: [Othrhalff](https://www.othrhalff.in
 > **Brand & Target**: Verified Campus College Connection, Instant Speed Text & Video Chat, Anonymous Confessions
 
 ---
