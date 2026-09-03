@@ -403,4 +403,18 @@ describe('Maintenance page (app/maintenance/page.tsx)', () => {
   it('renders without throwing', () => {
     expect(() => render(<MaintenancePage />)).not.toThrow();
   });
+
+  it('displays the clock and domain available for sale statement', () => {
+    render(<MaintenancePage />);
+    expect(screen.getByRole('region', { name: /live clock/i })).toBeInTheDocument();
+    expect(screen.getByText(/publicly available for sale/i)).toBeInTheDocument();
+    expect(screen.getByText(/this page & domain are/i)).toBeInTheDocument();
+  });
+
+  it('contains mailto redirection links targeting lachavzo11@gmail.com', () => {
+    render(<MaintenancePage />);
+    const mailLinks = screen.getAllByRole('link', { name: /lachavzo11@gmail\.com|send offer via mail/i });
+    expect(mailLinks.length).toBeGreaterThan(0);
+    expect(mailLinks[0].getAttribute('href')).toContain('mailto:lachavzo11@gmail.com');
+  });
 });
