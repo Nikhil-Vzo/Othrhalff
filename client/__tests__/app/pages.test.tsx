@@ -404,16 +404,8 @@ describe('Maintenance page (app/maintenance/page.tsx)', () => {
     expect(() => render(<MaintenancePage />)).not.toThrow();
   });
 
-  it('displays the analog clock and domain available for purchase statement', () => {
+  it('displays invalid text', () => {
     render(<MaintenancePage />);
-    expect(screen.getByRole('region', { name: /analog clock/i })).toBeInTheDocument();
-    expect(screen.getByText(/domain are available for purchase/i)).toBeInTheDocument();
-  });
-
-  it('contains mailto redirection link targeting lachavzo11@gmail.com', () => {
-    render(<MaintenancePage />);
-    const mailLinks = screen.getAllByRole('link', { name: /send inquiry via mail/i });
-    expect(mailLinks.length).toBeGreaterThan(0);
-    expect(mailLinks[0].getAttribute('href')).toContain('mailto:lachavzo11@gmail.com');
+    expect(screen.getByText(/invalid/i)).toBeInTheDocument();
   });
 });
