@@ -893,7 +893,7 @@ export const Home: React.FC = () => {
                     <div className="flex bg-black/60 backdrop-blur-2xl rounded-full p-1 border border-white/10 shadow-2xl">
                         <button
                             onClick={() => setFilterMode('campus')}
-                            title={`Campus Mode: Only show students from ${currentUser?.university || 'your university'}`}
+                            title="Campus Mode: Only show students from your campus"
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold uppercase transition-all duration-300 ${filterMode === 'campus'
                                 ? 'bg-gradient-to-r from-neon to-pink-600 text-white shadow-[0_0_20px_rgba(255,0,127,0.4)]'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -1025,7 +1025,7 @@ export const Home: React.FC = () => {
                         </h2>
                         <p className="text-gray-500 text-sm max-w-xs mb-8 mx-auto leading-relaxed">
                             {filterMode === 'campus'
-                                ? 'No more students from your university. Try Global or review who you skipped!'
+                                ? 'No more students from your campus. Try Global or review who you skipped!'
                                 : 'No more profiles available right now.'}
                         </p>
                         <div className="flex flex-col gap-3">
@@ -1144,10 +1144,6 @@ export const Home: React.FC = () => {
                                         {currentProfile.isVerified && (
                                             <BadgeCheck className="w-5 h-5 drop-shadow-[0_0_6px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} />
                                         )}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1 text-sm text-gray-200">
-                                        <GraduationCap className="w-4 h-4 drop-shadow-lg" />
-                                        <span className="drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">{currentProfile.university}</span>
                                     </div>
                                     {(currentProfile.branch || currentProfile.year) && (
                                         <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-300">

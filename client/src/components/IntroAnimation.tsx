@@ -67,7 +67,7 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) =>
 
         {/* Caption */}
         <div className={`mt-2 transition-all duration-700 delay-200 transform ${step >= 3 ? 'opacity-100' : 'opacity-0'}`}>
-          <p className="text-gray-400 text-sm tracking-[0.5em] uppercase text-center">University Dating Reimagined</p>
+          <p className="text-gray-400 text-sm tracking-[0.5em] uppercase text-center">Dating Reimagined</p>
         </div>
       </div>
     </div>

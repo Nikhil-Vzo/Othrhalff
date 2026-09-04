@@ -364,11 +364,6 @@ export const Profile: React.FC = () => {
                                                 </span>
                                             )}
                                         </div>
-                                        
-                                        <div className="flex items-center justify-center md:justify-start gap-1.5 text-zinc-400 font-semibold text-sm">
-                                            <GraduationCap className="w-4 h-4 text-neon" />
-                                            <span>{profileUser.university}</span>
-                                        </div>
                                     </div>
 
                                     <div className="flex flex-wrap justify-center md:justify-start gap-2">

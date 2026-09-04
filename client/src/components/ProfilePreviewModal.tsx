@@ -75,10 +75,6 @@ export const ProfilePreviewModal: React.FC<ProfilePreviewModalProps> = ({
                                 <BadgeCheck className="w-6 h-6 drop-shadow-[0_0_6px_rgba(96,165,250,0.8)]" style={{ color: '#60a5fa' }} />
                             )}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-200 drop-shadow-lg">
-                            <GraduationCap className="w-4 h-4" />
-                            <span>{profile.university}</span>
-                        </div>
                     </div>
                 </div>
 

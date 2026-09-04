@@ -1905,7 +1905,7 @@ export const Chat: React.FC = () => {
                           </div>
                           <div>
                             <div className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">Would You Rather</div>
-                            <div className="text-[10px] text-gray-400">Vote on college & lifestyle questions together.</div>
+                            <div className="text-[10px] text-gray-400">Vote on fun & lifestyle questions together.</div>
                           </div>
                         </button>
                       </div>

@@ -363,8 +363,6 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
               )}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-              <span className="truncate text-neon/95">{glimpse.profiles?.university || glimpse.university}</span>
-              <span className="w-1 h-1 rounded-full bg-gray-600" />
               <span>{getRelativeTime(glimpse.created_at)}</span>
             </div>
           </div>

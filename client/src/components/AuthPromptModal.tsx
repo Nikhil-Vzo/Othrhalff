@@ -256,7 +256,7 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({ isOpen, onClos
             {message || "Signup to access other sections"}
           </h2>
           <p className="text-xs sm:text-sm text-neutral-400 font-medium leading-relaxed max-w-xs mx-auto">
-            {message ? "Create an account or log in to view and connect with your college community." : "Create an account or log in to get a match, view profiles, confessions, comment and chat with other students."}
+            {message ? "Create an account or log in to view and connect with your campus community." : "Create an account or log in to get a match, view profiles, confessions, comment and chat with other students."}
           </p>
         </div>
 

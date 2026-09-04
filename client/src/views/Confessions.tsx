@@ -843,9 +843,7 @@ export const Confessions: React.FC = () => {
                         <div>
                             <h1 className="text-xl font-bold uppercase tracking-tight">Confessions</h1>
                             <p className="text-[10px] text-gray-500 font-mono">
-                                {currentUser 
-                                    ? (feedMode === 'campus' ? currentUser.university : 'Global Feed') 
-                                    : 'Global Feed'}
+                                {feedMode === 'campus' ? 'Campus Feed' : 'Global Feed'}
                             </p>
                         </div>
                     </div>
@@ -928,11 +926,6 @@ export const Confessions: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className={`text-sm font-bold ${conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? 'text-neon' : 'text-gray-300'}`}>{conf.id === '46c46dcc-ad75-487d-b5a4-70b03081c222' ? 'Team Other Half' : conf.userId}</span>
-                                                {feedMode === 'global' && college && (
-                                                    <span className="bg-[#ff007f]/10 text-neon text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-[#ff007f]/20">
-                                                        {college.split(',')[0]}
-                                                    </span>
-                                                )}
                                             </div>
                                             <div className="flex justify-between items-center mt-0.5">
                                                 <p className="text-[10px] text-gray-600 uppercase font-bold">

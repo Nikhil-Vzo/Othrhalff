@@ -400,7 +400,7 @@ export const Notifications: React.FC = () => {
                       </h4>
                       {notif.type === 'like' && notif.fromUser && (
                         <p className="text-xs text-gray-500 mb-1">
-                          {notif.fromUser.anonymousId} • {notif.fromUser.university}
+                          {notif.fromUser.anonymousId}
                         </p>
                       )}
                     </div>

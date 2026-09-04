@@ -774,7 +774,7 @@ export const Sparx: React.FC = () => {
                 <h3 className="text-base font-bold text-white uppercase mb-1">No Active Glimpsers</h3>
                 <p className="text-xs text-gray-500 max-w-[240px] leading-relaxed mb-6">
                   {leaderboardScope === 'campus'
-                    ? 'No one at your university has shared any glimpses in the last 24 hours.'
+                    ? 'No one on your campus has shared any glimpses in the last 24 hours.'
                     : 'No global glimpses have been shared in the last 24 hours.'}
                 </p>
                 <button
@@ -858,7 +858,7 @@ export const Sparx: React.FC = () => {
                             )}
                           </h4>
                           <span className="text-[10px] text-gray-500 block truncate mt-0.5 font-medium">
-                            @{user.profile.username || user.profile.anonymous_id || 'anonymous'} • {user.profile.university}
+                            @{user.profile.username || user.profile.anonymous_id || 'anonymous'}
                           </span>
                         </div>
                       </div>

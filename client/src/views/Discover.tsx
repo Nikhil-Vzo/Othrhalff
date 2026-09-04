@@ -724,8 +724,8 @@ export const Discover: React.FC = () => {
             Searching for a Match...
           </h2>
           <p className="text-gray-400 text-xs md:text-sm font-mono mb-4">
-            {scope === 'CAMPUS' && currentUser?.university
-              ? `Looking within ${currentUser.university}...`
+            {scope === 'CAMPUS'
+              ? 'Looking within your campus...'
               : 'Looking for verified students globally...'}
           </p>
 
@@ -818,7 +818,7 @@ export const Discover: React.FC = () => {
               </h3>
               <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Connected {callInfo?.partnerUniversity ? `• ${callInfo.partnerUniversity}` : ''}
+                Connected
               </p>
             </div>
           </div>
