@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/about',
   },
+  openGraph: {
+    title: 'About OthrHalff – Campus Connections & Community',
+    description: 'Learn about our mission to bring connection back to campus life without the pressure of superficial swiping.',
+    url: 'https://www.othrhalff.in/about',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {

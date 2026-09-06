@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/contact',
   },
+  openGraph: {
+    title: 'Contact Support | OthrHalff',
+    description: 'Get in touch with the OthrHalff team. Report issues, submit feedback, or reach out for help.',
+    url: 'https://www.othrhalff.in/contact',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {

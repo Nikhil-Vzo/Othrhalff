@@ -13,6 +13,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/reddit',
   },
+  openGraph: {
+    title: 'Othrhalff on Reddit – Real Campus Reviews & Discussions',
+    description: 'What real college students say about Othrhalff — reviews, discussions and honest takes from Reddit, all in one place.',
+    url: 'https://www.othrhalff.in/reddit',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {

@@ -636,9 +636,9 @@ export const Discover: React.FC = () => {
             />
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
             Speed <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon to-pink-500">Discover</span>
-          </h1>
+          </h2>
           <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-8">
             Chat or video call with random people around you.
           </p>

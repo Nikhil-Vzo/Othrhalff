@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/careers',
   },
+  openGraph: {
+    title: 'Careers | OthrHalff – Join the Ghost Crew',
+    description: 'Join the Ghost Crew. We are a small, passionate team building the next generation of social discovery.',
+    url: 'https://www.othrhalff.in/careers',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {

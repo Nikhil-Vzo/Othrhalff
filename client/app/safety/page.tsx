@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/safety',
   },
+  openGraph: {
+    title: 'Safety Tips | OthrHalff',
+    description: 'Stay safe on OthrHalff. Tips for meeting people, protecting your information, and reporting concerns.',
+    url: 'https://www.othrhalff.in/safety',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {
