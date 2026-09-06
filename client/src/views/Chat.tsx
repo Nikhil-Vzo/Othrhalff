@@ -453,7 +453,7 @@ const MessageRow = React.memo<MessageRowProps>(({
         {!isMe && (
           <div className="w-8 h-8 flex-shrink-0">
             {showAvatar && (
-              <img src={getOptimizedUrl(partner.avatar, 64)} className="w-8 h-8 rounded-full border border-gray-800 object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
+              <img src={getOptimizedUrl(partner.avatar, 64)} alt={`${partner.realName || partner.anonymousId || 'Partner'}'s avatar`} className="w-8 h-8 rounded-full border border-gray-800 object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
             )}
           </div>
         )}

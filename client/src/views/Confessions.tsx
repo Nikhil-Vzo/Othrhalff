@@ -1250,7 +1250,7 @@ export const Confessions: React.FC = () => {
                     </div>
                 </>
             )}
-            {viewImage && <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4" onClick={() => setViewImage(null)}><img src={viewImage} className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} /></div>}
+            {viewImage && <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4" onClick={() => setViewImage(null)}><img src={viewImage} alt="Enlarged confession attachment" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} /></div>}
             
             {/* Action Feedback Toast */}
             {toastMessage && (

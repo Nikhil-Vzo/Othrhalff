@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/developers',
   },
+  openGraph: {
+    title: 'The Core Team | OthrHalff',
+    description: 'Meet the team behind OthrHalff — passionate students building the future of campus connection.',
+    url: 'https://www.othrhalff.in/developers',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {

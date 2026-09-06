@@ -17,6 +17,15 @@ const Login = dynamic(() => import('../../src/views/Login').then(mod => mod.Logi
 export const metadata: Metadata = {
   title: 'Log In | OthrHalff',
   description: 'Sign in to OthrHalff with Google or Magic Link. Start connecting with students on your campus.',
+  alternates: {
+    canonical: '/login',
+  },
+  openGraph: {
+    title: 'Log In | OthrHalff',
+    description: 'Sign in to OthrHalff with Google or Magic Link. Start connecting with students on your campus.',
+    url: 'https://www.othrhalff.in/login',
+    images: ['https://www.othrhalff.in/og-image.webp'],
+  },
 };
 
 export default function Page() {
