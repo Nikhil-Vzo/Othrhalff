@@ -252,3 +252,32 @@ body.story-active .layout-content-wrapper {
 .animate-bloom-drift {
   animation: bloom-drift 4.5s ease-in-out infinite;
 }
+
+/* 🛡️ Anti-Screenshot & Print Protection */
+@media print {
+  html, body, #root, main, div, nav, aside {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  html::after {
+    content: "🔒 Printing or capturing student profiles and messages is strictly disabled on Othrhalff.";
+    display: flex !important;
+    visibility: visible !important;
+    font-size: 24px;
+    font-weight: 900;
+    text-align: center;
+    color: #ff007f !important;
+    background: #000000 !important;
+    padding: 120px 24px;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    justify-content: center;
+  }
+}
+
+/* Prevent image dragging across the site to deter quick image ripping */
+img, video {
+  -webkit-user-drag: none;
+  user-drag: none;
+}

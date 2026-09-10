@@ -20,6 +20,7 @@ const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mo
 import { IncomingCallModal } from '../components/IncomingCallModal';
 import { OutgoingCallModal } from '../components/OutgoingCallModal';
 import { PushNotificationModal } from '../components/PushNotificationModal';
+import { ScreenshotProtection } from '../components/ScreenshotProtection';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -214,6 +215,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden selection:bg-neon selection:text-white">
+      {/* 🛡️ Global Screenshot Protection Shield & Dynamic Watermark */}
+      <ScreenshotProtection currentUser={currentUser} />
+
       {/* Desktop Sidebar Placeholder to prevent layout shift */}
       {!isFullscreen && (
         <div className="hidden md:block shrink-0 h-full bg-black z-10 w-[280px]" />
