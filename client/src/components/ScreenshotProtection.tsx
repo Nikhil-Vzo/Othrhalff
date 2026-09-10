@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Lock, ShieldAlert, Ghost, Sparkles, EyeOff } from 'lucide-react';
+import { Ghost, ShieldAlert, ArrowRight, EyeOff } from 'lucide-react';
+import { StarField } from './StarField';
 import { useToast } from '../context/ToastContext';
 
 interface ScreenshotProtectionProps {
@@ -31,7 +32,6 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
 
   const triggerSecurityWarning = useCallback((message = 'Screenshots are restricted to safeguard student privacy.') => {
     const now = Date.now();
-    // Throttle toast to once every 3 seconds
     if (now - lastToastTimeRef.current > 3000) {
       lastToastTimeRef.current = now;
       showToast(message, 'warning');
@@ -41,10 +41,10 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
   const wipeClipboard = useCallback(() => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText('🔒 Screenshot Restricted: Othrhalff protects student profiles and confidential messages.').catch(() => {});
+        navigator.clipboard.writeText('[Othrhalff Privacy Shield] Screenshots are restricted to safeguard student profiles and confidential messages.').catch(() => {});
       }
     } catch {
-      // Ignore clipboard write failures if not permitted
+      // Ignore clipboard write failures
     }
   }, []);
 
@@ -121,9 +121,7 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
       if (
         key === 'PrintScreen' ||
         e.keyCode === 44 ||
-        // macOS Cmd + Shift + 3 / 4 / 5 / S
         (isCtrlOrMeta && e.shiftKey && (key === '3' || key === '4' || key === '5' || key === 's' || key === 'S')) ||
-        // Windows Win+Shift+S triggers blur or key
         (e.shiftKey && (key === 's' || key === 'S') && isCtrlOrMeta)
       ) {
         e.preventDefault();
@@ -155,12 +153,11 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
         return false;
       }
 
-      // Inspect Element / DevTools (F12, Ctrl+Shift+I / J / C)
+      // Inspect Element / DevTools (F12, Ctrl+Shift+I / J / C in production)
       if (
         key === 'F12' ||
         (isCtrlOrMeta && e.shiftKey && (key === 'i' || key === 'I' || key === 'j' || key === 'J' || key === 'c' || key === 'C'))
       ) {
-        // Only block in production to avoid hindering developer debugging
         if (process.env.NODE_ENV === 'production') {
           e.preventDefault();
           e.stopPropagation();
@@ -171,7 +168,6 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      // Windows often dispatches PrintScreen only on keyup
       if (e.key === 'PrintScreen' || e.keyCode === 44) {
         e.preventDefault();
         e.stopPropagation();
@@ -189,17 +185,15 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     };
   }, [enableShortcutBlock, flashPrivacyShield, triggerSecurityWarning]);
 
-  // 4. Prevent Context Menu & Image Dragging (Right Click Protection)
+  // 4. Prevent Context Menu & Image Dragging
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
-      // Allow context menu only inside inputs and textareas for normal editing/pasting
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       if (isInput) return;
 
-      // Block right-click on all images, videos, canvas, and profile cards
       e.preventDefault();
       triggerSecurityWarning('Right-click saving is disabled for privacy.');
       return false;
@@ -255,10 +249,10 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
           <div className="w-16 h-16 rounded-full bg-neon/20 border border-neon flex items-center justify-center text-neon mb-4 shadow-[0_0_30px_#ff007f]">
             <ShieldAlert className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">
-            Screenshots Disabled
+          <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">
+            SCREENSHOT RESTRICTED
           </h2>
-          <p className="text-xs text-gray-400 max-w-xs font-mono">
+          <p className="text-xs text-gray-400 max-w-xs font-mono tracking-wider">
             Student privacy protection active. Clipboard cleared.
           </p>
         </div>
@@ -268,41 +262,51 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
       {isWindowBlurred && (
         <div 
           onClick={() => setIsWindowBlurred(false)}
-          className="fixed inset-0 backdrop-blur-3xl bg-black/90 z-[99990] flex flex-col items-center justify-center text-center p-6 select-none cursor-pointer transition-all duration-200 animate-in fade-in"
+          className="fixed inset-0 bg-black z-[99990] flex flex-col items-center justify-center text-center p-6 select-none cursor-pointer transition-all duration-200 animate-in fade-in"
         >
-          {/* Glowing Othrhalff Privacy Shield Card */}
-          <div className="max-w-md w-full bg-[#0d0716]/95 border border-pink-500/35 rounded-3xl p-8 shadow-[0_0_60px_rgba(255,0,127,0.3)] text-center relative overflow-hidden">
+          {/* Live Starfield Canvas in Background */}
+          <StarField />
+
+          {/* Ambient Neon Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-neon/15 blur-[160px] pointer-events-none" />
+
+          {/* Foreground Privacy Screen */}
+          <div className="relative z-10 flex flex-col items-center text-center max-w-lg mx-auto">
             
-            {/* Top glowing neon accent */}
-            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-neon to-transparent" />
-
-            <div className="inline-flex items-center gap-2 justify-center mb-5">
-              <div className="relative">
-                <Ghost className="w-6 h-6 text-neon drop-shadow-[0_0_10px_rgba(255,0,127,0.7)] rotate-6" />
-                <Sparkles className="w-2.5 h-2.5 text-white absolute -top-1 -right-1 animate-pulse" />
+            {/* Subtle Glowing Ghost Mascot */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 rounded-full bg-neon/25 blur-2xl pointer-events-none scale-125" />
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neon/15 border border-neon/40 flex items-center justify-center text-neon shadow-[0_0_30px_rgba(255,0,127,0.5)]">
+                <EyeOff className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-[0_0_15px_#ff007f]" />
               </div>
-              <span className="text-base font-black text-white tracking-tighter uppercase">
-                Othr<span className="text-neon">Halff</span>
-              </span>
             </div>
 
-            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-pink-600/30 to-purple-600/30 border border-pink-500/40 flex items-center justify-center text-pink-300 shadow-[0_0_20px_rgba(255,0,127,0.4)]">
-              <EyeOff className="w-7 h-7 text-white" />
-            </div>
-
-            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">
-              Privacy Shield Active
-            </h3>
-
-            <p className="text-xs text-gray-300 font-medium leading-relaxed mb-6">
-              Content is protected while window is inactive or screen capture is detected.
+            {/* Minimal Monospace Status Tag */}
+            <p className="text-[11px] sm:text-xs font-mono tracking-[0.3em] uppercase text-pink-400 mb-2">
+              [ PRIVACY // SHIELD ACTIVE ]
             </p>
 
+            {/* Simple Bold Coloured Typography */}
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase text-white mb-2">
+              SCREEN <span className="text-neon drop-shadow-[0_0_20px_#ff007f]">PROTECTED</span>
+            </h2>
+
+            <p className="text-sm sm:text-base font-black tracking-widest uppercase text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-300 to-purple-300 mb-3">
+              DISPLAY OBSCURED DURING SCREEN CAPTURE
+            </p>
+
+            {/* Clean Message */}
+            <p className="text-xs sm:text-sm text-gray-400 max-w-sm mx-auto leading-relaxed mb-8">
+              Window is inactive or capture tool was detected. Content is obscured to safeguard student profiles and messages.
+            </p>
+
+            {/* Resume Button */}
             <button
               onClick={() => setIsWindowBlurred(false)}
-              className="px-6 py-2.5 bg-neon hover:bg-pink-600 text-white font-black text-xs uppercase tracking-widest rounded-full shadow-[0_0_20px_rgba(255,0,127,0.5)] transition-all active:scale-95 cursor-pointer"
+              className="px-8 py-3.5 bg-neon hover:bg-pink-600 text-white font-black text-xs uppercase tracking-widest rounded-full shadow-[0_0_25px_rgba(255,0,127,0.55)] hover:shadow-[0_0_35px_rgba(255,0,127,0.8)] transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
             >
-              Resume Viewing
+              <span>Resume Viewing</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>

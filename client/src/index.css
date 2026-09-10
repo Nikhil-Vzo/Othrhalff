@@ -253,14 +253,14 @@ body.story-active .layout-content-wrapper {
   animation: bloom-drift 4.5s ease-in-out infinite;
 }
 
-/* 🛡️ Anti-Screenshot & Print Protection */
+/* Anti-Screenshot & Print Protection */
 @media print {
   html, body, #root, main, div, nav, aside {
     display: none !important;
     visibility: hidden !important;
   }
   html::after {
-    content: "🔒 Printing or capturing student profiles and messages is strictly disabled on Othrhalff.";
+    content: "Printing or capturing student profiles and messages is strictly disabled on Othrhalff.";
     display: flex !important;
     visibility: visible !important;
     font-size: 24px;

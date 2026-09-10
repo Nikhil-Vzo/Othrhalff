@@ -215,7 +215,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden selection:bg-neon selection:text-white">
-      {/* 🛡️ Global Screenshot Protection Shield & Dynamic Watermark */}
+      {/* Global Screenshot Protection Shield & Dynamic Watermark */}
       <ScreenshotProtection currentUser={currentUser} />
 
       {/* Desktop Sidebar Placeholder to prevent layout shift */}
