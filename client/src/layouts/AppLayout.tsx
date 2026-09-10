@@ -5,12 +5,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home, ArrowRight } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home, ArrowRight, Lock } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
+import { PLAYGROUND_CONFIG } from '../constants';
 
 const VideoCall = dynamic(() => import('../components/VideoCall').then(mod => mod.VideoCall), {
   ssr: false
@@ -166,9 +167,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     },
     { 
       path: '/playground', 
-      icon: Gamepad2, 
+      icon: PLAYGROUND_CONFIG.isLocked ? Lock : Gamepad2, 
       label: 'Playground', 
-      featured: {
+      featured: PLAYGROUND_CONFIG.isLocked ? {
+        tag: 'LOCKED',
+        glowColor: 'rgba(245,158,11,0.25)',
+        gradient: 'from-amber-500/20 via-orange-500/15 to-red-500/20',
+        border: 'border-amber-500/35 hover:border-amber-400/70',
+        iconBg: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+        textColor: 'text-white',
+        badgeBg: 'bg-amber-500/25 text-amber-200 border border-amber-500/40',
+        pulseColor: 'bg-amber-400'
+      } : {
         tag: '2D WORLD',
         glowColor: 'rgba(139,92,246,0.25)',
         gradient: 'from-violet-500/20 via-purple-500/15 to-cyan-500/20',

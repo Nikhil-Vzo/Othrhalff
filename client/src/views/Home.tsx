@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { MatchProfile } from '../types';
 import { useRouter as useNavigate } from 'next/navigation';
-import { Heart, X, Check, Timer, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand } from 'lucide-react';
+import { Heart, X, Check, Timer, MapPin, GraduationCap, Ghost, BadgeCheck, School, Globe, Bell, Hand, Lock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { analytics } from '../utils/analytics';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { calculateMatchPercentage } from '../utils/matchingAlgorithm';
 import { isProfileComplete } from '../lib/profileHelper';
+import { PLAYGROUND_CONFIG } from '../constants';
 
 import { getRandomQuote } from '../data/loadingQuotes';
 import { deferSafeSetItem } from '../utils/storage';
@@ -1283,14 +1284,20 @@ export const Home: React.FC = () => {
                     <button
                         onClick={() => navigate.push('/playground')}
                         className="group relative flex items-center justify-center p-0 bg-transparent border-0 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
-                        title="Enter Campus Playground"
+                        title={PLAYGROUND_CONFIG.isLocked ? "Campus Playground (Locked - Changing map design)" : "Enter Campus Playground"}
                         aria-label="Campus Playground"
                     >
                         <img 
                             src="/assets/hop.webp" 
                             alt="Campus Playground" 
-                            className="w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]"
+                            className={`w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)] ${PLAYGROUND_CONFIG.isLocked ? 'opacity-85' : ''}`}
                         />
+                        {PLAYGROUND_CONFIG.isLocked && (
+                            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-[8px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-0.5 border border-amber-300/40">
+                                <Lock className="w-2 h-2" />
+                                <span>LOCKED</span>
+                            </span>
+                        )}
                     </button>
                 </div>
 

@@ -11,6 +11,7 @@ import { AuthPromptModal } from '../components/AuthPromptModal';
 import { LoadingState } from '../components/LoadingState';
 import { getOptimizedUrl, handleImageError } from '../utils/image';
 import { checkIsPcoAdmin } from '../services/pcoAdmin';
+import { PLAYGROUND_CONFIG } from '../constants';
 
 interface GlimpseProfile {
   id: string;
@@ -604,9 +605,13 @@ export const Sparx: React.FC = () => {
               <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.25)_40%,_rgba(147,51,234,0.15)_65%,_transparent_80%)] animate-bloom-drift" />
 
               <div className="relative z-10 flex items-center gap-3 min-w-0">
-                {/* Visual Icon with Glowing Gamepad */}
+                {/* Visual Icon with Glowing Gamepad/Lock */}
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600/30 to-orange-600/30 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0 group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(245,158,11,0.3)]">
-                  <Gamepad2 className="w-5 h-5 text-amber-300 animate-pulse" />
+                  {PLAYGROUND_CONFIG.isLocked ? (
+                    <Lock className="w-5 h-5 text-amber-300" />
+                  ) : (
+                    <Gamepad2 className="w-5 h-5 text-amber-300 animate-pulse" />
+                  )}
                 </div>
 
                 <div className="flex flex-col min-w-0">
@@ -614,12 +619,19 @@ export const Sparx: React.FC = () => {
                     <span className="text-xs font-black text-white tracking-tight uppercase group-hover:text-amber-200 transition-colors">
                       PLAYGROUND
                     </span>
-                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[7.5px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)]">
-                      ARCADE
-                    </span>
+                    {PLAYGROUND_CONFIG.isLocked ? (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[7.5px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-0.5">
+                        <Lock className="w-2 h-2" />
+                        LOCKED
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[7.5px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)]">
+                        ARCADE
+                      </span>
+                    )}
                   </div>
                   <span className="text-[10px] text-amber-200/80 font-medium truncate mt-0.5">
-                    2D Virtual Campus & Games
+                    {PLAYGROUND_CONFIG.isLocked ? "Changing map design • Back soon" : "2D Virtual Campus & Games"}
                   </span>
                 </div>
               </div>

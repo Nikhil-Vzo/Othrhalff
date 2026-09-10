@@ -192,3 +192,11 @@ export const MOCK_NOTIFICATIONS: Notification[] = [
 ];
 
 export const APP_NAME = "Othrhalff";
+
+export const PLAYGROUND_CONFIG = {
+  isLocked: true,
+  statusBadge: 'Locked',
+  title: 'Playground Locked',
+  headline: 'Changing Map Design',
+  message: 'We are currently updating and redesigning the 2D interactive campus map. The Playground is temporarily locked while new zones, landmarks, and experiences are being built.',
+};

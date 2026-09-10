@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Playground } from '../../src/views/Playground';
+import { PlaygroundLocked } from '../../src/components/PlaygroundLocked';
+import { PLAYGROUND_CONFIG } from '../../src/constants';
 import { useAuth } from '../../src/context/AuthContext';
 import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
 
@@ -12,6 +14,8 @@ export default function Page() {
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://othrhalff-tmqcxj0g.livekit.cloud';
 
   useEffect(() => {
+    if (PLAYGROUND_CONFIG.isLocked) return;
+
     let isMounted = true;
     const fetchToken = async () => {
       try {
@@ -35,6 +39,10 @@ export default function Page() {
     };
   }, [currentUser]);
 
+  if (PLAYGROUND_CONFIG.isLocked) {
+    return <PlaygroundLocked />;
+  }
+
   if (!token) {
     return <Playground />;
   }
@@ -53,3 +61,4 @@ export default function Page() {
     </LiveKitRoom>
   );
 }
+

@@ -10,6 +10,8 @@ import { db } from '../lib/db';
 import { useTracks, useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useSpatialAudio } from '../hooks/useSpatialAudio';
+import { PlaygroundLocked } from '../components/PlaygroundLocked';
+import { PLAYGROUND_CONFIG } from '../constants';
 
 export const Playground: React.FC = () => {
   const { currentUser } = useAuth();
@@ -425,6 +427,10 @@ export const Playground: React.FC = () => {
   const handleEmojiClick = (emoji: string) => {
     setChatInput(prev => prev + emoji);
   };
+
+  if (PLAYGROUND_CONFIG.isLocked) {
+    return <PlaygroundLocked />;
+  }
 
   if (!mounted || !currentUser) {
     return <div className="flex h-full items-center justify-center text-white">Loading Playground...</div>;
