@@ -280,4 +280,28 @@ body.story-active .layout-content-wrapper {
 img, video {
   -webkit-user-drag: none;
   user-drag: none;
-}
+}
+
+/* Ultra-Lightweight Zero-Latency Privacy Shield */
+html.privacy-shield-active body > *:not(#privacy-screen-overlay) {
+  visibility: hidden !important;
+}
+
+#privacy-screen-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #000000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  cursor: pointer;
+}
+
+html.privacy-shield-active #privacy-screen-overlay {
+  display: flex !important;
+}
+

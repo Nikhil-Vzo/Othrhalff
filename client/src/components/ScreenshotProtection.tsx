@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Ghost, ShieldAlert, ArrowRight, EyeOff } from 'lucide-react';
-import { StarField } from './StarField';
+import React, { useEffect, useRef, useMemo, useCallback } from 'react';
+import { EyeOff, ArrowRight } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 interface ScreenshotProtectionProps {
@@ -23,12 +22,23 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
   enableWatermark = true,
   enableShortcutBlock = true,
 }) => {
-  const [isWindowBlurred, setIsWindowBlurred] = useState(false);
-  const [isScreenFlash, setIsScreenFlash] = useState(false);
   const { showToast } = useToast();
-  
   const fileInputOpenTimeRef = useRef<number>(0);
   const lastToastTimeRef = useRef<number>(0);
+  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Instant zero-latency synchronous DOM class manipulation
+  const activateShield = useCallback(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('privacy-shield-active');
+    }
+  }, []);
+
+  const deactivateShield = useCallback(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('privacy-shield-active');
+    }
+  }, []);
 
   const triggerSecurityWarning = useCallback((message = 'Screenshots are restricted to safeguard student privacy.') => {
     const now = Date.now();
@@ -49,13 +59,17 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
   }, []);
 
   const flashPrivacyShield = useCallback(() => {
-    setIsScreenFlash(true);
+    activateShield();
     wipeClipboard();
     triggerSecurityWarning();
-    setTimeout(() => {
-      setIsScreenFlash(false);
-    }, 1200);
-  }, [wipeClipboard, triggerSecurityWarning]);
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => {
+      // Only remove if window is currently focused
+      if (document.hasFocus && document.hasFocus()) {
+        deactivateShield();
+      }
+    }, 900);
+  }, [activateShield, deactivateShield, wipeClipboard, triggerSecurityWarning]);
 
   // 1. Detect file picker clicks to avoid triggering blur on legitimate photo uploads
   useEffect(() => {
@@ -72,29 +86,26 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     };
   }, []);
 
-  // 2. AutoBlur: Obscure screen when window loses focus (e.g. Snipping Tool, Win+Shift+S, macOS capture tool)
+  // 2. Zero-Latency AutoBlur: Synchronously toggles CSS class on DOM event tick
   useEffect(() => {
     if (!enableAutoBlur) return;
 
     const handleWindowBlur = () => {
-      // Don't blur if user just clicked a file upload input within the last 60 seconds
-      if (Date.now() - fileInputOpenTimeRef.current < 60000) {
-        return;
-      }
-      setIsWindowBlurred(true);
+      if (Date.now() - fileInputOpenTimeRef.current < 60000) return;
+      activateShield();
     };
 
     const handleWindowFocus = () => {
-      setIsWindowBlurred(false);
+      deactivateShield();
     };
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (Date.now() - fileInputOpenTimeRef.current >= 60000) {
-          setIsWindowBlurred(true);
+          activateShield();
         }
       } else {
-        setIsWindowBlurred(false);
+        deactivateShield();
       }
     };
 
@@ -103,11 +114,12 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      deactivateShield();
       window.removeEventListener('blur', handleWindowBlur);
       window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enableAutoBlur]);
+  }, [enableAutoBlur, activateShield, deactivateShield]);
 
   // 3. Keyboard Shortcut Interception (PrintScreen, Snipping Tool, Save, Print, DevTools)
   useEffect(() => {
@@ -153,7 +165,7 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
         return false;
       }
 
-      // Inspect Element / DevTools (F12, Ctrl+Shift+I / J / C in production)
+      // Inspect Element / DevTools in production
       if (
         key === 'F12' ||
         (isCtrlOrMeta && e.shiftKey && (key === 'i' || key === 'I' || key === 'j' || key === 'J' || key === 'c' || key === 'C'))
@@ -182,6 +194,7 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('keyup', handleKeyUp, true);
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     };
   }, [enableShortcutBlock, flashPrivacyShield, triggerSecurityWarning]);
 
@@ -216,101 +229,64 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     };
   }, [triggerSecurityWarning]);
 
-  // User Identifier for Forensic Watermark
-  const watermarkText = currentUser?.anonymousId
-    ? `OTHRHALFF // ${currentUser.anonymousId} // ${currentUser.university ? currentUser.university.slice(0, 20) : 'CAMPUS'} // CONFIDENTIAL`
-    : `OTHRHALFF // STUDENT COMMUNITY // STRICTLY CONFIDENTIAL`;
+  // Zero-DOM-Node Watermark: Single CSS Background Texture (0% CPU, GPU Cached)
+  const watermarkStyle = useMemo(() => {
+    if (!enableWatermark) return null;
+    const text = currentUser?.anonymousId
+      ? `OTHRHALFF // ${currentUser.anonymousId} // CONFIDENTIAL`
+      : `OTHRHALFF // CONFIDENTIAL`;
+    
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='120'><text x='50%' y='50%' font-size='9' font-family='monospace' font-weight='700' fill='white' transform='rotate(-20 150 60)' text-anchor='middle' letter-spacing='2'>${text}</text></svg>`;
+    
+    return {
+      backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`,
+      backgroundRepeat: 'repeat',
+    };
+  }, [enableWatermark, currentUser?.anonymousId]);
 
   return (
     <>
-      {/* Dynamic Forensic Watermark Layer (Optical camera/phone leak deterrent) */}
-      {enableWatermark && (
+      {/* 1. Ultra-Lightweight Watermark Layer: 1 single DOM node, GPU texture */}
+      {watermarkStyle && (
         <div 
           aria-hidden="true"
-          className="fixed inset-0 pointer-events-none z-[85] select-none overflow-hidden opacity-[0.032]"
-        >
-          <div 
-            className="w-[200vw] h-[200vh] -top-[50vh] -left-[50vw] absolute flex flex-wrap gap-x-16 gap-y-16 rotate-[-22deg] justify-center items-center font-mono font-black text-[11px] text-white tracking-[0.25em]"
-          >
-            {Array.from({ length: 64 }).map((_, i) => (
-              <span key={i} className="whitespace-nowrap select-none">
-                {watermarkText}
-              </span>
-            ))}
-          </div>
-        </div>
+          className="fixed inset-0 pointer-events-none z-[85] opacity-[0.03] select-none"
+          style={watermarkStyle}
+        />
       )}
 
-      {/* Screen Capture Flash Shield (Fires on PrintScreen keyup/keydown) */}
-      {isScreenFlash && (
-        <div 
-          className="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center text-center p-6 select-none animate-in fade-in duration-100"
-        >
-          <div className="w-16 h-16 rounded-full bg-neon/20 border border-neon flex items-center justify-center text-neon mb-4 shadow-[0_0_30px_#ff007f]">
-            <ShieldAlert className="w-8 h-8" />
+      {/* 2. Zero-Latency Hardware-Accelerated Privacy Screen (Managed directly by CSS class) */}
+      <div 
+        id="privacy-screen-overlay"
+        onClick={deactivateShield}
+        className="select-none cursor-pointer"
+      >
+        <div className="flex flex-col items-center justify-center text-center p-6 max-w-sm pointer-events-auto">
+          <div className="w-14 h-14 rounded-full bg-neon/15 border border-neon/40 flex items-center justify-center text-neon mb-4 shadow-[0_0_20px_rgba(255,0,127,0.35)]">
+            <EyeOff className="w-7 h-7 text-white drop-shadow-[0_0_10px_#ff007f]" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">
-            SCREENSHOT RESTRICTED
-          </h2>
-          <p className="text-xs text-gray-400 max-w-xs font-mono tracking-wider">
-            Student privacy protection active. Clipboard cleared.
+
+          <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-pink-400 mb-1.5">
+            [ SCREEN PROTECTED ]
           </p>
+
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight uppercase text-white mb-2">
+            OTHR<span className="text-neon">HALFF</span>
+          </h2>
+
+          <p className="text-xs text-gray-400 max-w-xs mx-auto mb-6">
+            Content hidden for student privacy. Tap anywhere to resume.
+          </p>
+
+          <button
+            onClick={deactivateShield}
+            className="px-6 py-2.5 bg-neon hover:bg-pink-600 text-white font-bold text-xs uppercase tracking-widest rounded-full shadow-[0_0_20px_rgba(255,0,127,0.4)] transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+          >
+            <span>Resume</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
-      )}
-
-      {/* AutoBlur Focus Loss Shield (Fires when Snipping Tool or OS Capture steals focus) */}
-      {isWindowBlurred && (
-        <div 
-          onClick={() => setIsWindowBlurred(false)}
-          className="fixed inset-0 bg-black z-[99990] flex flex-col items-center justify-center text-center p-6 select-none cursor-pointer transition-all duration-200 animate-in fade-in"
-        >
-          {/* Live Starfield Canvas in Background */}
-          <StarField />
-
-          {/* Ambient Neon Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-neon/15 blur-[160px] pointer-events-none" />
-
-          {/* Foreground Privacy Screen */}
-          <div className="relative z-10 flex flex-col items-center text-center max-w-lg mx-auto">
-            
-            {/* Subtle Glowing Ghost Mascot */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 rounded-full bg-neon/25 blur-2xl pointer-events-none scale-125" />
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neon/15 border border-neon/40 flex items-center justify-center text-neon shadow-[0_0_30px_rgba(255,0,127,0.5)]">
-                <EyeOff className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-[0_0_15px_#ff007f]" />
-              </div>
-            </div>
-
-            {/* Minimal Monospace Status Tag */}
-            <p className="text-[11px] sm:text-xs font-mono tracking-[0.3em] uppercase text-pink-400 mb-2">
-              [ PRIVACY // SHIELD ACTIVE ]
-            </p>
-
-            {/* Simple Bold Coloured Typography */}
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase text-white mb-2">
-              SCREEN <span className="text-neon drop-shadow-[0_0_20px_#ff007f]">PROTECTED</span>
-            </h2>
-
-            <p className="text-sm sm:text-base font-black tracking-widest uppercase text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-300 to-purple-300 mb-3">
-              DISPLAY OBSCURED DURING SCREEN CAPTURE
-            </p>
-
-            {/* Clean Message */}
-            <p className="text-xs sm:text-sm text-gray-400 max-w-sm mx-auto leading-relaxed mb-8">
-              Window is inactive or capture tool was detected. Content is obscured to safeguard student profiles and messages.
-            </p>
-
-            {/* Resume Button */}
-            <button
-              onClick={() => setIsWindowBlurred(false)}
-              className="px-8 py-3.5 bg-neon hover:bg-pink-600 text-white font-black text-xs uppercase tracking-widest rounded-full shadow-[0_0_25px_rgba(255,0,127,0.55)] hover:shadow-[0_0_35px_rgba(255,0,127,0.8)] transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
-            >
-              <span>Resume Viewing</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </>
   );
 };
