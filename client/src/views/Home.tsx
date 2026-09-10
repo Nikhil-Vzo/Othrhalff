@@ -1293,7 +1293,7 @@ export const Home: React.FC = () => {
                             className={`w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)] ${PLAYGROUND_CONFIG.isLocked ? 'opacity-85' : ''}`}
                         />
                         {PLAYGROUND_CONFIG.isLocked && (
-                            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-[8px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-0.5 border border-amber-300/40">
+                            <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-neon text-[8px] font-black text-white uppercase tracking-wider shadow-[0_0_10px_#ff007f] flex items-center gap-0.5 border border-pink-300/40">
                                 <Lock className="w-2 h-2" />
                                 <span>LOCKED</span>
                             </span>

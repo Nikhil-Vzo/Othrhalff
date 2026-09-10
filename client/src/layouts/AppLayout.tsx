@@ -171,13 +171,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       label: 'Playground', 
       featured: PLAYGROUND_CONFIG.isLocked ? {
         tag: 'LOCKED',
-        glowColor: 'rgba(245,158,11,0.25)',
-        gradient: 'from-amber-500/20 via-orange-500/15 to-red-500/20',
-        border: 'border-amber-500/35 hover:border-amber-400/70',
-        iconBg: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+        glowColor: 'rgba(255,0,127,0.3)',
+        gradient: 'from-pink-500/20 via-purple-500/15 to-rose-500/20',
+        border: 'border-pink-500/40 hover:border-pink-400/70',
+        iconBg: 'bg-pink-500/20 text-pink-300 border border-pink-500/30',
         textColor: 'text-white',
-        badgeBg: 'bg-amber-500/25 text-amber-200 border border-amber-500/40',
-        pulseColor: 'bg-amber-400'
+        badgeBg: 'bg-pink-500/25 text-pink-200 border border-pink-500/40',
+        pulseColor: 'bg-pink-400'
       } : {
         tag: '2D WORLD',
         glowColor: 'rgba(139,92,246,0.25)',

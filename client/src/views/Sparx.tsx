@@ -599,38 +599,42 @@ export const Sparx: React.FC = () => {
             {/* Card 2: Playground Arcade & Virtual Campus */}
             <button
               onClick={() => router.push('/playground')}
-              className="group relative flex items-center justify-between gap-3 p-3.5 px-4 rounded-2xl overflow-hidden bg-[#110f17]/95 border border-amber-500/30 hover:border-amber-400/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_4px_20px_rgba(245,158,11,0.15)] hover:shadow-[0_4px_30px_rgba(245,158,11,0.35)] transition-all duration-300 active:scale-[0.98] cursor-pointer text-left"
+              className={`group relative flex items-center justify-between gap-3 p-3.5 px-4 rounded-2xl overflow-hidden bg-[#110f17]/95 transition-all duration-300 active:scale-[0.98] cursor-pointer text-left ${
+                PLAYGROUND_CONFIG.isLocked
+                  ? 'border border-pink-500/30 hover:border-pink-400/70 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_4px_20px_rgba(255,0,127,0.15)] hover:shadow-[0_4px_30px_rgba(255,0,127,0.35)]'
+                  : 'border border-purple-500/30 hover:border-purple-400/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_4px_20px_rgba(168,85,247,0.15)] hover:shadow-[0_4px_30px_rgba(168,85,247,0.35)]'
+              }`}
             >
               {/* Internal Radiant Corner Bloom */}
-              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(245,158,11,0.45)_0%,_rgba(217,70,239,0.25)_40%,_rgba(147,51,234,0.15)_65%,_transparent_80%)] animate-bloom-drift" />
+              <div className="absolute inset-0 pointer-events-none rounded-2xl bg-[radial-gradient(ellipse_at_100%_100%,_rgba(255,0,127,0.35)_0%,_rgba(217,70,239,0.2)_40%,_rgba(147,51,234,0.1)_65%,_transparent_80%)] animate-bloom-drift" />
 
               <div className="relative z-10 flex items-center gap-3 min-w-0">
                 {/* Visual Icon with Glowing Gamepad/Lock */}
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600/30 to-orange-600/30 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0 group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-600/30 to-purple-600/30 border border-pink-500/40 flex items-center justify-center text-pink-300 shrink-0 group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(255,0,127,0.3)]">
                   {PLAYGROUND_CONFIG.isLocked ? (
-                    <Lock className="w-5 h-5 text-amber-300" />
+                    <Lock className="w-5 h-5 text-pink-300" />
                   ) : (
-                    <Gamepad2 className="w-5 h-5 text-amber-300 animate-pulse" />
+                    <Gamepad2 className="w-5 h-5 text-purple-300 animate-pulse" />
                   )}
                 </div>
 
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-white tracking-tight uppercase group-hover:text-amber-200 transition-colors">
+                    <span className="text-xs font-black text-white tracking-tight uppercase group-hover:text-pink-200 transition-colors">
                       PLAYGROUND
                     </span>
                     {PLAYGROUND_CONFIG.isLocked ? (
-                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[7.5px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-0.5">
-                        <Lock className="w-2 h-2" />
+                      <span className="px-1.5 py-0.2 rounded-full bg-pink-500/30 border border-pink-500/50 text-[7.5px] font-black text-pink-200 uppercase tracking-wider shadow-[0_0_8px_rgba(255,0,127,0.6)] flex items-center gap-0.5">
+                        <Lock className="w-2 h-2 text-pink-300" />
                         LOCKED
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-[7.5px] font-black text-black uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.6)]">
+                      <span className="px-1.5 py-0.2 rounded-full bg-purple-500 text-[7.5px] font-black text-white uppercase tracking-wider shadow-[0_0_8px_rgba(168,85,247,0.6)]">
                         ARCADE
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] text-amber-200/80 font-medium truncate mt-0.5">
+                  <span className="text-[10px] text-pink-200/80 font-medium truncate mt-0.5">
                     {PLAYGROUND_CONFIG.isLocked ? "Changing map design • Back soon" : "2D Virtual Campus & Games"}
                   </span>
                 </div>
