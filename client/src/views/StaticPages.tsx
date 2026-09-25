@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { RotateCcw, Ghost, Shield, Heart, Briefcase, AlertTriangle, CheckCircle2, Lock, Scale } from 'lucide-react';
+import { RotateCcw, Ghost, Shield, Users, Briefcase, AlertTriangle, CheckCircle2, Lock, Scale } from 'lucide-react';
 
 // --- Shared Layout Component ---
 const PageLayout: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => {
