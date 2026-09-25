@@ -1,6 +1,6 @@
 ---
 name: othrhalff-frontend-design
-description: Create distinctive, production-grade frontend interfaces tailored for a platform focused on finding connections and vibes, moving entirely beyond traditional dating site mechanics. Generates highly creative, interactive code using React, TypeScript, and advanced animation frameworks.
+description: Create distinctive, production-grade frontend interfaces tailored for a platform focused on finding connections and vibes, moving entirely beyond traditional superficial swiping mechanics. Generates highly creative, interactive code using React, TypeScript, and advanced animation frameworks.
 license: Complete terms in LICENSE.txt
 ---
 

@@ -22,7 +22,7 @@ export const Footer: React.FC = () => (
             </span>
           </div>
           <p className="mt-4 max-w-md text-sm font-normal leading-relaxed text-zinc-400">
-            The campus is already full of your people. We are beyond dating — built for genuine student connections, friendships &amp; belonging.
+            The campus is already full of your people. Built for genuine student connections, friendships, study circles &amp; campus belonging.
           </p>
           <div className="mt-6 flex items-center gap-3.5">
             <a

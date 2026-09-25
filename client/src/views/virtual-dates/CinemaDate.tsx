@@ -309,7 +309,7 @@ export const CinemaDate: React.FC = () => {
                 type: 'cinema',
                 room: roomUuid,
                 url: `/sparx/cinema?room=${roomUuid}`,
-                message: 'Cinema Date Watch Party'
+                message: 'Cinema Watch Party'
             })}`;
 
             const { error: insertError } = await supabase
@@ -323,7 +323,7 @@ export const CinemaDate: React.FC = () => {
             if (insertError) throw insertError;
 
             setRoomCode(roomUuid);
-            setRoomName(`${match.partnerName}'s Date`);
+            setRoomName(`${match.partnerName}'s Watch Party`);
             setIsHost(true);
             setMode('select');
             setShowInviteMenu(false);
@@ -682,7 +682,7 @@ export const CinemaDate: React.FC = () => {
                                     console.error("Failed to register room host in Supabase:", dbErr);
                                 }
                             }
-                            analytics.virtualDateStart('Movie Date');
+                            analytics.virtualDateStart('Cinema Party');
                         } else {
                             analytics.virtualDateJoin();
                             const targetHost = activeHostId || expectedHostId;

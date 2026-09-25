@@ -45,7 +45,7 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/65">
-            The exclusive campus speed dating and anonymous confession platform for verified{' '}
+            The exclusive campus connection and anonymous confession platform for verified{' '}
             <strong className="text-white">{campus.shortName}</strong> students in{' '}
             <strong className="text-white">{campus.location}</strong>. Connect 1-on-1 via instant text &amp; video with real peers from your campus—no creeps, no unverified accounts.
           </p>
@@ -101,7 +101,7 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
-              { icon: Video, title: 'Speed Video Dates', desc: `1-on-1 HD video matching with verified ${campus.shortName} peers. No bots, no creeps.` },
+              { icon: Video, title: 'Speed Video Connect', desc: `1-on-1 HD video matching with verified ${campus.shortName} peers. No bots, no creeps.` },
               { icon: MessageCircle, title: 'Anonymous Confessions', desc: `Post your ${campus.shortName} tea anonymously. Campus drama, crushes, and real talk.` },
               { icon: Lock, title: 'Campus-Only Network', desc: `Strict college email verification. Only real ${campus.shortName} students get in.` },
             ].map(({ icon: Icon, title, desc }) => (
@@ -141,7 +141,7 @@ export const CampusPage: React.FC<{ campusSlug?: string }> = ({ campusSlug }) =>
               Be the first from {campus.shortName} to join the next-generation campus network in {campus.country || 'your university'}.
             </p>
             <p className="mt-2 text-sm text-white/55">
-              Verified campus connections. Anonymous confessions. Speed dates. All in one place.
+              Verified campus connections. Anonymous confessions. Instant peer chat. All in one place.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link

@@ -29,10 +29,10 @@ export const blogPosts: BlogPost[] = [
     metaTitle: 'Why Swipe Apps Failed College Students | Othrhalff Blog',
     metaDescription: 'College students are exhausted by superficial swiping apps. Discover how authentic campus networks are replacing swipe fatigue with real friendships and study circles.',
     keywords: [
-      'dating app fatigue college',
+      'swipe fatigue college',
       'why swipe apps fail students',
       'college friendship apps',
-      'beyond dating college',
+      'campus connection college',
       'campus connection platform',
       'authentic student social network'
     ],
@@ -49,18 +49,18 @@ export const blogPosts: BlogPost[] = [
     excerpt: 'Between infinite swipes, ghosted chats, and curated personas, college students have never felt more isolated. Here is why the era of superficial swiping is ending.',
     content: [
       'Walk into any university lecture hall or student cafeteria today and you will notice a paradox: campus is packed with thousands of young people, yet finding someone to grab coffee with or study for finals has never felt harder.',
-      'For the last decade, mainstream social and dating apps promised to connect us. Instead, they gamified human interaction into left-and-right card swipes, follower counts, and algorithmically engineered dopamine loops.',
+      'For the last decade, mainstream social apps promised to connect us. Instead, they gamified human interaction into left-and-right card swipes, follower counts, and algorithmically engineered dopamine loops.',
       '### The Reality of Swipe Fatigue',
       'Swipe fatigue is not just a buzzword; it is a documented social burnout. When every interaction begins with a 2-second judgment of a curated photo reel, conversations quickly decay into one-word replies and dead ends. You are not meeting a human being—you are browsing an online catalog.',
       'On a university campus, this model breaks down completely. College is not a marketplace; it is an ecosystem. You do not need an endless roster of strangers 50 miles away. You need people you can walk past on the quad, sit next to in linear algebra, or spot in the gym at 6 PM.',
-      '### Why We Built Othrhalff: Beyond Dating',
-      'Othrhalff was created from a simple engineering realization: student connection works best when you remove the pressure of romantic expectations and superficial clout.',
+      '### Why We Built Othrhalff: The Campus Connection Network',
+      'Othrhalff was created from a simple engineering realization: student connection works best when you focus on authentic campus community rather than superficial clout.',
       'By offering anonymous campus confession walls, 24-hour disappearing Sparx stories, real-time campus radar discovery, and private voice calls without phone number exchanges, students can engage on their own terms.',
       'Whether you are looking for a study buddy for tomorrow morning, an anonymous space to vent about midterm stress, or a lifelong friend, belonging begins with authentic proximity.'
     ],
     faqs: [
       {
-        question: 'Why are college students moving away from traditional dating apps?',
+        question: 'Why are college students moving away from traditional swiping apps?',
         answer: 'Students report high rates of swipe fatigue, superficial judgment, and low conversational engagement on traditional swiping apps. Modern campus platforms emphasize shared context, study groups, and genuine friendships.'
       },
       {
@@ -242,15 +242,15 @@ export const blogPosts: BlogPost[] = [
     ]
   },
   {
-    slug: 'dating-in-2026-college-connections-reinvented',
-    title: 'Dating in 2026: How Student Connections Are Being Reinvented',
-    metaTitle: 'Dating in 2026: How Student Connections Are Being Reinvented | Othrhalff',
-    metaDescription: 'Swipe fatigue is real. College students in 2026 are ditching algorithms for authentic campus connections. Here is what dating actually looks like on campus right now.',
+    slug: 'student-connections-in-2026-reinvented',
+    title: 'Campus Connections in 2026: How Student Networking Is Being Reinvented',
+    metaTitle: 'Campus Connections in 2026: Student Networking Reinvented | Othrhalff',
+    metaDescription: 'Swipe fatigue is real. College students in 2026 are ditching algorithms for authentic campus connections. Here is what student networking actually looks like on campus right now.',
     keywords: [
-      'dating in 2026',
-      'college dating apps 2026',
+      'student connections 2026',
+      'college networking apps 2026',
       'campus connections 2026',
-      'student dating trends',
+      'student connection trends',
       'how college students meet 2026',
       'beyond swipe apps college',
       'campus social networks'
@@ -267,48 +267,48 @@ export const blogPosts: BlogPost[] = [
     featuredImage: '/blog/home-screen.webp',
     excerpt: 'The algorithm promised connection. Instead it delivered burnout. Here is what college students in 2026 are actually doing to find real people — and why the old playbook is officially broken.',
     content: [
-      'Every few years someone declares dating dead. But 2026 feels different. On campuses across India, students are not just complaining about swipe apps — they are actively walking away from them.',
+      'Every few years someone declares social networking broken. But 2026 feels different. On campuses across India, students are not just complaining about swipe apps — they are actively walking away from them.',
       'The numbers are telling. Tinder, Bumble, and Hinge report average user ages climbing past 28. College students are not just aging out — they are opting out. And what they are replacing these apps with is far more interesting.',
       '### The Algorithm Broke First',
-      'Dating apps were built on a simple premise: more options = better outcomes. But decades of data show the opposite. The more people you swipe through, the less satisfied you become with any single choice. Your brain was not designed to evaluate hundreds of potential partners in a single sitting.',
+      'Swiping apps were built on a simple premise: more options = better outcomes. But decades of data show the opposite. The more people you swipe through, the less satisfied you become with any single choice. Your brain was not designed to evaluate hundreds of potential partners in a single sitting.',
       'On a college campus, this problem is amplified. You are not trying to find a life partner from a global pool — you are trying to find study partners, gym buddies, and yes, maybe someone to get coffee with. The app treats every interaction the same way whether you are looking for a late-night study session or something more.',
       '### What 2026 Students Are Doing Instead',
       'Campuses are seeing a quiet renaissance of analog connection. Students are forming tight friend circles in the first two weeks and closing ranks. The pressure to use apps decreases as organic networks form.',
-      'But not everyone finds their people in those first weeks. For those who do not, the digital tools that work best are the ones that feel like extensions of campus life — not portals to a separate dating marketplace.',
+      'But not everyone finds their people in those first weeks. For those who do not, the digital tools that work best are the ones that feel like extensions of campus life — not portals to a separate marketplace.',
       '### The Proximity Principle',
-      'Every serious study on human connection arrives at the same conclusion: proximity is the single strongest predictor of friendship and romance. You meet people you share physical space with.',
-      'Dating apps broke this by letting you match with someone 500 km away. College students in 2026 are quietly fixing this. The tools gaining traction are the ones that surface people in your own lecture hall, your own hostel corridor, your own campus.',
+      'Every serious study on human connection arrives at the same conclusion: proximity is the single strongest predictor of friendship and social connection. You meet people you share physical space with.',
+      'Mainstream swipe apps broke this by letting you match with someone 500 km away. College students in 2026 are quietly fixing this. The tools gaining traction are the ones that surface people in your own lecture hall, your own hostel corridor, your own campus.',
       '### Why Anonymity Changes the Game',
       'One of the biggest shifts on campus is the comfort with anonymity. Students are using anonymous confession walls not just for venting — but as genuine discovery tools. An anonymous post about hating 8 AM classes surfaces someone who also despises early mornings. An anonymous confession about wanting a gym spotter finds a match.',
       'The identity filter comes later. The connection starts with shared context.',
       '### What Comes Next',
-      'The next generation of campus tools will not look like Tinder. They will look more like community infrastructure: study group finders, anonymous campus media networks, real-time presence indicators. The dating label will matter less. The belonging label will matter more.',
+      'The next generation of campus tools will not look like Tinder. They will look more like community infrastructure: study group finders, anonymous campus media networks, real-time presence indicators. The superficial label will matter less. The belonging label will matter more.',
       'Students in 2026 are not giving up on connection. They are just done waiting for an algorithm to manufacture what proximity and shared context can build naturally.',
       'And honestly — that is a much better bet.'
     ],
     faqs: [
       {
-        question: 'Are college students still using dating apps in 2026?',
+        question: 'Are college students still using traditional swipe apps in 2026?',
         answer: 'Usage among 18-22 year olds has dropped significantly since 2024. Most students who still use apps treat them as supplementary — not primary — connection tools.'
       },
       {
-        question: 'What do college students prefer instead of dating apps?',
+        question: 'What do college students prefer instead of traditional swipe apps?',
         answer: 'Campus-native platforms, anonymous confession walls, interest-based study groups, and real-time presence tools that respect student schedules and proximity.'
       },
       {
-        question: 'How does Othrhalff fit into the 2026 campus dating scene?',
-        answer: 'Othrhalff was built around the idea that genuine campus connection — study partners, friendships, confessions, and yes, relationships — happens best when the platform disappears and the people remain.'
+        question: 'How does Othrhalff fit into 2026 campus connections?',
+        answer: 'Othrhalff was built around the idea that genuine campus connection — study partners, friendships, confessions, and campus peers — happens best when the platform disappears and the people remain.'
       }
     ]
   },
   {
     slug: 'gen-z-wants-2026-beyond-algorithm',
     title: 'Beyond the Algorithm: What Gen Z Actually Wants in 2026',
-    metaTitle: 'What Gen Z Actually Wants in 2026 | Beyond Algorithm Dating | Othrhalff',
+    metaTitle: 'What Gen Z Actually Wants in 2026 | Beyond the Algorithm | Othrhalff',
     metaDescription: 'Gen Z is done performing for algorithms. In 2026, college students want authentic, proximity-based connections without the dopamine manipulation. Here is the full picture.',
     keywords: [
-      'gen z dating 2026',
-      'what gen z wants in relationships',
+      'gen z campus connections 2026',
+      'what gen z wants in campus friendships',
       'college students algorithm fatigue',
       'authentic connections gen z',
       'campus social apps 2026',

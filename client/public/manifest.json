@@ -1,7 +1,7 @@
 {
-    "name": "Othrhalff – Campus Connections, Dating & Beyond",
+    "name": "Othrhalff – Verified Campus Connections & Community",
     "short_name": "Othrhalff",
-    "description": "Go beyond dating. Connect with verified college students through anonymous random text & video partner chat, campus confessions & tea, interactive map games, and matching.",
+    "description": "Connect with verified college students through anonymous random text & video peer chat, campus confessions & tea, interactive map games, and community matching.",
     "start_url": "/",
     "scope": "/",
     "id": "/",
@@ -26,7 +26,7 @@
     "categories": [
         "social",
         "lifestyle",
-        "dating"
+        "education"
     ],
     "screenshots": [],
     "prefer_related_applications": false

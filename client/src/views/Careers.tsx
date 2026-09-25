@@ -15,7 +15,7 @@ interface JobPosition {
 
 const POSITIONS: JobPosition[] = [
     { id: 'pitch', title: 'Pitch Yourself', icon: Send, description: 'Don\'t see your role? Tell us how you can contribute.' },
-    { id: 'developer', title: 'Developer', icon: Code2, description: 'Build the future of campus dating. React, Node, Supabase.' },
+    { id: 'developer', title: 'Developer', icon: Code2, description: 'Build the future of campus networking. React, Node, Supabase.' },
     { id: 'marketing', title: 'Marketing & Promotions', icon: Megaphone, description: 'Spread the word and grow the community on campus.' },
     { id: 'ui_ux', title: 'UI/UX Designer', icon: Palette, description: 'Craft beautiful, intuitive experiences for students.' },
     { id: 'video_editor', title: 'Video Editor', icon: Video, description: 'Create engaging content for Reels.' },

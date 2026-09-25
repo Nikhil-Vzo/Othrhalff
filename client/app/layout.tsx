@@ -30,10 +30,10 @@ export const metadata: Metadata = {
     telephone: false,
   },
   title: {
-    default: 'Othrhalff – Beyond Dating • Verified Campus Connections & Community',
+    default: 'Othrhalff – Verified Campus Connections & Community',
     template: '%s | Othrhalff'
   },
-  description: "We are beyond dating. Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, 24-hour Sparx stories, and authentic campus belonging.",
+  description: "Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, 24-hour Sparx stories, and authentic campus belonging.",
   keywords: [
     'othrhalff',
     'othr halff',
@@ -78,21 +78,21 @@ export const metadata: Metadata = {
     locale: 'en_IN',
     url: 'https://www.othrhalff.in',
     siteName: 'Othrhalff',
-    title: 'Othrhalff – Beyond Dating • Verified Campus Connections & Community',
-    description: "We are beyond dating. Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, and authentic campus belonging.",
+    title: 'Othrhalff – Verified Campus Connections & Community',
+    description: "Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, and authentic campus belonging.",
     images: [
       {
         url: 'https://www.othrhalff.in/og-image.webp',
         width: 1200,
         height: 630,
-        alt: 'Othrhalff Campus Connections & Beyond',
+        alt: 'Othrhalff Campus Connections & Community',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Othrhalff – Beyond Dating • Verified Campus Connections & Community',
-    description: 'We are beyond dating. Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, and authentic community.',
+    title: 'Othrhalff – Verified Campus Connections & Community',
+    description: 'Meet verified college students on your campus for study sessions, gym partners, real friendships, anonymous confessions, and authentic community.',
     creator: '@othrhalff',
     images: ['https://www.othrhalff.in/og-image.webp'],
   },

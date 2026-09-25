@@ -125,9 +125,9 @@ export async function checkRateLimit(identifier, limit = 20, windowSeconds = 60)
 }
 
 /**
- * Speed Dating Queue Helpers (ZSET)
+ * Speed Connect Queue Helpers (ZSET)
  */
-export async function addToSpeedDatingQueue(gender, userId) {
+export async function addToSpeedConnectQueue(gender, userId) {
   if (!redis || !isConnected) return false;
   try {
     const key = `speed_queue:${gender}`;
@@ -138,7 +138,7 @@ export async function addToSpeedDatingQueue(gender, userId) {
   }
 }
 
-export async function removeFromSpeedDatingQueue(gender, userId) {
+export async function removeFromSpeedConnectQueue(gender, userId) {
   if (!redis || !isConnected) return false;
   try {
     const key = `speed_queue:${gender}`;
@@ -150,3 +150,6 @@ export async function removeFromSpeedDatingQueue(gender, userId) {
 }
 
 export { redis, isConnected };
+
+export const addToSpeedDatingQueue = addToSpeedConnectQueue;
+export const removeFromSpeedDatingQueue = removeFromSpeedConnectQueue;

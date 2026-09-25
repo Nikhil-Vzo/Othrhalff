@@ -1,4 +1,4 @@
-# Othrhalff - Beyond Dating: Verified Campus Connections, Real Friendships & Belonging
+# Othrhalff - Verified Campus Connections, Real Friendships & Belonging
 # Allow all search engines & AI discovery crawlers
 
 User-agent: *

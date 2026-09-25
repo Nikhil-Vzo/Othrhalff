@@ -7,13 +7,13 @@ export const MOCK_INTERESTS = [
 
 export const LOOKING_FOR_OPTIONS = [
 
-  "Relationship",
+  "Campus Friends",
   "Study Partner",
   "Gym Partner",
   "Gaming Partner",
   "Hangout Partner",
-  "Fun",
-  "Flirt"
+  "Networking",
+  "Project Collaborator"
 ];
 
 export const BRANCH_CATEGORIES = [

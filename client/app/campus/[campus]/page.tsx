@@ -17,12 +17,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!campus) {
     return {
       title: 'Campus Not Found | Othrhalff',
-      description: 'The requested campus dating and confession community could not be found.',
+      description: 'The requested campus community could not be found.',
     };
   }
 
-  const title = `Othrhalff ${campus.name} – Campus Speed Dating & Anonymous Confessions`;
-  const description = `The exclusive speed dating and anonymous confession app for verified ${campus.name} students in ${campus.location}. Match 1-on-1 with campus peers via text & HD video. Join ${campus.studentsCount} students.`;
+  const title = `Othrhalff ${campus.name} – Campus Community & Anonymous Confessions`;
+  const description = `The exclusive campus connection and anonymous confession app for verified ${campus.name} students in ${campus.location}. Match 1-on-1 with campus peers via text & HD video. Join ${campus.studentsCount} students.`;
 
   return {
     title,
@@ -37,18 +37,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'website',
       images: [
         {
-          url: `https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(`${campus.location} • Speed Dating & Chat`)}&students=${encodeURIComponent(`${campus.studentsCount} Verified Students`)}&type=campus`,
+          url: `https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(`${campus.location} • Campus Connect & Chat`)}&students=${encodeURIComponent(`${campus.studentsCount} Verified Students`)}&type=campus`,
           width: 1200,
           height: 630,
-          alt: `${campus.name} Dating & Confessions`,
+          alt: `${campus.name} Community & Confessions`,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${campus.name} Dating, Confessions & Campus Chat | Othrhalff`,
+      title: `${campus.name} Community, Confessions & Campus Chat | Othrhalff`,
       description: `Join verified ${campus.name} students on Othrhalff. Anonymous confessions, campus-only matching, and student chat.`,
-      images: [`https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(`${campus.location} • Speed Dating & Chat`)}&students=${encodeURIComponent(`${campus.studentsCount} Verified Students`)}&type=campus`],
+      images: [`https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(`${campus.location} • Campus Connect & Chat`)}&students=${encodeURIComponent(`${campus.studentsCount} Verified Students`)}&type=campus`],
     },
   };
 }
@@ -69,7 +69,7 @@ export default function Page({ params }: Props) {
       {
         '@type': 'WebPage',
         name: `Othrhalff ${campus.name} Campus Hub`,
-        description: `Speed dating, 1-on-1 video chats, and anonymous confessions for ${campus.name} students.`,
+        description: `Campus connections, 1-on-1 video chats, and anonymous confessions for ${campus.name} students.`,
         url: `https://www.othrhalff.in/campus/${campus.slug}`,
         about: {
           '@type': 'CollegeOrUniversity',

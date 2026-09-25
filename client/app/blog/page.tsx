@@ -16,7 +16,7 @@ const Blog = dynamic(() => import('../../src/views/Blog').then(mod => mod.Blog),
 
 export const metadata: Metadata = {
   title: 'OthrHalff Blog - The Story Behind the App',
-  description: 'Read the origin story of Othrhalff, built by engineering students in a dorm room to change how university dating works.',
+  description: 'Read the origin story of Othrhalff, built by engineering students in a dorm room to change how campus connection works.',
   alternates: {
     canonical: '/blog',
   },

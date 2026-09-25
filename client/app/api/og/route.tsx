@@ -8,14 +8,14 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const title = searchParams.get('title') || 'Othrhalff';
-    const subtitle = searchParams.get('subtitle') || 'Campus Speed Dating & Anonymous Confessions';
+    const subtitle = searchParams.get('subtitle') || 'Campus Community & Anonymous Confessions';
     const category = searchParams.get('category') || 'CAMPUS HUB';
     const students = searchParams.get('students') || 'Verified Students';
     const type = searchParams.get('type') || 'campus';
 
     const isTea = type === 'tea';
     const accentColor = isTea ? '#FF007F' : '#F45D9B';
-    const badgeText = isTea ? '🍵 ANONYMOUS CAMPUS TEA' : '⚡ VERIFIED CAMPUS DATING';
+    const badgeText = isTea ? '🍵 ANONYMOUS CAMPUS TEA' : '⚡ VERIFIED CAMPUS NETWORK';
 
     return new ImageResponse(
       (

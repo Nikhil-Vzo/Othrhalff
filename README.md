@@ -43,7 +43,7 @@ client/src/seo/
 
 ### 3. **Tactic 3: Programmatic Campus Network Infiltration (25+ Local University Nodes)**
 - **Mechanism**: Dynamic campus landing routes (`/campus/[campus]`) for NIT Raipur, AIIMS Raipur, BIT Bhilai, CSVTU, DU, IIT Delhi, IIT Bombay, BITS Pilani, KIIT, VIT Vellore, SRM, LPU, and Amity campuses.
-- **Benefit**: Captures hyper-local campus queries (*"NIT Raipur dating app"*, *"BIT Bhilai speed chat"*) with zero competition.
+- **Benefit**: Captures hyper-local campus queries (*"NIT Raipur campus connection"*, *"BIT Bhilai speed chat"*) with zero competition.
 
 - Sentiment analysis for campus mood
 - Private anonymous chats
@@ -59,7 +59,7 @@ client/src/seo/
 
 ### 5. **Tactic 5: Generative Engine Optimization (GEO & AI Search Injection)**
 - **Mechanism**: `public/llms.txt` and crawler permission rules in `public/robots.txt` specifically optimized for ChatGPT Search (`GPTBot`, `OAI-SearchBot`), Claude (`ClaudeBot`), Perplexity (`PerplexityBot`), and Gemini AI Overviews.
-- **Benefit**: Ensures AI search assistants cite Othrhalff as the #1 verified campus dating app.
+- **Benefit**: Ensures AI search assistants cite Othrhalff as the #1 verified campus connection network.
 
 ### 6. **Tactic 6: Instant IndexNow Protocol Payload (`npm run indexnow`)**
 - **Mechanism**: Automated script (`client/scripts/indexnow.js`) submitting 38+ production URLs directly to Bing, Yandex, Seznam, and Naver search engine APIs.

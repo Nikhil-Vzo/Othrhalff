@@ -43,7 +43,7 @@ const PageLayout: React.FC<{ title: string; icon: React.ReactNode; children: Rea
 
 export const About: React.FC = () => (
   <PageLayout title="About Us" icon={<Ghost className="w-8 h-8 text-neon" />}>
-    <p className="text-xl text-white font-bold mb-4">We believe dating shouldn't be a popularity contest.</p>
+    <p className="text-xl text-white font-bold mb-4">We believe campus connection shouldn't be a popularity contest.</p>
     <p>
       Othrhalff was born in a dorm room with a simple mission: to bring connection back to campus life without the pressure of superficial swiping.
     </p>
@@ -74,7 +74,7 @@ export const Careers: React.FC = () => (
   <PageLayout title="Careers" icon={<Briefcase className="w-8 h-8 text-neon" />}>
     <h2 className="text-2xl font-bold text-white mb-4">Join the Ghost Crew</h2>
     <p className="mb-6">
-      We are a small, passionate team of developers, designers, and love engineers building the next generation of social discovery.
+      We are a small, passionate team of developers, designers, and community engineers building the next generation of social discovery.
     </p>
 
     <div className="p-8 bg-gray-800/30 rounded-2xl border border-gray-700 text-center">
@@ -308,7 +308,7 @@ export const Safety: React.FC = () => (
 );
 
 export const Guidelines: React.FC = () => (
-  <PageLayout title="Guidelines" icon={<Heart className="w-8 h-8 text-neon" />}>
+  <PageLayout title="Guidelines" icon={<Users className="w-8 h-8 text-neon" />}>
     <div className="space-y-8">
       <p className="text-lg font-medium text-white">
         Othrhalff is designed to be a safe, fun, and inclusive space. To keep it that way, we ask everyone to follow these simple rules.

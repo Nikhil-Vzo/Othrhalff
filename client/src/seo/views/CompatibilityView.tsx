@@ -91,8 +91,8 @@ export const CompatibilityView: React.FC<{ pair: CompatibilityPair }> = ({ pair 
               <h2 className="text-2xl font-bold text-white">{typeA.name}</h2>
               <p className="text-xs text-white/70 italic">"{typeA.tagline}"</p>
               <div className="pt-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">Dating Style:</span>
-                <p className="mt-1 text-xs text-white/80 leading-relaxed">{typeA.datingStyle}</p>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">Communication Style:</span>
+                <p className="mt-1 text-xs text-white/80 leading-relaxed">{typeA.communicationStyle}</p>
               </div>
             </div>
 
@@ -101,8 +101,8 @@ export const CompatibilityView: React.FC<{ pair: CompatibilityPair }> = ({ pair 
               <h2 className="text-2xl font-bold text-white">{typeB.name}</h2>
               <p className="text-xs text-white/70 italic">"{typeB.tagline}"</p>
               <div className="pt-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">Dating Style:</span>
-                <p className="mt-1 text-xs text-white/80 leading-relaxed">{typeB.datingStyle}</p>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white/50">Communication Style:</span>
+                <p className="mt-1 text-xs text-white/80 leading-relaxed">{typeB.communicationStyle}</p>
               </div>
             </div>
           </div>
@@ -127,7 +127,7 @@ export const CompatibilityView: React.FC<{ pair: CompatibilityPair }> = ({ pair 
           <div className="rounded-3xl border border-white/15 bg-white/5 p-6 sm:p-8 space-y-4">
             <div className="flex items-center gap-2 text-violet-400">
               <MessageCircle className="h-5 w-5" />
-              <h2 className="text-lg font-bold text-white">Effortless First Date Conversation Starters</h2>
+              <h2 className="text-lg font-bold text-white">Campus Conversation Starters & Icebreakers</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-2">

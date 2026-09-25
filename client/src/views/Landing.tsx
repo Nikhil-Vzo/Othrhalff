@@ -644,8 +644,8 @@ const MarqueeBar: React.FC = () => (
     </div>
     <div className="w-full md:-ml-[5vw] mt-3 md:-mt-10 md:w-[110vw] rotate-0 md:rotate-1 border-y border-blue-400/30 bg-blue-950/30 py-3 sm:py-6 md:py-8 mix-blend-screen">
       <div className="landing-marquee-right flex w-max whitespace-nowrap font-mono text-base tracking-[.12em] text-blue-200 sm:text-3xl md:text-5xl lg:text-7xl">
-        <span className="mx-6 sm:mx-10">WE ARE BEYOND DATING <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE CAMPUS YOURS</span>
-        <span className="mx-6 sm:mx-10">WE ARE BEYOND DATING <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE CAMPUS YOURS</span>
+        <span className="mx-6 sm:mx-10">CONNECT YOUR ENTIRE CAMPUS <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE CAMPUS YOURS</span>
+        <span className="mx-6 sm:mx-10">CONNECT YOUR ENTIRE CAMPUS <b className="font-normal text-[#F45D9B]">+</b> THE PEOPLE WHO MAKE CAMPUS YOURS</span>
       </div>
     </div>
   </div>
@@ -775,7 +775,7 @@ const PromoVideoSection: React.FC = () => {
 };
 
 const ManifestoSection: React.FC = () => {
-  const primary = <span className="flex items-center gap-6">WE ARE BEYOND DATING <span className="text-[#F45D9B]">/</span></span>;
+  const primary = <span className="flex items-center gap-6">AUTHENTIC CAMPUS CONNECTIONS <span className="text-[#F45D9B]">/</span></span>;
   const secondary = <span className="flex items-center gap-6">FIND YOUR PEOPLE <span className="text-black/30">/</span> REAL CAMPUS BELONGING <span className="text-black/30">/</span></span>;
   return (
     <section className="relative z-10 overflow-hidden border-y border-gray-300/40 bg-[#FAF7EF] pb-20 pt-0 text-gray-950 sm:pb-32">
@@ -783,7 +783,7 @@ const ManifestoSection: React.FC = () => {
       <div className="mx-auto max-w-3xl space-y-8 px-6 pt-16 font-mono text-left sm:space-y-12 sm:px-12 sm:pt-24">
         <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">College isn&apos;t meant to be lonely. Somewhere along the way, campus apps became endless superficial swiping, fake personas, and dead-end conversations. Othrhalff is built to bring back real student connection—where people meet naturally for friendships, study circles, and shared moments instead of becoming another profile card.</p>
         <p className="text-base leading-[1.85] text-gray-800 sm:text-xl">Discover people across your university. Share honest thoughts anonymously on campus confession walls. Let chat turn into a late-night study call, an interactive 2D campus world game, or an actual plan between classes.</p>
-        <p className="border-l-4 border-[#F45D9B] py-1 pl-5 text-base font-semibold leading-[1.85] text-gray-950 sm:pl-8 sm:text-xl">One verified student identity. A genuine campus community. Study groups, gym spotters, creative collaborators, lasting friendships, and real relationships. <span className="font-bold text-[#F45D9B]">We are beyond dating. Built for belonging.</span></p>
+        <p className="border-l-4 border-[#F45D9B] py-1 pl-5 text-base font-semibold leading-[1.85] text-gray-950 sm:pl-8 sm:text-xl">One verified student identity. A genuine campus community. Study groups, gym spotters, creative collaborators, lasting friendships, and genuine connections. <span className="font-bold text-[#F45D9B]">The verified campus network. Built for belonging.</span></p>
       </div>
     </section>
   );
@@ -921,7 +921,7 @@ export const Landing: React.FC = () => {
                 transition: 'all .8s ease-out .75s'
               }}
             >
-              Go beyond dating. Meet persons you&apos;ll naturally cross paths with every day.
+              Your verified campus network. Meet peers you&apos;ll naturally cross paths with every day.
             </p>
             <div
               className="mt-10 flex flex-wrap items-center justify-center gap-4"

@@ -107,7 +107,7 @@ describe('Root page metadata (client/app/page.tsx)', () => {
     expect((rootMetadata.description as string).toLowerCase()).toContain('university');
   });
 
-  it('description mentions anonymous dating', () => {
+  it('description mentions anonymous connection', () => {
     expect((rootMetadata.description as string).toLowerCase()).toContain('anonymous');
   });
 
@@ -293,9 +293,9 @@ describe('Layout metadata (client/app/layout.tsx)', () => {
     expect((layoutMetadata.description as string).toLowerCase()).toContain('anonymous');
   });
 
-  it('description contains "campus" or "dating"', () => {
+  it('description contains "campus"', () => {
     const desc = (layoutMetadata.description as string).toLowerCase();
-    expect(desc.includes('campus') || desc.includes('dating')).toBe(true);
+    expect(desc.includes('campus')).toBe(true);
   });
 });
 

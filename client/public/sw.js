@@ -1,4 +1,4 @@
-// OthrHalff Service Worker for PWA (Cupid Update)
+// OthrHalff Service Worker for PWA (Campus Update)
 const CACHE_NAME = 'othrhalff-cupid-v4.1'; // Bump version when updating
 const RUNTIME_CACHE = 'othrhalff-cupid-runtime-v1';
 

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { typeA, typeB, score, chemistryTier } = pair;
   const title = `${typeA.code} and ${typeB.code} Compatibility (${score}% ${chemistryTier}) | Othrhalff`;
-  const description = `Psychological compatibility analysis for ${typeA.name} (${typeA.code}) and ${typeB.name} (${typeB.code}). Dating dynamics, communication prompts, and campus speed dating.`;
+  const description = `Psychological compatibility analysis for ${typeA.name} (${typeA.code}) and ${typeB.name} (${typeB.code}). Interaction dynamics, communication prompts, and campus student networking.`;
 
   return {
     title,

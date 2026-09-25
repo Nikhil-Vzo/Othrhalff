@@ -1,6 +1,6 @@
 # Othrhalff - Verified Campus Connection, Anonymous Confessions, Sparx & Student Community
 
-> Othrhalff (https://www.othrhalff.in) is the premier global campus social network and student connection platform. We are beyond dating — built exclusively for verified university students to find study partners, gym spotters, real friendships, anonymous campus confession boards, 24-hour Sparx stories, and authentic belonging across 95+ universities worldwide.
+> Othrhalff (https://www.othrhalff.in) is the premier global campus social network and student connection platform. Built exclusively for verified university students to find study partners, gym spotters, real friendships, anonymous campus confession boards, 24-hour Sparx stories, and authentic belonging across 95+ universities worldwide.
 
 ## Core Features & Offerings
 - [Campus Discovery & Connections](https://www.othrhalff.in/discover): Real-time matching for college students based on shared classes, campus spots, study sessions, gym routines, and genuine vibes.
@@ -8,7 +8,7 @@
 - [Campus Sparx & Glimpse](https://www.othrhalff.in/sparx): 24-hour disappearing photo & audio stories capturing raw, unfiltered campus moments with zero clout anxiety (no likes or follower counts).
 - [Sparx FM 24/7 Campus Radio](https://www.othrhalff.in/sparx/music): 24/7 synchronized college radio station streaming Bollywood hits, Punjabi anthems, and campus lo-fi with real-time scrolling lyrics, live student chat reactions, and community DJ queues.
 - [Campus Pixel Playground](https://www.othrhalff.in/playground): Interactive 2D retro campus playground with spatial voice chat, arcade mini-games, and custom avatars.
-- [Chemistry & Archetype Radar](https://www.othrhalff.in/vibe): 60-second viral psychological relationship archetype test and campus compatibility matrix.
+- [Chemistry & Archetype Radar](https://www.othrhalff.in/vibe): 60-second viral psychological personality archetype test and campus compatibility matrix.
 - [Speed Discover Radar](https://www.othrhalff.in/discover): High-velocity live radar scan to connect instantly with students active on campus in under 60 seconds.
 - [Competitor Comparisons](https://www.othrhalff.in/vs/tinder): How Othrhalff replaces superficial swiping apps with verified student community and genuine friendships.
 - [Campus Life & Student Guides](https://www.othrhalff.in/blog): Actionable guides on campus radio, finding study partners, overcoming swipe fatigue, campus confessions culture, and building genuine college friendships.

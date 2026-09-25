@@ -4,7 +4,7 @@ export interface PersonalityType {
   archetype: string;
   tagline: string;
   traits: string[];
-  datingStyle: string;
+  communicationStyle: string;
   greenFlags: string[];
   bestMatches: string[];
   challengingMatches: string[];
@@ -15,14 +15,14 @@ export const personalityTypes: PersonalityType[] = [
   {
     code: 'INFP',
     name: 'The Idealist Dreamer',
-    archetype: 'The Romantic Visionary',
+    archetype: 'The Empathetic Visionary',
     tagline: 'Craves poetic emotional depth, quiet loyalty, and genuine authenticity.',
     traits: ['Deeply Empathetic', 'Creative', 'Values-Driven', 'Private & Loyal'],
-    datingStyle: 'Slow-burn, intense 1-on-1 conversations over crowded parties. Needs emotional safety before opening up completely.',
+    communicationStyle: 'Slow-burn, intense 1-on-1 conversations over crowded parties. Needs emotional safety before opening up completely.',
     greenFlags: ['Active listening without judgment', 'Respecting creative solitude', 'Spontaneous deep discussions at 2 AM'],
     bestMatches: ['ENFJ', 'ENTJ', 'INTJ', 'INFJ'],
     challengingMatches: ['ESTJ', 'ESTP'],
-    communicationPrompt: 'What is an unspoken belief you hold about love that most people disagree with?'
+    communicationPrompt: 'What is an unspoken belief you hold about genuine friendship that most people disagree with?'
   },
   {
     code: 'INTJ',
@@ -30,7 +30,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Intellectual Anchor',
     tagline: 'Values intellectual banter, direct communication, and ambitious mutual growth.',
     traits: ['Hyper-Analytical', 'Strategic', 'Independent', 'Fiercely Loyal'],
-    datingStyle: 'Direct and intentional. Hates games and small talk; looking for an intellectual equal who can challenge ideas.',
+    communicationStyle: 'Direct and intentional. Hates games and small talk; looking for an intellectual equal who can challenge ideas.',
     greenFlags: ['High competence & ambition', 'Direct honesty with zero passive-aggression', 'Respecting boundaries & space'],
     bestMatches: ['ENFP', 'ENTP', 'INFJ', 'INFP'],
     challengingMatches: ['ESFP', 'ISFP'],
@@ -42,7 +42,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Free-Spirited Explorer',
     tagline: 'Brings infectious curiosity, magnetic warmth, and endless creative exploration.',
     traits: ['Charismatic', 'Curious', 'Warm', 'Spontaneous'],
-    datingStyle: 'Exciting, spontaneous adventures paired with midnight philosophical dives. Thrives when allowed to be unapologetically themselves.',
+    communicationStyle: 'Exciting, spontaneous adventures paired with midnight philosophical dives. Thrives when allowed to be unapologetically themselves.',
     greenFlags: ['Matching playful energy', 'Being emotionally grounded', 'Celebrating unconventional ideas'],
     bestMatches: ['INTJ', 'INFJ', 'INTP', 'ENTJ'],
     challengingMatches: ['ISTJ', 'ISFJ'],
@@ -54,7 +54,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Mystical Empath',
     tagline: 'Perceptive, deeply loyal, seeking rare emotional and spiritual synchronicity.',
     traits: ['Intuitive', 'Compassionate', 'Insightful', 'Selectively Social'],
-    datingStyle: 'Looking for a once-in-a-lifetime connection. Can read rooms instantly and craves someone who sees beyond their quiet exterior.',
+    communicationStyle: 'Looking for a once-in-a-lifetime connection. Can read rooms instantly and craves someone who sees beyond their quiet exterior.',
     greenFlags: ['Emotional intelligence', 'Consistent actions over sweet words', 'Appreciating quiet companionship'],
     bestMatches: ['ENTP', 'ENFP', 'INTJ', 'ENFJ'],
     challengingMatches: ['ESTP', 'ESFP'],
@@ -66,7 +66,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Abstract Thinker',
     tagline: 'Fascinated by theories, obscure knowledge, and calm, unpretentious companionship.',
     traits: ['Analytical', 'Objective', 'Original', 'Easygoing'],
-    datingStyle: 'Low-pressure, nerdy banter with zero social posturing. Loves discussing how things work and learning together.',
+    communicationStyle: 'Low-pressure, nerdy banter with zero social posturing. Loves discussing how things work and learning together.',
     greenFlags: ['Intellectual curiosity', 'Low emotional drama', 'Enjoying comfortable silence'],
     bestMatches: ['ENTJ', 'ENFJ', 'INFJ', 'ENFP'],
     challengingMatches: ['ESFJ', 'ISFJ'],
@@ -78,7 +78,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Idea Catalyst',
     tagline: 'Witty, quick-tongued, and energized by spirited debates and innovative chaos.',
     traits: ['Witty', 'Adaptable', 'Unconventional', 'Charismatic'],
-    datingStyle: 'Flirty, dynamic, and verbally electric. The best first date is one where you argue playfully about everything from movies to philosophy.',
+    communicationStyle: 'Dynamic, witty, and verbally electric. The best first conversation is one where you argue playfully about everything from movies to philosophy.',
     greenFlags: ['Quick wit & sarcasm', 'Ability to disagree without taking it personally', 'Spontaneous energy'],
     bestMatches: ['INFJ', 'INTJ', 'INFP', 'ENFP'],
     challengingMatches: ['ISFJ', 'ISTJ'],
@@ -90,7 +90,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Heart Leader',
     tagline: 'Radiates warmth, empathy, and inspires those around them to reach their highest self.',
     traits: ['Warm', 'Supportive', 'Inspiring', 'Organized'],
-    datingStyle: 'Attentive and deeply committed. Remembers every detail about your dreams and loves making you feel seen and celebrated.',
+    communicationStyle: 'Attentive and deeply committed. Remembers every detail about your dreams and loves making you feel seen and celebrated.',
     greenFlags: ['Kindness to strangers', 'Vulnerability', 'Shared desire to make an impact'],
     bestMatches: ['INFP', 'ISFP', 'INTP', 'INFJ'],
     challengingMatches: ['ISTP', 'ESTP'],
@@ -100,9 +100,9 @@ export const personalityTypes: PersonalityType[] = [
     code: 'ENTJ',
     name: 'The Power Architect',
     archetype: 'The Visionary Builder',
-    tagline: 'Driven, decisive, and seeking a dynamic partner to conquer life’s biggest goals with.',
+    tagline: 'Driven, decisive, and seeking a dynamic collaborator to conquer life’s biggest goals with.',
     traits: ['Decisive', 'Ambitious', 'Strategic', 'Direct'],
-    datingStyle: 'High-standard, power-couple dynamic. Values competence, growth mindset, and straightforward honesty.',
+    communicationStyle: 'High-standard, collaborative synergy. Values competence, growth mindset, and straightforward honesty.',
     greenFlags: ['Confidence without arrogance', 'Clear life vision', 'Holding your ground in debates'],
     bestMatches: ['INFP', 'INTP', 'INTJ', 'ENFP'],
     challengingMatches: ['ISFP', 'ISFJ'],
@@ -114,7 +114,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Gentle Artist',
     tagline: 'Living in the sensory moment, deeply authentic, with an effortless aesthetic eye.',
     traits: ['Artistic', 'Present', 'Sensitive', 'Authentic'],
-    datingStyle: 'Sensory-rich experiences (music, food, nature, art). Values actions and unspoken presence far more than grand speeches.',
+    communicationStyle: 'Sensory-rich experiences (music, food, nature, art). Values actions and unspoken presence far more than grand speeches.',
     greenFlags: ['Artistic appreciation', 'Giving space to breathe', 'Gentle, calm demeanor'],
     bestMatches: ['ESFJ', 'ENFJ', 'ESTJ', 'ESFP'],
     challengingMatches: ['INTJ', 'ENTJ'],
@@ -126,7 +126,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Calm Realist',
     tagline: 'Cool-headed, hands-on, and loves practical adventures without unnecessary drama.',
     traits: ['Practical', 'Calm', 'Independent', 'Problem-Solver'],
-    datingStyle: 'Actions over words. Prefers doing things together (road trips, cooking, sports) rather than texting all day.',
+    communicationStyle: 'Actions over words. Prefers doing things together (road trips, cooking, sports) rather than texting all day.',
     greenFlags: ['Independence', 'Straightforwardness', 'Being comfortable doing activities side-by-side'],
     bestMatches: ['ESTJ', 'ESFJ', 'ENTJ', 'ISTJ'],
     challengingMatches: ['ENFJ', 'INFJ'],
@@ -138,7 +138,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Joy Catalyst',
     tagline: 'Life of the party, bringing spontaneous laughter and vibrant energy to every room.',
     traits: ['Vibrant', 'Playful', 'Generous', 'Living in the Now'],
-    datingStyle: 'Fun, spontaneous, and high-energy dates. Loves surprises, social events, and making memories right now.',
+    communicationStyle: 'Fun, spontaneous, and high-energy campus hangouts. Loves surprises, social events, and making memories right now.',
     greenFlags: ['Fun-loving attitude', 'Being open to trying new things', 'Positive social vibes'],
     bestMatches: ['ISFJ', 'ISTJ', 'ISFP', 'ESFJ'],
     challengingMatches: ['INTJ', 'INFJ'],
@@ -150,7 +150,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Bold Adventurer',
     tagline: 'Action-oriented, charismatic, and thrives in high-adrenaline moments.',
     traits: ['Bold', 'Charismatic', 'Direct', 'Perceptive'],
-    datingStyle: 'Direct pursuit, fast-paced dating, and exciting activities. Keeps you on your toes with unexpected spontaneous dates.',
+    communicationStyle: 'Direct pursuit, fast-paced interactions, and exciting activities. Keeps you on your toes with unexpected spontaneous campus adventures.',
     greenFlags: ['Boldness', 'Sense of humor', 'Ability to keep up with fast pace'],
     bestMatches: ['ISFJ', 'ISTJ', 'ESFP', 'ESTJ'],
     challengingMatches: ['INFP', 'INFJ'],
@@ -162,7 +162,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Devoted Anchor',
     tagline: 'Reliable, attentive, and remembers every small detail that makes you smile.',
     traits: ['Loyal', 'Considerate', 'Patient', 'Practical'],
-    datingStyle: 'Thoughtful gestures, consistent communication, and creating a comfortable, safe sanctuary for two.',
+    communicationStyle: 'Thoughtful gestures, consistent communication, and creating a comfortable, safe sanctuary for two.',
     greenFlags: ['Consistency & reliability', 'Manners and thoughtfulness', 'Appreciating small efforts'],
     bestMatches: ['ESFP', 'ESTP', 'ISFP', 'ESFJ'],
     challengingMatches: ['ENTP', 'INTP'],
@@ -174,7 +174,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Loyal Guardian',
     tagline: 'Dependable, steady, and stands firmly by their promises through thick and thin.',
     traits: ['Dependable', 'Honest', 'Organized', 'Committed'],
-    datingStyle: 'Punctual, steady, and drama-free. Shows love through tangible support, acts of service, and unwavering loyalty.',
+    communicationStyle: 'Punctual, steady, and drama-free. Shows care through tangible support, acts of service, and unwavering loyalty.',
     greenFlags: ['Punctuality', 'Clear intentions', 'Respecting commitments'],
     bestMatches: ['ESFP', 'ESTP', 'ISFJ', 'ESTJ'],
     challengingMatches: ['ENFP', 'ENTP'],
@@ -186,11 +186,11 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Community Heart',
     tagline: 'Brings people together, creates harmony, and showers partners with heartfelt care.',
     traits: ['Caring', 'Harmonious', 'Social', 'Loyal'],
-    datingStyle: 'Warm, hospitable, and inclusive. Loves planning cute dates, group hangouts, and celebrating relationship milestones.',
+    communicationStyle: 'Warm, hospitable, and inclusive. Loves planning group hangouts, campus meetups, and celebrating shared milestones.',
     greenFlags: ['Being respectful to family & friends', 'Emotional generosity', 'Active appreciation'],
     bestMatches: ['ISFP', 'ISTP', 'ISFJ', 'ESFP'],
     challengingMatches: ['INTP', 'INTJ'],
-    communicationPrompt: 'What makes you feel most genuinely appreciated in a relationship?'
+    communicationPrompt: 'What makes you feel most genuinely appreciated in a friendship or team?'
   },
   {
     code: 'ESTJ',
@@ -198,7 +198,7 @@ export const personalityTypes: PersonalityType[] = [
     archetype: 'The Reliable Leader',
     tagline: 'Clear, capable, and builds stable, thriving partnerships with direct communication.',
     traits: ['Organized', 'Dedicated', 'Direct', 'Protective'],
-    datingStyle: 'Goal-oriented and transparent. No mind games—knows what they want and supports their partner’s life ambitions fully.',
+    communicationStyle: 'Goal-oriented and transparent. No mind games—knows what they want and supports their partner’s life ambitions fully.',
     greenFlags: ['Clarity & reliability', 'Hard work ethic', 'Straightforward communication'],
     bestMatches: ['ISTP', 'ISFP', 'ISTJ', 'ESTP'],
     challengingMatches: ['INFP', 'INFJ'],
@@ -210,7 +210,7 @@ export interface CompatibilityPair {
   typeA: PersonalityType;
   typeB: PersonalityType;
   score: number;
-  chemistryTier: 'Soulmate Synergy' | 'Dynamic Chemistry' | 'Complementary Balance' | 'Growth Catalyst';
+  chemistryTier: 'Peak Synergy' | 'Dynamic Chemistry' | 'Complementary Balance' | 'Growth Catalyst';
   summary: string;
   strengths: string[];
   communicationTips: string[];
@@ -228,7 +228,7 @@ export function calculateCompatibility(codeA: string, codeB: string): Compatibil
   else score = 82;
 
   let chemistryTier: CompatibilityPair['chemistryTier'] = 'Dynamic Chemistry';
-  if (score >= 90) chemistryTier = 'Soulmate Synergy';
+  if (score >= 90) chemistryTier = 'Peak Synergy';
   else if (score >= 80) chemistryTier = 'Dynamic Chemistry';
   else if (score >= 70) chemistryTier = 'Complementary Balance';
   else chemistryTier = 'Growth Catalyst';

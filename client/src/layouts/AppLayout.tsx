@@ -247,7 +247,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   <span className="text-neon">Halff</span>
                 </h1>
                 <span className="text-[9px] font-bold text-gray-500 tracking-[0.3em] uppercase pl-0.5 group-hover:text-neon transition-colors duration-300">
-                  Campus Dating
+                  Campus Connect
                 </span>
               </div>
             </div>

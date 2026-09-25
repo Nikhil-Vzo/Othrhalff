@@ -2683,7 +2683,7 @@ export const MusicDate = () => {
                     )}
                 </div>
 
-                {/* Standard Music Date Right Panel */}
+                {/* Standard Music Jam Right Panel */}
                 {!isFullscreen && (showMobileSearch || !isMobile) && (
                             <div className={`${showMobileSearch ? 'fixed inset-x-0 bottom-20 top-auto h-[55vh] z-50 rounded-t-3xl border-t-2 border-violet-500/30' : 'hidden md:flex w-80 lg:w-96 border-l'} border-white/5 bg-black/95 md:bg-black/40 backdrop-blur-md md:backdrop-blur-md z-20 flex flex-col flex-shrink-0`}>
                                 <div className="p-3 md:p-4 border-b border-white/5 bg-gray-950/50 flex flex-col gap-2">

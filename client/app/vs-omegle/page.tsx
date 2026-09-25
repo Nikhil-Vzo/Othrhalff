@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     'safe omegle replacement',
     'campus video chat india',
     'anonymous college chat',
-    'college speed dating video',
+    'college video connection',
     'omegle alternative 2026',
   ],
 };
@@ -43,7 +43,7 @@ const jsonLd = {
       '@type': 'WebPage',
       name: 'Othrhalff vs Omegle – Safe Campus Video Chat & Confessions',
       description:
-        'Omegle shut down in 2023. Othrhalff is the safe, verified Omegle alternative for university students with 1-on-1 speed video dating and anonymous campus confession boards.',
+        'Omegle shut down in 2023. Othrhalff is the safe, verified Omegle alternative for university students with 1-on-1 speed video chat and anonymous campus confession boards.',
       url: 'https://www.othrhalff.in/vs-omegle',
     },
     {
