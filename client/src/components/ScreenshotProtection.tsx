@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { EyeOff, ArrowRight } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -12,14 +12,12 @@ interface ScreenshotProtectionProps {
     university?: string;
   } | null;
   enableAutoBlur?: boolean;
-  enableWatermark?: boolean;
   enableShortcutBlock?: boolean;
 }
 
 export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
   currentUser,
   enableAutoBlur = true,
-  enableWatermark = true,
   enableShortcutBlock = true,
 }) => {
   const { showToast } = useToast();
@@ -229,32 +227,8 @@ export const ScreenshotProtection: React.FC<ScreenshotProtectionProps> = ({
     };
   }, [triggerSecurityWarning]);
 
-  // Zero-DOM-Node Watermark: Single CSS Background Texture (0% CPU, GPU Cached)
-  const watermarkStyle = useMemo(() => {
-    if (!enableWatermark) return null;
-    const text = currentUser?.anonymousId
-      ? `OTHRHALFF // ${currentUser.anonymousId} // CONFIDENTIAL`
-      : `OTHRHALFF // CONFIDENTIAL`;
-    
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='120'><text x='50%' y='50%' font-size='9' font-family='monospace' font-weight='700' fill='white' transform='rotate(-20 150 60)' text-anchor='middle' letter-spacing='2'>${text}</text></svg>`;
-    
-    return {
-      backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`,
-      backgroundRepeat: 'repeat',
-    };
-  }, [enableWatermark, currentUser?.anonymousId]);
-
   return (
     <>
-      {/* 1. Ultra-Lightweight Watermark Layer: 1 single DOM node, GPU texture */}
-      {watermarkStyle && (
-        <div 
-          aria-hidden="true"
-          className="fixed inset-0 pointer-events-none z-[85] opacity-[0.03] select-none"
-          style={watermarkStyle}
-        />
-      )}
-
       {/* 2. Zero-Latency Hardware-Accelerated Privacy Screen (Managed directly by CSS class) */}
       <div 
         id="privacy-screen-overlay"
