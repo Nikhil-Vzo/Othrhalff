@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { ArrowLeft, Sparkles, Flame } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Romantic Archetype & Chemistry Radar | Othrhalff',
-  description: 'Discover your relationship archetype, emotional green flags, and highest-synergy campus matches. 60-second chemistry radar.',
+  title: 'Campus Archetype & Synergy Radar | Othrhalff',
+  description: 'Discover your campus personality archetype, collaboration traits, and highest-synergy peers. 60-second campus radar.',
   alternates: {
     canonical: 'https://www.othrhalff.in/vibe',
   },
   openGraph: {
-    title: 'Discover Your Romantic Archetype | Othrhalff',
-    description: 'Find out your psychological compatibility matrix and connect with your counterpart on campus.',
+    title: 'Discover Your Campus Archetype | Othrhalff',
+    description: 'Find out your campus personality compatibility matrix and connect with like-minded peers on campus.',
     url: 'https://www.othrhalff.in/vibe',
     type: 'website',
   },
@@ -47,11 +47,11 @@ export default function VibePage() {
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-normal text-white leading-none tracking-wide">
-            Discover Your <span className="font-geraldine text-5xl sm:text-7xl text-[#F45D9B] tracking-normal inline-block ml-1">Romantic Archetype</span>
+            Discover Your <span className="font-geraldine text-5xl sm:text-7xl text-[#F45D9B] tracking-normal inline-block ml-1">Campus Archetype</span>
           </h1>
 
           <p className="text-xs sm:text-sm text-white/70 max-w-sm mx-auto font-medium leading-relaxed">
-            Take the 60-second radar test to unlock your romantic blueprint and find your counterpart.
+            Take the 60-second radar test to unlock your campus personality blueprint and find your study & project peers.
           </p>
         </div>
 

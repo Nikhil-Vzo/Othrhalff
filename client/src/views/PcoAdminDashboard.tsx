@@ -873,7 +873,7 @@ export const PcoAdminDashboard: React.FC = () => {
 
             {queue.length === 0 && (
               <div className="text-zinc-600 p-4 border border-zinc-900 rounded">
-                Custom queue is empty. Radio is streaming deterministically from the 24/7 romantic schedule.
+                Custom queue is empty. Radio is streaming deterministically from the 24/7 campus radio schedule.
               </div>
             )}
 

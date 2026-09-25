@@ -1,6 +1,6 @@
 // OthrHalff Service Worker for PWA (Campus Update)
-const CACHE_NAME = 'othrhalff-cupid-v4.1'; // Bump version when updating
-const RUNTIME_CACHE = 'othrhalff-cupid-runtime-v1';
+const CACHE_NAME = 'othrhalff-campus-v4.1'; // Bump version when updating
+const RUNTIME_CACHE = 'othrhalff-campus-runtime-v1';
 
 // SCALING FIX: runtime + image caches were previously unbounded. Every deploy
 // added new hashed chunks that were never trimmed, and every image ever seen

@@ -341,7 +341,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
             {/* Top Bar */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#F45D9B]">
-                ✦ ROMANTIC ARCHETYPE
+                ✦ CAMPUS PERSONALITY ARCHETYPE
               </span>
               <button
                 onClick={restartQuiz}
@@ -395,7 +395,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-[#F45D9B] flex items-center gap-1.5">
-                  <Heart className="h-3.5 w-3.5 fill-current" /> Golden Matches:
+                  <Sparkles className="h-3.5 w-3.5 fill-current" /> Top Synergy Matches:
                 </span>
                 <div className="flex gap-1.5">
                   {result.bestMatches.slice(0, 3).map((m, i) => (
@@ -423,7 +423,7 @@ export const ViralArchetypeQuiz: React.FC<{ onComplete?: (result: PersonalityTyp
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#F45D9B] via-[#FF007F] to-[#b32766] py-3.5 text-center font-bold text-white shadow-lg shadow-[#F45D9B]/25 transition-all hover:opacity-95 active:scale-[0.99]"
               >
                 <Zap className="h-4 w-4 fill-current" />
-                <span>Find Your {result.bestMatches[0]} Match Free →</span>
+                <span>Connect With {result.bestMatches[0]} Peers →</span>
               </Link>
 
               <button

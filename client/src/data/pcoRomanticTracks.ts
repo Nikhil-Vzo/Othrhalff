@@ -1,4 +1,4 @@
-// Curated dataset of 24/7 Verified High-Quality Trending Bollywood, Punjabi, Indie & Romantic Songs
+// Curated dataset of 24/7 Verified High-Quality Trending Bollywood, Punjabi, Indie & Campus Study Songs
 
 export interface PcoTrack {
     id: string;
@@ -797,27 +797,27 @@ export const curatedRomanticTracks: PcoTrack[] = [
 ];
 
 export const trendingRomanticQueries: string[] = [
-    "Arijit Singh Romantic Hits",
-    "Trending Hindi Romantic Songs",
-    "Bollywood Love Songs 2024",
-    "Atif Aslam Love Songs",
-    "KK Romantic Hits",
+    "Arijit Singh Hits",
+    "Trending Hindi Hits",
+    "Bollywood Trending Anthems",
+    "Atif Aslam Acoustic",
+    "KK All-Time Hits",
     "Diljit Dosanjh Hits",
     "AP Dhillon Punjabi Vibes",
     "Karan Aujla Hits",
-    "Shreya Ghoshal Romantic Hits",
-    "Pritam Romantic Melodies",
-    "Vishal Mishra Love Songs",
-    "Mohit Chauhan Romantic Hits",
-    "Jubin Nautiyal Love Songs",
-    "Darshan Raval Romantic Songs",
+    "Shreya Ghoshal Melodies",
+    "Pritam Beats & Melodies",
+    "Vishal Mishra Hits",
+    "Mohit Chauhan Unplugged",
+    "Jubin Nautiyal Melodies",
+    "Darshan Raval Hits",
     "Anuv Jain Indie Hits",
-    "Hindi Lo-Fi Romance",
-    "Soulful Bollywood Romance",
-    "90s Bollywood Love Melodies",
-    "Sonu Nigam Romantic Hits",
-    "Armaan Malik Love Hits",
-    "B Praak Romantic Hits",
+    "Hindi Lo-Fi Chill",
+    "Soulful Bollywood Acoustic",
+    "90s Bollywood Nostalgia",
+    "Sonu Nigam Classics",
+    "Armaan Malik Hits",
+    "B Praak Hits",
     "Prateek Kuhad Indie",
     "Coke Studio Melodies"
 ];

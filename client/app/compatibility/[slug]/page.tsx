@@ -80,7 +80,7 @@ export default function Page({ params }: Props) {
     '@graph': [
       {
         '@type': 'Article',
-        headline: `${pair.typeA.code} and ${pair.typeB.code} Romantic Compatibility Report`,
+        headline: `${pair.typeA.code} and ${pair.typeB.code} Personality Compatibility Report`,
         description: pair.summary,
         author: {
           '@type': 'Organization',
