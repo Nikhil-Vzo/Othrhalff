@@ -19,10 +19,10 @@ jobs:
           node-version: '20'
 
       - name: Install Dependencies
-        run: npm install @supabase/supabase-js
+        run: npm install @supabase/supabase-js --no-audit --no-fund
 
       - name: Run Keep-Alive Script
-        run: node scripts/supabase_keep_alive.js
+        run: node scripts/supabase_keep_alive.mjs
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://cthyiegohnvqtepzoqjf.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
