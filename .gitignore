@@ -186,6 +186,8 @@ othrhalff_contacts*.json
 *contacts*.json
 *investor*.md
 *outreach*.md
+custom_email_setup_guide.md
+
 
 # Scripts data files (keep package.json)
 scripts/*.json
