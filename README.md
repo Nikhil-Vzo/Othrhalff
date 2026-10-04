@@ -228,10 +228,6 @@ The anonymous confession wall, 2D campus world, and ephemeral stories remained c
 
 ---
 
-*Special thanks to all team members and collaborators whose contributions shaped the platform's early foundation.*
-
----
-
 <div align="center">
   <sub>Designed and engineered for campus authenticity. Built with Next.js, Supabase, and Node.js.</sub>
   <br />
