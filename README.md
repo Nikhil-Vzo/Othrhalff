@@ -17,8 +17,7 @@ Built for students. Gated to verified university identities. Zero phone number e
 
 <br />
 
-🌐 **Live Platform**: [othrhalff.in](https://www.othrhalff.in/) &nbsp;·&nbsp; 🌍 **Global Reach**: 400+ Active Users across 7 Countries &nbsp;·&nbsp; ⚡ **Architecture**: MERN / Next.js Monorepo
-
+🌐 **Live Platform**: [othrhalff.in](https://www.othrhalff.in/) &nbsp;·&nbsp; 🌍 **Global Reach**: 400+ Active Users across 7 Countries &nbsp;·&nbsp; 
 <br />
 
 <p align="center">
@@ -228,16 +227,6 @@ OthrHalff initially launched with positioning around college dating. In Septembe
 The anonymous confession wall, 2D campus world, and ephemeral stories remained core—the framing shifted from dating to authentic campus culture. Retention surged immediately following the pivot.
 
 ---
-
-## ✦ Creator & Maintainer
-
-Built with relentless discipline and technical craft by:
-
-**Nikhil Yadav**  
-*Lead Architect & Full-Stack Developer*  
-- **Venture**: [OthrHalff](https://www.othrhalff.in/)  
-- **GitHub**: [@Nikhil-Vzo](https://github.com/Nikhil-Vzo)  
-- **Live Platform**: [othrhalff.in](https://www.othrhalff.in/)
 
 *Special thanks to all team members and collaborators whose contributions shaped the platform's early foundation.*
 
