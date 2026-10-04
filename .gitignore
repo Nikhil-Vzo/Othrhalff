@@ -1,28 +1,192 @@
-node_modules/
+# ==========================================
+# Othrhalff - Production Git Ignore
+# ==========================================
+
+# ------------------------------------------
+# 1. Environment & Secrets (Keep all secrets private)
+# ------------------------------------------
 .env
+.env*.local
 .env.local
-.env.*
-dist/
-build/
-.next/
-client/.next/
-.DS_Store
-*.log
-.vscode/
-.idea/
-.gemini/
-db_backup/
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
 
-.worktrees/
+client/.env
+client/.env*.local
+client/.env.local
+client/.env.development
+client/.env.production
+server/.env
+server/.env*.local
+server/.env.local
+server/.env.development
+server/.env.production
 
-.superpowers/
-
-PUSH_NOTIFICATIONS_MANUAL.txt
-posters/
-*.tsbuildinfo
+# Credentials & Certificate Keys
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
 *service-account*.json
 *gsc-key*.json
 *credentials*.json
+*secret*.json
+*token*.json
+
+# Allow tracking example / template env files
+!.env.example
+!.env*.example
+!.env.template
+!.env.sample
+!client/.env.example
+!server/.env.example
+
+# ------------------------------------------
+# 2. Dependencies & Package Managers
+# ------------------------------------------
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# ------------------------------------------
+# 3. Next.js, Bundlers & Build Outputs
+# ------------------------------------------
+.next/
+client/.next/
+out/
+build/
+dist/
+.swc/
+.turbo/
+client/.turbo/
+.vercel/
+.cache/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# ------------------------------------------
+# 4. Logs, Debugging & Processes
+# ------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.pid
+*.seed
+*.pid.lock
+
+# ------------------------------------------
+# 5. Testing & Code Coverage
+# ------------------------------------------
+coverage/
+client/coverage/
+.nyc_output/
+playwright-report/
+test-results/
+cypress/videos/
+cypress/screenshots/
+
+# ------------------------------------------
+# 6. Operating System & Filesystem Junk
+# ------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+ehthumbs_vista.db
+Thumbs.db
+[Dd]esktop.ini
+__MACOSX/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# ------------------------------------------
+# 7. Compressed Archives & Backups
+# ------------------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.tgz
+*.gz
+
+# ------------------------------------------
+# 8. Databases & Local Storage
+# ------------------------------------------
+db_backup/
+dump.rdb
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.dump
+*.sql.gz
+
+# ------------------------------------------
+# 9. IDEs, Editors & AI Assistants
+# ------------------------------------------
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.gemini/
+.superpowers/
+.worktrees/
+.claude/
+
+# ------------------------------------------
+# 10. Raw Asset Dumps & Marketing Media
+# (Production assets are optimized inside client/public/)
+# ------------------------------------------
+police png/
+lpc-fruit-trees/
+32_Characters/
+othrhalff_assets/
+assets/marketing/
+posters/
+PUSH_NOTIFICATIONS_MANUAL.txt
+
+# ------------------------------------------
+# 11. Private Leads & Investor Contacts
+# ------------------------------------------
+othrhalff_contacts*.json
+*contacts*.json
+*investor*.md
+*outreach*.md
+
+# Scripts data files (keep package.json)
 scripts/*.json
 !scripts/package.json
-
