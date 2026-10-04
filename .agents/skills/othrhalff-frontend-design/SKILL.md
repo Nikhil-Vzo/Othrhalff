@@ -1,7 +1,7 @@
 ---
 name: othrhalff-frontend-design
 description: Create distinctive, production-grade frontend interfaces tailored for a platform focused on finding connections and vibes, moving entirely beyond traditional superficial swiping mechanics. Generates highly creative, interactive code using React, TypeScript, and advanced animation frameworks.
-license: Complete terms in LICENSE.txt
+license: Source-Available terms in LICENSE
 ---
 
 This skill guides the creation of distinctive, production-grade frontend interfaces for OthrHalff. Implement real, working React and TypeScript code with exceptional attention to motion, spatial design, and aesthetic vibe.
@@ -24,7 +24,7 @@ Focus on:
 - **Motion & 3D Integration**: This is critical. Utilize GSAP for complex, orchestrated page loads, scroll-triggered physics, and staggered reveals. Where applicable, integrate Three.js for immersive, WebGL-driven background effects or interactive connection visualizers to establish the mood.
 - **Spatial Composition**: Avoid generic dashboard layouts. Use asymmetry, strategic overlap, and diagonal flows. Balance generous negative space with tightly controlled clusters of interactive data.
 - **Visual Details**: Create atmosphere. Apply contextual effects like custom cursors, magnetic hover states, layered transparencies, and subtle grain overlays to make the digital space feel tactile.
--**No emojis**: NEver use any literal emoji while creating ui use pro icons from lucid react or whatsoever library 
+- **No emojis**: Never use literal emojis in UI components; use precise icons from `lucide-react`.
 
 NEVER use generic AI-generated aesthetics (e.g., standard Tailwind templates without customization, predictable card grids, cliched purple-on-white gradients, emojis). 
 
