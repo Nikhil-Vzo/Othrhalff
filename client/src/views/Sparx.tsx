@@ -953,7 +953,10 @@ export const Sparx: React.FC = () => {
               <div className="max-w-xl mx-auto bg-black">
                 {glimpses.map((glimpse, index) => {
                   const isViewed = viewedIds.includes(glimpse.id);
-                  const displayName = glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous';
+                  const isAnon = !!glimpse.is_anonymous;
+                  const displayName = isAnon
+                    ? (glimpse.profiles?.anonymous_id || 'Anonymous Student')
+                    : (glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Campus Student');
                   const timeText = (() => {
                     const diff = Date.now() - new Date(glimpse.created_at).getTime();
                     const hrs = Math.floor(diff / (1000 * 60 * 60));
@@ -979,7 +982,7 @@ export const Sparx: React.FC = () => {
                           {/* User Avatar */}
                           <div className="relative flex-shrink-0">
                             <div className="w-12 h-12 rounded-full border border-gray-800 overflow-hidden bg-gray-950 flex items-center justify-center">
-                              {glimpse.profiles?.avatar ? (
+                              {!isAnon && glimpse.profiles?.avatar ? (
                                 <img 
                                   src={getOptimizedUrl(glimpse.profiles.avatar, 64)} 
                                   alt="Avatar" 
@@ -988,8 +991,8 @@ export const Sparx: React.FC = () => {
                                   onError={handleImageError}
                                 />
                               ) : (
-                                <div className="w-full h-full bg-neon/15 text-neon text-xs font-bold font-mono flex items-center justify-center">
-                                  {(displayName || '??').slice(0, 2).toUpperCase()}
+                                <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-600/20 text-neon text-xs font-bold font-mono flex items-center justify-center">
+                                  {isAnon ? '👻' : (displayName || '??').slice(0, 2).toUpperCase()}
                                 </div>
                               )}
                             </div>
@@ -1004,7 +1007,7 @@ export const Sparx: React.FC = () => {
                               <h3 className="text-sm font-bold text-gray-100 truncate">
                                 {displayName}
                               </h3>
-                              {glimpse.profiles?.is_verified && !glimpse.is_anonymous && (
+                              {glimpse.profiles?.is_verified && !isAnon && (
                                 <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
                               )}
                               <span className="text-xs text-gray-500 font-mono">

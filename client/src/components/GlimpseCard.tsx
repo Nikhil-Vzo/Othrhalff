@@ -336,37 +336,46 @@ export const GlimpseCard: React.FC<GlimpseCardProps> = ({
       {/* Glassmorphic Profile & Caption Card */}
       <div className="absolute left-4 md:left-[104px] right-20 bottom-24 md:bottom-8 z-20 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-2 max-w-md animate-in fade-in slide-in-from-bottom-5 duration-500">
         {/* User Credentials */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full border border-white/20 overflow-hidden bg-gray-950 flex-shrink-0">
-            {glimpse.profiles?.avatar ? (
-              <img
-                src={getOptimizedUrl(glimpse.profiles.avatar, 64)}
-                alt="Avatar"
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-                onError={handleImageError}
-              />
-            ) : (
-              <div className="w-full h-full bg-neon/10 flex items-center justify-center text-neon text-xs font-bold font-mono">
-                {((glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || '??').slice(0, 2).toUpperCase())}
-              </div>
-            )}
-          </div>
+        {(() => {
+          const isAnon = !!glimpse.is_anonymous;
+          const displayName = isAnon
+            ? (glimpse.profiles?.anonymous_id || 'Anonymous Student')
+            : (glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Campus Student');
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-bold text-white truncate">
-                {glimpse.profiles?.real_name || glimpse.profiles?.username || glimpse.profiles?.anonymous_id || 'Anonymous'}
-              </span>
-              {glimpse.profiles?.is_verified && (
-                <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
-              )}
+          return (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full border border-white/20 overflow-hidden bg-gray-950 flex-shrink-0">
+                {!isAnon && glimpse.profiles?.avatar ? (
+                  <img
+                    src={getOptimizedUrl(glimpse.profiles.avatar, 64)}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={handleImageError}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-600/20 flex items-center justify-center text-neon text-xs font-bold font-mono">
+                    {isAnon ? '👻' : ((displayName || '??').slice(0, 2).toUpperCase())}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-bold text-white truncate">
+                    {displayName}
+                  </span>
+                  {!isAnon && glimpse.profiles?.is_verified && (
+                    <BadgeCheck className="w-4 h-4 text-[#60a5fa] drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]" fill="currentColor" stroke="black" strokeWidth={1.5} />
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+                  <span>{getRelativeTime(glimpse.created_at)}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-              <span>{getRelativeTime(glimpse.created_at)}</span>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Floating Interaction Panel (Right) */}

@@ -194,7 +194,7 @@ export const MOCK_NOTIFICATIONS: Notification[] = [
 export const APP_NAME = "Othrhalff";
 
 export const PLAYGROUND_CONFIG = {
-  isLocked: true,
+  isLocked: false,
   statusBadge: 'Locked',
   title: 'Playground Locked',
   headline: 'Changing Map Design',

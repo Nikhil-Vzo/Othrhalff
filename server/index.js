@@ -24,6 +24,19 @@ dotenv.config({ path: path.resolve(__dirname, './.env') });
 const app = express();
 const port = parseInt(process.env.PORT || '5000', 10);
 
+// Disable tech fingerprinting
+app.disable('x-powered-by');
+
+// Global HTTP Security Headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
 // SCALING: Render terminates TLS at a reverse proxy. Trust the first proxy hop
 // so req.ip is the REAL client IP — without this, every request shares one
 // rate-limit bucket (platform-wide 429s) and per-IP abuse controls are useless.

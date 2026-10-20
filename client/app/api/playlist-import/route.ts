@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit } from '../_lib/rateLimit';
+
+export const dynamic = 'force-dynamic';
 
 interface ExtractedTrack {
     title: string;
@@ -7,11 +10,23 @@ interface ExtractedTrack {
 }
 
 export async function POST(req: NextRequest) {
+    // 1. Rate Limiting: Max 10 imports per 5 minutes per IP
+    const rateLimit = checkRateLimit(req, 10, 5 * 60, 'playlist_import');
+    if (!rateLimit.success) {
+        return NextResponse.json(
+            { error: 'Rate limit exceeded. Please wait a few minutes before importing another playlist.' },
+            {
+                status: 429,
+                headers: { 'Retry-After': String(rateLimit.resetInSeconds) },
+            }
+        );
+    }
+
     try {
         const body = await req.json();
         const { url } = body;
 
-        if (!url || typeof url !== 'string') {
+        if (!url || typeof url !== 'string' || url.length > 500) {
             return NextResponse.json({ error: 'Please provide a valid playlist URL.' }, { status: 400 });
         }
 

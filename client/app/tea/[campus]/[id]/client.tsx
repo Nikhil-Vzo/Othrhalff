@@ -68,11 +68,11 @@ export default function TeaPageClient({ campusSlug, confessionId }: Props) {
         const { data, error: fetchErr } = await supabase
           .from('confessions')
           .select(`
-            *,
+            id, text, image_url, university, type, created_at,
             poll_options (*),
             confession_reactions (emoji, user_id),
             confession_comments (
-              id, text, created_at, user_id,
+              id, text, created_at,
               profiles:user_id (anonymous_id)
             )
           `)

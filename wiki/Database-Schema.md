@@ -110,11 +110,7 @@ create table public.user_presence (
     ```
 *   **All Operations**: Users can perform all operations (insert, update, delete) on their own presence entry.
     ```sql
-<<<<<<< HEAD
-    create policy "Allow upsert own presence" on public.user_presence for all using (true) with check (auth.uid() = id);
-=======
-    create policy "Allow upsert own presence" on public.user_presence for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
->>>>>>> 67df4eb7294ddeb5175a126bfebbfcc04cc83e87
+    create policy "Allow upsert own presence" on public.user_presence for all to authenticated using (auth.uid() = id) with check (auth.uid() = id);
     ```
 
 ---
@@ -194,11 +190,7 @@ create table public.swipes (
     ```
 *   **All Operations**: Users can perform inserts or updates on swipes they initiate.
     ```sql
-<<<<<<< HEAD
-    create policy "Allow upsert own swipes" on public.swipes for all using (true) with check (auth.uid() = liker_id);
-=======
-    create policy "Allow upsert own swipes" on public.swipes for all using (auth.uid() = liker_id) with check (auth.uid() = liker_id);
->>>>>>> 67df4eb7294ddeb5175a126bfebbfcc04cc83e87
+    create policy "Allow upsert own swipes" on public.swipes for all to authenticated using (auth.uid() = liker_id) with check (auth.uid() = liker_id);
     ```
 
 ---

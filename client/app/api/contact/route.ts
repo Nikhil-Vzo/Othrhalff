@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from '../_lib/rateLimit';
+
+export const dynamic = 'force-dynamic';
 
 const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -21,11 +24,23 @@ const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 export async function POST(req: NextRequest) {
+    // 1. Rate Limiting: Max 5 tickets per 15 minutes per IP
+    const rateLimit = checkRateLimit(req, 5, 15 * 60, 'contact');
+    if (!rateLimit.success) {
+        return NextResponse.json(
+            { error: 'Too many submissions. Please wait before submitting another ticket.' },
+            {
+                status: 429,
+                headers: { 'Retry-After': String(rateLimit.resetInSeconds) },
+            }
+        );
+    }
+
     try {
         const body = await req.json();
-        const { user_id, email, category, message, status = 'open' } = body;
+        const { user_id, email, category, message } = body;
 
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
+        if (!email || typeof email !== 'string' || !email.includes('@') || email.length > 150) {
             return NextResponse.json(
                 { error: 'Please provide a valid email address.' },
                 { status: 400 }
@@ -39,22 +54,33 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        if (message.trim().length > 3000) {
+            return NextResponse.json(
+                { error: 'Message cannot exceed 3000 characters.' },
+                { status: 400 }
+            );
+        }
+
+        const sanitizedCategory = typeof category === 'string'
+            ? category.replace(/[\r\n]/g, '').trim().substring(0, 60)
+            : 'General Inquiry';
+
         const { data, error } = await supabaseAdmin
             .from('support_tickets')
             .insert({
-                user_id: user_id || null,
-                email: email.trim(),
-                category: (category || 'General Inquiry').trim(),
+                user_id: (typeof user_id === 'string' && user_id.length === 36) ? user_id : null,
+                email: email.trim().toLowerCase(),
+                category: sanitizedCategory,
                 message: message.trim(),
-                status: status || 'open',
+                status: 'open', // Always forced to open - cannot be forged by client
             })
-            .select()
+            .select('id, category, status, created_at')
             .single();
 
         if (error) {
             console.error('Server error inserting support ticket:', error);
             return NextResponse.json(
-                { error: error.message || 'Failed to submit support ticket.' },
+                { error: 'Failed to submit support ticket. Please try again later.' },
                 { status: 500 }
             );
         }
@@ -66,7 +92,7 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
         console.error('Unexpected error in /api/contact:', err);
         return NextResponse.json(
-            { error: err.message || 'Internal server error.' },
+            { error: 'Internal server error.' },
             { status: 500 }
         );
     }

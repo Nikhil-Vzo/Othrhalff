@@ -302,9 +302,9 @@ export const Confessions: React.FC = () => {
         // Optimized query: Eliminate slow lateral joins on foreign tables
         let query = supabase.from('confessions')
             .select(`
-                id, user_id, text, image_url, university, type, created_at,
+                id, text, image_url, university, type, created_at,
                 poll_options (id, text, vote_count), 
-                confession_reactions (emoji, user_id),
+                confession_reactions (emoji),
                 confession_comments (id)
             `)
             .range(from, to);
@@ -336,14 +336,25 @@ export const Confessions: React.FC = () => {
 
         // Fetch votes in parallel only for poll posts
         const pollPostIds = posts.filter((p: any) => p.type === 'poll' || (p.poll_options && p.poll_options.length > 0)).map((p: any) => p.id);
+        const allPostIds = posts.map((p: any) => p.id);
         let myVoteMap = new Map();
-        if (currentUser && pollPostIds.length > 0) {
-            const { data: myVotes } = await supabase
-                .from('poll_votes')
-                .select('confession_id, option_id')
-                .in('confession_id', pollPostIds)
+        let myReactionMap = new Map();
+        if (currentUser && allPostIds.length > 0) {
+            if (pollPostIds.length > 0) {
+                const { data: myVotes } = await supabase
+                    .from('poll_votes')
+                    .select('confession_id, option_id')
+                    .in('confession_id', pollPostIds)
+                    .eq('user_id', currentUser.id);
+                myVotes?.forEach(v => myVoteMap.set(v.confession_id, v.option_id));
+            }
+            // Fetch current user's own reactions without leaking other users' IDs in feed
+            const { data: myReactions } = await supabase
+                .from('confession_reactions')
+                .select('confession_id, emoji')
+                .in('confession_id', allPostIds)
                 .eq('user_id', currentUser.id);
-            myVotes?.forEach(v => myVoteMap.set(v.confession_id, v.option_id));
+            myReactions?.forEach(r => myReactionMap.set(r.confession_id, r.emoji));
         }
 
         const formatted: Confession[] = posts.map((p: any) => {
@@ -367,7 +378,7 @@ export const Confessions: React.FC = () => {
                 type: (isVideo ? 'video' : p.type) as 'text' | 'poll' | 'video',
                 pollOptions: p.poll_options?.map((opt: any) => ({ id: opt.id, text: opt.text, votes: opt.vote_count })),
                 userVote: myVoteMap.get(p.id),
-                userReaction: currentUser ? p.confession_reactions?.find((r: any) => r.user_id === currentUser.id)?.emoji : undefined
+                userReaction: myReactionMap.get(p.id)
             };
         });
 
@@ -684,8 +695,21 @@ export const Confessions: React.FC = () => {
         if (file) { 
             const reader = new FileReader(); 
             reader.onloadend = () => {
-                setNewImage(reader.result as string);
-                setUploadedVideoUrl(null);
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0);
+                        // Re-encoding through canvas discards all camera, device, and GPS EXIF metadata
+                        const sanitizedUrl = canvas.toDataURL('image/jpeg', 0.85);
+                        setNewImage(sanitizedUrl);
+                        setUploadedVideoUrl(null);
+                    }
+                };
+                img.src = reader.result as string;
             }; 
             reader.readAsDataURL(file); 
         }

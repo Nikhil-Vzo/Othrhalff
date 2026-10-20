@@ -53,9 +53,9 @@ export default function CampusTeaClient({ campusSlug }: Props) {
         const { data, error } = await supabase
           .from('confessions')
           .select(`
-            id, user_id, text, image_url, university, type, created_at,
+            id, text, image_url, university, type, created_at,
             poll_options (id, text, vote_count),
-            confession_reactions (emoji, user_id),
+            confession_reactions (emoji),
             confession_comments (id)
           `)
           .ilike('university', `%${campus.shortName}%`)
@@ -67,9 +67,9 @@ export default function CampusTeaClient({ campusSlug }: Props) {
           const { data: fallbackData } = await supabase
             .from('confessions')
             .select(`
-              id, user_id, text, image_url, university, type, created_at,
+              id, text, image_url, university, type, created_at,
               poll_options (id, text, vote_count),
-              confession_reactions (emoji, user_id),
+              confession_reactions (emoji),
               confession_comments (id)
             `)
             .order('created_at', { ascending: false })
