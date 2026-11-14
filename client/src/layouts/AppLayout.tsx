@@ -81,7 +81,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!mounted || isLoading) return;
 
-    const PUBLIC_ROUTES = ['/', '/login', '/confessions', '/about', '/privacy', '/terms', '/guidelines', '/contact', '/safety', '/maintenance', '/blog', '/vs-omegle', '/careers', '/reddit', '/developers'];
+    const PUBLIC_ROUTES = ['/', '/login', '/confessions', '/about', '/privacy', '/terms', '/guidelines', '/contact', '/safety', '/maintenance', '/blog', '/vs-omegle', '/careers', '/reddit', '/team'];
     // SEO-01: blog article URLs (/blog/<slug>) are public, same as the /blog
     // index. PUBLIC_ROUTES only exact-matches, so without this prefix check
     // guests were redirected to /login even though the sitemap lists the posts.
