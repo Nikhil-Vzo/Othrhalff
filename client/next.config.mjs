@@ -13,6 +13,13 @@ const nextConfig = {
         destination: '/vs/omegle',
         permanent: true,
       },
+      {
+        // SEO-05: /developers was a team page, not a developer page (no public
+        // API exists), so the route is now /team.
+        source: '/developers',
+        destination: '/team',
+        permanent: true,
+      },
     ];
   },
   env: {
