@@ -40,7 +40,6 @@ const staticUrls = [
   `https://${host}/sparx/music`,
   `https://${host}/playground`,
   `https://${host}/vibe`,
-  `https://${host}/vs-omegle`,
   `https://${host}/vs/omegle`,
   `https://${host}/vs/tinder`,
   `https://${host}/vs/bumble`,
