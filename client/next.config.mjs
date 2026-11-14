@@ -4,6 +4,17 @@ const nextConfig = {
   swcMinify: true,
   optimizeFonts: false,
   poweredByHeader: false, // Prevents X-Powered-By: Next.js tech fingerprinting
+  // SEO-03: /vs/omegle is the single canonical Omegle comparison page.
+  // The old /vs-omegle URL permanently redirects to it.
+  async redirects() {
+    return [
+      {
+        source: '/vs-omegle',
+        destination: '/vs/omegle',
+        permanent: true,
+      },
+    ];
+  },
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY,
