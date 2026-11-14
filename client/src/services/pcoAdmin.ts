@@ -235,10 +235,33 @@ export async function submitPcoSongRequest(
   currentUser: UserProfile | null,
   displayName: string
 ): Promise<{ success: boolean; data?: PcoSongRequest; error?: string }> {
+  // 1. Try server-side API endpoint first (handles auth, UUID normalization, and bypasses RLS restrictions)
+  try {
+    const res = await fetch('/api/pco-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track, currentUser, displayName })
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return { success: true, data: json.data as PcoSongRequest };
+      }
+    }
+  } catch (apiErr) {
+    console.debug('[PCO Admin] /api/pco-request endpoint failed, falling back to direct client insert:', apiErr);
+  }
+
+  // 2. Direct client fallback with UUID validation to prevent PostgreSQL 22P02 errors
+  const isUuid = (id?: string | null): boolean => {
+    if (!id) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  };
+
   const payload = {
-    requester_id: currentUser?.id || null,
-    requester_name: displayName || 'Anonymous Listener',
-    track_id: track.id,
+    requester_id: isUuid(currentUser?.id) ? currentUser!.id : null,
+    requester_name: displayName || currentUser?.realName || currentUser?.anonymousId || 'Anonymous Listener',
+    track_id: String(track.id),
     track_name: track.song,
     track_artist: track.singers,
     track_image: track.image,

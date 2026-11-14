@@ -124,6 +124,7 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<YtTrack[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [requestedSongIds, setRequestedSongIds] = useState<Set<string>>(new Set());
   const [chatInput, setChatInput] = useState('');
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
@@ -630,59 +631,110 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
     switch (tab) {
       case 'UP NEXT':
         return (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="p-3 sm:p-4 border-b border-[#212121] flex items-center justify-between bg-[#050505] shrink-0">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#050505]">
+            <div className="p-3 sm:p-4 border-b border-[#212121] flex items-center justify-between bg-[#0a0a0a] shrink-0">
               <div className="min-w-0">
                 <p className="text-[10px] uppercase font-mono text-gray-400">Playing from</p>
                 <h4 className="text-sm font-bold text-white truncate">{activePlaylistTitle}</h4>
               </div>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#212121] hover:bg-[#2e2e2e] text-xs font-semibold text-white transition-colors">
-                <Bookmark className="w-3.5 h-3.5" />
-                <span>Save</span>
-              </button>
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                24/7 Live
+              </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-              {queue.map((track, idx) => {
-                const isCurrent = currentTrack?.id === track.id || currentTrack?.song === track.song;
-                return (
-                  <div
-                    key={`${track.id}-${idx}`}
-                    onClick={() => isAdmin && onSelectTrack(track, true)}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors group ${
-                      isCurrent ? 'bg-[#272727]' : 'hover:bg-[#181818]'
-                    }`}
-                  >
-                    <div className="w-5 text-center shrink-0">
-                      {isCurrent ? (
-                        <div className="flex items-end justify-center gap-0.5 h-3.5 w-3.5 mx-auto">
-                          <span className="w-1 bg-white animate-pulse h-full rounded-full" />
-                          <span className="w-1 bg-white animate-pulse h-2/3 rounded-full" style={{ animationDelay: '0.2s' }} />
-                          <span className="w-1 bg-white animate-pulse h-4/5 rounded-full" style={{ animationDelay: '0.4s' }} />
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2.5 space-y-3">
+              {/* 🎵 1. NOW PLAYING CARD (Tracks the currently active song) */}
+              {currentTrack && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 px-1 text-[10px] font-bold tracking-wider uppercase text-pink-400">
+                    <span className="flex h-1.5 w-1.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-pink-500"></span>
+                    </span>
+                    <span>Now Playing</span>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-pink-950/40 via-purple-950/20 to-[#161616] border border-pink-500/30 shadow-lg">
+                    {/* Equalizer overlay */}
+                    <div className="relative shrink-0">
+                      <img
+                        src={currentTrack.image}
+                        alt={currentTrack.song}
+                        className="w-12 h-12 rounded-xl object-cover shadow-md border border-white/10"
+                      />
+                      {isPlaying && (
+                        <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center gap-0.5">
+                          <span className="w-1 bg-pink-400 rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-4" />
+                          <span className="w-1 bg-purple-300 rounded-full animate-[pulse_0.9s_ease-in-out_infinite] h-6" />
+                          <span className="w-1 bg-pink-300 rounded-full animate-[pulse_0.7s_ease-in-out_infinite] h-3" />
                         </div>
-                      ) : (
-                        <span className="text-xs text-gray-500 font-mono group-hover:hidden">{idx + 1}</span>
-                      )}
-                      {!isCurrent && isAdmin && (
-                        <Play className="w-3.5 h-3.5 fill-current text-white hidden group-hover:block mx-auto" />
                       )}
                     </div>
-
-                    <img src={track.image} alt={track.song} className="w-11 h-11 rounded-lg object-cover shrink-0 shadow-sm" />
 
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm font-semibold truncate ${isCurrent ? 'text-white' : 'text-gray-200 group-hover:text-white'}`}>
-                        {track.song}
+                      <h4 className="text-sm font-bold text-white truncate leading-tight">
+                        {currentTrack.song}
+                      </h4>
+                      <p className="text-xs text-gray-300 truncate mt-0.5">
+                        {currentTrack.singers}
                       </p>
-                      <p className="text-xs text-gray-400 truncate">{track.singers}</p>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-gray-400">
+                        <span>{formatTime(currentTime)}</span>
+                        <span>/</span>
+                        <span>{formatTime(duration)}</span>
+                      </div>
                     </div>
-
-                    <span className="text-xs text-gray-400 font-mono shrink-0 ml-2">
-                      {formatTime(Number(track.duration) || 240)}
-                    </span>
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              {/* ⏭️ 2. UP NEXT (Shows songs scheduled to play next in order) */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between px-1 pt-2 pb-1">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-gray-400">
+                    Up Next ({queue.length})
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-mono">
+                    Scheduled
+                  </span>
+                </div>
+
+                {queue.length === 0 ? (
+                  <div className="text-center py-10 text-gray-500 text-xs">
+                    Loading upcoming songs...
+                  </div>
+                ) : (
+                  queue.map((track, idx) => (
+                    <div
+                      key={`${track.id}-${idx}`}
+                      onClick={() => isAdmin && onSelectTrack(track, true)}
+                      className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#181818] transition-colors group cursor-pointer"
+                    >
+                      <div className="w-5 text-center shrink-0">
+                        <span className="text-xs text-gray-500 font-mono group-hover:hidden">{idx + 1}</span>
+                        {isAdmin ? (
+                          <Play className="w-3.5 h-3.5 fill-current text-white hidden group-hover:block mx-auto" />
+                        ) : (
+                          <span className="text-[10px] text-gray-400 hidden group-hover:inline">#{idx + 1}</span>
+                        )}
+                      </div>
+
+                      <img src={track.image} alt={track.song} className="w-10 h-10 rounded-lg object-cover shrink-0 shadow-sm border border-white/5" />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-semibold truncate text-gray-200 group-hover:text-white">
+                          {track.song}
+                        </p>
+                        <p className="text-[11px] text-gray-400 truncate">{track.singers}</p>
+                      </div>
+
+                      <span className="text-[11px] text-gray-500 font-mono shrink-0 ml-2">
+                        {formatTime(Number(track.duration) || 240)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         );
@@ -927,12 +979,21 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
                         <p className="text-[10px] text-gray-400 truncate">{item.singers}</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => onRequestSong(item)}
-                      className="px-2.5 py-1 bg-red-600/30 hover:bg-red-600 text-red-300 hover:text-white rounded-lg text-[10px] font-bold transition-all ml-2 shrink-0"
-                    >
-                      Request
-                    </button>
+                    {requestedSongIds.has(item.id) ? (
+                      <span className="px-2.5 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 ml-2 shrink-0">
+                        ✓ Sent
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setRequestedSongIds(prev => new Set(prev).add(item.id));
+                          onRequestSong(item);
+                        }}
+                        className="px-2.5 py-1 bg-red-600/30 hover:bg-red-600 text-red-300 hover:text-white rounded-lg text-[10px] font-bold transition-all ml-2 shrink-0 active:scale-95 cursor-pointer"
+                      >
+                        Request
+                      </button>
+                    )}
                   </div>
                 ))
               )}

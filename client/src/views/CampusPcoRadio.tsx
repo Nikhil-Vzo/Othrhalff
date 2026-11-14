@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus, getServerTimeMs } from '../services/pcoAdmin';
+import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus, getServerTimeMs, getPcoLiveSchedule } from '../services/pcoAdmin';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { YouTubeMusicLayout } from '../components/YouTubeMusicLayout';
 import { PcoRadioPlayer } from '../components/PcoRadioPlayer';
 import { PcoLyricsScroller } from '../components/PcoLyricsScroller';
 import { PcoAdminQuickPanel } from '../components/PcoAdminQuickPanel';
 import { BottomSheet } from '../components/BottomSheet';
+import { useToast } from '../context/ToastContext';
 import { Search, Send, PlusCircle, Sparkles, AlertCircle, MessageSquare, Music, X } from 'lucide-react';
 import { curatedRomanticTracks, trendingRomanticQueries } from '../data/pcoRomanticTracks';
 
@@ -27,6 +28,7 @@ interface ChatMessage {
 export const CampusPcoRadio: React.FC = () => {
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { showToast } = useToast();
 
   // 1. Admin & Presence State
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -428,6 +430,7 @@ export const CampusPcoRadio: React.FC = () => {
 
   const handleRequestSong = async (track: PcoTrack) => {
     if (!isAdmin && dailyRequestsUsed >= 3) {
+      showToast('Daily request quota reached (3/3). Come back tomorrow!', 'error');
       setRequestStatusMsg({
         type: 'error',
         text: 'Daily request quota reached (3/3). Come back tomorrow!'
@@ -442,14 +445,12 @@ export const CampusPcoRadio: React.FC = () => {
 
     if (res.success) {
       incrementDailyRequests();
+      showToast(`🎵 Requested "${track.song}"! Sent to Admin DJ console.`, 'success');
       setRequestStatusMsg({
         type: 'success',
         text: `Requested "${track.song}"! Sent to Admin DJ console.`
       });
       // Broadcast song request notice
-      // SCALING FIX: route admin notifications to the dedicated admin channel.
-      // Broadcasting 'PCO_REQUEST_NOTIFICATION' to all N listeners wasted an
-      // O(N) fan-out per request when only the DJ console consumes it.
       if (supabase && liveChannelRef.current) {
         liveChannelRef.current.send({
           type: 'broadcast',
@@ -462,6 +463,7 @@ export const CampusPcoRadio: React.FC = () => {
         });
       }
     } else {
+      showToast(res.error || 'Failed to submit song request.', 'error');
       setRequestStatusMsg({
         type: 'error',
         text: res.error || 'Failed to submit song request.'
@@ -471,8 +473,33 @@ export const CampusPcoRadio: React.FC = () => {
     setTimeout(() => setRequestStatusMsg(null), 4000);
   };
 
+  // Dynamic upcoming queue: in manual mode uses DJ queue; in auto mode uses deterministic upcoming live schedule
+  const upcomingQueue = useMemo(() => {
+    if (queue && queue.length > 0) {
+      return queue;
+    }
+    const sched = getPcoLiveSchedule();
+    return sched.upcomingTracks && sched.upcomingTracks.length > 0
+      ? sched.upcomingTracks
+      : curatedRomanticTracks.slice(1, 21);
+  }, [queue, currentTrack?.id]);
+
   return (
     <div className="relative w-full h-[100svh] bg-black text-white overflow-hidden select-none font-sans">
+      {/* 🔔 Floating Song Request Toast/Banner */}
+      {requestStatusMsg && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-none">
+          <div className={`px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl border flex items-center gap-2.5 text-xs font-bold ${
+            requestStatusMsg.type === 'success'
+              ? 'bg-green-950/95 border-green-500/40 text-green-200 shadow-green-950/50'
+              : 'bg-red-950/95 border-red-500/40 text-red-200 shadow-red-950/50'
+          }`}>
+            <span>{requestStatusMsg.type === 'success' ? '🎵' : '⚠️'}</span>
+            <span>{requestStatusMsg.text}</span>
+          </div>
+        </div>
+      )}
+
       {/* 📺 Full YouTube Music Experience (Video / Synced Lyrics / Live Chat / Song Request) */}
       <YouTubeMusicLayout
         currentTrack={currentTrack}
@@ -482,7 +509,7 @@ export const CampusPcoRadio: React.FC = () => {
         isAdmin={isAdmin}
         roomName="Sparx FM 24/7"
         activePlaylistTitle="10s Bollywood Romance Hits"
-        queue={queue && queue.length > 0 ? queue : curatedRomanticTracks.slice(0, 25)}
+        queue={upcomingQueue}
         messages={messages}
         listenerCount={listenerCount}
         incomingReaction={incomingReaction}
