@@ -21,6 +21,7 @@ import { IncomingCallModal } from '../components/IncomingCallModal';
 import { OutgoingCallModal } from '../components/OutgoingCallModal';
 import { PushNotificationModal } from '../components/PushNotificationModal';
 import { ScreenshotProtection } from '../components/ScreenshotProtection';
+import { FloatingMusicMiniPlayer } from '../components/FloatingMusicMiniPlayer';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -572,6 +573,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         onClose={() => setShowAuthModal(false)}
       />
       <PushNotificationModal />
+      <FloatingMusicMiniPlayer />
     </div>
   );
 };

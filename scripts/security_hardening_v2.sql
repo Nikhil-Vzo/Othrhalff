@@ -50,6 +50,11 @@ USING (
       AND dob IS NOT NULL
       AND university NOT IN ('Global', 'Unspecified')
     )
+    OR EXISTS (
+      SELECT 1 FROM public.matches m
+      WHERE (m.user_a = auth.uid() AND m.user_b = profiles.id)
+         OR (m.user_b = auth.uid() AND m.user_a = profiles.id)
+    )
   )
 );
 
@@ -122,6 +127,19 @@ ALTER TABLE IF EXISTS public.messages ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.messages FROM anon;
 
+DROP POLICY IF EXISTS "Users can view messages of their matches" ON public.messages;
+DROP POLICY IF EXISTS "messages_select_participant" ON public.messages;
+CREATE POLICY "messages_select_participant"
+ON public.messages FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.matches m
+    WHERE m.id = messages.match_id
+      AND (m.user_a = auth.uid() OR m.user_b = auth.uid())
+  )
+);
+
 DROP POLICY IF EXISTS "Users can insert messages to their matches" ON public.messages;
 CREATE POLICY "messages_insert_participant"
 ON public.messages FOR INSERT
@@ -138,13 +156,27 @@ WITH CHECK (
 DROP POLICY IF EXISTS "Users can update their received messages" ON public.messages;
 DROP POLICY IF EXISTS "Users can update (mark as read) their received messages" ON public.messages;
 DROP POLICY IF EXISTS "Users can update their own messages" ON public.messages;
-
--- Restrict editing to message author
-CREATE POLICY "messages_update_sender"
+DROP POLICY IF EXISTS "messages_update_sender" ON public.messages;
+DROP POLICY IF EXISTS "messages_update_participant" ON public.messages;
+CREATE POLICY "messages_update_participant"
 ON public.messages FOR UPDATE
 TO authenticated
-USING (sender_id = auth.uid())
-WITH CHECK (sender_id = auth.uid());
+USING (
+  sender_id = auth.uid()
+  OR EXISTS (
+    SELECT 1 FROM public.matches m
+    WHERE m.id = messages.match_id
+      AND (m.user_a = auth.uid() OR m.user_b = auth.uid())
+  )
+)
+WITH CHECK (
+  sender_id = auth.uid()
+  OR EXISTS (
+    SELECT 1 FROM public.matches m
+    WHERE m.id = messages.match_id
+      AND (m.user_a = auth.uid() OR m.user_b = auth.uid())
+  )
+);
 
 
 -- ==============================================================================
@@ -365,7 +397,7 @@ END;
 $$;
 
 -- 3. get_matches_with_preview
-CREATE OR REPLACE FUNCTION public.get_matches_with_preview(current_user_id uuid)
+CREATE OR REPLACE FUNCTION public.get_matches_with_preview(current_user_id uuid DEFAULT auth.uid())
 RETURNS TABLE (
   match_id uuid,
   partner_id uuid,
@@ -380,7 +412,12 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  -- BOLA / IDOR PROTECTION
+  -- Default to auth.uid() if current_user_id is null
+  IF current_user_id IS NULL THEN
+    current_user_id := auth.uid();
+  END IF;
+
+  -- BOLA / IDOR PROTECTION: Users may only load their own matches
   IF auth.uid() IS NULL OR auth.uid() != current_user_id THEN
     RAISE EXCEPTION 'Access Denied: You cannot query matches for another user.';
   END IF;
@@ -395,18 +432,18 @@ BEGIN
     
     -- Exclude university_email and admin_email from partner preview
     json_build_object(
-      'id', p.id,
-      'anonymous_id', p.anonymous_id,
-      'real_name', p.real_name,
+      'id', COALESCE(p.id, CASE WHEN m.user_a = current_user_id THEN m.user_b ELSE m.user_a END),
+      'anonymous_id', COALESCE(p.anonymous_id, 'ghost'),
+      'real_name', COALESCE(p.real_name, 'Campus Peer'),
       'avatar', p.avatar,
       'university', p.university,
       'branch', p.branch,
       'year', p.year,
       'bio', p.bio,
       'gender', p.gender,
-      'interests', p.interests,
-      'is_verified', p.is_verified,
-      'is_premium', p.is_premium
+      'interests', COALESCE(p.interests, '{}'::text[]),
+      'is_verified', COALESCE(p.is_verified, false),
+      'is_premium', COALESCE(p.is_premium, false)
     ) AS partner_profile,
     
     (
@@ -434,14 +471,13 @@ BEGIN
     ) AS unread_count
     
   FROM public.matches m
-  JOIN public.profiles p ON p.id = (
+  LEFT JOIN public.profiles p ON p.id = (
     CASE 
       WHEN m.user_a = current_user_id THEN m.user_b 
       ELSE m.user_a 
     END
   )
-  WHERE (m.user_a = current_user_id OR m.user_b = current_user_id)
-  AND m.status = 'matched';
+  WHERE (m.user_a = current_user_id OR m.user_b = current_user_id);
 END;
 $$;
 
@@ -454,6 +490,35 @@ GRANT EXECUTE ON FUNCTION public.get_skipped_profiles(uuid, text, text, integer,
 
 REVOKE EXECUTE ON FUNCTION public.get_matches_with_preview(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.get_matches_with_preview(uuid) TO authenticated;
+
+-- ==============================================================================
+-- 8. MATCHES TABLE ROW LEVEL SECURITY
+-- ==============================================================================
+ALTER TABLE IF EXISTS public.matches ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.matches FROM anon;
+
+DROP POLICY IF EXISTS "Users can view their matches" ON public.matches;
+DROP POLICY IF EXISTS "matches_select_participant" ON public.matches;
+CREATE POLICY "matches_select_participant"
+ON public.matches FOR SELECT
+TO authenticated
+USING (auth.uid() = user_a OR auth.uid() = user_b);
+
+DROP POLICY IF EXISTS "Users can update their matches" ON public.matches;
+DROP POLICY IF EXISTS "matches_update_participant" ON public.matches;
+CREATE POLICY "matches_update_participant"
+ON public.matches FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_a OR auth.uid() = user_b)
+WITH CHECK (auth.uid() = user_a OR auth.uid() = user_b);
+
+DROP POLICY IF EXISTS "Users can insert matches" ON public.matches;
+DROP POLICY IF EXISTS "Users can trigger match creation" ON public.matches;
+DROP POLICY IF EXISTS "matches_insert_participant" ON public.matches;
+CREATE POLICY "matches_insert_participant"
+ON public.matches FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_a OR auth.uid() = user_b);
 
 -- ==============================================================================
 -- 8. ACTIVE ROOMS & SWIPES RLS REINFORCEMENT

@@ -3,6 +3,7 @@ import { ArrowLeft, AlertCircle, Play, Pause, Search, Music, X, Hash, Users, Cop
 import { useRouter as useNavigate } from 'next/navigation';
 import Peer, { DataConnection } from 'peerjs';
 import { ShareRoomModal } from '../../components/ShareRoomModal';
+import { YouTubeMusicLayout } from '../../components/YouTubeMusicLayout';
 import { useAuth } from '../../context/AuthContext';
 import { analytics } from '../../utils/analytics';
 import { supabase } from '../../lib/supabase';
@@ -224,6 +225,7 @@ export const MusicDate = () => {
     const [myStream, setMyStream] = useState<MediaStream | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+    const [incomingReaction, setIncomingReaction] = useState<{ emoji: string; id: string } | null>(null);
 
     const [roomHostId, setRoomHostId] = useState<string | null>(null);
     const roomHostIdRef = useRef<string | null>(null);
@@ -1148,6 +1150,8 @@ export const MusicDate = () => {
         } else if (data.type === 'CHAT') {
             const senderName = peerNames[senderId] || senderId.substring(0, 5);
             setMessages(prev => [...prev.slice(-149), { user: senderName, text: data.text }]);
+        } else if (data.type === 'REACTION') {
+            setIncomingReaction({ emoji: data.emoji, id: `${Date.now()}-${Math.random()}` });
         } else if (data.type === 'SYNC_PLAYER') {
             if (data.action === 'track') {
                 setCurrentTrack(data.payload);
@@ -2346,513 +2350,111 @@ export const MusicDate = () => {
                 onLoadedData={handleAudioLoadedData} 
             />
 
-            {/* Header / Nav Bar */}
-            {!isFullscreen && (
-                <div className="h-14 md:h-16 border-b border-white/5 flex items-center justify-between px-2.5 sm:px-4 md:px-6 bg-black/40 backdrop-blur-md relative z-30 gap-1.5">
-                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0">
-                        <button
-                            onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }}
-                            className="p-1.5 md:p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10 text-white/70 hover:text-white shrink-0"
-                            title="Leave Room & Back to Sparx"
-                            aria-label="Back to Sparx"
-                        >
-                            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                        <div className="flex items-center gap-1.5 md:gap-3 border border-violet-500/30 bg-violet-500/10 px-2.5 md:px-4 py-1 md:py-1.5 rounded-full min-w-0 shrink">
-                            <span className="font-bold text-gray-200 text-xs sm:text-sm md:text-base truncate max-w-[85px] sm:max-w-[140px] md:max-w-[240px]">{roomName}</span>
-                                                            <div className="hidden sm:block w-px h-3.5 bg-white/20 shrink-0" />
-                                <span onClick={() => copyToClipboard(window.location.origin + '/sparx/music?room=' + roomCode)} className="hidden sm:flex font-mono text-neon font-bold items-center gap-1 cursor-pointer text-xs md:text-sm shrink-0 hover:text-neon/80 transition-colors">
-                                    <Hash className="w-3 h-3" />
-                                    {roomCode.split('_').length >= 3 ? `#${roomCode.split('_')[2]}` : roomCode}
-                                    <Copy className="w-3 h-3 text-neon/75 ml-0.5 shrink-0" />
-                                </span>
-                            {isHost && (
-                                <div className="hidden md:flex items-center gap-1 px-2 py-0.5 bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 text-[10px] font-semibold shrink-0">
-                                    <Users className="w-3 h-3" />
-                                    HOST
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2.5 shrink-0">
-                        <div className="relative">
-                                <button onClick={() => setShowUsersList(!showUsersList)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors flex items-center gap-1 md:gap-1.5 ${showUsersList ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                    <Users className="w-4 h-4 md:w-5 md:h-5 text-pink-400 shrink-0" />
-                                    <span className="text-[10px] md:text-xs font-bold bg-pink-500/20 border border-pink-500/30 text-pink-300 px-1.5 py-0.5 rounded-full">
-                                        {peers.length + 1}
-                                    </span>
-                                </button>
-                                {showUsersList && (
-                                    <div className="absolute top-12 right-0 w-60 bg-gray-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
-                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                                            <span>Active Listeners</span>
-                                            <span className="text-[10px] text-emerald-400 font-mono">● {peers.length + 1} Online</span>
-                                        </div>
-                                        <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
-                                            <div className="text-sm text-gray-300 font-medium">You {isHost && '(Host)'}</div>
-                                            {peers.map(p => (
-                                                <div key={p.peerId} className="text-sm text-gray-400 truncate">
-                                                    {peerNames[p.peerId] || p.peerId.substring(0, 5)} {p.peerId === roomHostId && '(Host)'}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        <button onClick={() => setIsShareModalOpen(true)} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block" title="Share Room">
-                            <Share2 className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                        {/* Mobile search toggle */}
-                        <button onClick={() => setShowMobileSearch(!showMobileSearch)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors md:hidden ${showMobileSearch ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                            <ListMusic className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                        <div className="relative">
-                            <button onClick={() => setShowVolumeControls(!showVolumeControls)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors ${showVolumeControls ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                                <Volume2 className="w-4 h-4 md:w-5 md:h-5" />
-                            </button>
-                            {showVolumeControls && (
-                                <div className="absolute top-12 right-0 w-64 bg-gray-900 border border-white/10 rounded-2xl p-5 shadow-2xl z-50 flex flex-col gap-6">
-                                    <div>
-                                        <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                            <span>Music Volume</span>
-                                            <span>{Math.round(musicVolume * 100)}%</span>
-                                        </div>
-                                        <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={e => setMusicVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-violet-500" />
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                            <span>Partner Volume</span>
-                                            <span>{Math.round(partnerVolume * 100)}%</span>
-                                        </div>
-                                        <input type="range" min="0" max="1" step="0.01" value={partnerVolume} onChange={e => setPartnerVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-violet-500" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <button onClick={() => setShowChat(!showChat)} className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-colors ${showChat ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-gray-800 text-gray-400'}`}>
-                            <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                        <button onClick={toggleFullscreen} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-gray-800 text-gray-400 transition-colors hidden md:block">
-                            <Maximize className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                        <button onClick={() => { handleLeaveRoom(); navigate.push('/sparx'); }} className="p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-red-500/10 text-red-500 transition-colors">
-                            <LogOut className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Float Controls in Fullscreen */}
-            {isFullscreen && (
-                <div className="absolute top-4 right-6 flex items-center gap-3 z-50">
-                    <div className="relative">
-                        <button onClick={() => setShowVolumeControls(!showVolumeControls)} className={`p-2 rounded-xl backdrop-blur-md transition-colors shadow-lg ${showVolumeControls ? 'bg-violet-500/80 text-white shadow-violet-500/20' : 'bg-black/60 hover:bg-black/80 text-gray-300'}`}>
-                            <Volume2 className="w-5 h-5" />
-                        </button>
-                        {showVolumeControls && (
-                            <div className="absolute top-12 right-0 w-64 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl z-50 flex flex-col gap-6">
-                                <div>
-                                    <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                        <span>Music Volume</span>
-                                        <span>{Math.round(musicVolume * 100)}%</span>
-                                    </div>
-                                    <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={e => setMusicVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-violet-500" />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                        <span>Partner Volume</span>
-                                        <span>{Math.round(partnerVolume * 100)}%</span>
-                                    </div>
-                                    <input type="range" min="0" max="1" step="0.01" value={partnerVolume} onChange={e => setPartnerVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-violet-500" />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <button onClick={() => setShowChat(!showChat)} className={`p-2 rounded-xl backdrop-blur-md transition-colors shadow-lg ${showChat ? 'bg-violet-500/80 text-white shadow-violet-500/20' : 'bg-black/60 hover:bg-black/80 text-gray-300'}`}>
-                        <MessageSquare className="w-5 h-5" />
-                    </button>
-                    <button onClick={toggleFullscreen} className="p-2 rounded-xl backdrop-blur-md bg-black/60 hover:bg-black/80 text-gray-300 transition-colors shadow-lg">
-                        <Minimize className="w-5 h-5" />
-                    </button>
-                </div>
-            )}
-
-            <div className="flex-1 flex overflow-hidden relative min-h-0">
-
-                {/* Visualizer Background */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none overflow-hidden">
-                    <div className={`w-[800px] h-[800px] rounded-full bg-gradient-to-tr from-violet-600 to-fuchsia-600 blur-[150px] transition-transform duration-[10s] ${isPlaying ? 'scale-110 animate-pulse' : 'scale-90 opacity-10'}`} />
-                </div>
-
-                {/* Left Side: Now Playing / Radio Player */}
-                <div className={`flex-1 z-10 flex flex-col items-center justify-center relative min-h-0 ${
-                    'overflow-y-auto p-3 md:p-8'
-                }`}>
-                    {showLyrics ? (
-                        <>
-                            {/* Fixed Close Lyrics Button - Pinned outside the scrollable container so it never scrolls */}
-                            <button
-                                onClick={() => setShowLyrics(false)}
-                                className="fixed sm:absolute top-4 sm:top-6 right-4 sm:right-6 p-2.5 sm:p-3 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full text-white z-50 backdrop-blur-xl active:scale-95 transition-all shadow-2xl cursor-pointer"
-                                title="Close Lyrics"
+            {/* 📺 Full YouTube Music Experience */}
+            <YouTubeMusicLayout
+                currentTrack={currentTrack}
+                currentTime={currentTime}
+                duration={Number(currentTrack?.duration) || 0}
+                isPlaying={isPlaying}
+                isAdmin={isHost}
+                roomName={roomName}
+                roomCode={roomCode}
+                activePlaylistTitle={roomName || 'Private Room'}
+                queue={queue}
+                lyrics={lyricsData || plainLyrics}
+                messages={messages.map(m => ({ user: m.user, text: m.text, createdAt: m.createdAt || Date.now() }))}
+                listenerCount={peers.length + 1}
+                incomingReaction={incomingReaction}
+                onPlayPause={isHost ? handlePlayPause : undefined}
+                onSkip={isHost ? handleSkip : undefined}
+                onPrevious={isHost ? () => {
+                    if (audioRef.current) {
+                        audioRef.current.currentTime = 0;
+                        setCurrentTime(0);
+                        broadcastSync('seek', { time: 0 });
+                    }
+                } : undefined}
+                onSeek={isHost ? (time) => {
+                    if (audioRef.current) {
+                        audioRef.current.currentTime = time;
+                        setCurrentTime(time);
+                        broadcastSync('seek', { time });
+                    }
+                } : undefined}
+                onSelectTrack={(ytTrack, playNow) => {
+                    const track: Track = {
+                        id: ytTrack.id,
+                        song: ytTrack.song,
+                        singers: ytTrack.singers,
+                        image: ytTrack.image,
+                        media_url: ytTrack.media_url || '',
+                        duration: ytTrack.duration
+                    };
+                    handleTrackSelect(track, isHost && playNow);
+                }}
+                onSendMessage={(text) => {
+                    if (!text.trim()) return;
+                    const msg = { user: displayName, text: text.trim(), createdAt: Date.now() };
+                    setMessages(prev => [...prev.slice(-149), msg]);
+                    broadcastData({ type: 'CHAT', text: text.trim(), createdAt: Date.now() });
+                }}
+                onRequestSong={(ytTrack) => {
+                    const track: Track = {
+                        id: ytTrack.id,
+                        song: ytTrack.song,
+                        singers: ytTrack.singers,
+                        image: ytTrack.image,
+                        media_url: ytTrack.media_url || '',
+                        duration: ytTrack.duration
+                    };
+                    handleTrackSelect(track, false);
+                }}
+                onSendReaction={(emoji) => {
+                    setIncomingReaction({ emoji, id: `${Date.now()}-${Math.random()}` });
+                    broadcastData({ type: 'REACTION', emoji, user: displayName });
+                }}
+                onLeave={() => setShowLeaveModal(true)}
+                onShareRoom={() => setIsShareModalOpen(true)}
+                partnerCamsOverlay={
+                    <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
+                        {myStream && (
+                            <div
+                                onMouseDown={(e) => handleCamMouseDown(e, 'me')}
+                                onTouchStart={(e) => handleCamTouchStart(e, 'me')}
+                                style={{
+                                    transform: `translate(${camPositions['me']?.x ?? 20}px, ${camPositions['me']?.y ?? 80}px)`,
+                                    position: 'absolute', top: 0, left: 0
+                                }}
+                                className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
                             >
-                                <X className="w-5 h-5" />
-                            </button>
-
-                            <div ref={lyricsContainerRef} className="absolute inset-0 w-full h-full bg-[#050510]/95 backdrop-blur-3xl p-4 sm:p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-start justify-start scroll-smooth z-40 [perspective:1400px]">
-                                {isLoadingLyrics ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center h-full w-full gap-3">
-                                        <Loader className="w-10 h-10 text-pink-500 animate-spin" />
-                                        <span className="text-xs text-white/50 font-medium">Syncing lyrics with singer...</span>
-                                    </div>
-                                ) : lyricsData ? (
-                                    <div 
-                                        style={{ transform: 'rotateY(18deg) rotateX(4deg)', transformStyle: 'preserve-3d', transformOrigin: '0% center' }} 
-                                        className="w-full max-w-2xl lg:max-w-3xl mr-auto ml-0 text-left py-32 space-y-9 transition-all duration-700 select-none pl-4 sm:pl-8 md:pl-10 pr-4 overflow-visible"
-                                    >
-                                        {lyricsData.map((line, idx) => {
-                                            const distance = Math.abs(idx - activeLyricIndex);
-                                            const isActive = idx === activeLyricIndex;
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    id={`lyric-${idx}`}
-                                                    onClick={() => {
-                                                        const canSeek = isHost;
-                                                        if (canSeek && audioRef.current) {
-                                                            audioRef.current.currentTime = line.time;
-                                                            setCurrentTime(line.time);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        transform: isActive 
-                                                            ? 'translateZ(45px) scale(1.04)' 
-                                                            : `translateZ(-${Math.min(distance * 10, 80)}px)`,
-                                                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
-                                                    }}
-                                                    className={`relative group ${isActive ? 'z-30' : 'z-10'} overflow-visible py-2 px-6 cursor-pointer`}
-                                                >
-                                                    {isActive && (
-                                                        <div className="absolute -inset-x-6 -inset-y-3 bg-gradient-to-r from-pink-500/20 via-purple-500/15 to-transparent rounded-2xl blur-xl animate-pulse pointer-events-none" />
-                                                    )}
-                                                    <p className={`relative transition-all duration-500 leading-relaxed tracking-normal px-2 overflow-visible whitespace-normal break-words ${
-                                                        isActive
-                                                            ? 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-200 bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(236,72,153,0.7)]'
-                                                            : 'text-gray-500 text-xl sm:text-2xl md:text-3xl font-bold opacity-35 blur-[0.4px] hover:opacity-90 hover:text-gray-200 hover:blur-0'
-                                                    }`}>
-                                                        {line.text}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div
-                                        style={{ transform: 'rotateY(20deg) rotateX(5deg)', transformStyle: 'preserve-3d', transformOrigin: 'center left' }}
-                                        className="text-lg md:text-2xl text-purple-200 text-left leading-relaxed pb-12 mt-4 font-sans w-full px-8 max-w-4xl mx-auto py-36 font-semibold overflow-visible whitespace-pre-wrap"
-                                    >
-                                        {plainLyrics || 'No lyrics available for this song.'}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Floating Player Tracer Bar (Right side when not fullscreen) */}
-                            {currentTrack && !isFullscreen && (
-                                <div className="absolute bottom-6 right-6 z-40 hidden md:flex">
-                                    {renderPlayerTracerBar()}
-                                </div>
-                            )}
-                        </>
-                    ) : !currentTrack ? (
-                        /* Fix 2: Prominent search prompt when no track is playing */
-                        <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center transition-all my-auto z-10 px-4">
-                            <div className="relative w-40 h-40 sm:w-52 sm:h-52 md:w-64 md:h-64 shrink-0 rounded-[2rem] overflow-hidden mb-8 border border-white/5">
-                                <div className="w-full h-full bg-gradient-to-br from-violet-900/40 to-indigo-900/40 backdrop-blur flex items-center justify-center">
-                                    <Music className="w-16 h-16 sm:w-20 sm:h-20 text-violet-400/60" />
-                                </div>
-                            </div>
-                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 tracking-tight">What do you want to listen to?</h1>
-                            <p className="text-gray-400 text-sm md:text-base mb-8">Search for a song to start the jam</p>
-
-                            {/* Center Search Bar */}
-                            <div className="w-full max-w-md relative mb-6">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                {isSearching && <Loader className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-violet-400 animate-spin" />}
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Search songs, artists..."
-                                    className="w-full bg-gray-900/60 border-2 border-white/10 focus:border-violet-500 rounded-2xl py-3.5 md:py-4 pl-12 pr-12 text-sm md:text-base text-white focus:outline-none transition-all placeholder-gray-500 shadow-lg"
-                                />
-                            </div>
-
-                            {/* Center Search Results */}
-                            {searchResults.length > 0 && (
-                                <div className="w-full max-w-md max-h-72 overflow-y-auto custom-scrollbar bg-gray-900/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
-                                    {searchResults.map((track) => (
-                                        <div key={track.id} onClick={() => { handleTrackSelect(track, true); setSearchQuery(''); setSearchResults([]); }} className="flex items-center gap-3 hover:bg-white/5 p-3 cursor-pointer transition-colors group border-b border-white/5 last:border-b-0">
-                                            <img src={track.image} alt={track.song} className="w-12 h-12 rounded-lg object-cover shadow-md" />
-                                            <div className="flex-1 min-w-0 text-left">
-                                                <h4 className="text-white text-sm font-bold truncate group-hover:text-violet-300 transition-colors">{track.song}</h4>
-                                                <p className="text-gray-400 text-xs truncate">{track.singers}</p>
-                                            </div>
-                                            <Play className="w-5 h-5 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Hint to use sidebar on desktop */}
-                            <p className="hidden md:block text-xs text-gray-600 mt-6">You can also use the sidebar search on the right →</p>
-                        </div>
-                    ) : (
-                                 <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-between h-full py-2 z-10 overflow-hidden">
-                            {/* Compact Responsive Album Art */}
-                            <div className="relative w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 max-h-[30vh] shrink-0 shadow-[0_0_40px_rgba(139,92,246,0.2)] rounded-2xl md:rounded-3xl overflow-hidden mb-3 border border-white/10 group">
-                                <img src={currentTrack.image.replace('150x150', '500x500')} alt={currentTrack.song} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105" />
-
-                                {isPlaying && (
-                                    <div className="absolute inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <div className="flex gap-2.5 h-12 items-end">
-                                            {[...Array(5)].map((_, i) => (
-                                                <div key={i} className="w-2.5 bg-neon rounded-full animate-pulse shadow-[0_0_15px_#fff]" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <button
-                                    onClick={toggleLyrics}
-                                    className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-md p-2.5 rounded-xl text-white shadow-xl transition-all hover:scale-110 active:scale-95 border border-white/20 z-20 group/btn"
-                                    title="Show Lyrics"
-                                >
-                                    <FileText className="w-5 h-5 group-hover/btn:text-violet-400 transition-colors" />
-                                </button>
-                            </div>
-
-                            {/* Track Titles */}
-                            <div className="w-full flex flex-col items-center px-2 shrink-0 mb-2">
-                                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white mb-1 line-clamp-1 tracking-tight drop-shadow-xl">{currentTrack.song}</h1>
-                                <p className="text-sm sm:text-base md:text-lg text-violet-300 font-medium tracking-wide opacity-90 line-clamp-1">{currentTrack.singers}</p>
-                            </div>
-
-                            {/* Playback Controls & Progress */}
-                            <div className="w-full max-w-md shrink-0 relative z-20">
-                                {(() => {
-                                    const canControlPlayback = isHost;
-                                    return (
-                                        <>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max={Number(currentTrack.duration) || 100}
-                                                value={currentTime}
-                                                onChange={handleProgressChange}
-                                                disabled={!canControlPlayback}
-                                                className="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-violet-500 hover:accent-violet-400 transition-all mb-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                                            />
-                                            <div className="flex justify-between text-xs text-gray-400 font-mono font-medium">
-                                                <span>{formatTime(currentTime)}</span>
-                                                <span>{formatTime(Number(currentTrack.duration))}</span>
-                                            </div>
-
-                                            <div className="flex items-center justify-center gap-5 mt-3">
-                                                <button
-                                                    onClick={handlePlayPause}
-                                                    disabled={!canControlPlayback}
-                                                    className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_35px_rgba(255,255,255,0.4)]"
-                                                >
-                                                    {isPlaying ? <Pause className="w-7 h-7 md:w-8 md:h-8 fill-current" /> : <Play className="w-7 h-7 md:w-8 md:h-8 fill-current ml-1" />}
-                                                </button>
-                                                <button
-                                                    onClick={handleSkip}
-                                                    disabled={!canControlPlayback}
-                                                    className="w-11 h-11 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 backdrop-blur-sm"
-                                                    title="Skip to next in queue"
-                                                >
-                                                    <SkipForward className="w-5 h-5 fill-current" />
-                                                </button>
-                                            </div>
-                                            {!isHost && <p className="mt-2 text-[10px] text-gray-500 text-center">Only host can skip tracks or control progress.</p>}
-                                        </>
-                                    );
-                                })()}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Standard Music Jam Right Panel */}
-                {!isFullscreen && (showMobileSearch || !isMobile) && (
-                            <div className={`${showMobileSearch ? 'fixed inset-x-0 bottom-20 top-auto h-[55vh] z-50 rounded-t-3xl border-t-2 border-violet-500/30' : 'hidden md:flex w-80 lg:w-96 border-l'} border-white/5 bg-black/95 md:bg-black/40 backdrop-blur-md md:backdrop-blur-md z-20 flex flex-col flex-shrink-0`}>
-                                <div className="p-3 md:p-4 border-b border-white/5 bg-gray-950/50 flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        {showMobileSearch && (
-                                            <button onClick={() => setShowMobileSearch(false)} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 shrink-0 md:hidden">
-                                                <X className="w-5 h-5" />
-                                            </button>
-                                        )}
-                                        <div className="relative flex-1">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            {isSearching && <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />}
-                                            <input
-                                                type="text"
-                                                value={searchQuery}
-                                                onChange={e => setSearchQuery(e.target.value)}
-                                                placeholder="Search song or paste Spotify/YT link..."
-                                                className="w-full bg-gray-900/60 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Playlist URL Detection Banner */}
-                                    {(searchQuery.includes('spotify.com') || searchQuery.includes('youtube.com') || searchQuery.includes('youtu.be')) && (
-                                        <div className="p-2.5 bg-gradient-to-r from-violet-600/30 to-pink-600/30 border border-violet-500/40 rounded-xl flex items-center justify-between gap-2 shadow-lg animate-fade-in">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-xs font-bold text-white flex items-center gap-1">
-                                                    <Music className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                                                    <span>Playlist Link Detected</span>
-                                                </p>
-                                                <p className="text-[10px] text-gray-300 truncate">Import all songs into queue</p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleImportPlaylistLink(searchQuery)}
-                                                disabled={isImportingPlaylist}
-                                                className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white rounded-lg text-xs font-black shrink-0 flex items-center gap-1 shadow-md disabled:opacity-50"
-                                            >
-                                                {isImportingPlaylist ? <Loader className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
-                                                <span>Import</span>
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Playlist Import Progress Banner */}
-                                    {isImportingPlaylist && (
-                                        <div className="p-2.5 bg-purple-950/80 border border-purple-500/50 rounded-xl flex items-center gap-2.5 animate-pulse">
-                                            <Loader className="w-4 h-4 text-pink-400 animate-spin shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-xs font-bold text-white truncate">{importStatus || 'Importing playlist...'}</p>
-                                                <p className="text-[10px] text-purple-300">Resolving synced audio streams</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
-                                    {searchResults.length > 0 && (
-                                        <div className="mb-6">
-                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Search Results</h3>
-                                            <div className="space-y-1">
-                                                {searchResults.map((track) => (
-                                                    <div key={track.id} onClick={() => handleTrackSelect(track, true)} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-xl cursor-pointer transition-colors group">
-                                                        <img src={track.image} alt={track.song} className="w-10 h-10 rounded-md object-cover" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-white text-sm font-bold truncate group-hover:text-violet-300">{track.song}</h4>
-                                                            <p className="text-gray-400 text-xs truncate">{track.singers}</p>
-                                                        </div>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleTrackSelect(track, false); }} className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                            <PlusCircle className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2">Up Next Queue ({queue.length})</h3>
-                                        {queue.length === 0 ? (
-                                            <p className="text-sm text-gray-600 px-2 italic">Queue is empty</p>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {queue.map((track, idx) => (
-                                                    <div key={`${track.id}-${idx}`} className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/5">
-                                                        <span className="text-xs text-gray-500 w-4 font-mono text-center">{idx + 1}</span>
-                                                        <img src={track.image} alt={track.song} className="w-8 h-8 rounded-md object-cover" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-white text-sm font-medium truncate">{track.song}</h4>
-                                                            <p className="text-gray-400 text-[10px] truncate">{track.singers}</p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                <StreamVideo stream={myStream} muted={true} mirrored={true} />
+                                <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-between items-center bg-black/40 backdrop-blur-md rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-[10px] font-bold text-white">You</span>
+                                    <div className="flex gap-1">
+                                        <button onMouseDown={e => e.stopPropagation()} onClick={toggleMute} className={`p-0.5 rounded-md ${isMuted ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}</button>
+                                        <button onMouseDown={e => e.stopPropagation()} onClick={toggleVideo} className={`p-0.5 rounded-md ${isVideoOff ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isVideoOff ? <VideoOff className="w-3 h-3" /> : <Video className="w-3 h-3" />}</button>
                                     </div>
                                 </div>
                             </div>
                         )}
-
-                        {/* Standard Chat Panel */}
-                        {showChat && (
-                            <div className="fixed inset-x-0 bottom-20 h-[60vh] md:absolute md:inset-x-auto md:right-96 md:top-0 md:bottom-0 md:h-auto md:w-80 border-t-2 border-violet-500/30 md:border-t-0 md:border-l border-white/5 bg-gray-950/95 backdrop-blur-2xl flex flex-col z-[100] shadow-2xl transition-all rounded-t-3xl md:rounded-none">
-                                <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
-                                    <span className="font-bold text-gray-300 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-violet-400" /> Chat</span>
-                                    <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
-                                    {messages.map((msg, i) => (
-                                        <div key={i} className={`flex flex-col ${msg.user === displayName ? 'items-end' : 'items-start'}`}>
-                                            <div className="flex items-center gap-1.5 px-1.5 mb-1 text-[11px]">
-                                                <span className="font-bold text-gray-200">{msg.user}</span>
-                                                <span className="text-pink-400 font-bold">•</span>
-                                                <span className="text-pink-300/90 font-mono text-[10px] font-semibold">{formatChatTimestamp(msg.createdAt)}</span>
-                                            </div>
-                                            <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${msg.user === displayName ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none'}`}>
-                                                {msg.text}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-4 border-t border-white/5 bg-black">
-                                    <form onSubmit={handleSendMessage} className="relative">
-                                        <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full bg-gray-900 border border-gray-800 rounded-xl py-2.5 pl-4 pr-10 text-sm focus:outline-none focus:border-violet-500" />
-                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-colors"><Send className="w-4 h-4" /></button>
-                                    </form>
-                                </div>
+                        {peers.map((peer, i) => (
+                            <div
+                                key={peer.peerId}
+                                onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
+                                onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
+                                style={{
+                                    transform: `translate(${camPositions[peer.peerId]?.x ?? (typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20)}px, ${camPositions[peer.peerId]?.y ?? (80 + (i * 76))}px)`,
+                                    position: 'absolute', top: 0, left: 0
+                                }}
+                                className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
+                            >
+                                <StreamVideo stream={peer.stream} mirrored={false} volume={partnerVolume} />
+                                <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">{peerNames[peer.peerId] || 'Peer'}</span>
                             </div>
-                        )}
-            </div>
-
-            {/* Video Grids Overlay */}
-            <div className="fixed top-20 left-0 right-0 bottom-0 pointer-events-none z-50 overflow-visible">
-                    {myStream && (
-                        <div
-                            onMouseDown={(e) => handleCamMouseDown(e, 'me')}
-                            onTouchStart={(e) => handleCamTouchStart(e, 'me')}
-                            style={{
-                                transform: `translate(${camPositions['me']?.x ?? 20}px, ${camPositions['me']?.y ?? 80}px)`,
-                                position: 'absolute', top: 0, left: 0
-                            }}
-                            className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
-                        >
-                            <StreamVideo stream={myStream} muted={true} mirrored={true} />
-                            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-between items-center bg-black/40 backdrop-blur-md rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-[10px] font-bold text-white">You</span>
-                                <div className="flex gap-1">
-                                    <button onMouseDown={e => e.stopPropagation()} onClick={toggleMute} className={`p-0.5 rounded-md ${isMuted ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}</button>
-                                    <button onMouseDown={e => e.stopPropagation()} onClick={toggleVideo} className={`p-0.5 rounded-md ${isVideoOff ? 'text-red-400' : 'text-gray-300 hover:text-white'}`}>{isVideoOff ? <VideoOff className="w-3 h-3" /> : <Video className="w-3 h-3" />}</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {peers.map((peer, i) => (
-                        <div
-                            key={peer.peerId}
-                            onMouseDown={(e) => handleCamMouseDown(e, peer.peerId)}
-                            onTouchStart={(e) => handleCamTouchStart(e, peer.peerId)}
-                            style={{
-                                transform: `translate(${camPositions[peer.peerId]?.x ?? (typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 130) : 20)}px, ${camPositions[peer.peerId]?.y ?? (80 + (i * 76))}px)`,
-                                position: 'absolute', top: 0, left: 0
-                            }}
-                            className="w-28 h-20 md:w-40 md:h-28 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl pointer-events-auto cursor-move shadow-black/50 group"
-                        >
-                            <StreamVideo stream={peer.stream} mirrored={false} volume={partnerVolume} />
-                            <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">{peerNames[peer.peerId] || 'Peer'}</span>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                }
+            />
 
             {/* Navigation Blocker Modal */}
             {showLeaveModal && (

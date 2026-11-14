@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { PcoTrack, checkIsPcoAdmin, submitPcoSongRequest, updatePcoSongRequestStatus, getServerTimeMs } from '../services/pcoAdmin';
-import { usePcoRadioSync } from '../hooks/usePcoRadioSync';
+import { useMusicPlayer } from '../context/MusicPlayerContext';
+import { YouTubeMusicLayout } from '../components/YouTubeMusicLayout';
 import { PcoRadioPlayer } from '../components/PcoRadioPlayer';
 import { PcoLyricsScroller } from '../components/PcoLyricsScroller';
 import { PcoAdminQuickPanel } from '../components/PcoAdminQuickPanel';
@@ -32,8 +33,9 @@ export const CampusPcoRadio: React.FC = () => {
   const [listenerCount, setListenerCount] = useState<number>(1);
   const [dailyRequestsUsed, setDailyRequestsUsed] = useState<number>(0);
   const [pinnedBanner, setPinnedBanner] = useState<{ text: string; expiresAt: number } | null>(null);
+  const [incomingReaction, setIncomingReaction] = useState<{ emoji: string; id: string } | null>(null);
 
-  // 2. Audio Sync Hook (with admin mutation privileges passed down)
+  // 2. Global Persistent Audio Player Context (keeps playing smoothly across all main nav route transitions)
   const {
     currentTrack,
     currentTime,
@@ -41,7 +43,6 @@ export const CampusPcoRadio: React.FC = () => {
     isPlaying,
     mode,
     queue,
-    audioRef,
     playTrackImmediately,
     playTrackNext,
     addTrackToQueue,
@@ -50,13 +51,16 @@ export const CampusPcoRadio: React.FC = () => {
     skipCurrentTrack,
     togglePlayPause,
     seek,
-    handleTimeUpdate,
-    handleSongEnded,
-    handleAudioError,
     setCurrentTrack,
     setIsPlaying,
-    setCurrentTime
-  } = usePcoRadioSync({ roomId: 'Campus_PCO_247', isAdmin });
+    setCurrentTime,
+    setIsAdmin: setContextIsAdmin,
+    startMusic
+  } = useMusicPlayer();
+
+  useEffect(() => {
+    startMusic();
+  }, [startMusic]);
 
   // 3. UI Panels & Drawers
   const [isLyricsOpen, setIsLyricsOpen] = useState(false);
@@ -101,6 +105,7 @@ export const CampusPcoRadio: React.FC = () => {
       const hasAdmin = await checkIsPcoAdmin(currentUser, authEmail);
       if (isMounted) {
         setIsAdmin(hasAdmin);
+        setContextIsAdmin(hasAdmin);
       }
     };
     verifyAdmin();
@@ -218,6 +223,11 @@ export const CampusPcoRadio: React.FC = () => {
       .on('presence', { event: 'sync' }, updatePresenceState)
       .on('presence', { event: 'join' }, updatePresenceState)
       .on('presence', { event: 'leave' }, updatePresenceState)
+      .on('broadcast', { event: 'LIVE_REACTION' }, ({ payload }) => {
+        if (payload?.emoji) {
+          setIncomingReaction({ emoji: payload.emoji, id: `${Date.now()}-${Math.random()}` });
+        }
+      })
       .on('broadcast', { event: 'LIVE_CHAT_MSG' }, ({ payload }) => {
         if (payload?.text) {
           setMessages(prev => [...prev.slice(-99), {
@@ -323,6 +333,15 @@ export const CampusPcoRadio: React.FC = () => {
         chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
       }
     }, 50);
+  };
+
+  const handleSendReaction = (emoji: string) => {
+    if (!liveChannelRef.current) return;
+    liveChannelRef.current.send({
+      type: 'broadcast',
+      event: 'LIVE_REACTION',
+      payload: { emoji, user: displayName }
+    });
   };
 
   // Auto-scroll chat on incoming messages or tab switch without yanking if user scrolled up
@@ -454,43 +473,119 @@ export const CampusPcoRadio: React.FC = () => {
 
   return (
     <div className="relative w-full h-[100svh] bg-black text-white overflow-hidden select-none font-sans">
-      {/* 🎵 Hidden Native Audio Element */}
-      <audio
-        ref={audioRef}
-        preload="auto"
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleSongEnded}
-        onError={handleAudioError}
-      />
-
-      {/* 📻 Main PCO Radio Player Viewport (Memoized, Smooth 60fps) */}
-      <PcoRadioPlayer
+      {/* 📺 Full YouTube Music Experience (Video / Synced Lyrics / Live Chat / Song Request) */}
+      <YouTubeMusicLayout
         currentTrack={currentTrack}
         currentTime={currentTime}
+        duration={duration}
         isPlaying={isPlaying}
-        listenerCount={listenerCount}
         isAdmin={isAdmin}
-        requestsLeft={Math.max(0, 3 - dailyRequestsUsed)}
-        pinnedBanner={pinnedBanner}
-        floatingChatMessages={floatingChatMessages}
-        isSidebarOpen={isSidebarOpen}
-        onToggleLyrics={() => setIsLyricsOpen(prev => !prev)}
+        roomName="Sparx FM 24/7"
+        activePlaylistTitle="10s Bollywood Romance Hits"
+        queue={queue && queue.length > 0 ? queue : curatedRomanticTracks.slice(0, 25)}
+        messages={messages}
+        listenerCount={listenerCount}
+        incomingReaction={incomingReaction}
         onPlayPause={togglePlayPause}
         onSkip={skipCurrentTrack}
+        onPrevious={() => seek(0)}
         onSeek={isAdmin ? seek : undefined}
-        onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
-        onToggleAdminPanel={() => setIsAdminPanelOpen(prev => !prev)}
-        onBack={() => router.push('/sparx')}
-      />
-
-      {/* 📝 3D Synced Lyrics Viewport (GPU Hardware-Accelerated) */}
-      <PcoLyricsScroller
-        currentTrack={currentTrack}
-        currentTime={currentTime}
-        isOpen={isLyricsOpen}
-        onClose={() => setIsLyricsOpen(false)}
-        onSeek={seek}
-        canSeek={isAdmin}
+        onSelectTrack={(track, playNow) => {
+          const pcoTrack: PcoTrack = {
+            id: track.id,
+            song: track.song,
+            singers: track.singers,
+            image: track.image,
+            media_url: track.media_url || '',
+            duration: track.duration
+          };
+          if (isAdmin && playNow) {
+            playTrackImmediately(pcoTrack);
+          } else {
+            handleRequestSong(pcoTrack);
+          }
+        }}
+        onSendMessage={(text) => {
+          if (!text.trim() || !supabase) return;
+          const newMsg = { user: displayName, text: text.trim(), createdAt: Date.now() };
+          setMessages(prev => [...prev.slice(-99), newMsg]);
+          liveChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'LIVE_CHAT_MSG',
+            payload: newMsg
+          });
+        }}
+        onRequestSong={(track) => {
+          handleRequestSong({
+            id: track.id,
+            song: track.song,
+            singers: track.singers,
+            image: track.image,
+            media_url: track.media_url || '',
+            duration: track.duration
+          });
+        }}
+        onSendReaction={handleSendReaction}
+        onLeave={() => router.push('/sparx')}
+        onAdminPlayNow={async (t, id) => {
+          const pcoTrack: PcoTrack = {
+            id: t.id,
+            song: t.song,
+            singers: t.singers,
+            image: t.image,
+            media_url: t.media_url || '',
+            duration: t.duration
+          };
+          const startAtMs = await getServerTimeMs();
+          playTrackImmediately(pcoTrack, startAtMs);
+          triggerPinnedBanner(`🔥 Now Playing: "${t.song}"`);
+          if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
+          liveChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'PCO_PLAY_IMMEDIATELY',
+            payload: { track: pcoTrack, startedAtMs: startAtMs, senderId: currentUser?.id }
+          });
+        }}
+        onAdminPlayNext={(t, id) => {
+          const pcoTrack: PcoTrack = {
+            id: t.id,
+            song: t.song,
+            singers: t.singers,
+            image: t.image,
+            media_url: t.media_url || '',
+            duration: t.duration
+          };
+          playTrackNext(pcoTrack);
+          triggerPinnedBanner(`⏭️ Queued Next: "${t.song}"`);
+          if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
+          liveChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'PCO_PLAY_NEXT',
+            payload: { track: pcoTrack, senderId: currentUser?.id }
+          });
+        }}
+        onAdminAddToQueue={(t, id) => {
+          const pcoTrack: PcoTrack = {
+            id: t.id,
+            song: t.song,
+            singers: t.singers,
+            image: t.image,
+            media_url: t.media_url || '',
+            duration: t.duration
+          };
+          addTrackToQueue(pcoTrack);
+          triggerPinnedBanner(`➕ Added to Queue: "${t.song}"`);
+          if (id) updatePcoSongRequestStatus(id, 'approved', currentUser?.id);
+          liveChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'PCO_ADD_QUEUE',
+            payload: { track: pcoTrack, senderId: currentUser?.id }
+          });
+        }}
+        onAdminRejectRequest={(id) => {
+          updatePcoSongRequestStatus(id, 'declined', currentUser?.id);
+          triggerPinnedBanner(`Declined request`);
+        }}
       />
 
       {/* 🛡️ Admin DJ Floating Quick Panel */}
@@ -498,9 +593,6 @@ export const CampusPcoRadio: React.FC = () => {
         <PcoAdminQuickPanel
           queue={queue}
           onPlayNow={async (t, id) => {
-            // ZERO-DELAY BROADCAST: capture the DJ's authoritative start time
-            // (server clock, not the listener's local receive time) and send
-            // it in the payload so every device starts at the same instant.
             const startAtMs = await getServerTimeMs();
             playTrackImmediately(t, startAtMs);
             triggerPinnedBanner(`🔥 Now Playing: "${t.song}"`);
@@ -541,9 +633,7 @@ export const CampusPcoRadio: React.FC = () => {
               payload: {}
             });
           }}
-          onBroadcastBanner={(text) => {
-            triggerPinnedBanner(text);
-          }}
+          onBroadcastBanner={(text) => triggerPinnedBanner(text)}
           onReturnToAuto={returnToAuto}
           mode={mode}
           currentTrack={currentTrack}
@@ -552,223 +642,6 @@ export const CampusPcoRadio: React.FC = () => {
           onToggle={() => setIsAdminPanelOpen(prev => !prev)}
         />
       )}
-
-      {/* 💬 Mobile / Desktop Side Panel Drawer for Requests & Chat */}
-      <BottomSheet
-        open={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        height="80dvh"
-      >
-        <div 
-          onTouchStart={e => e.stopPropagation()}
-          className="flex flex-col h-full bg-[#0d0716] text-white overflow-hidden"
-        >
-          {/* Top Bar: Quota Status & Close */}
-          <div className="pt-3 pb-2 px-4 bg-purple-950/30 border-b border-white/10 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-1.5 text-pink-300 font-bold text-xs">
-              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-              <span>Campus Airwaves</span>
-            </div>
-              <div className="flex items-center gap-2">
-                <div className="font-mono text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30">
-                  {isAdmin ? 'DJ Admin (Unlimited)' : `${Math.max(0, 3 - dailyRequestsUsed)} reqs left today`}
-                </div>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-1 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-                  title="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-          {/* Segmented Tab Switcher */}
-          <div className="flex items-center border-b border-white/10 px-3 bg-black/40 shrink-0">
-            <button
-              onClick={() => setMobilePcoTab('request')}
-              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 flex items-center justify-center gap-1.5 ${
-                mobilePcoTab === 'request'
-                  ? 'border-pink-500 text-pink-400 bg-pink-500/5'
-                  : 'border-transparent text-white/50 hover:text-white/80'
-              }`}
-            >
-              <Music className="w-3.5 h-3.5" />
-              <span>Song Requests</span>
-            </button>
-
-            <button
-              onClick={() => setMobilePcoTab('chat')}
-              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 flex items-center justify-center gap-1.5 ${
-                mobilePcoTab === 'chat'
-                  ? 'border-pink-500 text-pink-400 bg-pink-500/5'
-                  : 'border-transparent text-white/50 hover:text-white/80'
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Live Campus Chat</span>
-              {messages.length > 0 && (
-                <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
-              )}
-            </button>
-          </div>
-
-          {/* Request Status Feedback Alert */}
-          {requestStatusMsg && (
-            <div className={`px-4 py-2 text-xs flex items-center gap-2 font-bold shrink-0 ${
-              requestStatusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border-b border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-b border-rose-500/30'
-            }`}>
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{requestStatusMsg.text}</span>
-            </div>
-          )}
-
-          {/* TAB 1: SONG REQUESTS */}
-          {mobilePcoTab === 'request' && (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* Search Bar for Song Requests */}
-              <div className="p-3 border-b border-white/10 bg-black/30 shrink-0">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search campus tracks to request..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-colors"
-                  />
-                </div>
-
-                {/* Quick Filter Tags */}
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none mt-2">
-                  {trendingRomanticQueries.slice(0, 5).map((tag: string, i: number) => (
-                    <button
-                      key={i}
-                      onClick={() => setSearchQuery(tag)}
-                      className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-lg text-[9px] whitespace-nowrap shrink-0 transition-colors"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Scrollable Song Catalog */}
-              <div 
-                data-sheet-scroll
-                className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar"
-                style={{ touchAction: 'pan-y' }}
-              >
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  {searchQuery ? 'Search Results' : 'Recommended Songs'}
-                </h4>
-                <div className="space-y-1.5">
-                  {searchResults.map(track => (
-                    <div
-                      key={track.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 hover:bg-purple-950/30 transition-colors border border-white/5"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <img
-                          src={track.image}
-                          alt={track.song}
-                          className="w-9 h-9 rounded-lg object-cover shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-white truncate">{track.song}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{track.singers}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        {isAdmin ? (
-                          <>
-                            <button
-                              onClick={() => playTrackImmediately(track)}
-                              className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold rounded-lg active:scale-95 transition-transform"
-                              title="Play Immediately"
-                            >
-                              Play Now
-                            </button>
-                            <button
-                              onClick={() => addTrackToQueue(track)}
-                              className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold rounded-lg active:scale-95 transition-transform"
-                              title="Add to Queue"
-                            >
-                              + Queue
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handleRequestSong(track)}
-                            disabled={isRequestSubmitting || (!isAdmin && dailyRequestsUsed >= 3)}
-                            className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 active:scale-95 transition-transform shadow-sm"
-                          >
-                            <PlusCircle className="w-3 h-3" />
-                            <span>Request</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: LIVE CHAT */}
-          {mobilePcoTab === 'chat' && (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div 
-                ref={chatScrollRef} 
-                data-sheet-scroll
-                className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2.5 custom-scrollbar"
-                style={{ touchAction: 'pan-y' }}
-              >
-                {messages.length === 0 ? (
-                  <div className="text-center py-16 text-xs text-gray-500 flex flex-col items-center gap-2">
-                    <MessageSquare className="w-6 h-6 text-gray-600" />
-                    <span>No messages yet. Say hello to the campus airwaves!</span>
-                  </div>
-                ) : (
-                  messages.map((m, idx) => (
-                    <div key={idx} className="bg-white/5 p-2.5 rounded-xl text-xs flex flex-col gap-0.5 border border-white/5">
-                      <div className="flex items-center justify-between text-[10px] text-pink-400 font-bold">
-                        <span>{m.user}</span>
-                        <span className="text-gray-500 font-mono text-[9px]">
-                          {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <p className="text-gray-200 text-xs break-words leading-relaxed">{m.text}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Chat Input Form (pinned bottom with safe-area spacing) */}
-              <form 
-                onSubmit={handleSendMessage} 
-                className="flex items-center gap-2 p-3 border-t border-white/10 bg-black/60 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
-              >
-                <input
-                  type="text"
-                  placeholder="Chat with listeners..."
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  maxLength={160}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-colors"
-                />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim()}
-                  className="p-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-40 text-white rounded-xl active:scale-95 transition-transform shadow-md"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-      </BottomSheet>
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { PresenceProvider } from '../src/context/PresenceContext';
 import { CallProvider } from '../src/context/CallContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { NotificationProvider } from '../src/context/NotificationContext';
+import { MusicPlayerProvider } from '../src/context/MusicPlayerContext';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <CallProvider>
             <ToastProvider>
               <NotificationProvider>
-                {children}
+                <MusicPlayerProvider>
+                  {children}
+                </MusicPlayerProvider>
               </NotificationProvider>
             </ToastProvider>
           </CallProvider>

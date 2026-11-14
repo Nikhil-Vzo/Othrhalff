@@ -178,8 +178,8 @@ describe('About page metadata (client/app/about/page.tsx)', () => {
     expect((aboutMetadata.description as string).toLowerCase()).toContain('connect');
   });
 
-  it('does not include openGraph (simple informational page)', () => {
-    expect((aboutMetadata as Record<string, unknown>).openGraph).toBeUndefined();
+  it('includes openGraph metadata for social sharing', () => {
+    expect((aboutMetadata as Record<string, unknown>).openGraph).toBeDefined();
   });
 });
 

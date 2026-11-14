@@ -46,6 +46,23 @@ jest.mock('../../src/context/NotificationContext', () => ({
   ),
 }));
 
+jest.mock('../../src/context/MusicPlayerContext', () => ({
+  MusicPlayerProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="music-player-provider">{children}</div>
+  ),
+  useMusicPlayer: () => ({
+    currentTrack: null,
+    currentTime: 0,
+    duration: 0,
+    isPlaying: false,
+    isMusicActive: false,
+    isDismissed: false,
+    activeRoomUrl: '/sparx/music',
+    togglePlayPause: jest.fn(),
+    dismissMiniPlayer: jest.fn(),
+  }),
+}));
+
 // ErrorBoundary: keep the real class but provide a testable version that
 // renders children normally and shows a fallback on error.
 jest.mock('../../src/components/ErrorBoundary', () => {
@@ -148,6 +165,15 @@ describe('Providers component', () => {
       </Providers>,
     );
     expect(screen.getByTestId('notification-provider')).toBeInTheDocument();
+  });
+
+  it('renders the MusicPlayerProvider', () => {
+    render(
+      <Providers>
+        <span>content</span>
+      </Providers>,
+    );
+    expect(screen.getByTestId('music-player-provider')).toBeInTheDocument();
   });
 
   it('passes children all the way through the provider chain', () => {

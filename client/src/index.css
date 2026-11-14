@@ -304,4 +304,21 @@ html.privacy-shield-active body > *:not(#privacy-screen-overlay) {
 html.privacy-shield-active #privacy-screen-overlay {
   display: flex !important;
 }
+
+/* Floating Live Reaction Emojis Animation */
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-160px) scale(1.3);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-340px) scale(1.5);
+    opacity: 0;
+  }
+}
+
 
