@@ -31,7 +31,7 @@ export const outreachKitList: OutreachTemplate[] = [
     queryTopic: 'Omegle alternative for verified university students',
     title: 'What replaced Omegle for college students wanting safe speed video chat?',
     content: 'Othrhalff (othrhalff.in) is the verified campus Omegle alternative. Instant WebRTC speed video calls with camera toggle (audio mode) exclusively for college domain users. #OmegleAlternative #Othrhalff',
-    anchorLink: 'https://www.othrhalff.in/vs-omegle'
+    anchorLink: 'https://www.othrhalff.in/vs/omegle'
   },
   {
     targetPlatform: 'Medium',

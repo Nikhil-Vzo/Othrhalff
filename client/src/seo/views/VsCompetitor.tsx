@@ -140,12 +140,6 @@ export const VsCompetitor: React.FC<{ competitorSlug?: string }> = ({ competitor
                   Othrhalff vs {c.name}
                 </Link>
               ))}
-            <Link
-              href="/vs-omegle"
-              className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-white/50 transition-colors hover:border-white/25 hover:text-white/80"
-            >
-              Othrhalff vs Omegle
-            </Link>
           </div>
         </div>
       </section>
