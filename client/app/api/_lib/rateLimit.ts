@@ -11,7 +11,10 @@ const rateLimitMap = new Map<string, RateLimitStore>();
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, record] of rateLimitMap.entries()) {
+    // Array.from: tsconfig sets no `target`, so iterating a MapIterator
+    // directly fails type-checking (TS2802). Snapshotting is also safe
+    // while deleting stale entries from the map.
+    for (const [key, record] of Array.from(rateLimitMap.entries())) {
       if (now > record.resetAt) {
         rateLimitMap.delete(key);
       }
