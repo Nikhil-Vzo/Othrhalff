@@ -18,6 +18,7 @@ export interface UsePcoRadioSyncOptions {
   onTrackEnded?: () => void;
   roomId?: string;
   isAdmin?: boolean;
+  enabled?: boolean;
 }
 
 export interface UsePcoRadioSyncReturn {
@@ -63,8 +64,9 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
     optionsRef.current = options;
   });
 
+  const isEnabled = options.enabled !== false;
   const [currentTrack, setCurrentTrackState] = useState<PcoTrack | null>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [isPlaying, setIsPlaying] = useState<boolean>(isEnabled);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [mode, setMode] = useState<PcoRadioMode>('auto');
   const [queue, setQueue] = useState<PcoTrack[]>([]);
@@ -73,7 +75,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
   const modeRef = useRef<PcoRadioMode>('auto');
   const startedAtMsRef = useRef<number>(0);
   const queueRef = useRef<PcoTrack[]>([]);
-  const isPlayingRef = useRef<boolean>(true);
+  const isPlayingRef = useRef<boolean>(isEnabled);
   const isAdminRef = useRef<boolean>(!!options.isAdmin);
   const isAdvancingRef = useRef<boolean>(false);
   const driftIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -158,6 +160,12 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
     const targetOffset = seekOffset !== undefined ? seekOffset : sched.offsetSec;
     setCurrentTime(targetOffset);
 
+    // If sync is disabled (e.g. cold site open outside Sparx FM), do not play
+    if (optionsRef.current.enabled === false) {
+      setIsPlaying(false);
+      return;
+    }
+
     if (audioRef.current) {
       const audio = audioRef.current;
       ensurePreservesPitch(audio);
@@ -194,6 +202,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
 
   // 1. Initial State Hydration on Mount (Fetch authoritative DB state or fallback to deterministic auto)
   useEffect(() => {
+    if (options.enabled === false) return;
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
@@ -214,7 +223,12 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
           setQueue(dbState.queue || []);
           setIsPlaying(!dbState.paused);
 
-          if (audioRef.current) {
+          if (optionsRef.current.enabled === false) {
+          setIsPlaying(false);
+          return;
+        }
+
+        if (audioRef.current) {
             const audio = audioRef.current;
             ensurePreservesPitch(audio);
             const startAtMs = dbState.started_at_ms;
@@ -258,7 +272,12 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
           // FIX: this branch previously never assigned audio.src — joiners
           // heard the previous/auto track (or silence) while the UI showed
           // nextTrack. Load it and seek on canplay like the other branches.
-          if (audioRef.current) {
+          if (optionsRef.current.enabled === false) {
+          setIsPlaying(false);
+          return;
+        }
+
+        if (audioRef.current) {
             const audio = audioRef.current;
             ensurePreservesPitch(audio);
 
@@ -289,7 +308,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
     };
 
     hydrateRadioState();
-  }, [roomId, setCurrentTrack, loadAutoScheduleTrack]);
+  }, [roomId, options.enabled, setCurrentTrack, loadAutoScheduleTrack]);
 
   // 2. Realtime Subscriptions (Postgres Changes & Broadcast Events)
   // Single shared applier so postgres_changes + broadcast stay in lockstep (DRY)
@@ -315,6 +334,11 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         setCurrentTime(elapsedSec);
         setQueue(Array.isArray(nextState.queue) ? nextState.queue : []);
         setIsPlaying(!nextState.paused);
+
+        if (optionsRef.current.enabled === false) {
+          setIsPlaying(false);
+          return;
+        }
 
         if (audioRef.current) {
           const audio = audioRef.current;
@@ -406,7 +430,12 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
             if (elapsed < dur) {
               setCurrentTrack(dbState.current_track);
               setCurrentTime(elapsed);
-              if (audioRef.current) {
+              if (optionsRef.current.enabled === false) {
+          setIsPlaying(false);
+          return;
+        }
+
+        if (audioRef.current) {
                 audioRef.current.currentTime = elapsed;
                 audioRef.current.play().catch(() => {});
               }
@@ -430,6 +459,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
 
   // 3. High-Frequency Micro-Drift Correction & Mobile Background Tab Watchdog
   useEffect(() => {
+    if (options.enabled === false) return;
     driftIntervalRef.current = setInterval(() => {
       const audio = audioRef.current;
       if (!audio || audio.paused) return;
@@ -511,7 +541,7 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         driftIntervalRef.current = null;
       }
     };
-  }, [handleTrackEnd, loadAutoScheduleTrack, ensurePreservesPitch]);
+  }, [options.enabled, handleTrackEnd, loadAutoScheduleTrack, ensurePreservesPitch]);
 
   // 4. Audio Event Handlers
   // SCALING FIX: throttle currentTime state updates to ~1 Hz. onTimeUpdate
@@ -668,6 +698,11 @@ export function usePcoRadioSync(options: UsePcoRadioSyncOptions = {}) {
         startedAtMsRef.current = Date.now();
         setCurrentTrack(nextTrack);
         setCurrentTime(0);
+        if (optionsRef.current.enabled === false) {
+          setIsPlaying(false);
+          return;
+        }
+
         if (audioRef.current) {
           const audio = audioRef.current;
           ensurePreservesPitch(audio);

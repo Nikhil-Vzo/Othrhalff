@@ -44,6 +44,8 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [activeRoomUrl, setActiveRoomUrl] = useState<string>('/sparx/music?room=Campus_PCO_247');
 
+  const isEnabled = isMusicActive || pathname.startsWith('/sparx/music');
+
   // Persistent authoritative audio synchronization hook
   const {
     currentTrack,
@@ -68,7 +70,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsPlaying,
     setCurrentTime,
     setQueue
-  } = usePcoRadioSync({ roomId: 'Campus_PCO_247', isAdmin });
+  } = usePcoRadioSync({ roomId: 'Campus_PCO_247', isAdmin, enabled: isEnabled });
 
   // Automatically activate music session when user navigates to /sparx/music
   useEffect(() => {

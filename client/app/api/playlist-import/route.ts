@@ -152,6 +152,65 @@ export async function POST(req: NextRequest) {
                 } catch (err) {
                     console.error('YouTube playlist fetch error:', err);
                 }
+
+                // Fallback: YouTube Music (music.youtube.com) structure
+                if (extracted.length === 0) {
+                    try {
+                        const ytmRes = await fetch(`https://music.youtube.com/playlist?list=${listId}`, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                'Accept-Language': 'en-US,en;q=0.9'
+                            }
+                        });
+                        if (ytmRes.ok) {
+                            const ytmHtml = await ytmRes.text();
+                            const browseIdx = ytmHtml.indexOf("path: '\\/browse'");
+                            if (browseIdx !== -1) {
+                                const dataStart = ytmHtml.indexOf("data: '", browseIdx);
+                                if (dataStart !== -1) {
+                                    const contentStart = dataStart + 7;
+                                    let endIdx = contentStart;
+                                    while (endIdx < ytmHtml.length) {
+                                        if (ytmHtml[endIdx] === "'" && ytmHtml[endIdx - 1] !== '\\') {
+                                            if (ytmHtml.slice(endIdx, endIdx + 5).includes('}')) break;
+                                        }
+                                        endIdx++;
+                                    }
+                                    const rawData = ytmHtml.slice(contentStart, endIdx);
+                                    const unescaped = rawData.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+                                    const parsed = JSON.parse(unescaped);
+                                    
+                                    const searchMusicItems = (obj: any) => {
+                                        if (!obj || typeof obj !== 'object') return;
+                                        if (obj.musicResponsiveListItemRenderer) {
+                                            const item = obj.musicResponsiveListItemRenderer;
+                                            const flexCols = item.flexColumns || [];
+                                            const title = flexCols[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+                                            const artist = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.map((r: any) => r.text).join('') || '';
+                                            if (title) {
+                                                const cleanedTitle = title
+                                                    .replace(/\[.*?\]|\(.*?\)/g, '')
+                                                    .replace(/official\s*(music)?\s*video|lyric\s*video|audio|full\s*song|4k|hd|bonus track/gi, '')
+                                                    .trim();
+                                                extracted.push({
+                                                    title: cleanedTitle,
+                                                    artist,
+                                                    query: `${cleanedTitle} ${artist}`.trim()
+                                                });
+                                            }
+                                        }
+                                        for (const k of Object.keys(obj)) {
+                                            searchMusicItems(obj[k]);
+                                        }
+                                    };
+                                    searchMusicItems(parsed);
+                                }
+                            }
+                        }
+                    } catch (ytmErr) {
+                        console.error('YouTube Music parse error:', ytmErr);
+                    }
+                }
             } else {
                 // Single YouTube Video
                 try {

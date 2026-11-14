@@ -172,9 +172,13 @@ export const FloatingMusicMiniPlayer: React.FC = () => {
         top: `${pos.y}px`,
         right: 'auto',
         bottom: 'auto',
+        width: '340px',
+        maxWidth: 'calc(100vw - 24px)',
         touchAction: 'none',
       }
     : {
+        width: '340px',
+        maxWidth: 'calc(100vw - 24px)',
         touchAction: 'none',
       };
 
@@ -188,9 +192,9 @@ export const FloatingMusicMiniPlayer: React.FC = () => {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       style={customStyle}
-      className={`fixed z-50 group select-none ${
-        !pos ? 'bottom-20 right-3 left-3 sm:left-auto sm:right-6 sm:bottom-6 sm:w-84' : 'w-[calc(100vw-24px)] sm:w-84'
-      } ${isDragging ? 'cursor-grabbing scale-102 shadow-2xl' : 'cursor-grab'} animate-in fade-in slide-in-from-bottom-5 duration-200`}
+      className={`fixed z-50 group select-none w-[340px] max-w-[calc(100vw-24px)] ${
+        !pos ? 'bottom-20 right-3 sm:right-6 sm:bottom-6' : ''
+      } ${isDragging ? 'cursor-grabbing shadow-2xl' : 'cursor-grab'} animate-in fade-in slide-in-from-bottom-5 duration-200`}
     >
       <div className="relative bg-[#0c0c10]/95 backdrop-blur-xl border border-white/10 hover:border-pink-500/40 rounded-2xl p-2.5 flex items-center justify-between gap-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.85)] transition-shadow duration-200 hover:shadow-[0_12px_36px_rgba(255,0,127,0.25)]">
         

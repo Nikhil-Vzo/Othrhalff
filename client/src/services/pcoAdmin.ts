@@ -261,12 +261,73 @@ export async function submitPcoSongRequest(
       }
 
       if (data) {
-        // Broadcast to live DJ console in real-time
+        // 1. Notify all admins in Supabase notifications table & mobile devices
+        try {
+          const { data: adminProfiles } = await supabase
+            .from('profiles')
+            .select('id')
+            .or(`is_admin.eq.true,university_email.in.(${KNOWN_ADMIN_EMAILS.map(e => `"${e}"`).join(',')})`);
+
+          if (adminProfiles && adminProfiles.length > 0) {
+            const notifs = adminProfiles.map((adm: any) => ({
+              user_id: adm.id,
+              from_user_id: currentUser?.id || null,
+              type: 'song_request',
+              title: '🎵 New Song Request!',
+              message: `${displayName || 'A listener'} requested "${track.song}" by ${track.singers}`,
+              action_url: '/sparx/music?room=Campus_PCO_247',
+              data: {
+                type: 'song_request',
+                track_name: track.song,
+                track_artist: track.singers,
+                track_image: track.image,
+                requester: displayName || 'Anonymous'
+              },
+              read: false,
+              created_at: new Date().toISOString()
+            }));
+            await supabase.from('notifications').insert(notifs);
+          }
+        } catch (nErr) {
+          console.debug('[PCO Admin] Notification insert error:', nErr);
+        }
+
+        // 2. Dispatch local mobile/browser notification if user is admin testing
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification('🎵 New Song Request!', {
+                body: `${displayName || 'A listener'} requested "${track.song}"`,
+                icon: track.image || '/favicon.png',
+                badge: '/favicon.png',
+                data: { url: '/sparx/music?room=Campus_PCO_247' }
+              });
+            }).catch(() => {});
+          } else {
+            try {
+              new Notification('🎵 New Song Request!', {
+                body: `${displayName || 'A listener'} requested "${track.song}"`,
+                icon: track.image || '/favicon.png'
+              });
+            } catch (_) {}
+          }
+        }
+
+        // 3. Broadcast to live DJ console in real-time
         try {
           supabase.channel('pco_quick_panel_requests').send({
             type: 'broadcast',
             event: 'PCO_SONG_REQUEST',
             payload: data
+          });
+          supabase.channel('pco_quick_panel_requests').send({
+            type: 'broadcast',
+            event: 'PCO_REQUEST_NOTIFICATION',
+            payload: {
+              requester: displayName,
+              track,
+              requestId: data.id
+            }
           });
           supabase.channel('campus_pco_live_chat').send({
             type: 'broadcast',

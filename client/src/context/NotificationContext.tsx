@@ -176,6 +176,31 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             .on('postgres_changes',
                 { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` },
                 (payload) => {
+                    // Trigger mobile/browser notification if app is in background or received new item
+                    if (payload.eventType === 'INSERT' && payload.new) {
+                        const newNotif = payload.new as any;
+                        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                            if ('serviceWorker' in navigator) {
+                                navigator.serviceWorker.ready.then(reg => {
+                                    reg.showNotification(newNotif.title || '🎵 New Song Request!', {
+                                        body: newNotif.message || 'New request on Sparx FM',
+                                        icon: newNotif.data?.track_image || '/favicon.png',
+                                        badge: '/favicon.png',
+                                        tag: `notif-${newNotif.id || Date.now()}`,
+                                        data: { url: newNotif.action_url || '/sparx/music?room=Campus_PCO_247' }
+                                    });
+                                }).catch(() => {});
+                            } else {
+                                try {
+                                    new Notification(newNotif.title || '🎵 New Song Request!', {
+                                        body: newNotif.message,
+                                        icon: '/favicon.png'
+                                    });
+                                } catch (_) {}
+                            }
+                        }
+                    }
+
                     // When DB changes, wait a moment then fetch
                     debouncedFetch();
                 }
