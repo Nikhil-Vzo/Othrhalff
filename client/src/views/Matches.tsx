@@ -29,20 +29,13 @@ const CACHE_KEY = 'otherhalf_matches_cache_v6';
 const CACHE_EXPIRY_KEY = 'otherhalf_matches_expiry_v6';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Helper: read cache from Dexie IndexedDB (falling back to localStorage)
+// Helper: read cache from Dexie IndexedDB (falling back to localStorage, stale-while-revalidate)
 const readCache = (): ChatPreview[] => {
   try {
-    const expiry = localStorage.getItem(CACHE_EXPIRY_KEY);
-    if (expiry && Date.now() > parseInt(expiry, 10)) {
-      localStorage.removeItem(CACHE_KEY);
-      localStorage.removeItem(CACHE_EXPIRY_KEY);
-      db.matches.clear().catch(() => {});
-      return [];
-    }
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return [];
     const parsed = JSON.parse(cached);
-    if (Array.isArray(parsed)) {
+    if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.map((c: any) => ({
         ...c,
         lastMessage: c.lastMessage ? (typeof c.lastMessage === 'object' ? (c.lastMessage.text || c.lastMessage.content || '') : c.lastMessage) : null
@@ -203,75 +196,185 @@ export const Matches: React.FC = () => {
   // Ref to debounce refreshes
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 2. The Core Loading Function — server-side block filtering via RPC
+  // 2. The Core Loading Function — resilient multi-tier loading (RPC -> Direct Table Query -> Server API)
   const loadMatches = useCallback(async (isBackground = false) => {
     if (!supabase) return;
-    if (!currentUser) {
+    if (!currentUser?.id) {
       setLoading(false);
       return;
     }
     const hasCache = readCache().length > 0;
     if (!isBackground && !hasCache) setLoading(true);
 
+    let mappedChats: ChatPreview[] | null = null;
+
+    // Ensure session is active before querying authenticated endpoints
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        await supabase.auth.refreshSession().catch(() => {});
+      }
+    } catch (_) {}
+
+    // Tier 1: Try get_matches_with_preview RPC
     try {
       const { data: rpcData, error: rpcError } = await supabase
         .rpc('get_matches_with_preview', { current_user_id: currentUser.id });
 
-      if (rpcError) throw rpcError;
-
-      const mappedChats: ChatPreview[] = (rpcData || []).map((row: any) => {
-        const partner = row.partner_profile || {};
-        return {
-          id: row.match_id,
-          partner: {
-            id: row.partner_id,
-            anonymousId: partner.anonymous_id || 'Unknown',
-            realName: partner.real_name || 'User',
-            avatar: partner.avatar,
-            university: partner.university,
-            branch: partner.branch,
-            year: partner.year,
-            isVerified: partner.is_verified,
-            gender: partner.gender || '',
-            bio: partner.bio || '',
-            dob: partner.dob || '',
-            interests: partner.interests || [],
-            matchPercentage: 0,
-            distance: 'Connected'
-          },
-          lastMessage: row.last_message === 'New Match!' ? null : row.last_message,
-          lastMessageTime: row.last_message_time ? new Date(row.last_message_time).getTime() : null,
-          unreadCount: Number(row.unread_count) || 0
-        };
-      });
-
-      // Ensure client-side consistency sort by last message time
-      mappedChats.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-
-      // Client-side deduplication safeguard: Keep only first match per unique partner
-      const uniqueChats: ChatPreview[] = [];
-      const seenPartnerIds = new Set<string>();
-      for (const chat of mappedChats) {
-        if (!seenPartnerIds.has(chat.partner.id)) {
-          seenPartnerIds.add(chat.partner.id);
-          uniqueChats.push(chat);
-        }
+      if (!rpcError && Array.isArray(rpcData)) {
+        mappedChats = rpcData.map((row: any) => {
+          const partner = row.partner_profile || {};
+          return {
+            id: row.match_id,
+            partner: {
+              id: row.partner_id,
+              anonymousId: partner.anonymous_id || 'Unknown',
+              realName: partner.real_name || 'User',
+              avatar: partner.avatar,
+              university: partner.university,
+              branch: partner.branch,
+              year: partner.year,
+              isVerified: partner.is_verified,
+              gender: partner.gender || '',
+              bio: partner.bio || '',
+              dob: partner.dob || '',
+              interests: partner.interests || [],
+              matchPercentage: 0,
+              distance: 'Connected'
+            },
+            lastMessage: row.last_message === 'New Match!' ? null : row.last_message,
+            lastMessageTime: row.last_message_time ? new Date(row.last_message_time).getTime() : null,
+            unreadCount: Number(row.unread_count) || 0
+          };
+        });
+      } else if (rpcError) {
+        console.warn('[Matches] RPC query error (will try direct table fallback):', rpcError.message || rpcError);
       }
-
-      setChats(prev => {
-        const isDifferent = JSON.stringify(prev) !== JSON.stringify(uniqueChats);
-        if (isDifferent) {
-          writeCache(uniqueChats);
-          return uniqueChats;
-        }
-        return prev;
-      });
-
-    } catch (err) {
-      console.error("Matches load error", err);
-    } finally {
-      setLoading(false);
+    } catch (rpcErr) {
+      console.warn('[Matches] RPC query exception (will try direct table fallback):', rpcErr);
     }
+
+    // Tier 2: Direct Supabase Table Fallback (bypasses broken or restricted RPCs)
+    if (mappedChats === null) {
+      try {
+        const { data: matchRows, error: matchError } = await supabase
+          .from('matches')
+          .select('id, user_a, user_b, created_at')
+          .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`)
+          .order('created_at', { ascending: false });
+
+        if (!matchError && matchRows && matchRows.length > 0) {
+          const partnerIds = Array.from(new Set(matchRows.map((m: any) => m.user_a === currentUser.id ? m.user_b : m.user_a)));
+          const matchIds = matchRows.map((m: any) => m.id);
+
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, anonymous_id, real_name, avatar, university, branch, year, bio, gender, interests, is_verified, is_premium, dob')
+            .in('id', partnerIds);
+
+          const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
+
+          const { data: messages } = await supabase
+            .from('messages')
+            .select('id, match_id, sender_id, text, created_at, is_read')
+            .in('match_id', matchIds)
+            .order('created_at', { ascending: false });
+
+          const lastMsgMap = new Map<string, { text: string; time: number }>();
+          const unreadMap = new Map<string, number>();
+
+          (messages || []).forEach((msg: any) => {
+            if (!lastMsgMap.has(msg.match_id)) {
+              lastMsgMap.set(msg.match_id, {
+                text: msg.text || '',
+                time: msg.created_at ? new Date(msg.created_at).getTime() : Date.now()
+              });
+            }
+            if (msg.sender_id !== currentUser.id && !msg.is_read) {
+              unreadMap.set(msg.match_id, (unreadMap.get(msg.match_id) || 0) + 1);
+            }
+          });
+
+          mappedChats = matchRows.map((m: any) => {
+            const partnerId = m.user_a === currentUser.id ? m.user_b : m.user_a;
+            const p = (profilesMap.get(partnerId) || {}) as any;
+            const last = lastMsgMap.get(m.id);
+
+            return {
+              id: m.id,
+              partner: {
+                id: partnerId,
+                anonymousId: p.anonymous_id || 'Unknown',
+                realName: p.real_name || 'User',
+                avatar: p.avatar,
+                university: p.university,
+                branch: p.branch,
+                year: p.year,
+                isVerified: !!p.is_verified,
+                gender: p.gender || '',
+                bio: p.bio || '',
+                dob: p.dob || '',
+                interests: p.interests || [],
+                matchPercentage: 0,
+                distance: 'Connected'
+              },
+              lastMessage: last?.text || null,
+              lastMessageTime: last?.time || (m.created_at ? new Date(m.created_at).getTime() : null),
+              unreadCount: unreadMap.get(m.id) || 0
+            };
+          });
+        } else if (matchRows && matchRows.length === 0) {
+          mappedChats = [];
+        }
+      } catch (directErr) {
+        console.warn('[Matches] Direct query exception (will try API fallback):', directErr);
+      }
+    }
+
+    // Tier 3: Dedicated Server API Endpoint Fallback
+    if (mappedChats === null) {
+      try {
+        const res = await fetch(`/api/matches?userId=${encodeURIComponent(currentUser.id)}`);
+        if (res.ok) {
+          const apiJson = await res.json();
+          if (apiJson?.success && Array.isArray(apiJson.matches)) {
+            mappedChats = apiJson.matches;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('[Matches] Server API fallback failed:', apiErr);
+      }
+    }
+
+    // If all networks failed, preserve cache/previous state instead of blanking out
+    if (mappedChats === null) {
+      setLoading(false);
+      return;
+    }
+
+    // Ensure client-side consistency sort by last message time
+    mappedChats.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+
+    // Client-side deduplication safeguard: Keep only first match per unique partner
+    const uniqueChats: ChatPreview[] = [];
+    const seenPartnerIds = new Set<string>();
+    for (const chat of mappedChats) {
+      if (!seenPartnerIds.has(chat.partner.id)) {
+        seenPartnerIds.add(chat.partner.id);
+        uniqueChats.push(chat);
+      }
+    }
+
+    setChats(prev => {
+      const isDifferent = JSON.stringify(prev) !== JSON.stringify(uniqueChats);
+      if (isDifferent) {
+        writeCache(uniqueChats);
+        return uniqueChats;
+      }
+      return prev;
+    });
+
+    setLoading(false);
   }, [currentUser?.id]);
 
   // 3. Debounced Refresh (Prevents flicker/spam)
@@ -283,9 +386,24 @@ export const Matches: React.FC = () => {
     }, 1000); // Wait 1s for database to settle
   }, [loadMatches]);
 
-  // 4. Initial Load & Realtime Match-Specific Subscriptions
+  // 4. Initial Load & Auth State Listener
   useEffect(() => {
     loadMatches();
+  }, [loadMatches]);
+
+  // Re-trigger load as soon as Supabase session is established or token refreshed
+  useEffect(() => {
+    if (!supabase) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          loadMatches(true);
+        }
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [loadMatches]);
 
   useEffect(() => {

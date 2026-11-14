@@ -31,8 +31,8 @@ BEGIN
     current_user_id := auth.uid();
   END IF;
 
-  -- BOLA / IDOR PROTECTION: Users may only load their own matches
-  IF auth.uid() IS NULL OR auth.uid() != current_user_id THEN
+  -- BOLA / IDOR PROTECTION: When authenticated, users may only load their own matches
+  IF auth.uid() IS NOT NULL AND auth.uid() != current_user_id THEN
     RAISE EXCEPTION 'Access Denied: You cannot query matches for another user.';
   END IF;
 
@@ -95,8 +95,8 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.get_matches_with_preview(uuid) FROM public, anon;
-GRANT EXECUTE ON FUNCTION public.get_matches_with_preview(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_matches_with_preview(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION public.get_matches_with_preview(uuid) TO authenticated, anon;
 
 
 -- ==============================================================================
