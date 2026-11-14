@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat,
-  Maximize, Minimize, Search, X, Plus, ThumbsUp, ThumbsDown,
+  Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
+  Maximize, Minimize, Search, X, Plus,
   Bookmark, Share2, Send, MessageSquare, Music, Loader,
   Check, ChevronRight, Disc, Flame, ChevronDown, MoreVertical,
   Users, Clock, RefreshCw
@@ -128,9 +128,6 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
   const [chatInput, setChatInput] = useState('');
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
-  const [isLiked, setIsLiked] = useState<boolean | null>(null);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [isRepeat, setIsRepeat] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Floating live reaction emojis
@@ -1129,15 +1126,7 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
               {/* Controls Row: Admin Playback or Normal Live Reactions */}
               {isAdmin ? (
                 /* Admin Playback Controls */
-                <div className="flex items-center justify-between px-2 py-2">
-                  <button
-                    onClick={() => setIsShuffle(s => !s)}
-                    className={`p-2 transition-colors ${isShuffle ? 'text-white' : 'text-gray-400'}`}
-                    title="Shuffle"
-                  >
-                    <Shuffle className="w-5 h-5" />
-                  </button>
-
+                <div className="flex items-center justify-center gap-8 px-2 py-2">
                   <button
                     onClick={() => {
                       sendYtCommand('seekTo', [0, true]);
@@ -1168,14 +1157,6 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
                     title="Next"
                   >
                     <SkipForward className="w-7 h-7 fill-current" />
-                  </button>
-
-                  <button
-                    onClick={() => setIsRepeat(r => !r)}
-                    className={`p-2 transition-colors ${isRepeat ? 'text-white' : 'text-gray-400'}`}
-                    title="Repeat"
-                  >
-                    <Repeat className="w-5 h-5" />
                   </button>
                 </div>
               ) : (
@@ -1491,24 +1472,9 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
               <p className="text-sm font-semibold text-white truncate">{currentTrack?.song || 'No Song Playing'}</p>
               <p className="text-xs text-gray-400 truncate">{currentTrack?.singers || 'Sparx FM'}</p>
             </div>
-
-            <div className="hidden sm:flex items-center gap-1 ml-2 shrink-0">
-              <button
-                onClick={() => setIsLiked(prev => prev === true ? null : true)}
-                className={`p-2 rounded-full transition-colors ${isLiked === true ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-              >
-                <ThumbsUp className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setIsLiked(prev => prev === false ? null : false)}
-                className={`p-2 rounded-full transition-colors ${isLiked === false ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-              >
-                <ThumbsDown className="w-4 h-4" />
-              </button>
-            </div>
           </div>
 
-          {/* RIGHT: Volume, CC, Shuffle, Repeat, Fullscreen */}
+          {/* RIGHT: Volume & Fullscreen */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="hidden sm:flex items-center gap-2">
               <button
@@ -1530,33 +1496,6 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
                 className="w-16 sm:w-20 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-white"
               />
             </div>
-
-            <button
-              onClick={() => setActiveTab(prev => prev === 'LYRICS' ? 'UP NEXT' : 'LYRICS')}
-              className={`p-2 rounded-full transition-colors ${activeTab === 'LYRICS' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-              title="Lyrics"
-            >
-              <span className="font-mono text-xs font-bold border border-current px-1 py-0.5 rounded">CC</span>
-            </button>
-
-            {isAdmin && (
-              <>
-                <button
-                  onClick={() => setIsRepeat(prev => !prev)}
-                  className={`p-2 rounded-full hidden sm:block ${isRepeat ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-                  title="Repeat"
-                >
-                  <Repeat className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setIsShuffle(prev => !prev)}
-                  className={`p-2 rounded-full hidden sm:block ${isShuffle ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-                  title="Shuffle"
-                >
-                  <Shuffle className="w-4 h-4" />
-                </button>
-              </>
-            )}
 
             <button
               onClick={toggleFullscreen}
