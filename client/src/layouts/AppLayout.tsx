@@ -82,7 +82,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     if (!mounted || isLoading) return;
 
     const PUBLIC_ROUTES = ['/', '/login', '/confessions', '/about', '/privacy', '/terms', '/guidelines', '/contact', '/safety', '/maintenance', '/blog', '/vs-omegle', '/careers', '/reddit', '/developers'];
-    const isPublicSEOPath = pathname.startsWith('/vs/') || pathname.startsWith('/campus/') || pathname.startsWith('/tea/');
+    // SEO-01: blog article URLs (/blog/<slug>) are public, same as the /blog
+    // index. PUBLIC_ROUTES only exact-matches, so without this prefix check
+    // guests were redirected to /login even though the sitemap lists the posts.
+    const isPublicSEOPath = pathname.startsWith('/vs/') || pathname.startsWith('/campus/') || pathname.startsWith('/tea/') || pathname.startsWith('/blog/');
 
     // If unauthenticated and accessing a protected view, send to login
     if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && !isPublicSEOPath && pathname !== '/onboarding') {
@@ -104,7 +107,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
 
     // If needs onboarding and attempting to access a protected route, redirect to onboarding
-    if (currentUser && needsOnboarding && !PUBLIC_ROUTES.includes(pathname) && pathname !== '/onboarding') {
+    if (currentUser && needsOnboarding && !PUBLIC_ROUTES.includes(pathname) && !isPublicSEOPath && pathname !== '/onboarding') {
       router.replace('/onboarding');
     }
   }, [mounted, isLoading, currentUser, needsOnboarding, pathname, router]);
