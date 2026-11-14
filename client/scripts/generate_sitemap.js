@@ -61,7 +61,7 @@ const staticPages = [
   { loc: `https://${host}/terms`, priority: '0.50', changefreq: 'monthly' },
   { loc: `https://${host}/privacy`, priority: '0.50', changefreq: 'monthly' },
   { loc: `https://${host}/careers`, priority: '0.50', changefreq: 'monthly' },
-  { loc: `https://${host}/developers`, priority: '0.50', changefreq: 'monthly' },
+  { loc: `https://${host}/team`, priority: '0.50', changefreq: 'monthly' },
 ];
 
 let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
