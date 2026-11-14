@@ -85,7 +85,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     // SEO-01: blog article URLs (/blog/<slug>) are public, same as the /blog
     // index. PUBLIC_ROUTES only exact-matches, so without this prefix check
     // guests were redirected to /login even though the sitemap lists the posts.
-    const isPublicSEOPath = pathname.startsWith('/vs/') || pathname.startsWith('/campus/') || pathname.startsWith('/tea/') || pathname.startsWith('/blog/');
+    // SEO-02: same for compatibility pages (/compatibility/<type>-and-<type>).
+    // They are generic, precomputed pair results; the only login-gated action
+    // is the "find your match" CTA, which stays a link to /login.
+    const isPublicSEOPath = pathname.startsWith('/vs/') || pathname.startsWith('/campus/') || pathname.startsWith('/tea/') || pathname.startsWith('/blog/') || pathname.startsWith('/compatibility/');
 
     // If unauthenticated and accessing a protected view, send to login
     if (!currentUser && !PUBLIC_ROUTES.includes(pathname) && !isPublicSEOPath && pathname !== '/onboarding') {
