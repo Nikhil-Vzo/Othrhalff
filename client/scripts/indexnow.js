@@ -53,7 +53,7 @@ const staticUrls = [
   `https://${host}/terms`,
   `https://${host}/privacy`,
   `https://${host}/careers`,
-  `https://${host}/developers`,
+  `https://${host}/team`,
 ];
 
 const blogUrls = uniqueBlogSlugs.map(slug => `https://${host}/blog/${slug}`);
