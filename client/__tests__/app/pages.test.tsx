@@ -135,7 +135,7 @@ import SparxCinemaPage from '../../app/sparx/cinema/page';
 import SparxMusicPage from '../../app/sparx/music/page';
 import ProfilePage from '../../app/profile/page';
 import ProfileByIdPage from '../../app/profile/[id]/page';
-import DevelopersPage from '../../app/developers/page';
+import DevelopersPage from '../../app/team/page';
 import ConfessionsPage from '../../app/confessions/page';
 import BlogPage from '../../app/blog/page';
 import AboutPage from '../../app/about/page';
@@ -289,7 +289,7 @@ describe('Profile [id] page (app/profile/[id]/page.tsx)', () => {
   });
 });
 
-describe('Developers page (app/developers/page.tsx)', () => {
+describe('Team page (app/team/page.tsx)', () => {
   it('renders without throwing', () => {
     expect(() => render(<DevelopersPage />)).not.toThrow();
   });
@@ -408,4 +408,4 @@ describe('Maintenance page (app/maintenance/page.tsx)', () => {
     render(<MaintenancePage />);
     expect(screen.getByText(/invalid/i)).toBeInTheDocument();
   });
-});
+});
