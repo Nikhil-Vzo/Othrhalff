@@ -48,7 +48,6 @@ const staticPages = [
   { loc: `https://${host}/sparx/music`, priority: '0.90', changefreq: 'daily' },
   { loc: `https://${host}/playground`, priority: '0.85', changefreq: 'daily' },
   { loc: `https://${host}/vibe`, priority: '0.85', changefreq: 'weekly' },
-  { loc: `https://${host}/vs-omegle`, priority: '0.90', changefreq: 'weekly' },
   { loc: `https://${host}/vs/omegle`, priority: '0.90', changefreq: 'weekly' },
   { loc: `https://${host}/vs/tinder`, priority: '0.85', changefreq: 'weekly' },
   { loc: `https://${host}/vs/bumble`, priority: '0.85', changefreq: 'weekly' },
