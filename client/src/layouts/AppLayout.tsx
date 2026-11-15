@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home, ArrowRight, Lock } from 'lucide-react';
+import { Ghost, Search, MessageCircle, Bell, CalendarHeart, User, MessageSquarePlus, Sparkles, MoreHorizontal, Zap, Gamepad2, Home, Lock, Menu } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StarField } from '../components/StarField';
 import { supabase } from '../lib/supabase';
@@ -158,64 +158,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
-    { 
-      path: '/discover', 
-      icon: Search, 
-      label: 'Discover', 
-      featured: {
-        tag: 'LIVE',
-        glowColor: 'rgba(244,63,94,0.25)',
-        gradient: 'from-rose-500/20 via-pink-500/15 to-purple-600/20',
-        border: 'border-pink-500/35 hover:border-pink-400/70',
-        iconBg: 'bg-pink-500/20 text-pink-300 border border-pink-500/30',
-        textColor: 'text-white',
-        badgeBg: 'bg-rose-500/25 text-rose-200 border border-rose-500/40',
-        pulseColor: 'bg-rose-400'
-      }
-    },
+    { path: '/discover', icon: Search, label: 'Discover' },
     { 
       path: '/playground', 
       icon: PLAYGROUND_CONFIG.isLocked ? Lock : Gamepad2, 
-      label: 'Playground', 
-      featured: PLAYGROUND_CONFIG.isLocked ? {
-        tag: 'LOCKED',
-        glowColor: 'rgba(255,0,127,0.3)',
-        gradient: 'from-pink-500/20 via-purple-500/15 to-rose-500/20',
-        border: 'border-pink-500/40 hover:border-pink-400/70',
-        iconBg: 'bg-pink-500/20 text-pink-300 border border-pink-500/30',
-        textColor: 'text-white',
-        badgeBg: 'bg-pink-500/25 text-pink-200 border border-pink-500/40',
-        pulseColor: 'bg-pink-400'
-      } : {
-        tag: '2D WORLD',
-        glowColor: 'rgba(139,92,246,0.25)',
-        gradient: 'from-violet-500/20 via-purple-500/15 to-cyan-500/20',
-        border: 'border-violet-500/35 hover:border-cyan-400/70',
-        iconBg: 'bg-violet-500/20 text-cyan-300 border border-violet-500/30',
-        textColor: 'text-white',
-        badgeBg: 'bg-cyan-500/25 text-cyan-200 border border-cyan-500/40',
-        pulseColor: 'bg-cyan-400'
-      }
+      label: 'Playground' 
     },
     { path: '/matches', icon: MessageCircle, label: 'Messages', badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { path: '/notifications', icon: Bell, label: 'Notifications', isPulse: unreadCount > 0 },
     { path: '/confessions', icon: MessageSquarePlus, label: 'Confessions' },
-    { 
-      path: '/sparx', 
-      icon: Zap, 
-      label: 'Sparx', 
-      featured: {
-        tag: 'HOT',
-        glowColor: 'rgba(217,70,239,0.25)',
-        gradient: 'from-fuchsia-500/20 via-pink-500/15 to-amber-500/20',
-        border: 'border-fuchsia-500/35 hover:border-amber-400/70',
-        iconBg: 'bg-fuchsia-500/20 text-amber-300 border border-fuchsia-500/30',
-        textColor: 'text-white',
-        badgeBg: 'bg-amber-500/25 text-amber-200 border border-amber-500/40',
-        pulseColor: 'bg-amber-400'
-      }
-    },
-    { path: '/profile', icon: User, label: 'My Profile' },
+    { path: '/sparx', icon: Zap, label: 'Sparx' },
+    { path: '/profile', icon: User, label: 'Profile', isProfile: true },
   ];
 
   const isHome = pathname === '/home';
@@ -227,15 +180,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
       {/* Desktop Sidebar Placeholder to prevent layout shift */}
       {!isFullscreen && (
-        <div className="hidden md:block shrink-0 h-full bg-black z-10 w-[280px]" />
+        <div className="hidden md:block shrink-0 h-full bg-black z-10 w-[245px]" />
       )}
 
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar (Instagram Web Style) */}
       {!isFullscreen && (
-        <aside className="hidden md:flex flex-col bg-black z-50 absolute left-0 top-0 bottom-0 w-[280px] shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+        <aside className="hidden md:flex flex-col bg-black z-50 absolute left-0 top-0 bottom-0 w-[245px] border-r border-[#262626]">
         <div className="w-full flex flex-col h-full">
           {/* Brand Header */}
-          <div className="p-8 pb-4 flex justify-start">
+          <div className="px-6 pt-9 pb-6 flex justify-start">
             <div
               role="button"
               tabIndex={0}
@@ -245,173 +198,84 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               aria-label="Go to home"
             >
               <div className="relative shrink-0">
-                <Ghost className="w-8 h-8 text-neon drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] group-hover:rotate-12 transition-transform duration-300" />
+                <Ghost className="w-7 h-7 text-neon drop-shadow-[0_0_8px_rgba(255,0,127,0.5)] group-hover:scale-105 transition-transform duration-200" />
                 <Sparkles className="w-3 h-3 text-white absolute -top-1 -right-1 animate-pulse" />
               </div>
-              <div className="flex flex-col overflow-hidden whitespace-nowrap max-w-[200px] opacity-100">
-                <h1 className="text-2xl font-black text-white tracking-tighter uppercase leading-none flex gap-1">
+              <div className="flex flex-col overflow-hidden whitespace-nowrap">
+                <h1 className="text-2xl font-bold text-white tracking-tight leading-none flex gap-1">
                   <span>Othr</span>
                   <span className="text-neon">Halff</span>
                 </h1>
-                <span className="text-[9px] font-bold text-gray-500 tracking-[0.3em] uppercase pl-0.5 group-hover:text-neon transition-colors duration-300">
+                <span className="text-[8.5px] font-semibold text-neutral-500 tracking-[0.25em] uppercase pt-0.5">
                   Campus Connect
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto custom-scrollbar overflow-x-hidden">
-            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-3">
-              Menu
-            </div>
-
+          {/* Navigation Items (Instagram Style) */}
+          <nav className="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
             {navItems.map((item: any) => {
               const active = isActive(item.path);
-              const featured = item.featured;
 
-              if (featured) {
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => handleNavClick(item.path)}
-                    className={`w-full relative group flex items-center justify-between gap-3 p-2 px-3 rounded-2xl transition-all duration-300 ease-out border overflow-hidden active:scale-[0.98] ${
-                      active
-                        ? `bg-gradient-to-r ${featured.gradient} ${featured.border} shadow-[0_0_24px_${featured.glowColor}] text-white ring-1 ring-white/20`
-                        : `bg-gradient-to-r ${featured.gradient} ${featured.border} shadow-[0_0_12px_${featured.glowColor}] hover:shadow-[0_0_22px_${featured.glowColor}] hover:brightness-125 text-white backdrop-blur-md`
-                    }`}
-                  >
-                    {/* Active Indicator Bar */}
-                    {active && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-r-full shadow-[0_0_10px_#ffffff]" />
-                    )}
-
-                    {/* Ambient Hover Shimmer Sheen Layer */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
-
-                    {/* Left content: Glowing Icon Container + Label */}
-                    <div className="relative z-10 flex items-center gap-2.5 min-w-0">
-                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm ${featured.iconBg}`}>
-                        <item.icon className="w-3.5 h-3.5 drop-shadow-sm" strokeWidth={2.5} />
-                      </div>
-
-                      <span className="text-[13px] font-black tracking-wide text-white drop-shadow-sm whitespace-nowrap">
-                        {item.label}
-                      </span>
-                    </div>
-
-                    {/* Right Content: Badge + Sleek Animated Arrow */}
-                    <div className="relative z-10 flex items-center gap-1.5 ml-auto shrink-0">
-                      {featured.tag && (
-                        <span className={`text-[8.5px] font-black tracking-wider px-1.5 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm ${featured.badgeBg}`}>
-                          <span className={`w-1 h-1 rounded-full animate-ping ${featured.pulseColor}`} />
-                          {featured.tag}
-                        </span>
-                      )}
-                      <ArrowRight className="w-3.5 h-3.5 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
-                    </div>
-                  </button>
-                );
-              }
-
-              // Standard Nav Items (Home, Messages, Notifications, Confessions, Profile)
               return (
                 <button
                   key={item.path}
                   onClick={() => handleNavClick(item.path)}
-                  className={`w-full relative group flex items-center justify-between gap-3 p-2 px-3 rounded-2xl transition-all duration-300 ease-out border overflow-hidden active:scale-[0.98] ${
+                  className={`w-full h-12 px-3.5 my-0.5 rounded-xl flex items-center gap-4 text-[15px] transition-all duration-150 select-none group active:scale-[0.98] ${
                     active
-                      ? 'bg-gray-900/90 border-neon/40 text-white shadow-[0_0_18px_rgba(255,0,127,0.18)]'
-                      : 'bg-transparent border-transparent text-gray-400 hover:bg-gray-900/60 hover:text-white hover:border-gray-800/80'
+                      ? 'text-white font-bold bg-white/[0.08]'
+                      : 'text-neutral-200 font-normal hover:bg-white/[0.05] hover:text-white'
                   }`}
                 >
-                  {/* Active Indicator Line */}
-                  {active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-neon rounded-r-full shadow-[0_0_10px_#ff007f]" />
-                  )}
+                  <div className="relative shrink-0 flex items-center justify-center">
+                    {item.isProfile ? (
+                      <div className={`w-6 h-6 rounded-full overflow-hidden transition-all duration-150 ${
+                        active ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'border border-neutral-700'
+                      }`}>
+                        {currentUser?.avatar ? (
+                          <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
+                        ) : (
+                          <div className="w-full h-full bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-white">
+                            {currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <item.icon
+                        className={`w-6 h-6 transition-transform duration-200 group-hover:scale-105 ${
+                          active ? 'stroke-[2.5] text-white' : 'stroke-[1.75] text-neutral-200 group-hover:text-white'
+                        }`}
+                      />
+                    )}
 
-                  {/* Left content: Icon + Label */}
-                  <div className="relative z-10 flex items-center gap-2.5 min-w-0">
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 ${
-                      active ? 'bg-neon/15 text-neon' : 'text-gray-400 group-hover:text-white group-hover:scale-110'
-                    }`}>
-                      <item.icon className="w-4 h-4" strokeWidth={active ? 2.5 : 2} />
-                    </div>
-
-                    <span className={`text-[13px] font-bold tracking-wide whitespace-nowrap truncate transition-colors duration-300 ${
-                      active ? 'text-white font-black' : 'text-gray-400 group-hover:text-white'
-                    }`}>
-                      {item.label}
-                    </span>
-                  </div>
-
-                  {/* Right Content: Badge or Pulse Indicator */}
-                  {item.badge ? (
-                    <div className="ml-auto relative z-10 flex items-center gap-2 opacity-100">
-                      <span className="bg-neon text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-[0_0_10px_rgba(255,0,127,0.5)]">
+                    {/* Instagram-style badge directly on the icon */}
+                    {item.badge ? (
+                      <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 bg-[#ff007f] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
                         {item.badge}
                       </span>
-                    </div>
-                  ) : item.isPulse ? (
-                    <div className="ml-auto relative z-10 flex items-center opacity-100">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-neon"></span>
-                      </span>
-                    </div>
-                  ) : null}
+                    ) : item.isPulse ? (
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#ff007f] ring-2 ring-black" />
+                    ) : null}
+                  </div>
+
+                  <span className={`truncate tracking-normal ${active ? 'font-bold text-white' : 'font-normal text-neutral-200'}`}>
+                    {item.label}
+                  </span>
                 </button>
               );
             })}
           </nav>
 
-          {/* User Profile Card */}
-          <div className="p-4 border-t border-gray-900/50 bg-black/50">
-            <div
-              role="button"
-              tabIndex={0}
+          {/* Instagram-style Bottom "More" Button */}
+          <div className="p-3 border-t border-[#262626]">
+            <button
               onClick={() => handleNavClick('/profile')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNavClick('/profile'); } }}
-              aria-label="Go to your profile"
-              className="relative group rounded-2xl bg-gradient-to-b from-black to-black border border-gray-800 hover:border-neon/30 transition-all duration-300 cursor-pointer overflow-hidden flex items-center p-3 justify-start"
+              className="w-full h-12 px-3.5 rounded-xl flex items-center gap-4 text-[15px] font-normal text-neutral-200 hover:text-white hover:bg-white/[0.05] transition-all duration-150 select-none group active:scale-[0.98]"
             >
-              {/* Glow Effect */}
-              <div className="absolute inset-0 bg-neon/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-              <div className="flex items-center gap-3 relative z-10 w-full">
-                {/* Avatar */}
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-700 group-hover:border-neon transition-colors duration-300">
-                    {currentUser?.avatar ? (
-                      <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
-                    ) : (
-                      <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">{currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-black rounded-full animate-pulse shadow-md"></div>
-                </div>
-
-                {/* Info */}
-                <div className="overflow-hidden whitespace-nowrap max-w-[150px] opacity-100 transition-all duration-300">
-                  <p className="text-sm font-bold text-white truncate group-hover:text-neon transition-colors">
-                    {currentUser?.realName || 'Anonymous'}
-                  </p>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-neon/50"></div>
-                    <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wider truncate">
-                      {currentUser?.anonymousId || 'GUEST'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Options Icon */}
-                <div className="text-gray-600 hover:text-white transition-colors duration-300 shrink-0 max-w-[20px] opacity-100 ml-auto">
-                  <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
-                </div>
-              </div>
-            </div>
+              <Menu className="w-6 h-6 shrink-0 transition-transform duration-200 group-hover:scale-105 stroke-[1.75] text-white" />
+              <span>More</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -456,85 +320,65 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           pathname.startsWith('/sparx/cinema') ||
           pathname.startsWith('/sparx/music')
         ) && (
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe pointer-events-none">
-            {/* The main bar background */}
-            <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/95 backdrop-blur-md border-t-[1.5px] border-gray-800 pointer-events-auto" />
-            
-            {/* The center bump */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 h-20 bg-black/95 backdrop-blur-md rounded-full border-t-[1.5px] border-gray-800 pointer-events-auto flex items-center justify-center overflow-hidden">
-               {/* Inner glow for the bump */}
-               <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent opacity-30" />
-            </div>
-
-            {/* Glowing arc line over the bump */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full border-t-2 border-neon/50 shadow-[0_-5px_15px_rgba(255,0,127,0.3)] pointer-events-none" />
-            
-            {/* Nav Items Container */}
-            <div className="relative z-10 grid grid-cols-5 h-16 w-full items-center pointer-events-auto">
-              
-              {/* 1. Confess */}
-              <button
-                onClick={() => handleNavClick('/confessions')}
-                className={`flex flex-col items-center justify-center gap-1 ${isActive('/confessions') ? 'text-white' : 'text-gray-500'}`}
-              >
-                <MessageSquarePlus className={`w-5 h-5 transition-transform ${isActive('/confessions') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/confessions') ? 2.5 : 2} />
-                <span className="text-[9px] font-bold tracking-wider">CONFESS</span>
-              </button>
-
-              {/* 2. Discover (Replaced Playground on Mobile) */}
-              <button
-                onClick={() => handleNavClick('/discover')}
-                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/discover') ? 'text-white' : 'text-gray-500'}`}
-              >
-                <div className="relative">
-                  <Search className={`w-5 h-5 transition-transform ${isActive('/discover') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/discover') ? 2.5 : 2} />
-                  <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-neon animate-ping" />
-                  <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-neon shadow-[0_0_6px_#ff007f]" />
-                </div>
-                <span className="text-[9px] font-bold tracking-wider uppercase">DISCOVER</span>
-              </button>
-
-              {/* 3. Center Spacer */}
-              <div className="w-full h-full" />
-
-              {/* 4. Sparx */}
-              <button
-                onClick={() => handleNavClick('/sparx')}
-                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/sparx') ? 'text-white' : 'text-gray-500'}`}
-              >
-                <div className="relative">
-                  <Zap className={`w-5 h-5 transition-transform ${isActive('/sparx') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/sparx') ? 2.5 : 2} />
-                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
-                </div>
-                <span className="text-[9px] font-bold tracking-wider">SPARX</span>
-              </button>
-
-              {/* 5. Chats */}
-              <button
-                onClick={() => handleNavClick('/matches')}
-                className={`flex flex-col items-center justify-center gap-1 relative ${isActive('/matches') ? 'text-white' : 'text-gray-500'}`}
-              >
-                <div className="relative">
-                  <MessageCircle className={`w-5 h-5 transition-transform ${isActive('/matches') ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : ''}`} strokeWidth={isActive('/matches') ? 2.5 : 2} />
-                  {unreadMessageCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] flex items-center justify-center bg-neon text-white text-[8px] font-bold rounded-full px-1 shadow-[0_0_5px_rgba(255,0,127,0.5)]">
-                      {unreadMessageCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[9px] font-bold tracking-wider">CHATS</span>
-              </button>
-            </div>
-
-            {/* Center Floating Button (Home) */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-md border-t border-[#262626] pb-safe h-14 flex items-center justify-around px-2">
+            {/* 1. Home */}
             <button
               onClick={() => handleNavClick('/home')}
-              className="absolute left-1/2 -translate-x-1/2 bottom-8 w-14 h-14 flex flex-col items-center justify-center rounded-full z-20 transition-transform active:scale-95 pointer-events-auto"
+              className="flex items-center justify-center p-2 text-white active:scale-90 transition-transform"
+              aria-label="Home"
             >
-              <div className={`w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr ${isActive('/home') ? 'from-neon to-purple-600 shadow-[0_0_20px_rgba(255,0,127,0.8)]' : 'from-gray-800 to-gray-700 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'}`}>
-                <Home className={`w-6 h-6 ${isActive('/home') ? 'text-white' : 'text-gray-300'}`} strokeWidth={2.5} />
+              <Home className={`w-6 h-6 ${isActive('/home') ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
+            </button>
+
+            {/* 2. Discover */}
+            <button
+              onClick={() => handleNavClick('/discover')}
+              className="flex items-center justify-center p-2 text-white active:scale-90 transition-transform"
+              aria-label="Discover"
+            >
+              <Search className={`w-6 h-6 ${isActive('/discover') ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
+            </button>
+
+            {/* 3. Confessions (Create) */}
+            <button
+              onClick={() => handleNavClick('/confessions')}
+              className="flex items-center justify-center p-2 text-white active:scale-90 transition-transform"
+              aria-label="Confessions"
+            >
+              <MessageSquarePlus className={`w-6 h-6 ${isActive('/confessions') ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
+            </button>
+
+            {/* 4. Messages (DMs) */}
+            <button
+              onClick={() => handleNavClick('/matches')}
+              className="relative flex items-center justify-center p-2 text-white active:scale-90 transition-transform"
+              aria-label="Messages"
+            >
+              <MessageCircle className={`w-6 h-6 ${isActive('/matches') ? 'stroke-[2.5]' : 'stroke-[1.75]'}`} />
+              {unreadMessageCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 bg-[#ff007f] text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-md">
+                  {unreadMessageCount}
+                </span>
+              )}
+            </button>
+
+            {/* 5. Profile */}
+            <button
+              onClick={() => handleNavClick('/profile')}
+              className="flex items-center justify-center p-2 active:scale-90 transition-transform"
+              aria-label="Profile"
+            >
+              <div className={`w-6 h-6 rounded-full overflow-hidden transition-all duration-150 ${
+                isActive('/profile') ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'border border-neutral-700'
+              }`}>
+                {currentUser?.avatar ? (
+                  <img src={getOptimizedUrl(currentUser.avatar, 64)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={handleImageError} />
+                ) : (
+                  <div className="w-full h-full bg-neutral-800 flex items-center justify-center text-[9px] font-bold text-white">
+                    {currentUser?.anonymousId ? currentUser.anonymousId.slice(-2) : '??'}
+                  </div>
+                )}
               </div>
-              {isActive('/home') && <span className="absolute -bottom-5 text-[10px] font-bold text-neon tracking-wider drop-shadow-[0_0_4px_rgba(255,0,127,0.8)]">HOME</span>}
             </button>
           </nav>
         )}

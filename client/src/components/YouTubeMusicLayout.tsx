@@ -1003,12 +1003,12 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
   const getTabLabel = (tab: TabType, isMobile: boolean) => {
     if (tab === 'UP NEXT') return isMobile ? 'Up next' : 'UP NEXT';
     if (tab === 'LYRICS') return isMobile ? 'Lyrics' : 'LYRICS';
-    if (tab === 'LIVE CHAT') return isMobile ? 'Comments' : 'LIVE CHAT';
+    if (tab === 'LIVE CHAT') return isMobile ? 'Live chat' : 'LIVE CHAT';
     if (tab === 'REQUESTED SONGS') {
       const count = pendingRequests.length;
       return isMobile ? `Requested (${count})` : `REQUESTED SONGS${count > 0 ? ` (${count})` : ''}`;
     }
-    return isMobile ? 'Related' : 'REQUEST A SONG';
+    return isMobile ? 'Request a song' : 'REQUEST A SONG';
   };
 
   return (
@@ -1062,38 +1062,40 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
               </button>
             </div>
 
-            {/* 16:9 Video Player */}
-            <div className="w-full aspect-video bg-black flex items-center justify-center shrink-0 relative overflow-hidden">
-              {youtubeVideoId && isMobileView ? (
-                <iframe
-                  ref={mobileIframeRef}
-                  key={youtubeVideoId}
-                  id="yt-mobile-video"
-                  src={iframeSrc}
-                  title={currentTrack?.song || 'YouTube Video'}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full object-cover pointer-events-none"
-                  onLoad={handleIframeLoad}
-                />
-              ) : (
-                <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#120815] to-[#050510] p-4 text-center">
-                  {currentTrack?.image && (
-                    <img
-                      src={currentTrack.image.replace('150x150', '500x500')}
-                      alt={currentTrack.song}
-                      className="w-28 h-28 rounded-xl object-cover shadow-2xl mb-2 border border-white/10"
-                    />
-                  )}
-                  <h3 className="text-base font-bold text-white line-clamp-1">{currentTrack?.song || 'Select a song'}</h3>
-                  <p className="text-xs text-gray-400 line-clamp-1">{currentTrack?.singers || 'Sparx FM'}</p>
-                </div>
-              )}
+            {/* 16:9 Video Player (Centered & spaced down from top header) */}
+            <div className="flex-1 flex items-center justify-center px-4 py-2 min-h-0">
+              <div className="w-full max-w-md aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center relative">
+                {youtubeVideoId && isMobileView ? (
+                  <iframe
+                    ref={mobileIframeRef}
+                    key={youtubeVideoId}
+                    id="yt-mobile-video"
+                    src={iframeSrc}
+                    title={currentTrack?.song || 'YouTube Video'}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full object-cover pointer-events-none"
+                    onLoad={handleIframeLoad}
+                  />
+                ) : (
+                  <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#120815] to-[#050510] p-4 text-center">
+                    {currentTrack?.image && (
+                      <img
+                        src={currentTrack.image.replace('150x150', '500x500')}
+                        alt={currentTrack.song}
+                        className="w-28 h-28 rounded-xl object-cover shadow-2xl mb-2 border border-white/10"
+                      />
+                    )}
+                    <h3 className="text-base font-bold text-white line-clamp-1">{currentTrack?.song || 'Select a song'}</h3>
+                    <p className="text-xs text-gray-400 line-clamp-1">{currentTrack?.singers || 'Sparx FM'}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Middle Section: Title, Scrubber, Playback Controls */}
-            <div className="flex-1 flex flex-col justify-center px-6 py-2 min-h-0">
+            {/* Bottom Player Section: Title, Scrubber, Playback Controls (Shifted down near bottom tabs) */}
+            <div className="shrink-0 px-6 pt-2 pb-5 min-h-0">
               {/* Song Title and Artist */}
               <div className="mb-4 text-left">
                 <h1 className="text-2xl font-black text-white tracking-tight line-clamp-1">
@@ -1126,7 +1128,7 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
               {/* Controls Row: Admin Playback or Normal Live Reactions */}
               {isAdmin ? (
                 /* Admin Playback Controls */
-                <div className="flex items-center justify-center gap-8 px-2 py-2">
+                <div className="flex items-center justify-center gap-8 px-2 py-1">
                   <button
                     onClick={() => {
                       sendYtCommand('seekTo', [0, true]);
@@ -1161,7 +1163,7 @@ export const YouTubeMusicLayout: React.FC<YouTubeMusicLayoutProps> = ({
                 </div>
               ) : (
                 /* Normal User Live Reaction Emojis (No Play/Pause/Skip buttons) */
-                <div className="flex flex-col items-center justify-center py-2">
+                <div className="flex flex-col items-center justify-center py-1">
                   <span className="text-[11px] font-semibold text-gray-400 mb-2 tracking-wide uppercase">
                     Tap to react with beat
                   </span>
