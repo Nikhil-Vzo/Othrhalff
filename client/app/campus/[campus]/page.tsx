@@ -24,6 +24,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `Othrhalff ${campus.name} – Campus Community & Anonymous Confessions`;
   const description = `The exclusive campus connection and anonymous confession app for verified ${campus.name} students in ${campus.location}. Match 1-on-1 with campus peers via text & HD video. Join ${campus.studentsCount} students.`;
 
+  // Honest share copy: no user counts. The old OG image rendered
+  // "{studentsCount} Verified Students" — that is university enrolment, not
+  // Othrhalff users. The meta description above still carries the old line;
+  // it is fixed in the follow-up meta-cleanup change, not here.
+  const ogSubtitle = `Find people from your own college in ${campus.location}`;
+  const ogImageUrl = `https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(ogSubtitle)}&type=campus`;
+  const ogDescription = `Find people from your own college in ${campus.location} — study partners, gym buddies, anonymous confessions, and real friendships on Othrhalff.`;
+
   return {
     title,
     description,
@@ -32,12 +40,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     openGraph: {
       title,
-      description,
+      description: ogDescription,
       url: `https://www.othrhalff.in/campus/${campus.slug}`,
       type: 'website',
       images: [
         {
-          url: `https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(`${campus.location} • Campus Connect & Chat`)}&students=${encodeURIComponent(`${campus.studentsCount} Verified Students`)}&type=campus`,
+          url: ogImageUrl,
           width: 1200,
           height: 630,
           alt: `${campus.name} Community & Confessions`,
@@ -47,8 +55,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: 'summary_large_image',
       title: `${campus.name} Community, Confessions & Campus Chat | Othrhalff`,
-      description: `Join verified ${campus.name} students on Othrhalff. Anonymous confessions, campus-only matching, and student chat.`,
-      images: [`https://www.othrhalff.in/api/og?title=${encodeURIComponent(campus.name)}&subtitle=${encodeURIComponent(`${campus.location} • Campus Connect & Chat`)}&students=${encodeURIComponent(`${campus.studentsCount} Verified Students`)}&type=campus`],
+      description: `Anonymous confessions, campus-only matching, and student chat for ${campus.name} students on Othrhalff.`,
+      images: [ogImageUrl],
     },
   };
 }
