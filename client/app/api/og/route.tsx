@@ -10,11 +10,9 @@ export async function GET(req: NextRequest) {
     const title = searchParams.get('title') || 'Othrhalff';
     const subtitle = searchParams.get('subtitle') || 'Campus Community & Anonymous Confessions';
     const category = searchParams.get('category') || 'CAMPUS HUB';
-    const students = searchParams.get('students') || 'Verified Students';
     const type = searchParams.get('type') || 'campus';
 
     const isTea = type === 'tea';
-    const accentColor = isTea ? '#FF007F' : '#F45D9B';
     const badgeText = isTea ? '🍵 ANONYMOUS CAMPUS TEA' : '⚡ VERIFIED CAMPUS NETWORK';
 
     return new ImageResponse(
@@ -27,9 +25,9 @@ export async function GET(req: NextRequest) {
             flexDirection: 'column',
             justifyContent: 'space-between',
             padding: '60px 70px',
-            backgroundColor: '#07030d',
+            backgroundColor: '#FF007F',
             backgroundImage:
-              'radial-gradient(circle at 15% 20%, rgba(244, 93, 155, 0.22) 0%, transparent 45%), radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 45%)',
+              'linear-gradient(135deg, #FF007F 0%, #F45D9B 55%, #FF6B9D 100%)',
             fontFamily: 'sans-serif',
             color: 'white',
           }}
@@ -42,12 +40,13 @@ export async function GET(req: NextRequest) {
                   width: '46px',
                   height: '46px',
                   borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #FF007F, #9333EA)',
+                  backgroundColor: 'white',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 900,
                   fontSize: '24px',
+                  color: '#FF007F',
                 }}
               >
                 O
@@ -64,12 +63,11 @@ export async function GET(req: NextRequest) {
                 gap: '8px',
                 padding: '8px 18px',
                 borderRadius: '999px',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                backgroundColor: 'white',
                 fontSize: '13px',
                 fontWeight: 700,
                 letterSpacing: '0.12em',
-                color: accentColor,
+                color: '#FF007F',
               }}
             >
               {badgeText}
@@ -83,7 +81,7 @@ export async function GET(req: NextRequest) {
                 fontSize: '14px',
                 fontWeight: 800,
                 letterSpacing: '0.2em',
-                color: 'rgba(255, 255, 255, 0.5)',
+                color: 'rgba(255, 255, 255, 0.75)',
                 textTransform: 'uppercase',
               }}
             >
@@ -107,7 +105,7 @@ export async function GET(req: NextRequest) {
               style={{
                 fontSize: '22px',
                 fontWeight: 500,
-                color: 'rgba(255, 255, 255, 0.7)',
+                color: 'rgba(255, 255, 255, 0.9)',
                 lineHeight: 1.35,
                 margin: 0,
               }}
@@ -116,31 +114,23 @@ export async function GET(req: NextRequest) {
             </p>
           </div>
 
-          {/* Footer */}
+          {/* Footer — no user counts: the old footer rendered "{studentsCount} Verified
+              Students" from campus data, which is university enrolment, not Othrhalff
+              users. Keep only the honest 18+ rule and the site address. */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingTop: '24px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              borderTop: '1px solid rgba(255, 255, 255, 0.35)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: '#10B981',
-                }}
-              />
-              <span style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: 600 }}>
-                {students}
-              </span>
-            </div>
+            <span style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.85)', fontWeight: 600 }}>
+              18+ · Students only
+            </span>
 
-            <div style={{ fontSize: '15px', color: accentColor, fontWeight: 700, letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '15px', color: 'white', fontWeight: 700, letterSpacing: '0.05em' }}>
               www.othrhalff.in
             </div>
           </div>
