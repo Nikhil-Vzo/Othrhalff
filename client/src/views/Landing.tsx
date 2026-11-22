@@ -933,6 +933,32 @@ export const Landing: React.FC = () => {
             >
               <MagneticButton onClick={onEnter}>Find Your People</MagneticButton>
             </div>
+
+            {/* PeerPush Launch Badge */}
+            <div
+              className="mt-6 flex items-center justify-center"
+              style={{
+                opacity: textRevealed ? 1 : 0,
+                transform: textRevealed ? 'translateY(0)' : 'translateY(20px)',
+                transition: 'all .6s ease-out 1.2s'
+              }}
+            >
+              <a
+                href="https://peerpush.com/p/othrhalff"
+                target="_blank"
+                rel="noopener"
+                className="inline-block transition-transform duration-300 hover:scale-105 active:scale-95"
+              >
+                <img
+                  src="https://peerpush.com/p/othrhalff/badge.png"
+                  alt="OthrHalff on PeerPush"
+                  width={230}
+                  height={65}
+                  loading="lazy"
+                  style={{ width: '230px', height: 'auto' }}
+                />
+              </a>
+            </div>
           </div>
         </main>
       </header>

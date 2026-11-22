@@ -105,8 +105,23 @@ export const Footer: React.FC = () => (
         </div>
       </div>
 
-      <div className="border-t border-white/10 pt-8 text-xs text-zinc-400">
+      <div className="border-t border-white/10 pt-8 text-xs text-zinc-400 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="font-medium">© {new Date().getFullYear()} Othrhalff Inc. All rights reserved.</span>
+        <a
+          href="https://peerpush.com/p/othrhalff"
+          target="_blank"
+          rel="noopener"
+          className="inline-block transition-transform duration-300 hover:scale-105 active:scale-95"
+        >
+          <img
+            src="https://peerpush.com/p/othrhalff/badge.png"
+            alt="OthrHalff on PeerPush"
+            width={230}
+            height={65}
+            loading="lazy"
+            style={{ width: '200px', height: 'auto' }}
+          />
+        </a>
       </div>
     </div>
 
